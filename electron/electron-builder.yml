@@ -1,0 +1,32 @@
+appId: com.snkrfeature.desktop
+productName: snkrfeature
+copyright: Copyright (c) 2026 snkrfeature
+directories:
+  output: dist
+  buildResources: build
+files:
+  - main.js
+  - preload.js
+  - package.json
+mac:
+  category: public.app-category.sports
+  target:
+    - target: dmg
+      arch:
+        - universal
+  icon: build/icon.png
+  identity: null
+dmg:
+  writeUpdateInfo: false
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.png
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

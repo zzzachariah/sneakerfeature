@@ -1,0 +1,19 @@
+{
+  "name": "snkrfeature-desktop",
+  "version": "0.1.0",
+  "description": "Desktop wrapper for snkrfeature.com",
+  "private": true,
+  "main": "main.js",
+  "author": "snkrfeature",
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
