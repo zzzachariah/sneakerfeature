@@ -143,3 +143,40 @@ snkrfeature is still early, but the mission is simple:
 ---
 
 🌐 **Visit:** https://snkrfeature.com
+
+---
+
+## 💻 Desktop App
+
+snkrfeature also ships as a desktop application for macOS and Windows. The
+desktop app mirrors the website experience and stays in sync with snkrfeature.com
+automatically.
+
+### Download
+
+Grab the latest installer from the [Releases page](https://github.com/zzzachariah/snkrfeature/releases).
+
+- **macOS** — download the `.dmg`, drag snkrfeature into Applications. On first
+  launch, right-click the app → **Open** to bypass the "unidentified developer"
+  prompt (the build is currently unsigned; signing is planned).
+- **Windows** — download the `.exe` installer. SmartScreen may show a warning
+  on first run; click **More info** → **Run anyway**.
+
+The app requires an internet connection.
+
+### Build locally
+
+```bash
+cd electron
+npm install
+npm start          # launch the app pointing at production
+```
+
+Set `ELECTRON_DEV=1` to open DevTools, or `SNKRFEATURE_URL=http://localhost:3000`
+to point the app at your local Next.js dev server.
+
+### Release a new desktop version
+
+Push a tag matching `desktop-v*` (e.g. `desktop-v0.1.0`) to trigger the
+`Build Desktop Apps` GitHub Actions workflow. It builds installers on macOS and
+Windows runners and attaches them to a GitHub Release automatically.

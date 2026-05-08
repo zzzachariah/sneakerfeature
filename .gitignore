@@ -4,3 +4,7 @@ out/
 .env
 .env.local
 .DS_Store
+
+# Electron desktop wrapper
+electron/dist/
+electron/node_modules/
