@@ -79,16 +79,46 @@ export function weightedSpecScore(
   spec: ShoeSpec | null | undefined,
   focus: RatingFocus
 ): number {
-  const s = dimScores(spec);
+  return weightedCombinedScore(dimScores(spec), focus);
+}
+
+export function weightedCombinedScore(
+  combined: Record<DimKey, number>,
+  focus: RatingFocus
+): number {
   const picked = new Set<DimKey>([focus.primary, focus.secondary, focus.tertiary]);
   const others = DIM_KEYS.filter((k) => !picked.has(k));
   const otherWeight = others.length > 0 ? FOCUS_WEIGHTS.others / others.length : 0;
   return (
-    s[focus.primary] * FOCUS_WEIGHTS.primary +
-    s[focus.secondary] * FOCUS_WEIGHTS.secondary +
-    s[focus.tertiary] * FOCUS_WEIGHTS.tertiary +
-    others.reduce((sum, k) => sum + s[k] * otherWeight, 0)
+    combined[focus.primary] * FOCUS_WEIGHTS.primary +
+    combined[focus.secondary] * FOCUS_WEIGHTS.secondary +
+    combined[focus.tertiary] * FOCUS_WEIGHTS.tertiary +
+    others.reduce((sum, k) => sum + combined[k] * otherWeight, 0)
   );
+}
+
+/**
+ * Blend spec-derived 0-100 dim scores with average user dim ratings (0.5-5
+ * stars, scaled by ×20 to align with the 0-100 spec scale). When no users
+ * have rated a shoe, fall back to spec-only.
+ */
+export function combineDimScores(
+  spec: ShoeSpec | null | undefined,
+  userDimAverages: Partial<Record<DimKey, number>> | null | undefined,
+  userRatingCount: number
+): Record<DimKey, number> {
+  const specScores = dimScores(spec);
+  if (!userDimAverages || userRatingCount < 1) return specScores;
+  const out = {} as Record<DimKey, number>;
+  for (const k of DIM_KEYS) {
+    const userAvgStars = userDimAverages[k];
+    if (userAvgStars === undefined || userAvgStars === null) {
+      out[k] = specScores[k];
+    } else {
+      out[k] = 0.5 * specScores[k] + 0.5 * userAvgStars * 20;
+    }
+  }
+  return out;
 }
 
 export function percentileToStars(percentile: number): number {

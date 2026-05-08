@@ -24,13 +24,20 @@ export const deleteComparisonSchema = z.object({
   id: z.string().uuid("Invalid comparison identifier.")
 });
 
+const dimRatingValue = z
+  .number()
+  .min(0.5, "Rating must be at least 0.5.")
+  .max(5, "Rating must be at most 5.")
+  .refine((v) => Math.round(v * 2) === v * 2, "Rating must be in 0.5 increments.");
+
 export const ratingUpsertSchema = z.object({
   shoeId: z.string().uuid("Invalid shoe identifier."),
-  rating: z
-    .number()
-    .min(0.5, "Rating must be at least 0.5.")
-    .max(5, "Rating must be at most 5.")
-    .refine((v) => Math.round(v * 2) === v * 2, "Rating must be in 0.5 increments.")
+  cushioning_feel: dimRatingValue,
+  court_feel: dimRatingValue,
+  bounce: dimRatingValue,
+  stability: dimRatingValue,
+  traction: dimRatingValue,
+  fit: dimRatingValue
 });
 
 export const ratingDeleteSchema = z.object({

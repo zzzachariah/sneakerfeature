@@ -14,6 +14,7 @@ import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
+import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import type { Shoe, ShoeImageRecord } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -402,6 +403,15 @@ function OverviewSlide({
             )}
           </div>
 
+          {shoe.dimStars ? (
+            <div className="mt-4 max-w-md rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.4)] p-3">
+              <p className="mb-2 text-[0.65rem] uppercase tracking-[0.14em] soft-text">
+                {translate("By dimension")}
+              </p>
+              <DimRatingList stars={shoe.dimStars} size="sm" />
+            </div>
+          ) : null}
+
           <div className="mt-5 flex flex-wrap gap-2">
             {(shoe.spec.tags ?? []).map((tag) => (
               <Badge key={tag}>
@@ -647,9 +657,7 @@ function CommentsSlide({ shoe, specStars, isLoggedIn, active }: Props & { active
         <CommentSection
           shoeId={shoe.id}
           specStars={specStars}
-          initialMyRating={shoe.myRating ?? null}
-          initialAvg={shoe.avgUserRating ?? null}
-          initialCount={shoe.userRatingCount ?? 0}
+          initialMyDimRatings={shoe.myDimRatings ?? null}
           isLoggedIn={isLoggedIn}
         />
       </div>

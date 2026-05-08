@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn, Star } from "lucide-react";
+import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { TurnstileWidget } from "@/components/ui/turnstile";
-import { StarRating } from "@/components/shoe/star-rating";
+import { DimRatingForm } from "@/components/detail/dim-rating-form";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { computeFinalStars } from "@/lib/star-rating";
+import type { DimKey } from "@/lib/star-rating";
 
 type CommentItem = {
   id: string;
@@ -25,18 +25,14 @@ type CommentItem = {
 type CommentSectionProps = {
   shoeId: string;
   specStars?: number | null;
-  initialMyRating?: number | null;
-  initialAvg?: number | null;
-  initialCount?: number;
+  initialMyDimRatings?: Partial<Record<DimKey, number>> | null;
   isLoggedIn?: boolean;
 };
 
 export function CommentSection({
   shoeId,
   specStars,
-  initialMyRating = null,
-  initialAvg = null,
-  initialCount = 0,
+  initialMyDimRatings = null,
   isLoggedIn
 }: CommentSectionProps) {
   const { translate } = useLocale();
@@ -48,16 +44,8 @@ export function CommentSection({
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [myRating, setMyRating] = useState<number | null>(initialMyRating);
-  const [aggSum, setAggSum] = useState<number>((initialAvg ?? 0) * (initialCount ?? 0));
-  const [aggCount, setAggCount] = useState<number>(initialCount ?? 0);
-  const [ratingBusy, setRatingBusy] = useState(false);
-  const [ratingMessage, setRatingMessage] = useState("");
-  const [ratingIsError, setRatingIsError] = useState(false);
 
-  const aggAvg = aggCount > 0 ? aggSum / aggCount : null;
   const focusReady = typeof specStars === "number";
-  const ratingFinal = focusReady ? computeFinalStars(specStars as number, aggAvg, aggCount) : null;
   const ratingLoggedIn = isLoggedIn ?? Boolean(userId);
 
   const canSubmit = useMemo(() => content.trim().length >= 3 && Boolean(userId), [content, userId]);
@@ -129,85 +117,14 @@ export function CommentSection({
     if (data.ok) await loadComments();
   }
 
-  async function submitRating(next: number) {
-    setRatingBusy(true);
-    setRatingMessage("");
-    const response = await fetch("/api/ratings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shoeId, rating: next })
-    });
-    const data = await response.json();
-    if (data.ok) {
-      const prev = myRating;
-      setAggSum((prevSum) => prevSum - (prev ?? 0) + next);
-      if (prev === null) setAggCount((c) => c + 1);
-      setMyRating(next);
-      setRatingIsError(false);
-      setRatingMessage(translate(prev === null ? "Rating saved." : "Rating updated."));
-    } else {
-      setRatingIsError(true);
-      setRatingMessage(data.message ?? translate("Vote failed"));
-    }
-    setRatingBusy(false);
-  }
-
-  async function clearRating() {
-    if (myRating === null) return;
-    setRatingBusy(true);
-    setRatingMessage("");
-    const response = await fetch("/api/ratings", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shoeId })
-    });
-    const data = await response.json();
-    if (data.ok) {
-      const prev = myRating;
-      setAggSum((prevSum) => prevSum - (prev ?? 0));
-      setAggCount((c) => Math.max(0, c - 1));
-      setMyRating(null);
-      setRatingIsError(false);
-      setRatingMessage(translate("Rating cleared."));
-    } else {
-      setRatingIsError(true);
-      setRatingMessage(data.message ?? translate("Vote failed"));
-    }
-    setRatingBusy(false);
-  }
-
   return (
     <section className="space-y-4">
-    {focusReady && ratingFinal !== null ? (
-    <div className="surface-card premium-border rounded-3xl p-5 md:p-6">
-      <div className="flex items-center gap-2">
-        <Star className="h-4 w-4 text-amber-400" />
-        <h3 className="text-lg font-medium">{translate("Your rating")}</h3>
-      </div>
-      <p className="mt-1 text-xs soft-text">{translate("Min 0.5, max 5.0, in 0.5 steps.")}</p>
-      <div className="mt-3">
-        <StarRating
-          value={ratingFinal}
-          userRating={myRating}
-          interactive
-          isLoggedIn={ratingLoggedIn}
-          onSubmit={submitRating}
-          onClear={clearRating}
-          size="lg"
-          showNumber
-          count={aggCount}
-          busy={ratingBusy}
-        />
-      </div>
-      {!ratingLoggedIn && (
-        <p className="mt-2 text-xs soft-text">{translate("Sign in to rate")}</p>
-      )}
-      {ratingMessage && (
-        <div className="mt-2">
-          <FeedbackMessage message={ratingMessage} isError={ratingIsError} />
-        </div>
-      )}
-    </div>
+    {focusReady ? (
+      <DimRatingForm
+        shoeId={shoeId}
+        initialMyRatings={initialMyDimRatings}
+        isLoggedIn={ratingLoggedIn}
+      />
     ) : null}
     <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
       <aside className="surface-card premium-border rounded-3xl p-5 md:p-6">

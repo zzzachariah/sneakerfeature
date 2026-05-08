@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { ratingDeleteSchema, ratingUpsertSchema } from "@/lib/validation/schemas";
+import { DIM_KEYS, type DimKey } from "@/lib/star-rating";
 
 async function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -20,6 +22,12 @@ async function getSupabase() {
   });
 }
 
+function invalidateRatingViews() {
+  revalidatePath("/", "layout");
+}
+
+type DimRow = Record<DimKey, number | string | null> & { user_id?: string };
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const shoeId = searchParams.get("shoeId");
@@ -29,28 +37,40 @@ export async function GET(request: Request) {
 
   const supabase = await getSupabase();
   if (!supabase) {
-    return NextResponse.json({ ok: true, avg: null, count: 0, myRating: null });
+    return NextResponse.json({ ok: true, count: 0, dimAvgs: null, myDimRatings: null });
   }
 
   const { data: rows, error } = await supabase
     .from("shoe_ratings")
-    .select("rating, user_id")
+    .select("user_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
     .eq("shoe_id", shoeId);
 
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
 
-  const all = rows ?? [];
-  const sum = all.reduce((s, r) => s + Number(r.rating), 0);
-  const avg = all.length ? sum / all.length : null;
+  const all = (rows ?? []) as DimRow[];
+  const count = all.length;
+  const dimAvgs: Partial<Record<DimKey, number>> | null =
+    count > 0 ? Object.fromEntries(DIM_KEYS.map((k) => [k, 0])) : null;
+  if (dimAvgs) {
+    for (const r of all) {
+      for (const k of DIM_KEYS) dimAvgs[k] = (dimAvgs[k] ?? 0) + Number(r[k] ?? 0);
+    }
+    for (const k of DIM_KEYS) dimAvgs[k] = (dimAvgs[k] ?? 0) / count;
+  }
 
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  const myRating = user
-    ? (all.find((r) => r.user_id === user.id)?.rating as number | undefined) ?? null
-    : null;
+  let myDimRatings: Partial<Record<DimKey, number>> | null = null;
+  if (user) {
+    const own = all.find((r) => r.user_id === user.id);
+    if (own) {
+      myDimRatings = {};
+      for (const k of DIM_KEYS) myDimRatings[k] = Number(own[k] ?? 0);
+    }
+  }
 
-  return NextResponse.json({ ok: true, avg, count: all.length, myRating });
+  return NextResponse.json({ ok: true, count, dimAvgs, myDimRatings });
 }
 
 export async function POST(request: Request) {
@@ -75,6 +95,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Authentication required." }, { status: 401 });
   }
 
+  const payload = {
+    cushioning_feel: parsed.data.cushioning_feel,
+    court_feel: parsed.data.court_feel,
+    bounce: parsed.data.bounce,
+    stability: parsed.data.stability,
+    traction: parsed.data.traction,
+    fit: parsed.data.fit
+  };
+
   const { data: existing, error: existingError } = await supabase
     .from("shoe_ratings")
     .select("id")
@@ -89,24 +118,26 @@ export async function POST(request: Request) {
   if (existing) {
     const { error: updateError } = await supabase
       .from("shoe_ratings")
-      .update({ rating: parsed.data.rating, updated_at: new Date().toISOString() })
+      .update({ ...payload, updated_at: new Date().toISOString() })
       .eq("id", existing.id);
     if (updateError) {
       return NextResponse.json({ ok: false, message: updateError.message }, { status: 400 });
     }
+    invalidateRatingViews();
     return NextResponse.json({ ok: true, message: "Rating updated." });
   }
 
   const { error: insertError } = await supabase.from("shoe_ratings").insert({
     shoe_id: parsed.data.shoeId,
     user_id: user.id,
-    rating: parsed.data.rating
+    ...payload
   });
 
   if (insertError) {
     return NextResponse.json({ ok: false, message: insertError.message }, { status: 400 });
   }
 
+  invalidateRatingViews();
   return NextResponse.json({ ok: true, message: "Rating saved." });
 }
 
@@ -140,5 +171,6 @@ export async function DELETE(request: Request) {
 
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
 
+  invalidateRatingViews();
   return NextResponse.json({ ok: true, message: "Rating cleared." });
 }

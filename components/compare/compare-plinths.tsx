@@ -6,6 +6,7 @@ import { Shoe } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
+import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 
@@ -14,6 +15,7 @@ type Props = {
   onRemove: (id: string) => void;
   onAdd: () => void;
   canAdd: boolean;
+  showRatingDetail?: boolean;
 };
 
 function gridTemplate(count: number, hasAddGhost: boolean) {
@@ -25,7 +27,7 @@ function gridTemplate(count: number, hasAddGhost: boolean) {
   return "grid-cols-2 md:grid-cols-3 lg:grid-cols-5";
 }
 
-export function ComparePlinths({ shoes, onRemove, onAdd, canAdd }: Props) {
+export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetail = false }: Props) {
   const { translate } = useLocale();
   const count = shoes.length;
   const hideDescriptor = count >= 4;
@@ -38,6 +40,7 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd }: Props) {
     hideDescriptor,
     tagLimit,
     onRemove,
+    showRatingDetail,
     translateLabel: translate
   });
 
@@ -72,12 +75,14 @@ function ShoePlinth({
   hideDescriptor,
   tagLimit,
   onRemove,
+  showRatingDetail,
   translateLabel
 }: {
   shoe: Shoe;
   hideDescriptor: boolean;
   tagLimit: number;
   onRemove: (id: string) => void;
+  showRatingDetail: boolean;
   translateLabel: (value: string) => string;
 }) {
   return (
@@ -131,6 +136,12 @@ function ShoePlinth({
           count={shoe.userRatingCount ?? 0}
         />
       </div>
+
+      {showRatingDetail && shoe.dimStars ? (
+        <div className="mb-4 rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.4)] p-3">
+          <DimRatingList stars={shoe.dimStars} size="sm" />
+        </div>
+      ) : null}
 
       {!hideDescriptor && shoe.spec.playstyle_summary ? (
         <DynamicTranslatedText
