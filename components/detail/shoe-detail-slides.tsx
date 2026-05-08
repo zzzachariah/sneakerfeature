@@ -13,7 +13,7 @@ import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
-import { StarRating } from "@/components/shoe/star-rating";
+import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import type { Shoe, ShoeImageRecord } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -65,8 +65,8 @@ type Props = {
   hasStory: boolean;
   storyTitle: string | undefined;
   storyContent: string | undefined;
-  specStars: number;
-  finalStars: number;
+  specStars: number | null;
+  finalStars: number | null;
 };
 
 const HASH_TO_INDEX: Record<string, number> = {
@@ -385,19 +385,21 @@ function OverviewSlide({
           )}
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <StarRating
+            <StarRatingSlot
               value={finalStars}
               size="lg"
               showNumber
               count={shoe.userRatingCount ?? 0}
             />
-            <button
-              type="button"
-              onClick={onJumpToComments}
-              className="text-xs underline-offset-2 soft-text hover:underline"
-            >
-              {translate("Rate this")}
-            </button>
+            {finalStars !== null && (
+              <button
+                type="button"
+                onClick={onJumpToComments}
+                className="text-xs underline-offset-2 soft-text hover:underline"
+              >
+                {translate("Rate this")}
+              </button>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">

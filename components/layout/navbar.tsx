@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Languages, Menu, Search, Sparkles, X } from "lucide-react";
+import { Check, Languages, Menu, Search, Sliders, Sparkles, X } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
+import { DIM_LABELS } from "@/lib/star-rating";
 import { createClient } from "@/lib/supabase/client";
 import { NAV_ORDER } from "@/lib/nav-order";
 
@@ -25,8 +27,10 @@ const NAV_LABELS: Record<(typeof NAV_ORDER)[number], string> = {
 export function Navbar() {
   const pathname = usePathname();
   const { locale, requestLocaleChange, translate } = useLocale();
+  const { focus: ratingFocus, isLoggedIn: focusLoggedIn, openModal: openFocusModal } = useRatingFocus();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  const [focusOpen, setFocusOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -75,6 +79,13 @@ export function Navbar() {
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, [langOpen]);
+
+  useEffect(() => {
+    if (!focusOpen) return;
+    const onClick = () => setFocusOpen(false);
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [focusOpen]);
 
   const navItems = useMemo(() => {
     return NAV_ORDER.filter((href) => href !== "/admin" || isAdmin).map((href) => ({
@@ -183,6 +194,69 @@ export function Navbar() {
             )}
           </div>
 
+          <div className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setFocusOpen((prev) => !prev)}
+              className={iconBtn}
+              aria-haspopup="menu"
+              aria-expanded={focusOpen}
+              aria-label={translate("Rating focus")}
+              title={translate("Rating focus")}
+            >
+              <Sliders className="h-4 w-4" />
+            </button>
+            {focusOpen && (
+              <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[15rem] rounded-xl p-2">
+                <p className="px-2 pb-1 text-[0.65rem] uppercase tracking-[0.14em] soft-text">
+                  {translate("Rating focus")}
+                </p>
+                {ratingFocus ? (
+                  <ul className="grid gap-0.5 px-1 pb-2 text-sm">
+                    <li className="flex items-center justify-between gap-2">
+                      <span>{translate("Primary")}</span>
+                      <span className="text-amber-300">
+                        {translate(DIM_LABELS[ratingFocus.primary])} · 40%
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-2">
+                      <span>{translate("Secondary")}</span>
+                      <span className="text-amber-300">
+                        {translate(DIM_LABELS[ratingFocus.secondary])} · 30%
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between gap-2">
+                      <span>{translate("Tertiary")}</span>
+                      <span className="text-amber-300">
+                        {translate(DIM_LABELS[ratingFocus.tertiary])} · 20%
+                      </span>
+                    </li>
+                  </ul>
+                ) : (
+                  <p className="px-1 pb-2 text-xs soft-text">
+                    {focusLoggedIn
+                      ? translate("Pick playstyle to see ratings")
+                      : translate("Sign in to pick playstyle")}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                  onClick={() => {
+                    setFocusOpen(false);
+                    if (!focusLoggedIn) {
+                      window.location.href = "/login";
+                      return;
+                    }
+                    openFocusModal();
+                  }}
+                >
+                  {ratingFocus ? translate("Edit playstyle") : translate("Pick playstyle")}
+                </button>
+              </div>
+            )}
+          </div>
+
           <ThemeToggle />
           <button
             type="button"
@@ -224,25 +298,55 @@ export function Navbar() {
                 {translate(item.label)}
               </Link>
               {item.href === "/dashboard" ? (
-                <div className="rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] p-2" data-translation-lock="true">
-                  <p className="px-1 pb-1 text-xs soft-text">{translate("Language")}</p>
-                  <div className="grid gap-1">
+                <>
+                  <div className="rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] p-2" data-translation-lock="true">
+                    <p className="px-1 pb-1 text-xs soft-text">{translate("Language")}</p>
+                    <div className="grid gap-1">
+                      <button
+                        type="button"
+                        onClick={() => requestLocaleChange("en")}
+                        className={`rounded-md px-2.5 py-2 text-left transition ${locale === "en" ? "bg-[rgb(var(--text)/0.09)] text-[rgb(var(--text))]" : "hover:bg-[rgb(var(--text)/0.05)]"}`}
+                      >
+                        English
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => requestLocaleChange("zh")}
+                        className={`rounded-md px-2.5 py-2 text-left transition ${locale === "zh" ? "bg-[rgb(var(--text)/0.09)] text-[rgb(var(--text))]" : "hover:bg-[rgb(var(--text)/0.05)]"}`}
+                      >
+                        中文
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] p-2">
+                    <p className="px-1 pb-1 text-xs soft-text">{translate("Rating focus")}</p>
+                    {ratingFocus ? (
+                      <p className="px-1 pb-2 text-xs soft-text">
+                        {translate(DIM_LABELS[ratingFocus.primary])} · {translate(DIM_LABELS[ratingFocus.secondary])} · {translate(DIM_LABELS[ratingFocus.tertiary])}
+                      </p>
+                    ) : (
+                      <p className="px-1 pb-2 text-xs soft-text">
+                        {focusLoggedIn
+                          ? translate("Pick playstyle to see ratings")
+                          : translate("Sign in to pick playstyle")}
+                      </p>
+                    )}
                     <button
                       type="button"
-                      onClick={() => requestLocaleChange("en")}
-                      className={`rounded-md px-2.5 py-2 text-left transition ${locale === "en" ? "bg-[rgb(var(--text)/0.09)] text-[rgb(var(--text))]" : "hover:bg-[rgb(var(--text)/0.05)]"}`}
+                      onClick={() => {
+                        setMobileOpen(false);
+                        if (!focusLoggedIn) {
+                          window.location.href = "/login";
+                          return;
+                        }
+                        openFocusModal();
+                      }}
+                      className="rounded-md bg-[rgb(var(--text)/0.06)] px-2.5 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.1)]"
                     >
-                      English
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => requestLocaleChange("zh")}
-                      className={`rounded-md px-2.5 py-2 text-left transition ${locale === "zh" ? "bg-[rgb(var(--text)/0.09)] text-[rgb(var(--text))]" : "hover:bg-[rgb(var(--text)/0.05)]"}`}
-                    >
-                      中文
+                      {ratingFocus ? translate("Edit playstyle") : translate("Pick playstyle")}
                     </button>
                   </div>
-                </div>
+                </>
               ) : null}
             </div>
           ))}

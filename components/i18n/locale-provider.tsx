@@ -411,6 +411,30 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "rating cleared.": "评分已清除。",
   "authentication required.": "请先登录后再评分。",
   "sign in to rate": "登录后可评分",
+
+  // Rating focus / playstyle
+  "playstyle": "打法",
+  "rating focus": "评分侧重",
+  "pick playstyle": "选打法",
+  "edit playstyle": "修改打法",
+  "clear playstyle": "清除打法",
+  "save playstyle": "保存打法",
+  "sign in to pick playstyle": "登录后选打法",
+  "how ratings work": "评分规则",
+  "primary": "主要",
+  "secondary": "次要",
+  "tertiary": "第三",
+  "pick three dimensions in order. the first is primary, then secondary, then tertiary.":
+    "依次选三个维度：第一个是主要，然后是次要、第三。",
+  "primary 40% · secondary 30% · tertiary 20% · others share 10%.":
+    "主要 40% · 次要 30% · 第三 20% · 其余三项共 10%。",
+  "ratings follow a bell curve based on every shoe's weighted score: 1-2 stars 20%, 3-4 stars 70%, 5 stars 10%.":
+    "评分按所有球鞋的加权分百分位呈正态分布：1-2 星 20%，3-4 星 70%，5 星 10%。",
+  "pick playstyle to see ratings": "选打法后查看评分",
+  "playstyle saved.": "打法已保存。",
+  "playstyle cleared.": "打法已清除。",
+  "save failed": "保存失败",
+  "clear failed": "清除失败",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

@@ -9,8 +9,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Input } from "@/components/ui/input";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeImage } from "@/components/shoe/shoe-image";
-import { StarRating } from "@/components/shoe/star-rating";
-import { computeFinalStars, specScoreToStars } from "@/lib/star-rating";
+import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 
 type SortKey = "shoe_name" | "brand" | "release_year" | "rating";
 
@@ -40,15 +39,6 @@ export function HomeTable({
     return () => window.clearTimeout(t);
   }, [active]);
 
-  const finalStarsById = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const shoe of shoes) {
-      const specStars = specScoreToStars(shoe.spec);
-      map.set(shoe.id, computeFinalStars(specStars, shoe.avgUserRating ?? null, shoe.userRatingCount ?? 0));
-    }
-    return map;
-  }, [shoes]);
-
   const filtered = useMemo(() => {
     const scored = shoes
       .map((shoe) => ({ shoe, score: rankShoeMatch(shoe, query) }))
@@ -59,8 +49,11 @@ export function HomeTable({
         if (query.trim() && b.score !== a.score) return b.score - a.score;
 
         if (sortKey === "rating") {
-          const av = finalStarsById.get(a.shoe.id) ?? 0;
-          const bv = finalStarsById.get(b.shoe.id) ?? 0;
+          const av = a.shoe.finalStars ?? null;
+          const bv = b.shoe.finalStars ?? null;
+          if (av === null && bv === null) return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
+          if (av === null) return 1;
+          if (bv === null) return -1;
           if (av !== bv) return sortDir === "asc" ? av - bv : bv - av;
           return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
         }
@@ -72,7 +65,7 @@ export function HomeTable({
         return 0;
       })
       .map(({ shoe }) => shoe);
-  }, [query, brand, shoes, sortDir, sortKey, finalStarsById]);
+  }, [query, brand, shoes, sortDir, sortKey]);
 
   const brands = Array.from(new Set(shoes.map((s) => s.brand)));
 
@@ -241,8 +234,8 @@ export function HomeTable({
                       ) : null}
                     </span>
                     <span className="mt-0.5">
-                      <StarRating
-                        value={finalStarsById.get(shoe.id) ?? 0}
+                      <StarRatingSlot
+                        value={shoe.finalStars ?? null}
                         size="sm"
                         showNumber
                         count={shoe.userRatingCount ?? 0}
@@ -376,8 +369,8 @@ export function HomeTable({
                     </td>
                     <td className="px-4 py-3 text-[0.78rem] soft-text">{shoe.release_year ?? "—"}</td>
                     <td className="px-4 py-3">
-                      <StarRating
-                        value={finalStarsById.get(shoe.id) ?? 0}
+                      <StarRatingSlot
+                        value={shoe.finalStars ?? null}
                         size="sm"
                         showNumber
                         count={shoe.userRatingCount ?? 0}

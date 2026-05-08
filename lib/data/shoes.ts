@@ -1,6 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
+import {
+  computeFinalStars,
+  isValidFocus,
+  percentileToStars,
+  rankScoresToPercentiles,
+  weightedSpecScore,
+  type RatingFocus
+} from "@/lib/star-rating";
 
 type ShoeRow = Omit<Shoe, "spec"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
 type ShoeStory = NonNullable<Shoe["story"]>;
@@ -34,6 +42,7 @@ export async function getShoes(): Promise<Shoe[]> {
 
   const aggregates = new Map<string, { sum: number; count: number }>();
   const myRatings = new Map<string, number>();
+  let focus: RatingFocus | null = null;
 
   if (shoeIds.length > 0) {
     const { data: ratingRows } = await supabase
@@ -57,19 +66,41 @@ export async function getShoes(): Promise<Shoe[]> {
         .eq("user_id", user.id)
         .in("shoe_id", shoeIds);
       for (const r of mine ?? []) myRatings.set(r.shoe_id, Number(r.rating));
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("rating_focus")
+        .eq("id", user.id)
+        .maybeSingle();
+      const raw = profile?.rating_focus;
+      if (isValidFocus(raw)) focus = raw;
     }
   }
 
-  return rows.map((row) => {
+  const specs = rows.map((row) => row.shoe_specs?.[0] ?? {});
+  let specStars: (number | null)[] = rows.map(() => null);
+  if (focus) {
+    const scores = specs.map((spec) => weightedSpecScore(spec, focus!));
+    const percentiles = rankScoresToPercentiles(scores);
+    specStars = percentiles.map((p) => percentileToStars(p));
+  }
+
+  return rows.map((row, idx) => {
     const agg = aggregates.get(row.id);
+    const avgUserRating = agg && agg.count > 0 ? agg.sum / agg.count : null;
+    const userRatingCount = agg?.count ?? 0;
+    const ss = specStars[idx];
+    const finalStars = ss === null ? null : computeFinalStars(ss, avgUserRating, userRatingCount);
     return {
       ...row,
       image_url: resolveApprovedImage(row.shoe_images)?.public_url ?? null,
-      spec: row.shoe_specs?.[0] ?? {},
+      spec: specs[idx],
       story: row.shoe_stories?.[0] ?? null,
-      avgUserRating: agg && agg.count > 0 ? agg.sum / agg.count : null,
-      userRatingCount: agg?.count ?? 0,
-      myRating: myRatings.get(row.id) ?? null
+      avgUserRating,
+      userRatingCount,
+      myRating: myRatings.get(row.id) ?? null,
+      specStars: ss,
+      finalStars
     };
   });
 }

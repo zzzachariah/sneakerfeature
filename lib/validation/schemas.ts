@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DIM_KEYS } from "@/lib/star-rating";
 
 export const authSchema = z.object({
   identifier: z.string().min(3, "Use at least 3 characters for username/email."),
@@ -35,6 +36,18 @@ export const ratingUpsertSchema = z.object({
 export const ratingDeleteSchema = z.object({
   shoeId: z.string().uuid("Invalid shoe identifier.")
 });
+
+const dimEnum = z.enum(DIM_KEYS);
+export const ratingFocusSchema = z
+  .object({
+    primary: dimEnum,
+    secondary: dimEnum,
+    tertiary: dimEnum
+  })
+  .refine(
+    (d) => new Set([d.primary, d.secondary, d.tertiary]).size === 3,
+    "Three picks must be distinct."
+  );
 
 export const submissionSchema = z.object({
   shoe_name: z.string().min(2),
