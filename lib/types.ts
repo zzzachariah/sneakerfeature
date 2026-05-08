@@ -39,6 +39,9 @@ export interface Shoe {
     source_label?: string | null;
     source_url?: string | null;
   } | null;
+  avgUserRating?: number | null;
+  userRatingCount?: number;
+  myRating?: number | null;
 }
 
 export interface ShoeImageRecord {

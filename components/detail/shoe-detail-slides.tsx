@@ -13,6 +13,7 @@ import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
+import { StarRating } from "@/components/shoe/star-rating";
 import type { Shoe, ShoeImageRecord } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -45,6 +46,7 @@ type Props = {
   shoe: Shoe;
   related: Shoe[];
   isAdmin: boolean;
+  isLoggedIn: boolean;
   imageState: ShoeDetailImageState;
   reviewImage: string | null | undefined;
   hasPendingImage: boolean;
@@ -63,6 +65,8 @@ type Props = {
   hasStory: boolean;
   storyTitle: string | undefined;
   storyContent: string | undefined;
+  specStars: number;
+  finalStars: number;
 };
 
 const HASH_TO_INDEX: Record<string, number> = {
@@ -213,7 +217,12 @@ export function ShoeDetailSlides(props: Props) {
         }}
       >
         <SlideFrame height={viewportHeight}>
-          <OverviewSlide {...props} active={slide === 0} onShareCard={() => setShareOpen(true)} />
+          <OverviewSlide
+            {...props}
+            active={slide === 0}
+            onShareCard={() => setShareOpen(true)}
+            onJumpToComments={() => goTo(3)}
+          />
         </SlideFrame>
         <SlideFrame height={viewportHeight}>
           <PerformanceSlide {...props} active={slide === 1} />
@@ -343,8 +352,10 @@ function OverviewSlide({
   onConfirmUpload,
   onCancelPreview,
   active,
-  onShareCard
-}: Props & { active: boolean; onShareCard: () => void }) {
+  onShareCard,
+  finalStars,
+  onJumpToComments
+}: Props & { active: boolean; onShareCard: () => void; onJumpToComments: () => void }) {
   const { translate } = useLocale();
   return (
     <div className={`flex h-full flex-col justify-center py-10 ${slideEntranceClass(active)}`}>
@@ -372,6 +383,22 @@ function OverviewSlide({
               {translate("No playstyle summary available yet.")}
             </p>
           )}
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <StarRating
+              value={finalStars}
+              size="lg"
+              showNumber
+              count={shoe.userRatingCount ?? 0}
+            />
+            <button
+              type="button"
+              onClick={onJumpToComments}
+              className="text-xs underline-offset-2 soft-text hover:underline"
+            >
+              {translate("Rate this")}
+            </button>
+          </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
             {(shoe.spec.tags ?? []).map((tag) => (
@@ -611,11 +638,18 @@ function StorySlide({ shoe, hasStory, storyTitle, storyContent, active }: Props 
   );
 }
 
-function CommentsSlide({ shoe, active }: Props & { active: boolean }) {
+function CommentsSlide({ shoe, specStars, isLoggedIn, active }: Props & { active: boolean }) {
   return (
     <div className={`flex h-full flex-col py-8 ${slideEntranceClass(active)}`}>
       <div data-detail-scroll-container className="h-full overflow-y-auto pr-2">
-        <CommentSection shoeId={shoe.id} />
+        <CommentSection
+          shoeId={shoe.id}
+          specStars={specStars}
+          initialMyRating={shoe.myRating ?? null}
+          initialAvg={shoe.avgUserRating ?? null}
+          initialCount={shoe.userRatingCount ?? 0}
+          isLoggedIn={isLoggedIn}
+        />
       </div>
     </div>
   );

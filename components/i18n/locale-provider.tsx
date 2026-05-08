@@ -398,6 +398,19 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
 
   // Misc UI strings
   "no submissions match current filters.": "没有符合当前筛选条件的投稿。",
+
+  // Star rating
+  "rating": "评分",
+  "your rating": "你的评分",
+  "rate this": "去打分",
+  "rate": "打分",
+  "clear my rating": "清除我的评分",
+  "min 0.5, max 5.0, in 0.5 steps.": "最低 0.5 星，最高 5 星，按 0.5 递增。",
+  "rating saved.": "评分已保存。",
+  "rating updated.": "评分已更新。",
+  "rating cleared.": "评分已清除。",
+  "authentication required.": "请先登录后再评分。",
+  "sign in to rate": "登录后可评分",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

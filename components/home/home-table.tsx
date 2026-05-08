@@ -9,8 +9,10 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Input } from "@/components/ui/input";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeImage } from "@/components/shoe/shoe-image";
+import { StarRating } from "@/components/shoe/star-rating";
+import { computeFinalStars, specScoreToStars } from "@/lib/star-rating";
 
-type SortKey = "shoe_name" | "brand" | "release_year";
+type SortKey = "shoe_name" | "brand" | "release_year" | "rating";
 
 export function HomeTable({
   shoes,
@@ -38,6 +40,15 @@ export function HomeTable({
     return () => window.clearTimeout(t);
   }, [active]);
 
+  const finalStarsById = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const shoe of shoes) {
+      const specStars = specScoreToStars(shoe.spec);
+      map.set(shoe.id, computeFinalStars(specStars, shoe.avgUserRating ?? null, shoe.userRatingCount ?? 0));
+    }
+    return map;
+  }, [shoes]);
+
   const filtered = useMemo(() => {
     const scored = shoes
       .map((shoe) => ({ shoe, score: rankShoeMatch(shoe, query) }))
@@ -47,6 +58,13 @@ export function HomeTable({
       .sort((a, b) => {
         if (query.trim() && b.score !== a.score) return b.score - a.score;
 
+        if (sortKey === "rating") {
+          const av = finalStarsById.get(a.shoe.id) ?? 0;
+          const bv = finalStarsById.get(b.shoe.id) ?? 0;
+          if (av !== bv) return sortDir === "asc" ? av - bv : bv - av;
+          return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
+        }
+
         const av = (a.shoe[sortKey] ?? "") as string | number;
         const bv = (b.shoe[sortKey] ?? "") as string | number;
         if (av < bv) return sortDir === "asc" ? -1 : 1;
@@ -54,7 +72,7 @@ export function HomeTable({
         return 0;
       })
       .map(({ shoe }) => shoe);
-  }, [query, brand, shoes, sortDir, sortKey]);
+  }, [query, brand, shoes, sortDir, sortKey, finalStarsById]);
 
   const brands = Array.from(new Set(shoes.map((s) => s.brand)));
 
@@ -222,6 +240,14 @@ export function HomeTable({
                         </>
                       ) : null}
                     </span>
+                    <span className="mt-0.5">
+                      <StarRating
+                        value={finalStarsById.get(shoe.id) ?? 0}
+                        size="sm"
+                        showNumber
+                        count={shoe.userRatingCount ?? 0}
+                      />
+                    </span>
                   </Link>
                 </li>
               );
@@ -236,6 +262,7 @@ export function HomeTable({
               <col />
               <col className="w-[140px]" />
               <col className="w-[108px]" />
+              <col className="w-[170px]" />
             </colgroup>
             <thead className="sticky top-0 z-10 border-b border-[rgb(var(--muted)/0.22)] bg-[rgb(var(--surface)/0.9)] text-[rgb(var(--subtext))]">
               <tr>
@@ -275,12 +302,22 @@ export function HomeTable({
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
+                <th className="px-4 py-2.5 text-[0.63rem] font-medium uppercase tracking-[0.12em]">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 rounded px-1 py-0.5 transition hover:bg-[rgb(var(--text)/0.06)]"
+                    onClick={() => toggleSort("rating")}
+                  >
+                    {translate("Rating")}
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-16 text-center soft-text">
+                  <td colSpan={6} className="px-4 py-16 text-center soft-text">
                     <div className="mx-auto flex max-w-md flex-col items-center gap-2">
                       <SearchX className="h-5 w-5" />
                       <p>{translate("No sneakers match this search.")}</p>
@@ -338,6 +375,14 @@ export function HomeTable({
                       {shoe.brand}
                     </td>
                     <td className="px-4 py-3 text-[0.78rem] soft-text">{shoe.release_year ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <StarRating
+                        value={finalStarsById.get(shoe.id) ?? 0}
+                        size="sm"
+                        showNumber
+                        count={shoe.userRatingCount ?? 0}
+                      />
+                    </td>
                   </tr>
                 );
               })}
