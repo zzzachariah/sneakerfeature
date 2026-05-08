@@ -177,6 +177,15 @@ to point the app at your local Next.js dev server.
 
 ### Release a new desktop version
 
-Push a tag matching `desktop-v*` (e.g. `desktop-v0.1.0`) to trigger the
-`Build Desktop Apps` GitHub Actions workflow. It builds installers on macOS and
-Windows runners and attaches them to a GitHub Release automatically.
+You can cut a desktop release in two ways:
+
+1. **From the GitHub UI** — go to **Actions → Build Desktop Apps → Run workflow**,
+   enter the version (e.g. `0.1.0`), and run it. The workflow builds installers
+   on macOS and Windows runners, creates the `desktop-v<version>` tag, and
+   publishes a GitHub Release with the `.dmg` and `.exe` attached.
+2. **By pushing a tag** — push a tag matching `desktop-v*` (e.g.
+   `desktop-v0.1.0`). The same workflow runs and attaches the installers to a
+   GitHub Release automatically.
+
+Running the workflow manually with an empty `version` only produces build
+artifacts (no release).
