@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShoeDetailClient } from "@/components/detail/shoe-detail-client";
 import { getShoeBySlug, getShoeImageState, getShoes } from "@/lib/data/shoes";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/data/auth";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -43,22 +43,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ShoeDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const supabase = await createClient();
-  const [shoe, userResult] = await Promise.all([
+  const [shoe, profile, allShoes] = await Promise.all([
     getShoeBySlug(slug),
-    supabase ? supabase.auth.getUser() : Promise.resolve({ data: { user: null } })
-  ]);
-  if (!shoe) return notFound();
-  const user = userResult.data.user;
-  const isLoggedIn = Boolean(user);
-  const { data: profile } = user && supabase
-    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
-    : { data: null };
-  const isAdmin = profile?.role === "admin";
-  const [imageState, allShoes] = await Promise.all([
-    getShoeImageState(shoe.id, isAdmin),
+    getCurrentProfile(),
     getShoes()
   ]);
+  if (!shoe) return notFound();
+
+  const isAdmin = profile?.role === "admin";
+  const isLoggedIn = Boolean(profile);
+  const imageState = await getShoeImageState(shoe.id, isAdmin);
 
   const related = allShoes.filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
 

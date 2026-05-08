@@ -93,82 +93,74 @@ export default function DashboardPage() {
         const myComments = (commentsRes.data ?? []) as CommentWithShoeRow[];
         const myCommentIds = myComments.map((c) => c.id);
 
+        const userVotes = (votesRes.data ?? []) as VoteRow[];
+        const likedIds = userVotes.filter((v) => v.vote_type === "like").map((v) => v.comment_id);
+        const dislikedIds = userVotes.filter((v) => v.vote_type === "dislike").map((v) => v.comment_id);
+        const votedOnlyIds = Array.from(new Set([...likedIds, ...dislikedIds])).filter(
+          (id) => !myCommentIds.includes(id)
+        );
+        const allCommentIds = Array.from(new Set([...myCommentIds, ...likedIds, ...dislikedIds]));
+
+        const [votedCommentsRes, voteCountersRes] = await Promise.all([
+          votedOnlyIds.length > 0
+            ? sb
+                .from("comments")
+                .select("id, content, created_at, shoe_id, shoes(slug, shoe_name)")
+                .in("id", votedOnlyIds)
+            : Promise.resolve({ data: [] as CommentWithShoeRow[] }),
+          allCommentIds.length > 0
+            ? sb
+                .from("comment_votes")
+                .select("comment_id, vote_type")
+                .in("comment_id", allCommentIds)
+            : Promise.resolve({ data: [] as VoteRow[] })
+        ]);
+
         const voteCounts = new Map<string, { likes: number; dislikes: number }>();
-        if (myCommentIds.length > 0) {
-          const { data: voteRows } = await sb
-            .from("comment_votes")
-            .select("comment_id, vote_type")
-            .in("comment_id", myCommentIds);
-          for (const vote of voteRows ?? []) {
-            const current = voteCounts.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
-            if (vote.vote_type === "like") current.likes += 1;
-            if (vote.vote_type === "dislike") current.dislikes += 1;
-            voteCounts.set(vote.comment_id, current);
-          }
+        for (const vote of (voteCountersRes.data ?? []) as VoteRow[]) {
+          const current = voteCounts.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
+          if (vote.vote_type === "like") current.likes += 1;
+          if (vote.vote_type === "dislike") current.dislikes += 1;
+          voteCounts.set(vote.comment_id, current);
         }
 
-        const normalizedMyComments: DashboardComment[] = myComments.map((comment) => {
-          const totals = voteCounts.get(comment.id) ?? { likes: 0, dislikes: 0 };
-          const shoe = Array.isArray(comment.shoes) ? comment.shoes[0] : comment.shoes;
+        const toDashboardComment = (row: CommentWithShoeRow): DashboardComment => {
+          const totals = voteCounts.get(row.id) ?? { likes: 0, dislikes: 0 };
+          const shoe = Array.isArray(row.shoes) ? row.shoes[0] : row.shoes;
           return {
-            id: comment.id,
-            content: comment.content,
-            created_at: comment.created_at,
-            shoe_id: comment.shoe_id,
+            id: row.id,
+            content: row.content,
+            created_at: row.created_at,
+            shoe_id: row.shoe_id,
             shoe_slug: shoe?.slug ?? "",
             shoe_name: shoe?.shoe_name ?? "Unknown shoe",
             likes: totals.likes,
             dislikes: totals.dislikes
           };
-        });
+        };
 
-        const userVotes = (votesRes.data ?? []) as VoteRow[];
-        const likedIds = userVotes.filter((v) => v.vote_type === "like").map((v) => v.comment_id);
-        const dislikedIds = userVotes.filter((v) => v.vote_type === "dislike").map((v) => v.comment_id);
-
-        async function fetchVotedComments(commentIds: string[]) {
-          if (commentIds.length === 0) return [] as DashboardComment[];
-
-          const { data: rows } = await sb
-            .from("comments")
-            .select("id, content, created_at, shoe_id, shoes(slug, shoe_name)")
-            .in("id", commentIds)
-            .order("created_at", { ascending: false });
-
-          const ids = (rows ?? []).map((row) => row.id);
-          const counterMap = new Map<string, { likes: number; dislikes: number }>();
-          if (ids.length > 0) {
-            const { data: counters } = await sb
-              .from("comment_votes")
-              .select("comment_id, vote_type")
-              .in("comment_id", ids);
-            for (const vote of counters ?? []) {
-              const current = counterMap.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
-              if (vote.vote_type === "like") current.likes += 1;
-              if (vote.vote_type === "dislike") current.dislikes += 1;
-              counterMap.set(vote.comment_id, current);
-            }
-          }
-
-          return ((rows ?? []) as CommentWithShoeRow[]).map((row) => {
-            const totals = counterMap.get(row.id) ?? { likes: 0, dislikes: 0 };
-            const shoe = Array.isArray(row.shoes) ? row.shoes[0] : row.shoes;
-            return {
-              id: row.id,
-              content: row.content,
-              created_at: row.created_at,
-              shoe_id: row.shoe_id,
-              shoe_slug: shoe?.slug ?? "",
-              shoe_name: shoe?.shoe_name ?? "Unknown shoe",
-              likes: totals.likes,
-              dislikes: totals.dislikes
-            };
-          });
+        const normalizedMyComments = myComments.map(toDashboardComment);
+        const lookup = new Map<string, DashboardComment>();
+        for (const c of normalizedMyComments) lookup.set(c.id, c);
+        for (const row of (votedCommentsRes.data ?? []) as CommentWithShoeRow[]) {
+          if (!lookup.has(row.id)) lookup.set(row.id, toDashboardComment(row));
         }
 
+        const orderByCreated = (a: DashboardComment, b: DashboardComment) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+
+        const likedComments = likedIds
+          .map((id) => lookup.get(id))
+          .filter((c): c is DashboardComment => Boolean(c))
+          .sort(orderByCreated);
+        const dislikedComments = dislikedIds
+          .map((id) => lookup.get(id))
+          .filter((c): c is DashboardComment => Boolean(c))
+          .sort(orderByCreated);
+
         setComments(normalizedMyComments);
-        setLikedComments(await fetchVotedComments(likedIds));
-        setDislikedComments(await fetchVotedComments(dislikedIds));
+        setLikedComments(likedComments);
+        setDislikedComments(dislikedComments);
         setSubmissions((submissionsRes.data ?? []) as DashboardSubmission[]);
         const rawCompares = (compareRes.data ?? []) as Array<{
           id: string;

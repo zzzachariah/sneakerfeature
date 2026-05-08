@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdminApi } from "@/lib/admin/route-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { computeBulkImageStats, processBulkJobTick } from "@/lib/admin/bulk-image-jobs";
@@ -38,6 +39,7 @@ export async function POST() {
     });
     const stats = await computeBulkImageStats(supabase);
 
+    revalidateTag("shoes");
     return NextResponse.json({ ok: true, ...tick, stats });
   } catch (error) {
     return NextResponse.json(

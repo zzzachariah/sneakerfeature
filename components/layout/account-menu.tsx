@@ -4,97 +4,18 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
   const { translate } = useLocale();
+  const { signedIn, isAdmin, username, email } = useAuthState();
   const [open, setOpen] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [label, setLabel] = useState("Account");
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  async function refreshAuthStateFromSession(
-    session: Session | null,
-    source: "initial" | "auth_change"
-  ) {
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[account-menu] auth refresh start", {
-        source,
-        userId: session?.user?.id ?? null,
-      });
-    }
-
-    const authenticated = Boolean(session);
-    setSignedIn(authenticated);
-
-    if (!authenticated || !session?.user?.id) {
-      setIsAdmin(false);
-      setLabel("Account");
-
-      if (process.env.NODE_ENV !== "production") {
-        console.info("[account-menu] auth refresh end", {
-          source,
-          authenticated: false,
-        });
-      }
-      return;
-    }
-
-    const supabase = createClient();
-    if (!supabase) return;
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[account-menu] profile fetch start", {
-        userId: session.user.id,
-        source,
-      });
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("username, role")
-      .eq("id", session.user.id)
-      .maybeSingle();
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[account-menu] profile fetch end", { source, profile });
-    }
-
-    setIsAdmin(profile?.role === "admin");
-    setLabel(profile?.username ?? session.user.email?.split("@")[0] ?? "Account");
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[account-menu] auth refresh end", {
-        source,
-        authenticated: true,
-      });
-    }
-  }
-
-  useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
-
-    void supabase.auth.getSession().then(({ data }) => {
-      void refreshAuthStateFromSession(data.session, "initial");
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (process.env.NODE_ENV !== "production") {
-        console.info("[account-menu] auth state changed", {
-          event,
-          userId: session?.user?.id ?? null,
-        });
-      }
-      void refreshAuthStateFromSession(session, "auth_change");
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
+  const label = signedIn ? username || email?.split("@")[0] || "Account" : translate("Account");
 
   useEffect(() => {
     function onPointerDownOutside(e: PointerEvent) {
@@ -119,9 +40,6 @@ export function AccountMenu({ className }: { className?: string }) {
   async function logout() {
     const supabase = createClient();
     if (supabase) await supabase.auth.signOut();
-    setSignedIn(false);
-    setIsAdmin(false);
-    setLabel("Account");
     setOpen(false);
   }
 
@@ -132,15 +50,15 @@ export function AccountMenu({ className }: { className?: string }) {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label={signedIn ? label : translate("Account")}
-        title={signedIn ? label : translate("Account")}
+        aria-label={label}
+        title={label}
         className={cn(
           "relative inline-flex h-8 w-8 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]",
           className
         )}
       >
         <UserCircle className="h-[18px] w-[18px]" />
-        <span className="sr-only" data-user-identity="true">{signedIn ? label : translate("Account")}</span>
+        <span className="sr-only" data-user-identity="true">{label}</span>
         {signedIn ? (
           <span
             aria-hidden

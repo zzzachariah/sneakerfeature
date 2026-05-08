@@ -4,14 +4,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Check, Languages, Menu, Search, Sliders, Sparkles, X } from "lucide-react";
-import type { Session } from "@supabase/supabase-js";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 import { DIM_LABELS } from "@/lib/star-rating";
-import { createClient } from "@/lib/supabase/client";
 import { NAV_ORDER } from "@/lib/nav-order";
 
 type NavHref = "/" | "/compare" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
@@ -28,49 +27,17 @@ export function Navbar() {
   const pathname = usePathname();
   const { locale, requestLocaleChange, translate } = useLocale();
   const { focus: ratingFocus, isLoggedIn: focusLoggedIn, openModal: openFocusModal } = useRatingFocus();
+  const { isAdmin } = useAuthState();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [focusOpen, setFocusOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
-    const sb = supabase;
-
-    async function syncRole(session: Session | null, source: "initial" | "auth_change") {
-      if (process.env.NODE_ENV !== "production") console.info("[navbar] role sync start", { source, userId: session?.user?.id ?? null });
-      const userId = session?.user?.id;
-      if (!userId) {
-        setIsAdmin(false);
-        if (process.env.NODE_ENV !== "production") console.info("[navbar] role sync end", { source, isAdmin: false });
-        return;
-      }
-
-      if (process.env.NODE_ENV !== "production") console.info("[navbar] profile fetch start", { source, userId });
-      const { data: profile } = await sb.from("profiles").select("role").eq("id", userId).maybeSingle();
-      if (process.env.NODE_ENV !== "production") console.info("[navbar] profile fetch end", { source, profile });
-      setIsAdmin(profile?.role === "admin");
-      if (process.env.NODE_ENV !== "production") console.info("[navbar] role sync end", { source, isAdmin: profile?.role === "admin" });
-    }
-
-    void sb.auth.getSession().then(({ data }) => {
-      void syncRole(data.session, "initial");
-    });
-
-    const { data: listener } = sb.auth.onAuthStateChange((event, session) => {
-      if (process.env.NODE_ENV !== "production") console.info("[navbar] auth state changed", { event, userId: session?.user?.id ?? null });
-      void syncRole(session, "auth_change");
-    });
-    return () => listener.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
