@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Info, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -20,16 +20,30 @@ const SLOT_PERCENT: Record<Slot, string> = {
 
 export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { translate } = useLocale();
-  const { focus, isLoggedIn, saveFocus, clearFocus, saving, message, isError } = useRatingFocus();
+  const { focus, isLoggedIn, saveFocus, clearFocus, saving, isRefreshing, message, isError } =
+    useRatingFocus();
   const [picks, setPicks] = useState<DimKey[]>([]);
   const [showRules, setShowRules] = useState(false);
+  const [pendingClose, setPendingClose] = useState(false);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (open) {
       setPicks(focus ? [focus.primary, focus.secondary, focus.tertiary] : []);
       setShowRules(false);
+      setPendingClose(false);
     }
   }, [open, focus]);
+
+  useEffect(() => {
+    if (pendingClose && !saving && !isRefreshing) {
+      setPendingClose(false);
+      onCloseRef.current();
+    }
+  }, [pendingClose, saving, isRefreshing]);
+
+  const busy = saving || isRefreshing;
 
   const slotForKey = useMemo(() => {
     const map = new Map<DimKey, Slot>();
@@ -55,12 +69,12 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
       tertiary: picks[2]
     };
     const ok = await saveFocus(next);
-    if (ok) onClose();
+    if (ok) setPendingClose(true);
   }
 
   async function handleClear() {
     const ok = await clearFocus();
-    if (ok) onClose();
+    if (ok) setPendingClose(true);
   }
 
   return (
@@ -97,7 +111,7 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
                   type="button"
                   key={key}
                   onClick={() => togglePick(key)}
-                  disabled={saving}
+                  disabled={busy}
                   className={`relative flex flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition disabled:opacity-50 ${
                     isPicked
                       ? "border-amber-400/70 bg-amber-400/10 text-[rgb(var(--text))]"
@@ -154,7 +168,7 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
                 <button
                   type="button"
                   onClick={handleClear}
-                  disabled={saving}
+                  disabled={busy}
                   className="inline-flex items-center gap-1 rounded-md border border-[rgb(var(--muted)/0.5)] px-2.5 py-1.5 text-xs soft-text transition hover:border-[rgb(var(--text)/0.4)] disabled:opacity-50"
                 >
                   <X className="h-3 w-3" />
@@ -163,16 +177,16 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
               )}
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" type="button" onClick={onClose} disabled={saving}>
+              <Button variant="ghost" type="button" onClick={onClose} disabled={busy}>
                 {translate("Cancel")}
               </Button>
               <Button
                 type="button"
                 onClick={handleSave}
-                disabled={saving || picks.length !== 3}
+                disabled={busy || picks.length !== 3}
               >
                 <Check className="mr-1 h-3.5 w-3.5" />
-                {saving ? translate("Saving...") : translate("Save playstyle")}
+                {busy ? translate("Saving...") : translate("Save playstyle")}
               </Button>
             </div>
           </div>

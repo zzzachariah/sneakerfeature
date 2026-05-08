@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { ratingFocusSchema } from "@/lib/validation/schemas";
 import { isValidFocus } from "@/lib/star-rating";
+
+function invalidateRatingViews() {
+  revalidatePath("/", "layout");
+}
 
 async function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -79,6 +84,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
   }
 
+  invalidateRatingViews();
   return NextResponse.json({ ok: true, focus: parsed.data, message: "Playstyle saved." });
 }
 
@@ -104,5 +110,6 @@ export async function DELETE() {
     return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
   }
 
+  invalidateRatingViews();
   return NextResponse.json({ ok: true, message: "Playstyle cleared." });
 }
