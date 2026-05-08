@@ -23,6 +23,19 @@ export const deleteComparisonSchema = z.object({
   id: z.string().uuid("Invalid comparison identifier.")
 });
 
+export const ratingUpsertSchema = z.object({
+  shoeId: z.string().uuid("Invalid shoe identifier."),
+  rating: z
+    .number()
+    .min(0.5, "Rating must be at least 0.5.")
+    .max(5, "Rating must be at most 5.")
+    .refine((v) => Math.round(v * 2) === v * 2, "Rating must be in 0.5 increments.")
+});
+
+export const ratingDeleteSchema = z.object({
+  shoeId: z.string().uuid("Invalid shoe identifier.")
+});
+
 export const submissionSchema = z.object({
   shoe_name: z.string().min(2),
   brand: z.string().min(2),

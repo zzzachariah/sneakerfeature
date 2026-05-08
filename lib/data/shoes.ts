@@ -30,12 +30,48 @@ export async function getShoes(): Promise<Shoe[]> {
   if (error || !data?.length) return demoShoes;
 
   const rows = data as ShoeQueryRow[];
-  return rows.map((row) => ({
-    ...row,
-    image_url: resolveApprovedImage(row.shoe_images)?.public_url ?? null,
-    spec: row.shoe_specs?.[0] ?? {},
-    story: row.shoe_stories?.[0] ?? null
-  }));
+  const shoeIds = rows.map((row) => row.id);
+
+  const aggregates = new Map<string, { sum: number; count: number }>();
+  const myRatings = new Map<string, number>();
+
+  if (shoeIds.length > 0) {
+    const { data: ratingRows } = await supabase
+      .from("shoe_ratings")
+      .select("shoe_id, rating")
+      .in("shoe_id", shoeIds);
+    for (const r of ratingRows ?? []) {
+      const cur = aggregates.get(r.shoe_id) ?? { sum: 0, count: 0 };
+      cur.sum += Number(r.rating);
+      cur.count += 1;
+      aggregates.set(r.shoe_id, cur);
+    }
+
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data: mine } = await supabase
+        .from("shoe_ratings")
+        .select("shoe_id, rating")
+        .eq("user_id", user.id)
+        .in("shoe_id", shoeIds);
+      for (const r of mine ?? []) myRatings.set(r.shoe_id, Number(r.rating));
+    }
+  }
+
+  return rows.map((row) => {
+    const agg = aggregates.get(row.id);
+    return {
+      ...row,
+      image_url: resolveApprovedImage(row.shoe_images)?.public_url ?? null,
+      spec: row.shoe_specs?.[0] ?? {},
+      story: row.shoe_stories?.[0] ?? null,
+      avgUserRating: agg && agg.count > 0 ? agg.sum / agg.count : null,
+      userRatingCount: agg?.count ?? 0,
+      myRating: myRatings.get(row.id) ?? null
+    };
+  });
 }
 
 export async function getShoeBySlug(slug: string): Promise<Shoe | null> {

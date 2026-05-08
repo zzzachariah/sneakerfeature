@@ -14,6 +14,7 @@ import {
   getStabilityScore,
   getTractionScore
 } from "@/lib/shoe-scoring";
+import { computeFinalStars, specScoreToStars } from "@/lib/star-rating";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type TechCardConfig = {
@@ -122,6 +123,9 @@ export function ShoeDetailClient({
 
   const reviewImage = imageState.pending?.public_url ?? imageState.approved?.public_url ?? shoe.image_url;
   const hasPendingImage = Boolean(imageState.pending);
+
+  const specStars = specScoreToStars(shoe.spec);
+  const finalStars = computeFinalStars(specStars, shoe.avgUserRating ?? null, shoe.userRatingCount ?? 0);
 
   async function runAdminImageAction(action: "find" | "approve" | "reject") {
     setImageActionLoading(action);
@@ -232,6 +236,7 @@ export function ShoeDetailClient({
         shoe={shoe}
         related={related}
         isAdmin={isAdmin}
+        isLoggedIn={isLoggedIn}
         imageState={imageState}
         reviewImage={reviewImage}
         hasPendingImage={hasPendingImage}
@@ -250,6 +255,8 @@ export function ShoeDetailClient({
         hasStory={hasStory}
         storyTitle={storyTitle}
         storyContent={storyContent}
+        specStars={specStars}
+        finalStars={finalStars}
       />
     </main>
   );
