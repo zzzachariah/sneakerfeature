@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { isValidFocus, type RatingFocus } from "@/lib/star-rating";
@@ -11,6 +11,7 @@ type RatingFocusContextValue = {
   isLoggedIn: boolean;
   loaded: boolean;
   saving: boolean;
+  isRefreshing: boolean;
   message: string | null;
   isError: boolean;
   saveFocus: (focus: RatingFocus) => Promise<boolean>;
@@ -36,6 +37,7 @@ export function RatingFocusProvider({
   const [loaded, setLoaded] = useState(initialFocus !== null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [isRefreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
 
@@ -90,7 +92,9 @@ export function RatingFocusProvider({
       setIsError(false);
       setMessage(data?.message ?? null);
       setFocus(next);
-      router.refresh();
+      startRefresh(() => {
+        router.refresh();
+      });
       return true;
     },
     [router]
@@ -114,7 +118,9 @@ export function RatingFocusProvider({
     setIsError(false);
     setMessage(data?.message ?? null);
     setFocus(null);
-    router.refresh();
+    startRefresh(() => {
+      router.refresh();
+    });
     return true;
   }, [router]);
 
@@ -124,6 +130,7 @@ export function RatingFocusProvider({
       isLoggedIn,
       loaded,
       saving,
+      isRefreshing,
       message,
       isError,
       saveFocus,
@@ -131,7 +138,7 @@ export function RatingFocusProvider({
       openModal,
       closeModal
     }),
-    [focus, isLoggedIn, loaded, saving, message, isError, saveFocus, clearFocus, openModal, closeModal]
+    [focus, isLoggedIn, loaded, saving, isRefreshing, message, isError, saveFocus, clearFocus, openModal, closeModal]
   );
 
   return (
