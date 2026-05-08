@@ -2,11 +2,14 @@ import { createClient } from "@/lib/supabase/server";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
 import {
-  computeFinalStars,
+  combineDimScores,
+  DIM_KEYS,
+  dimScores,
   isValidFocus,
   percentileToStars,
   rankScoresToPercentiles,
-  weightedSpecScore,
+  weightedCombinedScore,
+  type DimKey,
   type RatingFocus
 } from "@/lib/star-rating";
 
@@ -18,6 +21,32 @@ export type ShoeImageState = {
   pending: ShoeImageRecord | null;
   latestRejected: ShoeImageRecord | null;
 };
+
+type DimRow = {
+  shoe_id: string;
+  cushioning_feel: number | string | null;
+  court_feel: number | string | null;
+  bounce: number | string | null;
+  stability: number | string | null;
+  traction: number | string | null;
+  fit: number | string | null;
+};
+
+type DimAggregate = {
+  count: number;
+  sums: Record<DimKey, number>;
+};
+
+function emptyDimRecord(): Record<DimKey, number> {
+  return {
+    cushioning_feel: 0,
+    court_feel: 0,
+    bounce: 0,
+    stability: 0,
+    traction: 0,
+    fit: 0
+  };
+}
 
 function resolveApprovedImage(images?: ShoeImageRecord[] | null) {
   if (!images?.length) return null;
@@ -40,19 +69,21 @@ export async function getShoes(): Promise<Shoe[]> {
   const rows = data as ShoeQueryRow[];
   const shoeIds = rows.map((row) => row.id);
 
-  const aggregates = new Map<string, { sum: number; count: number }>();
-  const myRatings = new Map<string, number>();
+  const aggregates = new Map<string, DimAggregate>();
+  const myDimRatings = new Map<string, Record<DimKey, number>>();
   let focus: RatingFocus | null = null;
 
   if (shoeIds.length > 0) {
     const { data: ratingRows } = await supabase
       .from("shoe_ratings")
-      .select("shoe_id, rating")
+      .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
       .in("shoe_id", shoeIds);
-    for (const r of ratingRows ?? []) {
-      const cur = aggregates.get(r.shoe_id) ?? { sum: 0, count: 0 };
-      cur.sum += Number(r.rating);
+    for (const r of (ratingRows ?? []) as DimRow[]) {
+      const cur = aggregates.get(r.shoe_id) ?? { count: 0, sums: emptyDimRecord() };
       cur.count += 1;
+      for (const k of DIM_KEYS) {
+        cur.sums[k] += Number(r[k] ?? 0);
+      }
       aggregates.set(r.shoe_id, cur);
     }
 
@@ -62,10 +93,14 @@ export async function getShoes(): Promise<Shoe[]> {
     if (user) {
       const { data: mine } = await supabase
         .from("shoe_ratings")
-        .select("shoe_id, rating")
+        .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
         .eq("user_id", user.id)
         .in("shoe_id", shoeIds);
-      for (const r of mine ?? []) myRatings.set(r.shoe_id, Number(r.rating));
+      for (const r of (mine ?? []) as DimRow[]) {
+        const record = emptyDimRecord();
+        for (const k of DIM_KEYS) record[k] = Number(r[k] ?? 0);
+        myDimRatings.set(r.shoe_id, record);
+      }
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -78,29 +113,60 @@ export async function getShoes(): Promise<Shoe[]> {
   }
 
   const specs = rows.map((row) => row.shoe_specs?.[0] ?? {});
-  let specStars: (number | null)[] = rows.map(() => null);
+  const dimStarsByIndex: (Partial<Record<DimKey, number>> | null)[] = rows.map(() => null);
+  const finalStarsByIndex: (number | null)[] = rows.map(() => null);
+  const specStarsByIndex: (number | null)[] = rows.map(() => null);
+
   if (focus) {
-    const scores = specs.map((spec) => weightedSpecScore(spec, focus!));
-    const percentiles = rankScoresToPercentiles(scores);
-    specStars = percentiles.map((p) => percentileToStars(p));
+    const combinedByShoe: Record<DimKey, number>[] = rows.map((row, i) => {
+      const agg = aggregates.get(row.id);
+      const userDimAvg: Partial<Record<DimKey, number>> = {};
+      if (agg && agg.count > 0) {
+        for (const k of DIM_KEYS) userDimAvg[k] = agg.sums[k] / agg.count;
+      }
+      return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0);
+    });
+
+    const weighted = combinedByShoe.map((c) => weightedCombinedScore(c, focus!));
+    const finalPercentiles = rankScoresToPercentiles(weighted);
+    finalPercentiles.forEach((p, i) => {
+      finalStarsByIndex[i] = percentileToStars(p);
+    });
+
+    // Spec-only stars (no user blending) for components that compare /
+    // re-blend client-side.
+    const specOnly = specs.map((spec) => weightedCombinedScore(dimScores(spec), focus!));
+    const specPercentiles = rankScoresToPercentiles(specOnly);
+    specPercentiles.forEach((p, i) => {
+      specStarsByIndex[i] = percentileToStars(p);
+    });
+
+    rows.forEach((_, i) => {
+      dimStarsByIndex[i] = {};
+    });
+    for (const k of DIM_KEYS) {
+      const dimScoresList = combinedByShoe.map((c) => c[k]);
+      const dimPercentiles = rankScoresToPercentiles(dimScoresList);
+      dimPercentiles.forEach((p, i) => {
+        const target = dimStarsByIndex[i];
+        if (target) target[k] = percentileToStars(p);
+      });
+    }
   }
 
   return rows.map((row, idx) => {
     const agg = aggregates.get(row.id);
-    const avgUserRating = agg && agg.count > 0 ? agg.sum / agg.count : null;
     const userRatingCount = agg?.count ?? 0;
-    const ss = specStars[idx];
-    const finalStars = ss === null ? null : computeFinalStars(ss, avgUserRating, userRatingCount);
     return {
       ...row,
       image_url: resolveApprovedImage(row.shoe_images)?.public_url ?? null,
       spec: specs[idx],
       story: row.shoe_stories?.[0] ?? null,
-      avgUserRating,
       userRatingCount,
-      myRating: myRatings.get(row.id) ?? null,
-      specStars: ss,
-      finalStars
+      specStars: specStarsByIndex[idx],
+      finalStars: finalStarsByIndex[idx],
+      dimStars: dimStarsByIndex[idx],
+      myDimRatings: myDimRatings.get(row.id) ?? null
     };
   });
 }

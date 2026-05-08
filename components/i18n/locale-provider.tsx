@@ -435,6 +435,15 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "playstyle cleared.": "打法已清除。",
   "save failed": "保存失败",
   "clear failed": "清除失败",
+
+  // Per-dimension user ratings
+  "show ratings detail": "展开评分详情",
+  "hide ratings detail": "收起评分详情",
+  "rate every dimension to save": "评完所有维度才能保存",
+  "by dimension": "各项评分",
+  "clear my ratings": "清除我的评分",
+  "save my ratings": "保存我的评分",
+  "my ratings": "我的评分",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

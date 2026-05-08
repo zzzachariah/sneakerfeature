@@ -39,11 +39,17 @@ export interface Shoe {
     source_label?: string | null;
     source_url?: string | null;
   } | null;
-  avgUserRating?: number | null;
   userRatingCount?: number;
-  myRating?: number | null;
   specStars?: number | null;
   finalStars?: number | null;
+  dimStars?: Partial<Record<
+    "cushioning_feel" | "court_feel" | "bounce" | "stability" | "traction" | "fit",
+    number
+  >> | null;
+  myDimRatings?: Partial<Record<
+    "cushioning_feel" | "court_feel" | "bounce" | "stability" | "traction" | "fit",
+    number
+  >> | null;
 }
 
 export interface ShoeImageRecord {

@@ -40,6 +40,7 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
   const { translate } = useLocale();
   const TOTAL = 3;
   const [slide, setSlide] = useState(0);
+  const [showRatingDetail, setShowRatingDetail] = useState(false);
   const slideRef = useRef(0);
   const animatingRef = useRef(false);
 
@@ -162,10 +163,18 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
                 onSave={onSave}
                 onShare={onShare}
                 onClear={onClear}
+                showRatingDetail={showRatingDetail}
+                onToggleRatingDetail={() => setShowRatingDetail((v) => !v)}
                 translate={translate}
               />
               <div className="mt-6 md:mt-10">
-                <ComparePlinths shoes={shoes} onRemove={onRemove} onAdd={onAdd} canAdd={canAdd} />
+                <ComparePlinths
+                  shoes={shoes}
+                  onRemove={onRemove}
+                  onAdd={onAdd}
+                  canAdd={canAdd}
+                  showRatingDetail={showRatingDetail}
+                />
               </div>
             </div>
           </div>
@@ -282,6 +291,8 @@ function HeroBlock({
   onSave,
   onShare,
   onClear,
+  showRatingDetail,
+  onToggleRatingDetail,
   translate
 }: {
   shoes: Shoe[];
@@ -292,6 +303,8 @@ function HeroBlock({
   onSave: () => void;
   onShare: () => void;
   onClear: () => void;
+  showRatingDetail: boolean;
+  onToggleRatingDetail: () => void;
   translate: (value: string) => string;
 }) {
   return (
@@ -338,6 +351,13 @@ function HeroBlock({
             <Share2 className="h-3.5 w-3.5" /> {translate("Share card")}
           </button>
         ) : null}
+        <button
+          type="button"
+          onClick={onToggleRatingDetail}
+          className="inline-flex items-center gap-1 rounded-md border border-[rgb(var(--glass-stroke-soft)/0.4)] px-2.5 py-1 text-[0.75rem] soft-text transition hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))]"
+        >
+          {translate(showRatingDetail ? "Hide ratings detail" : "Show ratings detail")}
+        </button>
         <button
           type="button"
           onClick={onClear}
