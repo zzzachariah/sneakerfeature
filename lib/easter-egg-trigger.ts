@@ -2,6 +2,7 @@ export const KEY_SEQUENCE_WINDOW_MS = 900;
 export const TAP_SEQUENCE_WINDOW_MS = 900;
 export const EASTER_EGG_DISPLAY_MS = 1000;
 export const EASTER_EGG_COOLDOWN_MS = 1200;
+export const EASTER_EGG_OVERLAY_Z_INDEX = 300;
 
 export type KeySequenceState = {
   count: number;

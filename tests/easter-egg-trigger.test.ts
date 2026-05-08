@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  EASTER_EGG_OVERLAY_Z_INDEX,
   KEY_SEQUENCE_WINDOW_MS,
   TAP_SEQUENCE_WINDOW_MS,
   appendTapTimestamp,
@@ -50,4 +51,8 @@ test("appendTapTimestamp keeps only taps that are inside the mobile trigger wind
 
   queue = appendTapTimestamp(queue, 2200);
   assert.deepEqual(queue, [2200]);
+});
+
+test("overlay z-index stays above existing nav and modal layers", () => {
+  assert.ok(EASTER_EGG_OVERLAY_Z_INDEX > 200);
 });

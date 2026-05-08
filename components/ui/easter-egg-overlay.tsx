@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   EASTER_EGG_COOLDOWN_MS,
   EASTER_EGG_DISPLAY_MS,
+  EASTER_EGG_OVERLAY_Z_INDEX,
   appendTapTimestamp,
   advanceKeySequence,
   isExcludedTriggerTarget,
@@ -108,7 +109,8 @@ export function EasterEggOverlay() {
       {visible ? (
         <motion.div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-0 z-[120] overflow-hidden"
+          className="pointer-events-none fixed inset-0 overflow-hidden"
+          style={{ zIndex: EASTER_EGG_OVERLAY_Z_INDEX }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
