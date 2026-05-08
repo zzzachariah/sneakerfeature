@@ -126,7 +126,7 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
 
   const labels = [translate("Index"), translate("Database")];
 
-  const slideHeight = "calc(100dvh - 64px)";
+  const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
 
   return (
     <div

@@ -177,7 +177,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
   }, []);
 
   const labels = [translate("Identity"), translate("Tech"), translate("Feel"), translate("Story")];
-  const slideHeight = "calc(100dvh - 64px)";
+  const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
 
   function valueOf(name: string) {
     const v = initialValues[name];

@@ -39,11 +39,11 @@ export function ThemeToggle({ className }: { className?: string }) {
 
   const icon =
     theme === "dark" ? (
-      <Moon className="h-[14px] w-[14px]" />
+      <Moon className="h-[18px] w-[18px] md:h-[14px] md:w-[14px]" />
     ) : theme === "light" ? (
-      <Sun className="h-[14px] w-[14px]" />
+      <Sun className="h-[18px] w-[18px] md:h-[14px] md:w-[14px]" />
     ) : (
-      <Laptop className="h-[14px] w-[14px]" />
+      <Laptop className="h-[18px] w-[18px] md:h-[14px] md:w-[14px]" />
     );
 
   const translatedTheme = translate(theme);
@@ -53,7 +53,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       type="button"
       onClick={cycleTheme}
       className={cn(
-        "inline-flex h-8 w-8 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]",
+        "inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
         className
       )}
       aria-label={`${translate("Theme")}: ${translatedTheme}. ${translate("Click to cycle theme.")}`}

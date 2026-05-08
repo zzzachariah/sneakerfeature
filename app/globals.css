@@ -32,6 +32,16 @@
   --dur-base: 200ms;
   --dur-slow: 320ms;
   --dur-cin: 500ms;
+  /* Layout — nav heights. Top navbar is 64px everywhere.
+     Bottom mobile nav appears <md only and includes safe-area inset. */
+  --top-nav-h: 64px;
+  --mobile-nav-h: 0px;
+}
+
+@media (max-width: 767.98px) {
+  :root {
+    --mobile-nav-h: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 .dark {
@@ -111,16 +121,22 @@ body {
 
 /* Typography scale */
 .t-display {
-  font-size: clamp(2.8rem, 6.5vw, 7rem);
+  font-size: clamp(2.4rem, 8.5vw, 7rem);
   font-weight: 800;
   letter-spacing: -0.04em;
-  line-height: 0.93;
+  line-height: 0.96;
+}
+@media (min-width: 480px) {
+  .t-display { line-height: 0.93; }
 }
 .t-display-sm {
-  font-size: clamp(1.6rem, 2.8vw, 3rem);
+  font-size: clamp(1.5rem, 4.4vw, 3rem);
   font-weight: 800;
   letter-spacing: -0.036em;
-  line-height: 0.97;
+  line-height: 1;
+}
+@media (min-width: 768px) {
+  .t-display-sm { line-height: 0.97; }
 }
 .t-eyebrow {
   font-size: 0.67rem;
@@ -136,13 +152,33 @@ body {
   margin-inline: auto;
   width: 100%;
   max-width: 1320px;
-  padding-inline: 16px;
+  padding-inline: 18px;
 }
 @media (min-width: 768px) {
   .container-shell,
   .shell {
     padding-inline: 32px;
   }
+}
+
+/* Reserves space for the fixed mobile bottom nav on regular scrollable pages.
+   Slide-based pages (home/compare/detail/dashboard/submit) instead size their own
+   viewport using calc(100dvh - var(--top-nav-h) - var(--mobile-nav-h)). */
+.has-mobile-nav-pad {
+  padding-bottom: var(--mobile-nav-h);
+}
+
+/* Slide viewport height — used by full-screen slide tracks. */
+.slide-viewport-h {
+  height: calc(100dvh - var(--top-nav-h) - var(--mobile-nav-h));
+}
+
+/* Touch-friendly tap target. Use on icon buttons that need ≥40-44px hit area
+   without altering visual size — pairs with relative+absolute pseudo. */
+.tap-44::before {
+  content: "";
+  position: absolute;
+  inset: -6px;
 }
 
 /* Surfaces */

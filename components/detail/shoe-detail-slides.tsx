@@ -20,6 +20,7 @@ import type { Shoe, ShoeImageRecord } from "@/lib/types";
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 const DEFAULT_TRANSITION_MS = 720;
 const NAV_HEIGHT = 76;
+const SLIDE_VIEWPORT_H = `calc(100dvh - ${NAV_HEIGHT}px - var(--mobile-nav-h, 0px))`;
 const SCROLL_DELTA_THRESHOLD = 14;
 const TOUCH_DELTA_THRESHOLD = 48;
 const TOTAL = 5;
@@ -200,7 +201,7 @@ export function ShoeDetailSlides(props: Props) {
     translate("Related")
   ];
 
-  const viewportHeight = `calc(100vh - ${NAV_HEIGHT}px)`;
+  const viewportHeight = SLIDE_VIEWPORT_H;
 
   return (
     <>
@@ -212,7 +213,7 @@ export function ShoeDetailSlides(props: Props) {
       <div
         className="detail-slide-track flex flex-col"
         style={{
-          transform: `translateY(calc(${-slide} * (100vh - ${NAV_HEIGHT}px)))`,
+          transform: `translateY(calc(${-slide} * ${SLIDE_VIEWPORT_H}))`,
           transition: `transform ${transitionMs}ms ${EASE}`,
           willChange: "transform"
         }}
@@ -359,16 +360,16 @@ function OverviewSlide({
 }: Props & { active: boolean; onShareCard: () => void; onJumpToComments: () => void }) {
   const { translate } = useLocale();
   return (
-    <div className={`flex h-full flex-col justify-center py-10 ${slideEntranceClass(active)}`}>
-      <div className="grid gap-8 md:grid-cols-[1.1fr_1fr] md:items-center">
-        <div className="max-w-2xl">
+    <div className={`flex h-full flex-col justify-center py-6 md:py-10 ${slideEntranceClass(active)}`}>
+      <div className="grid gap-5 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-8">
+        <div className="order-2 max-w-2xl md:order-1">
           <p className="t-eyebrow">
             <span data-field-key="brand">{shoe.brand}</span> · {shoe.release_year ?? "TBD"}
           </p>
 
           <h1
             data-field-key="shoe_name"
-            className="t-display-sm mt-3 text-[rgb(var(--text))]"
+            className="t-display-sm mt-2 text-[rgb(var(--text))] md:mt-3"
           >
             {shoe.shoe_name}
           </h1>
@@ -376,11 +377,11 @@ function OverviewSlide({
           {shoe.spec.playstyle_summary ? (
             <DynamicTranslatedText
               as="p"
-              className="mt-4 text-sm leading-6 soft-text md:text-base"
+              className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base"
               text={shoe.spec.playstyle_summary}
             />
           ) : (
-            <p className="mt-4 text-sm leading-6 soft-text md:text-base">
+            <p className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base">
               {translate("No playstyle summary available yet.")}
             </p>
           )}
@@ -434,8 +435,8 @@ function OverviewSlide({
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-full max-w-xs rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-4 shadow-cinematic md:p-6">
+        <div className="order-1 flex flex-col items-center gap-3 md:order-2">
+          <div className="w-full max-w-[200px] rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-3 shadow-cinematic sm:max-w-[240px] sm:p-4 md:max-w-xs md:p-6">
             <ShoeImage
               src={reviewImage}
               alt={`${shoe.brand} ${shoe.shoe_name}`}
