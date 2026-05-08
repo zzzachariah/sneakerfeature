@@ -43,18 +43,24 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function ShoeDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const shoe = await getShoeBySlug(slug);
-  if (!shoe) return notFound();
   const supabase = await createClient();
-  const {
-    data: { user }
-  } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
+  const [shoe, userResult] = await Promise.all([
+    getShoeBySlug(slug),
+    supabase ? supabase.auth.getUser() : Promise.resolve({ data: { user: null } })
+  ]);
+  if (!shoe) return notFound();
+  const user = userResult.data.user;
   const isLoggedIn = Boolean(user);
-  const { data: profile } = user ? await supabase!.from("profiles").select("role").eq("id", user.id).maybeSingle() : { data: null };
+  const { data: profile } = user && supabase
+    ? await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null };
   const isAdmin = profile?.role === "admin";
-  const imageState = await getShoeImageState(shoe.id, isAdmin);
+  const [imageState, allShoes] = await Promise.all([
+    getShoeImageState(shoe.id, isAdmin),
+    getShoes()
+  ]);
 
-  const related = (await getShoes()).filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
+  const related = allShoes.filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
 
   const productSchema: Record<string, unknown> = {
     "@context": "https://schema.org",

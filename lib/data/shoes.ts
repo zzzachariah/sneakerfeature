@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
@@ -55,7 +56,7 @@ function resolveApprovedImage(images?: ShoeImageRecord[] | null) {
     .sort((a, b) => new Date(b.approved_at ?? b.created_at).getTime() - new Date(a.approved_at ?? a.created_at).getTime())[0] ?? null;
 }
 
-export async function getShoes(): Promise<Shoe[]> {
+export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
   const supabase = await createClient();
   if (!supabase) return demoShoes;
 
@@ -64,7 +65,11 @@ export async function getShoes(): Promise<Shoe[]> {
     .select("*, shoe_specs(*), shoe_stories(*), shoe_images(*)")
     .order("created_at", { ascending: false });
 
-  if (error || !data?.length) return demoShoes;
+  if (error) {
+    console.error("[getShoes] supabase error", error);
+    return demoShoes;
+  }
+  if (!data?.length) return demoShoes;
 
   const rows = data as ShoeQueryRow[];
   const shoeIds = rows.map((row) => row.id);
@@ -169,7 +174,7 @@ export async function getShoes(): Promise<Shoe[]> {
       myDimRatings: myDimRatings.get(row.id) ?? null
     };
   });
-}
+});
 
 export async function getShoeBySlug(slug: string): Promise<Shoe | null> {
   const shoes = await getShoes();
