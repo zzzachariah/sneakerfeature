@@ -1,4 +1,3 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 function isPublicPath(pathname: string) {
@@ -16,54 +15,35 @@ function isAuthPage(pathname: string) {
   return pathname === "/login" || pathname === "/signup" || pathname === "/register";
 }
 
-export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-  const isApiRoute = pathname.startsWith("/api/");
+function hasAuthCookie(request: NextRequest) {
+  return request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+}
 
-  // Keep search/query paths and APIs fast by skipping session refresh/auth lookups.
-  if (isApiRoute || isPublicPath(pathname)) {
+export function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  if (pathname.startsWith("/api/") || isPublicPath(pathname)) {
     return NextResponse.next({ request });
   }
 
-  let response = NextResponse.next({ request });
+  const loggedIn = hasAuthCookie(request);
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) return response;
-
-  const supabase = createServerClient(url, key, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        });
-      }
-    }
-  });
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user && !isAuthPage(pathname)) {
+  if (!loggedIn && !isAuthPage(pathname)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && isAuthPage(pathname)) {
+  if (loggedIn && isAuthPage(pathname)) {
     const nextParam = request.nextUrl.searchParams.get("next");
     const destination = nextParam && nextParam.startsWith("/") ? nextParam : "/dashboard";
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
-  return response;
+  return NextResponse.next({ request });
 }
 
 export const config = {

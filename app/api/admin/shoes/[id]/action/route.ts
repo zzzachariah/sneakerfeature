@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
 
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { error: submissionUpdateError } = await supabase.from("user_submissions").update({ status: "unpublished" }).eq("published_shoe_id", id);
     if (submissionUpdateError) return badRequest(submissionUpdateError.message);
 
+    revalidateTag("shoes");
     return NextResponse.json({ ok: true, message: "Record unpublished." });
   }
 
@@ -105,6 +107,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const { error: submissionUpdateError } = await supabase.from("user_submissions").update({ status: "published" }).eq("published_shoe_id", id);
     if (submissionUpdateError) return badRequest(submissionUpdateError.message);
 
+    revalidateTag("shoes");
     return NextResponse.json({ ok: true, message: "Record published." });
   }
 
@@ -156,5 +159,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   });
   if (auditInsertError) return badRequest(auditInsertError.message);
 
+  revalidateTag("shoes");
   return NextResponse.json({ ok: true, message: "Record updated." });
 }

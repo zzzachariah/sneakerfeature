@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
@@ -40,6 +41,7 @@ function fail({
 
 function success(payload: Record<string, unknown>, requestId: string) {
   console.info(`[admin] /image requestId=${requestId} step=final_return success status=200`, payload);
+  revalidateTag("shoes");
   return NextResponse.json({ ok: true, ...payload }, { status: 200 });
 }
 

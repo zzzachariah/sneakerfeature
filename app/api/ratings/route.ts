@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { ratingDeleteSchema, ratingUpsertSchema } from "@/lib/validation/schemas";
 import { DIM_KEYS, type DimKey } from "@/lib/star-rating";
 
@@ -23,6 +23,7 @@ async function getSupabase() {
 }
 
 function invalidateRatingViews() {
+  revalidateTag("shoes");
   revalidatePath("/", "layout");
 }
 

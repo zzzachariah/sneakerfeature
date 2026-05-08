@@ -1,6 +1,9 @@
 import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createPublicClient } from "@/lib/supabase/public";
 import { demoShoes } from "@/lib/data/demo-shoes";
+import { getCurrentProfile } from "@/lib/data/auth";
 import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
 import {
   combineDimScores,
@@ -38,6 +41,13 @@ type DimAggregate = {
   sums: Record<DimKey, number>;
 };
 
+type AggregateEntry = [string, DimAggregate];
+
+type ShoesBase = {
+  rows: ShoeQueryRow[];
+  aggregates: AggregateEntry[];
+};
+
 function emptyDimRecord(): Record<DimKey, number> {
   return {
     cushioning_feel: 0,
@@ -56,66 +66,82 @@ function resolveApprovedImage(images?: ShoeImageRecord[] | null) {
     .sort((a, b) => new Date(b.approved_at ?? b.created_at).getTime() - new Date(a.approved_at ?? a.created_at).getTime())[0] ?? null;
 }
 
-export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
-  const supabase = await createClient();
-  if (!supabase) return demoShoes;
+async function loadShoesBase(): Promise<ShoesBase | null> {
+  const supabase = createPublicClient();
+  if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("shoes")
-    .select("*, shoe_specs(*), shoe_stories(*), shoe_images(*)")
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("[getShoes] supabase error", error);
-    return demoShoes;
-  }
-  if (!data?.length) return demoShoes;
-
-  const rows = data as ShoeQueryRow[];
-  const shoeIds = rows.map((row) => row.id);
-
-  const aggregates = new Map<string, DimAggregate>();
-  const myDimRatings = new Map<string, Record<DimKey, number>>();
-  let focus: RatingFocus | null = null;
-
-  if (shoeIds.length > 0) {
-    const { data: ratingRows } = await supabase
+  const [shoesRes, ratingsRes] = await Promise.all([
+    supabase
+      .from("shoes")
+      .select("*, shoe_specs(*), shoe_stories(*), shoe_images(*)")
+      .order("created_at", { ascending: false }),
+    supabase
       .from("shoe_ratings")
       .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
-      .in("shoe_id", shoeIds);
-    for (const r of (ratingRows ?? []) as DimRow[]) {
-      const cur = aggregates.get(r.shoe_id) ?? { count: 0, sums: emptyDimRecord() };
-      cur.count += 1;
-      for (const k of DIM_KEYS) {
-        cur.sums[k] += Number(r[k] ?? 0);
-      }
-      aggregates.set(r.shoe_id, cur);
-    }
+  ]);
 
-    const {
-      data: { user }
-    } = await supabase.auth.getUser();
-    if (user) {
-      const { data: mine } = await supabase
-        .from("shoe_ratings")
-        .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
-        .eq("user_id", user.id)
-        .in("shoe_id", shoeIds);
-      for (const r of (mine ?? []) as DimRow[]) {
-        const record = emptyDimRecord();
-        for (const k of DIM_KEYS) record[k] = Number(r[k] ?? 0);
-        myDimRatings.set(r.shoe_id, record);
-      }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("rating_focus")
-        .eq("id", user.id)
-        .maybeSingle();
-      const raw = profile?.rating_focus;
-      if (isValidFocus(raw)) focus = raw;
-    }
+  if (shoesRes.error) {
+    console.error("[getShoesBase] supabase error", shoesRes.error);
+    return null;
   }
+  if (!shoesRes.data?.length) return null;
+
+  const aggregates = new Map<string, DimAggregate>();
+  for (const r of (ratingsRes.data ?? []) as DimRow[]) {
+    const cur = aggregates.get(r.shoe_id) ?? { count: 0, sums: emptyDimRecord() };
+    cur.count += 1;
+    for (const k of DIM_KEYS) cur.sums[k] += Number(r[k] ?? 0);
+    aggregates.set(r.shoe_id, cur);
+  }
+
+  return {
+    rows: shoesRes.data as ShoeQueryRow[],
+    aggregates: Array.from(aggregates.entries())
+  };
+}
+
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v1"], {
+  tags: ["shoes"],
+  revalidate: 300
+});
+
+type UserContext = {
+  myDimRatings: Map<string, Record<DimKey, number>>;
+  focus: RatingFocus | null;
+};
+
+const EMPTY_USER_CONTEXT: UserContext = { myDimRatings: new Map(), focus: null };
+
+async function loadUserContext(): Promise<UserContext> {
+  const profile = await getCurrentProfile();
+  if (!profile) return EMPTY_USER_CONTEXT;
+
+  const supabase = await createClient();
+  if (!supabase) return EMPTY_USER_CONTEXT;
+
+  const { data: mineRows } = await supabase
+    .from("shoe_ratings")
+    .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
+    .eq("user_id", profile.id);
+
+  const myDimRatings = new Map<string, Record<DimKey, number>>();
+  for (const r of (mineRows ?? []) as DimRow[]) {
+    const record = emptyDimRecord();
+    for (const k of DIM_KEYS) record[k] = Number(r[k] ?? 0);
+    myDimRatings.set(r.shoe_id, record);
+  }
+
+  const focus = isValidFocus(profile.rating_focus) ? profile.rating_focus : null;
+  return { myDimRatings, focus };
+}
+
+export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
+  const [base, userCtx] = await Promise.all([getShoesBase(), loadUserContext()]);
+  if (!base) return demoShoes;
+
+  const { rows, aggregates: aggregateEntries } = base;
+  const { myDimRatings, focus } = userCtx;
+  const aggregates = new Map<string, DimAggregate>(aggregateEntries);
 
   const specs = rows.map((row) => row.shoe_specs?.[0] ?? {});
   const dimStarsByIndex: (Partial<Record<DimKey, number>> | null)[] = rows.map(() => null);
@@ -132,7 +158,7 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
       return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0);
     });
 
-    const weighted = combinedByShoe.map((c) => weightedCombinedScore(c, focus!));
+    const weighted = combinedByShoe.map((c) => weightedCombinedScore(c, focus));
     const finalPercentiles = rankScoresToPercentiles(weighted);
     finalPercentiles.forEach((p, i) => {
       finalStarsByIndex[i] = percentileToStars(p);
@@ -140,7 +166,7 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
 
     // Spec-only stars (no user blending) for components that compare /
     // re-blend client-side.
-    const specOnly = specs.map((spec) => weightedCombinedScore(dimScores(spec), focus!));
+    const specOnly = specs.map((spec) => weightedCombinedScore(dimScores(spec), focus));
     const specPercentiles = rankScoresToPercentiles(specOnly);
     specPercentiles.forEach((p, i) => {
       specStarsByIndex[i] = percentileToStars(p);
