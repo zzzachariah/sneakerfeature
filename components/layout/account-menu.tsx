@@ -53,11 +53,11 @@ export function AccountMenu({ className }: { className?: string }) {
         aria-label={label}
         title={label}
         className={cn(
-          "relative inline-flex h-8 w-8 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]",
+          "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
           className
         )}
       >
-        <UserCircle className="h-[18px] w-[18px]" />
+        <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" />
         <span className="sr-only" data-user-identity="true">{label}</span>
         {signedIn ? (
           <span

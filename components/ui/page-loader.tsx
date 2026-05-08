@@ -7,7 +7,7 @@ export function PageLoader({ label }: { label: string }) {
   const { translate } = useLocale();
 
   return (
-    <div className="relative flex min-h-[calc(100dvh-64px)] w-full items-center justify-center overflow-hidden">
+    <div className="relative flex min-h-[calc(100dvh-var(--top-nav-h,64px)-var(--mobile-nav-h,0px))] w-full items-center justify-center overflow-hidden">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"

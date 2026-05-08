@@ -21,8 +21,8 @@ type Props = {
 function gridTemplate(count: number, hasAddGhost: boolean) {
   if (count === 1 && hasAddGhost) return "grid-cols-1 md:grid-cols-2";
   if (count === 1) return "grid-cols-1";
-  if (count === 2) return "grid-cols-1 md:grid-cols-[1fr_52px_1fr]";
-  if (count === 3) return "grid-cols-1 md:grid-cols-3";
+  if (count === 2) return "grid-cols-2 gap-x-3 md:grid-cols-[1fr_52px_1fr] md:gap-x-6";
+  if (count === 3) return "grid-cols-2 md:grid-cols-3";
   if (count === 4) return "grid-cols-2 md:grid-cols-4";
   return "grid-cols-2 md:grid-cols-3 lg:grid-cols-5";
 }
@@ -45,7 +45,7 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
   });
 
   return (
-    <div className={`grid items-start gap-x-6 gap-y-10 ${gridClass}`}>
+    <div className={`grid items-start gap-x-3 gap-y-8 sm:gap-x-6 sm:gap-y-10 ${gridClass}`}>
       {count === 2 ? (
         <>
           <ShoePlinth {...plinthProps(shoes[0])} />
@@ -97,12 +97,12 @@ function ShoePlinth({
         type="button"
         onClick={() => onRemove(shoe.id)}
         aria-label={translateLabel("Remove shoe from compare")}
-        className="absolute right-1 top-1 z-10 rounded-lg border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.7)] p-1.5 soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))]"
+        className="absolute right-1 top-1 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.85)] soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))] md:h-7 md:w-7"
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-4 w-4 md:h-3.5 md:w-3.5" />
       </button>
 
-      <div className="relative mb-5 flex min-h-[160px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-4 py-6 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] md:min-h-[240px] md:px-10 md:py-14">
+      <div className="relative mb-3 flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-3 py-4 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] sm:min-h-[160px] sm:mb-5 sm:px-4 sm:py-6 md:min-h-[240px] md:px-10 md:py-14">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100"
@@ -120,13 +120,15 @@ function ShoePlinth({
         />
       </div>
 
-      <p className="t-eyebrow mb-1">
+      <p className="t-eyebrow mb-1 text-[0.6rem] sm:text-[0.67rem]">
         {shoe.brand}
         {shoe.release_year ? (
           <span className="ml-2 text-[rgb(var(--subtext))]">· {shoe.release_year}</span>
         ) : null}
       </p>
-      <h2 className="t-display-sm mb-3">{shoe.shoe_name}</h2>
+      <h2 className="mb-2 text-[1rem] font-extrabold leading-tight tracking-[-0.025em] sm:mb-3 sm:text-[1.25rem] md:text-[1.5rem] lg:text-[1.75rem]">
+        {shoe.shoe_name}
+      </h2>
 
       <div className="mb-3">
         <StarRatingSlot
@@ -146,7 +148,7 @@ function ShoePlinth({
       {!hideDescriptor && shoe.spec.playstyle_summary ? (
         <DynamicTranslatedText
           as="p"
-          className="mb-4 max-w-[340px] text-[0.82rem] leading-[1.5] soft-text"
+          className="mb-3 max-w-[340px] text-[0.78rem] leading-[1.45] soft-text sm:mb-4 sm:text-[0.82rem] sm:leading-[1.5]"
           text={shoe.spec.playstyle_summary}
           contentType="descriptive"
         />

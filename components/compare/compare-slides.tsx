@@ -133,7 +133,7 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
 
   const labels = [translate("Lineup"), translate("Profile"), translate("Specs")];
 
-  const slideHeight = "calc(100dvh - 64px)";
+  const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
 
   return (
     <div className="relative" style={{ height: slideHeight, overflow: "hidden" }}>

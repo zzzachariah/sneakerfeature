@@ -197,7 +197,7 @@ export function DashboardSlides(props: Props) {
     translate("Settings")
   ];
 
-  const slideHeight = "calc(100dvh - 64px)";
+  const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
 
   const activityFeed = useMemo<ActivityItem[]>(() => {
     const merged: ActivityItem[] = [

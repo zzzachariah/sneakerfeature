@@ -122,7 +122,7 @@ export function HomeTable({
         >
           <div className="relative">
             <select
-              className="h-9 w-full appearance-none rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--surface)/0.7)] pl-3 pr-8 text-[0.77rem] text-[rgb(var(--subtext))] outline-none transition hover:border-[rgb(var(--text)/0.35)] md:w-auto"
+              className="h-11 w-full appearance-none rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--surface)/0.7)] pl-3 pr-8 text-[0.95rem] text-[rgb(var(--subtext))] outline-none transition hover:border-[rgb(var(--text)/0.35)] md:h-9 md:w-auto md:text-[0.77rem]"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
             >
@@ -140,20 +140,20 @@ export function HomeTable({
               placeholder={translate("Search 247 shoes…")}
               value={searchDraft}
               onChange={(e) => setSearchDraft(e.target.value)}
-              className="h-9 w-full pr-9 text-[0.77rem] md:w-[220px]"
+              className="h-11 w-full pr-9 md:h-9 md:w-[220px] md:text-[0.77rem]"
             />
             {searchDraft.trim().length > 0 && (
               <button
                 type="button"
                 onClick={clearSearch}
                 aria-label={translate("Clear search")}
-                className="absolute right-1.5 top-1/2 inline-flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--muted)/0.35)] hover:text-[rgb(var(--text))]"
+                className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--muted)/0.35)] hover:text-[rgb(var(--text))] md:h-6 md:w-6"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-4 w-4 md:h-3.5 md:w-3.5" />
               </button>
             )}
           </div>
-          <Button type="submit" variant="secondary" className="h-9 px-3 text-[0.77rem]">
+          <Button type="submit" variant="secondary" className="h-11 px-4 text-sm md:h-9 md:px-3 md:text-[0.77rem]">
             {translate("Search")}
           </Button>
         </form>
@@ -194,11 +194,11 @@ export function HomeTable({
                 <li
                   key={shoe.id}
                   style={rowReveal(i)}
-                  className="relative flex items-center gap-3 px-3 py-3"
+                  className="relative flex items-center gap-3 px-3 py-3.5 transition-colors duration-[140ms] active:bg-[rgb(var(--text)/0.05)]"
                 >
-                  <label className="flex shrink-0 items-center">
+                  <label className="flex h-11 w-7 shrink-0 items-center justify-center">
                     <input
-                      className="h-4 w-4 accent-[rgb(var(--text))]"
+                      className="h-[18px] w-[18px] accent-[rgb(var(--text))]"
                       type="checkbox"
                       checked={checked}
                       aria-label={translate("Compare")}
@@ -219,12 +219,12 @@ export function HomeTable({
                   </div>
                   <Link
                     href={`/shoes/${shoe.slug}`}
-                    className="flex min-w-0 flex-1 flex-col gap-0.5"
+                    className="flex min-w-0 flex-1 flex-col gap-1"
                   >
-                    <span className="truncate text-[0.88rem] font-semibold tracking-[-0.01em]">
+                    <span className="truncate text-[0.95rem] font-semibold leading-snug tracking-[-0.01em]">
                       {shoe.shoe_name}
                     </span>
-                    <span className="text-[0.72rem] soft-text">
+                    <span className="text-[0.78rem] leading-tight soft-text">
                       {shoe.brand}
                       {shoe.release_year ? (
                         <>
@@ -390,7 +390,10 @@ export function HomeTable({
         {translate("Showing")} {filtered.length} {translate("of")} {shoes.length}
       </p>
       {selected.length > 1 && (
-        <div className="safe-pb sticky bottom-4 flex flex-col gap-2 rounded-xl border border-[rgb(var(--text)/0.35)] bg-[rgb(var(--bg-elev)/0.92)] p-3 shadow-lift backdrop-blur-[20px] sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className="sticky flex flex-col gap-2 rounded-xl border border-[rgb(var(--text)/0.35)] bg-[rgb(var(--bg-elev)/0.92)] p-3 shadow-lift backdrop-blur-[20px] sm:flex-row sm:items-center sm:justify-between"
+          style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 16px)" }}
+        >
           <p className="text-sm">
             {selected.length} {translate("shoes selected for compare")}
           </p>
