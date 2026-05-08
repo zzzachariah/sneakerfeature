@@ -49,7 +49,6 @@ export function StarRating({
 
   const previewValue =
     interactive && hover !== null ? hover : userRating !== null ? userRating : value;
-  const fillPercent = Math.max(0, Math.min(100, (previewValue / STAR_MAX) * 100));
   const showCount = typeof count === "number" && count > 0;
 
   async function handleClick(starIndex: number, half: 0.5 | 1) {
@@ -68,25 +67,26 @@ export function StarRating({
         onMouseLeave={() => setHover(null)}
         aria-label={`${previewValue.toFixed(1)} of ${STAR_MAX} stars`}
       >
-        {[0, 1, 2, 3, 4].map((i) => (
-          <Star
-            key={`bg-${i}`}
-            className={`${sizes.star} text-[rgb(var(--muted)/0.7)]`}
-            aria-hidden
-          />
-        ))}
-        <div
-          className={`pointer-events-none absolute inset-y-0 left-0 inline-flex ${sizes.gap} overflow-hidden`}
-          style={{ width: `${fillPercent}%` }}
-        >
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Star
-              key={`fg-${i}`}
-              className={`${sizes.star} fill-current text-amber-400`}
-              aria-hidden
-            />
-          ))}
-        </div>
+        {[0, 1, 2, 3, 4].map((i) => {
+          const pct = Math.max(0, Math.min(100, (previewValue - i) * 100));
+          return (
+            <span key={i} className={`relative inline-block ${sizes.star}`}>
+              <Star
+                className={`${sizes.star} text-[rgb(var(--muted)/0.7)]`}
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden"
+                style={{ width: `${pct}%` }}
+              >
+                <Star
+                  className={`${sizes.star} fill-current text-amber-400`}
+                  aria-hidden
+                />
+              </span>
+            </span>
+          );
+        })}
         {interactive && (
           <div className="absolute inset-0 flex">
             {[0, 1, 2, 3, 4].map((i) => (

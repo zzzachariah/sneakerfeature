@@ -30,7 +30,7 @@ export function specScoreToStars(spec: ShoeSpec | null | undefined): number {
     getBounceScore(safe.bounce ?? "")
   ];
   const avg100 = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const rawStars = (avg100 / 100) * 5;
+  const rawStars = Math.pow(avg100 / 100, 3) * 5;
   return Math.max(STAR_MIN, Math.min(STAR_MAX, roundToHalf(rawStars)));
 }
 
