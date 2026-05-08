@@ -24,7 +24,7 @@ type CommentItem = {
 
 type CommentSectionProps = {
   shoeId: string;
-  specStars?: number;
+  specStars?: number | null;
   initialMyRating?: number | null;
   initialAvg?: number | null;
   initialCount?: number;
@@ -56,7 +56,8 @@ export function CommentSection({
   const [ratingIsError, setRatingIsError] = useState(false);
 
   const aggAvg = aggCount > 0 ? aggSum / aggCount : null;
-  const ratingFinal = computeFinalStars(specStars ?? 0, aggAvg, aggCount);
+  const focusReady = typeof specStars === "number";
+  const ratingFinal = focusReady ? computeFinalStars(specStars as number, aggAvg, aggCount) : null;
   const ratingLoggedIn = isLoggedIn ?? Boolean(userId);
 
   const canSubmit = useMemo(() => content.trim().length >= 3 && Boolean(userId), [content, userId]);
@@ -177,6 +178,7 @@ export function CommentSection({
 
   return (
     <section className="space-y-4">
+    {focusReady && ratingFinal !== null ? (
     <div className="surface-card premium-border rounded-3xl p-5 md:p-6">
       <div className="flex items-center gap-2">
         <Star className="h-4 w-4 text-amber-400" />
@@ -206,6 +208,7 @@ export function CommentSection({
         </div>
       )}
     </div>
+    ) : null}
     <div className="grid gap-4 md:grid-cols-[0.9fr_1.1fr]">
       <aside className="surface-card premium-border rounded-3xl p-5 md:p-6">
         <div className="flex items-center gap-2">

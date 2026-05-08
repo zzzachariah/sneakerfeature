@@ -5,10 +5,9 @@ import { motion } from "framer-motion";
 import { Shoe } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 import { ShoeImage } from "@/components/shoe/shoe-image";
-import { StarRating } from "@/components/shoe/star-rating";
+import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
-import { computeFinalStars, specScoreToStars } from "@/lib/star-rating";
 
 type Props = {
   shoes: Shoe[];
@@ -125,12 +124,8 @@ function ShoePlinth({
       <h2 className="t-display-sm mb-3">{shoe.shoe_name}</h2>
 
       <div className="mb-3">
-        <StarRating
-          value={computeFinalStars(
-            specScoreToStars(shoe.spec),
-            shoe.avgUserRating ?? null,
-            shoe.userRatingCount ?? 0
-          )}
+        <StarRatingSlot
+          value={shoe.finalStars ?? null}
           size="sm"
           showNumber
           count={shoe.userRatingCount ?? 0}

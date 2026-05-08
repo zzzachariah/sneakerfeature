@@ -42,6 +42,8 @@ export interface Shoe {
   avgUserRating?: number | null;
   userRatingCount?: number;
   myRating?: number | null;
+  specStars?: number | null;
+  finalStars?: number | null;
 }
 
 export interface ShoeImageRecord {
