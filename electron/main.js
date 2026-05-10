@@ -21,8 +21,15 @@ function createWindow() {
     },
   });
 
-  const ua = `${win.webContents.getUserAgent()} snkrfeature-desktop/${app.getVersion()}`;
-  win.webContents.setUserAgent(ua);
+  // Cloudflare Turnstile rejects User-Agents containing "Electron/..." as
+  // automation, so the challenge silently fails to render. Strip the Electron
+  // token (and the app's own product token, which Electron injects by default)
+  // so the UA looks like a vanilla Chromium build before appending our marker.
+  const baseUa = win.webContents
+    .getUserAgent()
+    .replace(/\sElectron\/\S+/i, "")
+    .replace(new RegExp(`\\s${app.getName()}\\/\\S+`, "i"), "");
+  win.webContents.setUserAgent(`${baseUa} snkrfeature-desktop/${app.getVersion()}`);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {
