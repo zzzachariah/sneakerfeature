@@ -9,12 +9,14 @@ export function Modal({
   title,
   children,
   dismissible = true,
+  zIndexClass = "z-50",
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
   dismissible?: boolean;
+  zIndexClass?: string;
 }) {
   const { translate } = useLocale();
 
@@ -22,7 +24,7 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.5)] p-4"
+          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.5)] p-4`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
