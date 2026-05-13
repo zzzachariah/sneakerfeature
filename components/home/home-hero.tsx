@@ -128,7 +128,7 @@ export function HomeHero({
         style={{ background: "linear-gradient(to top,rgb(var(--bg)),transparent)" }}
       />
       <div className="relative z-10 w-full">
-        <p className="t-eyebrow" style={{ marginBottom: 28, ...reveal(0) }}>
+        <p className="t-eyebrow" style={{ fontSize: "0.85rem", marginBottom: 28, ...reveal(0) }}>
           {translate("The Decision Layer for Basketball Sneakers")}
         </p>
 
@@ -196,7 +196,7 @@ export function HomeHero({
 
 function Stat({ value, label, done }: { value: string; label: string; done: boolean }) {
   return (
-    <span className="text-[0.78rem] text-[rgb(var(--subtext))]">
+    <span className="text-[0.95rem] text-[rgb(var(--subtext))]">
       <span
         className={`stat-underline font-bold tracking-[-0.02em] text-[rgb(var(--text))] tabular-nums ${
           done ? "is-complete" : ""
@@ -211,7 +211,7 @@ function Stat({ value, label, done }: { value: string; label: string; done: bool
 
 function Dot() {
   return (
-    <span aria-hidden className="select-none text-[0.9rem] leading-none text-[rgb(var(--muted)/0.9)]">
+    <span aria-hidden className="select-none text-[1.05rem] leading-none text-[rgb(var(--muted)/0.9)]">
       ·
     </span>
   );
