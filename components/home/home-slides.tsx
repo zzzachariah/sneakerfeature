@@ -124,6 +124,18 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
     };
   }, []);
 
+  // Tutorial integration: external requests to jump to a specific slide.
+  useEffect(() => {
+    const onTutorialGoto = (e: Event) => {
+      const ce = e as CustomEvent<{ slide?: number }>;
+      const target = ce.detail?.slide;
+      if (typeof target !== "number") return;
+      goTo(target);
+    };
+    window.addEventListener("tutorial:goto-slide", onTutorialGoto as EventListener);
+    return () => window.removeEventListener("tutorial:goto-slide", onTutorialGoto as EventListener);
+  }, [goTo]);
+
   const labels = [translate("Index"), translate("Database")];
 
   const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
