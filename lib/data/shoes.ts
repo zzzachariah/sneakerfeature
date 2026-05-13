@@ -68,7 +68,13 @@ function resolveApprovedImage(images?: ShoeImageRecord[] | null) {
 
 async function loadShoesBase(): Promise<ShoesBase | null> {
   const supabase = createPublicClient();
-  if (!supabase) return null;
+  if (!supabase) {
+    console.warn(
+      "[getShoesBase] Supabase public client unavailable — falling back to demo shoes. " +
+        "Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the deployment environment."
+    );
+    return null;
+  }
 
   const [shoesRes, ratingsRes] = await Promise.all([
     supabase
