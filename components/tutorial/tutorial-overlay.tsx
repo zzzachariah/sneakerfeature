@@ -30,7 +30,7 @@ function getRect(selector: string): Rect | null {
 
 export function TutorialOverlay() {
   const { active, stepIndex, totalSteps, next, prev, stop, goTo } = useTutorial();
-  const { translate } = useLocale();
+  const { translate, locale, requestLocaleChange } = useLocale();
   const pathname = usePathname();
 
   const [mounted, setMounted] = useState(false);
@@ -151,6 +151,65 @@ export function TutorialOverlay() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [active, next, prev, stop]);
+
+  // Lock user-initiated scroll/swipe/slide-nav while the tour is active. The
+  // tour's own `scrollIntoView` calls still work because they don't go through
+  // these listeners. Touches inside the tutorial card are allowed so its
+  // buttons remain tappable.
+  useEffect(() => {
+    if (!active) return;
+
+    const isInCard = (target: EventTarget | null): boolean =>
+      !!(target as HTMLElement | null)?.closest?.(".tutorial-card");
+
+    const blockWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const blockTouchMove = (e: TouchEvent) => {
+      if (isInCard(e.target)) return;
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+    };
+
+    const blockTouchEnds = (e: TouchEvent) => {
+      if (isInCard(e.target)) return;
+      e.stopPropagation();
+    };
+
+    const SCROLL_KEYS = new Set([
+      "ArrowUp",
+      "ArrowDown",
+      "PageUp",
+      "PageDown",
+      "Home",
+      "End",
+      " ",
+      "Spacebar"
+    ]);
+
+    const blockKeys = (e: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener("wheel", blockWheel, { capture: true, passive: false });
+    window.addEventListener("touchstart", blockTouchEnds, { capture: true });
+    window.addEventListener("touchmove", blockTouchMove, { capture: true, passive: false });
+    window.addEventListener("touchend", blockTouchEnds, { capture: true });
+    window.addEventListener("keydown", blockKeys, { capture: true });
+
+    return () => {
+      window.removeEventListener("wheel", blockWheel, true);
+      window.removeEventListener("touchstart", blockTouchEnds, true);
+      window.removeEventListener("touchmove", blockTouchMove, true);
+      window.removeEventListener("touchend", blockTouchEnds, true);
+      window.removeEventListener("keydown", blockKeys, true);
+    };
+  }, [active]);
 
   const padding = step?.padding ?? SPOTLIGHT_PAD;
   const radius = step?.radius ?? 14;
@@ -360,6 +419,52 @@ export function TutorialOverlay() {
         <p className="mt-1.5 text-[0.86rem] leading-[1.5] text-[rgb(var(--subtext))]">
           {translate(step.body)}
         </p>
+
+        {stepIndex === 0 ? (
+          <div className="mt-3 flex items-center gap-1.5">
+            <span className="text-[0.68rem] font-medium uppercase tracking-[0.16em] text-[rgb(var(--subtext))]">
+              {translate("Language")}
+            </span>
+            <div className="ml-auto inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]">
+              <button
+                type="button"
+                onClick={() => requestLocaleChange("en")}
+                aria-pressed={locale === "en"}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-[0.74rem] font-medium transition"
+                style={{
+                  background:
+                    locale === "en" ? "rgb(var(--text)/0.92)" : "transparent",
+                  color:
+                    locale === "en"
+                      ? "rgb(var(--bg))"
+                      : "rgb(var(--subtext))"
+                }}
+                data-translation-lock="true"
+              >
+                {locale === "en" ? <Check className="h-3 w-3" /> : null}
+                English
+              </button>
+              <button
+                type="button"
+                onClick={() => requestLocaleChange("zh")}
+                aria-pressed={locale === "zh"}
+                className="inline-flex items-center gap-1 border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-2.5 py-1 text-[0.74rem] font-medium transition"
+                style={{
+                  background:
+                    locale === "zh" ? "rgb(var(--text)/0.92)" : "transparent",
+                  color:
+                    locale === "zh"
+                      ? "rgb(var(--bg))"
+                      : "rgb(var(--subtext))"
+                }}
+                data-translation-lock="true"
+              >
+                {locale === "zh" ? <Check className="h-3 w-3" /> : null}
+                中文
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {missingTarget && step.selector ? (
           <div className="mt-3 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3 py-2 text-[0.78rem] leading-snug text-[rgb(var(--subtext))]">

@@ -80,7 +80,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     placement: "right",
     padding: 14,
     requiresSlide: 0,
-    requiresPath: "/"
+    requiresPath: "/",
+    scrollIntoView: false
   },
   {
     id: "database",
@@ -90,7 +91,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     placement: "top",
     padding: 12,
     requiresSlide: 1,
-    requiresPath: "/"
+    requiresPath: "/",
+    scrollIntoView: false
   },
   {
     id: "database-search",
@@ -100,7 +102,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     placement: "bottom",
     padding: 8,
     requiresSlide: 1,
-    requiresPath: "/"
+    requiresPath: "/",
+    scrollIntoView: false
   },
   {
     id: "trigger",

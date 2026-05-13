@@ -689,7 +689,13 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     <LocaleContext.Provider value={contextValue}>
       {children}
 
-      <Modal open={warningOpen} onClose={() => undefined} title="" dismissible={false}>
+      <Modal
+        open={warningOpen}
+        onClose={() => undefined}
+        title=""
+        dismissible={false}
+        zIndexClass="z-[80]"
+      >
         <div className="space-y-4">
           <p className="text-sm">
             {translate("Machine translation may contain some inaccuracies. Thank you for your understanding. Loading may also take a little time.")}
