@@ -327,8 +327,9 @@ export function TutorialOverlay() {
       {/* Card */}
       <div
         key={step.id}
-        className="fixed glass-card tutorial-card"
+        className="glass-card tutorial-card"
         style={{
+          position: "fixed",
           left: cardPos.left,
           top: cardPos.top,
           width: CARD_W,
