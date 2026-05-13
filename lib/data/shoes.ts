@@ -113,26 +113,39 @@ type UserContext = {
 const EMPTY_USER_CONTEXT: UserContext = { myDimRatings: new Map(), focus: null };
 
 async function loadUserContext(): Promise<UserContext> {
-  const profile = await getCurrentProfile();
-  if (!profile) return EMPTY_USER_CONTEXT;
+  try {
+    const profile = await getCurrentProfile();
+    if (!profile) return EMPTY_USER_CONTEXT;
 
-  const supabase = await createClient();
-  if (!supabase) return EMPTY_USER_CONTEXT;
+    const supabase = await createClient();
+    if (!supabase) return EMPTY_USER_CONTEXT;
 
-  const { data: mineRows } = await supabase
-    .from("shoe_ratings")
-    .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
-    .eq("user_id", profile.id);
+    const { data: mineRows } = await supabase
+      .from("shoe_ratings")
+      .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
+      .eq("user_id", profile.id);
 
-  const myDimRatings = new Map<string, Record<DimKey, number>>();
-  for (const r of (mineRows ?? []) as DimRow[]) {
-    const record = emptyDimRecord();
-    for (const k of DIM_KEYS) record[k] = Number(r[k] ?? 0);
-    myDimRatings.set(r.shoe_id, record);
+    const myDimRatings = new Map<string, Record<DimKey, number>>();
+    for (const r of (mineRows ?? []) as DimRow[]) {
+      const record = emptyDimRecord();
+      for (const k of DIM_KEYS) record[k] = Number(r[k] ?? 0);
+      myDimRatings.set(r.shoe_id, record);
+    }
+
+    const focus = isValidFocus(profile.rating_focus) ? profile.rating_focus : null;
+    return { myDimRatings, focus };
+  } catch (error) {
+    if (isFrameworkError(error)) throw error;
+    console.error("[loadUserContext] error", error);
+    return EMPTY_USER_CONTEXT;
   }
+}
 
-  const focus = isValidFocus(profile.rating_focus) ? profile.rating_focus : null;
-  return { myDimRatings, focus };
+function isFrameworkError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  if (typeof digest !== "string") return false;
+  return digest === "DYNAMIC_SERVER_USAGE" || digest.startsWith("NEXT_");
 }
 
 export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
