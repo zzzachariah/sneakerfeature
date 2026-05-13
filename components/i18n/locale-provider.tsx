@@ -446,6 +446,43 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "clear my ratings": "清除我的评分",
   "save my ratings": "保存我的评分",
   "my ratings": "我的评分",
+
+  // Tutorial
+  "site tour": "网站导览",
+  "tour": "导览",
+  "close tour": "关闭导览",
+  "step": "步骤",
+  "previous step": "上一步",
+  "finish": "完成",
+  "this part lives on the homepage.": "这部分内容在首页。",
+  "return home": "返回首页",
+  "welcome to snkrfeature": "欢迎来到 snkrfeature",
+  "a living index of basketball sneakers. let me show you around in under a minute.":
+    "一份持续更新的篮球鞋索引，让我用不到一分钟带你看一遍。",
+  "primary navigation": "主导航",
+  "jump to home, compare, submit, and your account from here.":
+    "在这里可以前往首页、对比、提交和你的账号。",
+  "filter by tech, keywords, and structured fields when the homepage table isn't enough.":
+    "需要更精细的筛选时，可在此按科技、关键词等字段查找。",
+  "switch between english and chinese. machine-translated content is marked.":
+    "在英文和中文之间切换，机器翻译内容会有标注。",
+  "pick your playstyle and ratings reweight to what matters to you on court.":
+    "选择你的打法后，评分会根据你在场上看重的维度重新加权。",
+  "cycle light, dark, and system. your choice is remembered.":
+    "循环切换浅色、深色和跟随系统，选择会被记住。",
+  "sign in to save comparisons, rate shoes, and join discussions.":
+    "登录后可保存对比、为球鞋打分并参与讨论。",
+  "home — the index at a glance": "首页 — 索引一览",
+  "live counts, what we cover, and quick links to compare and submit.":
+    "实时计数、收录范围，以及对比与提交的快捷入口。",
+  "every indexed pair, sortable and searchable. tap a row to open the full spec sheet.":
+    "所有已收录的球鞋，可排序和搜索。点击行可查看完整规格。",
+  "quick search": "快速搜索",
+  "type a model, player, or tech keyword. filter by brand on the left.":
+    "输入型号、球员或科技关键词，左侧可按品牌筛选。",
+  "want a refresher?": "想再看一遍？",
+  "re-open this tour anytime from this icon in the navbar. enjoy snkrfeature.":
+    "随时通过导航栏的这个图标重新打开导览。祝你使用愉快。",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

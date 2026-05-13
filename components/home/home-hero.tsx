@@ -107,7 +107,10 @@ export function HomeHero({
   ];
 
   return (
-    <section className="relative flex h-full w-full flex-col justify-center overflow-hidden px-0 py-10 sm:py-12 md:py-16">
+    <section
+      className="relative flex h-full w-full flex-col justify-center overflow-hidden px-0 py-10 sm:py-12 md:py-16"
+      data-tutorial="hero"
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute overflow-hidden"

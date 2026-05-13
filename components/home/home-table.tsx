@@ -107,7 +107,7 @@ export function HomeTable({
   };
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-5">
+    <section className="flex h-full min-h-0 flex-col gap-5" data-tutorial="home-table">
       <div
         className="flex flex-col items-stretch gap-3 md:flex-row md:flex-wrap md:items-end md:justify-between md:gap-4"
         style={revealStyle(0)}
@@ -135,7 +135,7 @@ export function HomeTable({
             </select>
             <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[rgb(var(--subtext))]" />
           </div>
-          <div className="relative flex-1 md:flex-initial">
+          <div className="relative flex-1 md:flex-initial" data-tutorial="home-table-search">
             <Input
               placeholder={translate("Search 247 shoes…")}
               value={searchDraft}

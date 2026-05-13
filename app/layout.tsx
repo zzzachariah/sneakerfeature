@@ -7,6 +7,8 @@ import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
+import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
+import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from "@/lib/seo";
@@ -43,12 +45,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LocaleProvider>
           <AuthStateProvider>
             <RatingFocusProvider>
-              <div className="relative flex min-h-screen flex-col">
-                <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
-                <Navbar />
-                <div className="flex-1 has-mobile-nav-pad">{children}</div>
-                <MobileBottomNav />
-              </div>
+              <TutorialProvider>
+                <div className="relative flex min-h-screen flex-col">
+                  <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
+                  <Navbar />
+                  <div className="flex-1 has-mobile-nav-pad">{children}</div>
+                  <MobileBottomNav />
+                </div>
+                <TutorialOverlay />
+              </TutorialProvider>
             </RatingFocusProvider>
           </AuthStateProvider>
         </LocaleProvider>

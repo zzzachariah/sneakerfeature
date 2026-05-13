@@ -7,6 +7,7 @@ import { Check, Languages, Search, Sliders, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
+import { TutorialTrigger } from "@/components/tutorial/tutorial-trigger";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
@@ -80,7 +81,10 @@ export function Navbar() {
           snkrfeature
         </Link>
 
-        <nav className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
+        <nav
+          className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
+          data-tutorial="nav-links"
+        >
           {navItems.map((item) => {
             const active = pathname === item.href;
             return (
@@ -115,11 +119,12 @@ export function Navbar() {
             className={iconBtn}
             aria-label={translate("Advanced Search")}
             title={translate("Advanced Search")}
+            data-tutorial="nav-search"
           >
             <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
           </Link>
 
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative" onClick={(e) => e.stopPropagation()} data-tutorial="nav-language">
             <button
               type="button"
               onClick={() => setLangOpen((prev) => !prev)}
@@ -160,7 +165,7 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative" onClick={(e) => e.stopPropagation()} data-tutorial="nav-focus">
             <button
               type="button"
               onClick={() => setFocusOpen((prev) => !prev)}
@@ -223,7 +228,9 @@ export function Navbar() {
             )}
           </div>
 
-          <ThemeToggle />
+          <span className="inline-flex" data-tutorial="nav-theme">
+            <ThemeToggle />
+          </span>
           <button
             type="button"
             onClick={() => setAboutOpen(true)}
@@ -233,7 +240,10 @@ export function Navbar() {
           >
             <Sparkles className="h-4 w-4" />
           </button>
-          <AccountMenu />
+          <TutorialTrigger className={iconBtn} />
+          <span className="inline-flex" data-tutorial="nav-account">
+            <AccountMenu />
+          </span>
         </div>
       </div>
 
