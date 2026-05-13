@@ -129,10 +129,10 @@ export function HomeHero({
       />
       <div className="relative z-10 w-full">
         <p className="t-eyebrow" style={{ marginBottom: 28, ...reveal(0) }}>
-          {translate("Basketball Sneaker Database")}
+          {translate("The Decision Layer for Basketball Sneakers")}
         </p>
 
-        <div style={{ marginBottom: 36 }}>
+        <div style={{ marginBottom: 22 }}>
           {headlineLines.map((line, i) => (
             <div
               key={i}
@@ -160,16 +160,27 @@ export function HomeHero({
           ))}
         </div>
 
+        <div
+          className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-[22px]"
+          style={{ marginBottom: 40, ...reveal(320) }}
+        >
+          <Stat value={shoes.value.toString()} label={translate("shoes indexed")} done={shoes.done} />
+          <Dot />
+          <Stat value={brands.value.toString()} label={translate("brands represented")} done={brands.done} />
+          <Dot />
+          <Stat value={translate("Live")} label={translate("submission pipeline")} done={up} />
+        </div>
+
         <p
           className="max-w-[460px] text-[0.95rem] leading-[1.55] tracking-[-0.01em] sm:text-[1rem]"
-          style={{ color: "rgb(var(--subtext))", marginBottom: 44, ...reveal(340) }}
+          style={{ color: "rgb(var(--subtext))", marginBottom: 44, ...reveal(380) }}
         >
           {translate(
-            "Every basketball sneaker worth playing in — reviewed, compared, and indexed by the community."
+            "Cushion, traction, court feel — structured and comparable. Because choosing a shoe shouldn't take 10 tabs."
           )}
         </p>
 
-        <div className="flex flex-wrap gap-3" style={{ marginBottom: 64, ...reveal(410) }}>
+        <div className="flex flex-wrap gap-3" style={reveal(440)}>
           <BrowseButton label={translate("Go to compare")} href="/compare" />
           <Link
             href="/submit"
@@ -177,17 +188,6 @@ export function HomeHero({
           >
             {translate("Submit a shoe")}
           </Link>
-        </div>
-
-        <div
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-[22px] sm:gap-[22px]"
-          style={{ borderTop: "1px solid rgb(var(--muted)/0.25)", ...reveal(440) }}
-        >
-          <Stat value={shoes.value.toString()} label={translate("shoes indexed")} done={shoes.done} />
-          <Dot />
-          <Stat value={brands.value.toString()} label={translate("brands represented")} done={brands.done} />
-          <Dot />
-          <Stat value={translate("Live")} label={translate("submission pipeline")} done={up} />
         </div>
       </div>
     </section>
