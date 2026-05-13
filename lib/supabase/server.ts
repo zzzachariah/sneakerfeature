@@ -14,7 +14,14 @@ export async function createClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
-        cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          // setAll fires during token refresh; Server Components have a
+          // read-only cookie store, so the write is dropped here. The
+          // middleware (or a Route Handler on the next mutation) will
+          // persist the refreshed session cookies.
+        }
       }
     }
   });

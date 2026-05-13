@@ -3,6 +3,13 @@ import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
+function isFrameworkError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const digest = (error as { digest?: unknown }).digest;
+  if (typeof digest !== "string") return false;
+  return digest === "DYNAMIC_SERVER_USAGE" || digest.startsWith("NEXT_");
+}
+
 export type CurrentProfile = {
   id: string;
   username: string | null;
@@ -21,10 +28,16 @@ export const getCurrentUser = cache(async function getCurrentUser(): Promise<Use
   if (!(await hasAuthCookie())) return null;
   const supabase = await createClient();
   if (!supabase) return null;
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  return user;
+  try {
+    const {
+      data: { user }
+    } = await supabase.auth.getUser();
+    return user;
+  } catch (error) {
+    if (isFrameworkError(error)) throw error;
+    console.error("[getCurrentUser] supabase auth error", error);
+    return null;
+  }
 });
 
 export const getCurrentProfile = cache(async function getCurrentProfile(): Promise<CurrentProfile | null> {
@@ -32,16 +45,22 @@ export const getCurrentProfile = cache(async function getCurrentProfile(): Promi
   if (!user) return null;
   const supabase = await createClient();
   if (!supabase) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("username, role, rating_focus")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (!data) return { id: user.id, username: null, role: "user", rating_focus: null };
-  return {
-    id: user.id,
-    username: data.username ?? null,
-    role: data.role === "admin" ? "admin" : "user",
-    rating_focus: data.rating_focus
-  };
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("username, role, rating_focus")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (!data) return { id: user.id, username: null, role: "user", rating_focus: null };
+    return {
+      id: user.id,
+      username: data.username ?? null,
+      role: data.role === "admin" ? "admin" : "user",
+      rating_focus: data.rating_focus
+    };
+  } catch (error) {
+    if (isFrameworkError(error)) throw error;
+    console.error("[getCurrentProfile] supabase error", error);
+    return { id: user.id, username: null, role: "user", rating_focus: null };
+  }
 });
