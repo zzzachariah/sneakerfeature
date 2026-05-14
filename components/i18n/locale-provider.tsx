@@ -272,6 +272,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "cushioning feel": "缓震脚感",
   "court feel": "场地感",
   "fit / containment": "包裹 / 锁定",
+  "true to size": "不偏码",
   "tags (comma separated)": "标签（逗号分隔）",
   "source links (comma separated)": "来源链接（逗号分隔）",
 
