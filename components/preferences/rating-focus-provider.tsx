@@ -44,25 +44,49 @@ export function RatingFocusProvider({
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
-    if (supabase) {
-      supabase.auth.getSession().then(({ data }) => {
-        if (cancelled) return;
-        setIsLoggedIn(Boolean(data.session?.user?.id));
-      });
+
+    const fetchFocus = () => {
+      fetch("/api/preferences/rating-focus", { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (cancelled) return;
+          if (isValidFocus(data?.focus)) setFocus(data.focus);
+          else setFocus(null);
+          setLoaded(true);
+        })
+        .catch(() => {
+          if (!cancelled) setLoaded(true);
+        });
+    };
+
+    if (!supabase) {
+      fetchFocus();
+      return () => {
+        cancelled = true;
+      };
     }
-    fetch("/api/preferences/rating-focus", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        if (cancelled) return;
-        if (isValidFocus(data?.focus)) setFocus(data.focus);
-        else setFocus(null);
-        setLoaded(true);
-      })
-      .catch(() => {
-        if (!cancelled) setLoaded(true);
-      });
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setIsLoggedIn(Boolean(data.session?.user?.id));
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      const signedIn = Boolean(session?.user?.id);
+      setIsLoggedIn(signedIn);
+      if (signedIn) {
+        fetchFocus();
+      } else {
+        setFocus(null);
+      }
+    });
+
+    fetchFocus();
+
     return () => {
       cancelled = true;
+      listener.subscription.unsubscribe();
     };
   }, []);
 
