@@ -17,9 +17,10 @@ import {
   type RatingFocus
 } from "@/lib/star-rating";
 
-type ShoeRow = Omit<Shoe, "spec"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
+type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
 type ShoeStory = NonNullable<Shoe["story"]>;
-type ShoeQueryRow = ShoeRow & { shoe_stories: ShoeStory[] | null };
+type ShoeStoryRow = ShoeStory & { shoe_id: string };
+type ShoeQueryRow = ShoeRow & { story: ShoeStory | null };
 export type ShoeImageState = {
   approved: ShoeImageRecord | null;
   pending: ShoeImageRecord | null;
@@ -76,14 +77,18 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
     return null;
   }
 
-  const [shoesRes, ratingsRes] = await Promise.all([
+  const [shoesRes, ratingsRes, storiesRes] = await Promise.all([
     supabase
       .from("shoes")
-      .select("*, shoe_specs(*), shoe_stories(*), shoe_images(*)")
+      .select("*, shoe_specs(*), shoe_images(*)")
       .order("created_at", { ascending: false }),
     supabase
       .from("shoe_ratings")
-      .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
+      .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit"),
+    supabase
+      .from("shoe_stories")
+      .select("shoe_id, title, content, source_label, source_url")
+      .order("created_at", { ascending: false })
   ]);
 
   if (shoesRes.error) {
@@ -91,6 +96,21 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
     return null;
   }
   if (!shoesRes.data?.length) return null;
+  if (storiesRes.error) {
+    console.error("[getShoesBase] shoe_stories fetch failed", storiesRes.error);
+  }
+
+  const storyByShoeId = new Map<string, ShoeStory>();
+  for (const row of (storiesRes.data ?? []) as ShoeStoryRow[]) {
+    if (storyByShoeId.has(row.shoe_id)) continue;
+    const { shoe_id, ...story } = row;
+    storyByShoeId.set(shoe_id, story);
+  }
+
+  const rows: ShoeQueryRow[] = (shoesRes.data as Array<ShoeRow & { id: string }>).map((row) => ({
+    ...row,
+    story: storyByShoeId.get(row.id) ?? null
+  }));
 
   const aggregates = new Map<string, DimAggregate>();
   for (const r of (ratingsRes.data ?? []) as DimRow[]) {
@@ -101,12 +121,12 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
   }
 
   return {
-    rows: shoesRes.data as ShoeQueryRow[],
+    rows,
     aggregates: Array.from(aggregates.entries())
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v1"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v2"], {
   tags: ["shoes"],
   revalidate: 300
 });
@@ -211,7 +231,6 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
       ...row,
       image_url: resolveApprovedImage(row.shoe_images)?.public_url ?? null,
       spec: specs[idx],
-      story: row.shoe_stories?.[0] ?? null,
       userRatingCount,
       specStars: specStarsByIndex[idx],
       finalStars: finalStarsByIndex[idx],
