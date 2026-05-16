@@ -10,6 +10,7 @@ import {
   useState
 } from "react";
 import { TUTORIAL_STEPS } from "@/lib/tutorial/steps";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 
 const STORAGE_KEY = "tutorial_completed_v1";
 
@@ -29,24 +30,11 @@ const TutorialContext = createContext<TutorialContextValue | null>(null);
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
-  const introHandled = useRef(false);
 
-  useEffect(() => {
-    if (introHandled.current) return;
-    introHandled.current = true;
-    try {
-      const completed = window.localStorage.getItem(STORAGE_KEY);
-      if (!completed) {
-        const t = window.setTimeout(() => {
-          setStepIndex(0);
-          setActive(true);
-        }, 650);
-        return () => window.clearTimeout(t);
-      }
-    } catch {
-      // localStorage blocked — skip auto-start.
-    }
-  }, []);
+  const { signedIn, loaded } = useAuthState();
+  // Baseline captured the first time auth resolves so an already-signed-in
+  // user opening the app doesn't re-trigger the tour on every visit.
+  const baselineSignedInRef = useRef<boolean | null>(null);
 
   const persistDone = useCallback(() => {
     try {
@@ -86,6 +74,35 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     if (index < 0 || index >= TUTORIAL_STEPS.length) return;
     setStepIndex(index);
   }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+
+    if (baselineSignedInRef.current === null) {
+      baselineSignedInRef.current = signedIn;
+      return;
+    }
+
+    if (!baselineSignedInRef.current && signedIn) {
+      baselineSignedInRef.current = true;
+      let completed: string | null = null;
+      try {
+        completed = window.localStorage.getItem(STORAGE_KEY);
+      } catch {
+        return;
+      }
+      if (completed) return;
+      const t = window.setTimeout(() => {
+        setStepIndex(0);
+        setActive(true);
+      }, 650);
+      return () => window.clearTimeout(t);
+    }
+
+    if (!signedIn) {
+      baselineSignedInRef.current = false;
+    }
+  }, [signedIn, loaded]);
 
   const value = useMemo<TutorialContextValue>(
     () => ({

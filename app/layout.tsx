@@ -46,7 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AuthStateProvider>
             <RatingFocusProvider>
               <TutorialProvider>
-                <div className="relative flex min-h-screen flex-col">
+                <div className="relative flex min-h-[100dvh] flex-col">
                   <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
                   <Navbar />
                   <div className="flex-1 has-mobile-nav-pad">{children}</div>
