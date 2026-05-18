@@ -242,6 +242,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "no editorial story yet.": "暂无编辑故事。",
   "source/evidence: seed dataset + community validation pipeline. admin review required before promotion to official records.":
     "来源/证据：种子数据集 + 社区验证流程。成为官方记录前需管理员审核。",
+  "source": "来源",
   "related shoes": "相关球鞋",
   "back to database": "返回数据库",
   "shoe name": "鞋名",
