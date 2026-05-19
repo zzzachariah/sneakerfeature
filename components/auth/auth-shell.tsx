@@ -61,7 +61,7 @@ export function AuthShell({
             </div>
             <div className="space-y-1">
               <p className="auth-eyebrow">{translate("live")}</p>
-              <p className="text-sm soft-text">{translate("A living index of every pair worth playing in.")}</p>
+              <p className="text-sm soft-text">{translate("Sneakers scored to your game. Sign in to get started.")}</p>
             </div>
           </div>
         </motion.section>

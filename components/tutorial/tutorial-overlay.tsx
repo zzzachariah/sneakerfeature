@@ -56,6 +56,16 @@ export function TutorialOverlay() {
     );
   }, [active, step]);
 
+  // Dispatch modal open requests for steps with an action
+  useEffect(() => {
+    if (!active || !step) return;
+    if (step.action?.type === "open-modal") {
+      window.dispatchEvent(
+        new CustomEvent("tutorial:open-modal", { detail: { modalId: step.action.modalId } })
+      );
+    }
+  }, [active, step]);
+
   // Viewport tracking
   useEffect(() => {
     if (!active) return;
