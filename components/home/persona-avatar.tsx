@@ -397,38 +397,6 @@ function actionFromPose(p: Pose): ActionSequence {
 }
 
 const POSES: Pose[] = [
-  // ── Defense ────────────────────────────────────────────────
-  pose({
-    name: "defend-stance", label: "Defending",
-    lShoulder: 95, lElbow: -22,
-    rShoulder: -95, rElbow: 22,
-    lHip: 24, lKnee: -32, lAnkle: 10,
-    rHip: -24, rKnee: 32, rAnkle: -10,
-    bodyShiftY: 10, anim: { body: "pa-bounce" }
-  }),
-  pose({
-    name: "block", label: "Block",
-    headTilt: -4,
-    lShoulder: 70, lElbow: -100, lWrist: -10,
-    rShoulder: -178, rElbow: -8,
-    rAnkle: 18, bodyShiftY: -12, hasHoop: true
-  }),
-  pose({
-    name: "steal-reach", label: "Reach for steal",
-    headTilt: -10,
-    lShoulder: 8, lElbow: -8,
-    rShoulder: -110, rElbow: -25, rWrist: -12,
-    lHip: 6, lKnee: -10, rHip: -18, rKnee: 24
-  }),
-  pose({
-    name: "box-out", label: "Box out",
-    headTilt: 6,
-    lShoulder: -16, lElbow: -50,
-    rShoulder: 16, rElbow: 50,
-    lHip: 16, lKnee: -16, rHip: -16, rKnee: 16,
-    bodyShiftY: 6
-  }),
-
   // ── Finishing ──────────────────────────────────────────────
   pose({
     name: "layup", label: "Layup",
@@ -1296,6 +1264,140 @@ const ACTIONS: ActionSequence[] = [
         lShoulder: 132, lElbow: 50,
         rShoulder: -132, rElbow: -50,
         enterMs: 360, hold: 360
+      }
+    ]
+  },
+
+  // ── Defense ─────────────────────────────────────────────────
+  {
+    name: "defend-stance",
+    label: "Defending",
+    category: "defense",
+    view: "front",
+    sceneBg: "court-floor",
+    anim: { body: "pa-bounce" },
+    frames: [
+      // Wide stance, arms out, weight shifting left
+      {
+        lShoulder: 100, lElbow: -22,
+        rShoulder: -100, rElbow: 22,
+        lHip: 26, lKnee: -36, lAnkle: 10,
+        rHip: -26, rKnee: 36, rAnkle: -10,
+        bodyShiftY: 14,
+        bodyShiftX: -2,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "focus",
+        effects: ["sweat-drops"],
+        enterMs: 380, hold: 220
+      },
+      // Shift right
+      {
+        bodyShiftX: 2,
+        enterMs: 380, hold: 220
+      }
+    ]
+  },
+  {
+    name: "block",
+    label: "Block",
+    category: "defense",
+    view: "side-r",
+    hasHoop: true,
+    sceneBg: "paint-zone",
+    frames: [
+      // Windup: load knees
+      {
+        headTilt: -2,
+        lShoulder: 25, lElbow: -55,
+        rShoulder: -25, rElbow: 55,
+        lHip: 6, lKnee: -22, rHip: -6, rKnee: 22,
+        bodyShiftY: 10,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "focus",
+        enterMs: 320, hold: 80
+      },
+      // Spike: leap up, right hand swatting at the rim
+      {
+        headTilt: -6,
+        lShoulder: 70, lElbow: -100, lWrist: -10,
+        rShoulder: -178, rElbow: -8,
+        lHip: 0, lKnee: -4, rHip: 0, rKnee: 4,
+        rAnkle: 18,
+        bodyShiftY: -22,
+        effects: ["impact-rings", "shake-cam", "motion-lines-up"],
+        enterMs: 200, hold: 60
+      },
+      // Land
+      {
+        headTilt: 4,
+        lShoulder: 18, lElbow: -22,
+        rShoulder: -18, rElbow: 22,
+        lKnee: -18, rKnee: 18,
+        bodyShiftY: 8,
+        effects: ["dust-puff"],
+        enterMs: 360, hold: 600
+      }
+    ]
+  },
+  {
+    name: "steal-reach",
+    label: "Reach for steal",
+    category: "defense",
+    view: "side-r",
+    sceneBg: "court-floor",
+    frames: [
+      // Cock right arm back
+      {
+        headTilt: -10,
+        lShoulder: 8, lElbow: -8,
+        rShoulder: -60, rElbow: -10,
+        lHip: 6, lKnee: -10, rHip: -10, rKnee: 18,
+        bodyShiftY: 6,
+        lHandPose: "open-palm",
+        rHandPose: "open-palm",
+        expression: "focus",
+        enterMs: 280, hold: 80
+      },
+      // Swipe forward (the steal)
+      {
+        rShoulder: -110, rElbow: -25, rWrist: -12,
+        bodyShiftX: 2,
+        rHandPose: "open-palm",
+        effects: ["slash", "motion-lines-r"],
+        enterMs: 200, hold: 0
+      },
+      // Recoil
+      {
+        rShoulder: -80, rElbow: -22,
+        bodyShiftX: 0,
+        enterMs: 320, hold: 340
+      }
+    ]
+  },
+  {
+    name: "box-out",
+    label: "Box out",
+    category: "defense",
+    view: "side-r",
+    sceneBg: "paint-zone",
+    frames: [
+      // Wide low stance, arms back
+      {
+        headTilt: 6,
+        lShoulder: -18, lElbow: -50,
+        rShoulder: 18, rElbow: 50,
+        lHip: 18, lKnee: -22, rHip: -18, rKnee: 22,
+        bodyShiftY: 12,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "focus",
+        effects: ["sweat-drops"],
+        enterMs: 420, hold: 240
+      },
+      // Lower
+      {
+        bodyShiftY: 16,
+        lKnee: -28, rKnee: 28,
+        enterMs: 420, hold: 240
       }
     ]
   }
