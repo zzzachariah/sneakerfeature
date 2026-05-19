@@ -32,23 +32,25 @@ const SVG_W = 200;
 const SVG_H = 280;
 const CX = SVG_W / 2;
 
-const HEAD_R = 12;
+const HEAD_R = 13;
 const HEAD_CY = 40;
 
-const TORSO_W = 40;
-const TORSO_H = 62;
-const TORSO_TOP = HEAD_CY + HEAD_R + 4; // 56
-const TORSO_BOTTOM = TORSO_TOP + TORSO_H; // 118
+const NECK_H = 4;
+const TORSO_W = 34;
+const TORSO_H = 64;
+const TORSO_TOP = HEAD_CY + HEAD_R + NECK_H; // 57
+const TORSO_BOTTOM = TORSO_TOP + TORSO_H; // 121
+const WAIST_Y = TORSO_TOP + TORSO_H * 0.55; // chest/belly divider
 
-const UPPER_ARM_H = 26;
-const FOREARM_H = 22;
-const ARM_W = 5;
+const UPPER_ARM_H = 27;
+const FOREARM_H = 24;
+const ARM_W = 5.5;
 const HAND_R = 4;
 
-const THIGH_H = 36;
-const SHIN_H = 32;
+const THIGH_H = 38;
+const SHIN_H = 34;
 const FOOT_H = 5;
-const LEG_W = 9;
+const LEG_W = 8.5;
 
 const L_SHOULDER_X = CX - TORSO_W / 2 + 1;
 const R_SHOULDER_X = CX + TORSO_W / 2 - 1;
@@ -1042,6 +1044,18 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         transform={`translate(0 ${activePose.bodyShiftY ?? 0})`}
         style={{ ...animStyle(activePose.anim?.body), transition: POSE_TRANSITION }}
       >
+        {/* Neck (thin line between head and torso) */}
+        <line
+          x1={CX}
+          y1={HEAD_CY + HEAD_R - 1}
+          x2={CX}
+          y2={TORSO_TOP + 1}
+          stroke={strokeColor}
+          strokeWidth={3}
+          strokeLinecap="round"
+          opacity={0.85}
+        />
+
         {/* Torso */}
         <rect
           x={CX - TORSO_W / 2}
@@ -1055,6 +1069,17 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
           style={{ transition: "all 360ms cubic-bezier(0.22,1,0.36,1)" }}
         />
 
+        {/* Waist divider (chest / belly separator) */}
+        <line
+          x1={CX - TORSO_W / 2 + 2}
+          y1={WAIST_Y}
+          x2={CX + TORSO_W / 2 - 2}
+          y2={WAIST_Y}
+          stroke={strokeColor}
+          strokeWidth={0.6}
+          opacity={0.55}
+        />
+
         {/* Head */}
         <g
           transform={`translate(${CX} ${HEAD_CY}) rotate(${activePose.headTilt})`}
@@ -1064,8 +1089,19 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
             <circle cx={0} cy={0} r={HEAD_R} fill={fillColor} stroke={strokeColor} strokeWidth={1.2} />
             {!dimmed && (
               <>
-                <circle cx={-4} cy={-1} r={1.1} fill="rgb(var(--bg))" />
-                <circle cx={4} cy={-1} r={1.1} fill="rgb(var(--bg))" />
+                {/* Eyes */}
+                <circle cx={-4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
+                <circle cx={4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
+                {/* Mouth (default neutral line) */}
+                <line
+                  x1={-2}
+                  y1={5}
+                  x2={2}
+                  y2={5}
+                  stroke="rgb(var(--bg))"
+                  strokeWidth={0.9}
+                  strokeLinecap="round"
+                />
               </>
             )}
           </g>
