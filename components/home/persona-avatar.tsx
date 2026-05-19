@@ -1689,6 +1689,206 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
     <circle cx={0} cy={0} r={r} fill={fillColor} stroke={strokeColor} strokeWidth={0.5} />
   );
 
+  // Arm chain — one helper, parameterized by side. Far-side arms in side
+  // view get a reduced opacity to hint at occlusion.
+  const ArmChain = ({
+    side,
+    opacity = 1
+  }: {
+    side: "l" | "r";
+    opacity?: number;
+  }) => {
+    const anchorX = side === "l" ? L_SHOULDER_X : R_SHOULDER_X;
+    const shoulder = side === "l" ? activePose.lShoulder : activePose.rShoulder;
+    const elbow = side === "l" ? activePose.lElbow : activePose.rElbow;
+    const wrist = side === "l" ? activePose.lWrist : activePose.rWrist;
+    const animShoulder = side === "l" ? activePose.anim?.lShoulder : activePose.anim?.rShoulder;
+    const animElbow = side === "l" ? activePose.anim?.lElbow : activePose.anim?.rElbow;
+    const animWrist = side === "l" ? activePose.anim?.lWrist : activePose.anim?.rWrist;
+    const slot: "left-hand" | "right-hand" = side === "l" ? "left-hand" : "right-hand";
+    return (
+      <g
+        transform={`translate(${anchorX} ${SHOULDER_Y}) rotate(${shoulder})`}
+        style={{ transition: "var(--pose-transition)", opacity }}
+      >
+        <g style={animStyle(animShoulder)}>
+          <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
+          <JointDot />
+          <g
+            transform={`translate(0 ${UPPER_ARM_H}) rotate(${elbow})`}
+            style={{ transition: "var(--pose-transition)" }}
+          >
+            <g style={animStyle(animElbow)}>
+              <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
+              <JointDot />
+              <g
+                transform={`translate(0 ${FOREARM_H}) rotate(${wrist})`}
+                style={{ transition: "var(--pose-transition)" }}
+              >
+                <g style={animStyle(animWrist)}>
+                  <JointDot r={1.4} />
+                  <HandAndBall slot={slot} />
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    );
+  };
+
+  // Leg chain — mirror structure of ArmChain.
+  const LegChain = ({
+    side,
+    opacity = 1
+  }: {
+    side: "l" | "r";
+    opacity?: number;
+  }) => {
+    const anchorX = side === "l" ? L_HIP_X : R_HIP_X;
+    const hip = side === "l" ? activePose.lHip : activePose.rHip;
+    const knee = side === "l" ? activePose.lKnee : activePose.rKnee;
+    const ankle = side === "l" ? activePose.lAnkle : activePose.rAnkle;
+    const animHip = side === "l" ? activePose.anim?.lHip : activePose.anim?.rHip;
+    const animKnee = side === "l" ? activePose.anim?.lKnee : activePose.anim?.rKnee;
+    const animAnkle = side === "l" ? activePose.anim?.lAnkle : activePose.anim?.rAnkle;
+    return (
+      <g
+        transform={`translate(${anchorX} ${HIP_Y}) rotate(${hip})`}
+        style={{ transition: "var(--pose-transition)", opacity }}
+      >
+        <g style={animStyle(animHip)}>
+          <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
+          <JointDot r={1.8} />
+          <g
+            transform={`translate(0 ${THIGH_H}) rotate(${knee})`}
+            style={{ transition: "var(--pose-transition)" }}
+          >
+            <g style={animStyle(animKnee)}>
+              <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
+              <JointDot r={1.8} />
+              <g
+                transform={`translate(0 ${SHIN_H}) rotate(${ankle})`}
+                style={{ transition: "var(--pose-transition)" }}
+              >
+                <g style={animStyle(animAnkle)}>
+                  <JointDot r={1.5} />
+                  <Foot />
+                </g>
+              </g>
+            </g>
+          </g>
+        </g>
+      </g>
+    );
+  };
+
+  // Torso + head + neck + waist. View determines narrowness of torso and
+  // adds profile features (nose, ear, single eye) when sideways.
+  const TorsoAndHead = () => {
+    const isFront = activePose.view === "front";
+    const sideR = activePose.view === "side-r";
+    const torsoW = isFront ? TORSO_W : TORSO_W * 0.55;
+    const facingSign = sideR ? 1 : -1;
+    return (
+      <>
+        {/* Neck */}
+        <line
+          x1={CX}
+          y1={HEAD_CY + HEAD_R - 1}
+          x2={CX}
+          y2={TORSO_TOP + 1}
+          stroke={strokeColor}
+          strokeWidth={3}
+          strokeLinecap="round"
+          opacity={0.85}
+        />
+        {/* Torso */}
+        <rect
+          x={CX - torsoW / 2}
+          y={TORSO_TOP}
+          width={torsoW}
+          height={TORSO_H}
+          rx={torsoW / 3}
+          fill={fillColor}
+          stroke={strokeColor}
+          strokeWidth={1.2}
+          style={{ transition: "all 360ms cubic-bezier(0.22,1,0.36,1)" }}
+        />
+        {/* Waist divider */}
+        <line
+          x1={CX - torsoW / 2 + 2}
+          y1={WAIST_Y}
+          x2={CX + torsoW / 2 - 2}
+          y2={WAIST_Y}
+          stroke={strokeColor}
+          strokeWidth={0.6}
+          opacity={0.55}
+        />
+        {/* Head */}
+        <g
+          transform={`translate(${CX} ${HEAD_CY}) rotate(${activePose.headTilt})`}
+          style={{ transition: "var(--pose-transition)" }}
+        >
+          <g style={animStyle(activePose.anim?.head)}>
+            <circle cx={0} cy={0} r={HEAD_R} fill={fillColor} stroke={strokeColor} strokeWidth={1.2} />
+            {!dimmed && (
+              <>
+                {/* Profile features when sideways */}
+                {!isFront && (
+                  <>
+                    {/* Nose: small triangle bump on facing side */}
+                    <path
+                      d={`M ${facingSign * HEAD_R * 0.92} -1 L ${facingSign * (HEAD_R + 3)} 0 L ${facingSign * HEAD_R * 0.92} 2 Z`}
+                      fill={fillColor}
+                      stroke={strokeColor}
+                      strokeWidth={0.7}
+                    />
+                    {/* Ear: small arc on far side */}
+                    <path
+                      d={`M ${-facingSign * (HEAD_R - 1)} -2 Q ${-facingSign * (HEAD_R + 2)} 0 ${-facingSign * (HEAD_R - 1)} 3`}
+                      fill="none"
+                      stroke={strokeColor}
+                      strokeWidth={0.9}
+                    />
+                  </>
+                )}
+                {/* Eyes — front shows both, side shows only the viewer-facing one */}
+                {isFront ? (
+                  <>
+                    <circle cx={-4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
+                    <circle cx={4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
+                  </>
+                ) : (
+                  <circle cx={facingSign * 4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
+                )}
+                {activePose.expression === "focus" && (
+                  <>
+                    <line x1={-6} y1={-5} x2={-2.5} y2={-3.5} stroke="rgb(var(--bg))" strokeWidth={0.7} strokeLinecap="round" />
+                    <line x1={6} y1={-5} x2={2.5} y2={-3.5} stroke="rgb(var(--bg))" strokeWidth={0.7} strokeLinecap="round" />
+                  </>
+                )}
+                {/* Mouth */}
+                {activePose.expression === "smile" ? (
+                  <path d="M -2.5 4.5 Q 0 6.5 2.5 4.5" fill="none" stroke="rgb(var(--bg))" strokeWidth={0.9} strokeLinecap="round" />
+                ) : activePose.expression === "open-mouth" ? (
+                  <ellipse cx={0} cy={5} rx={1.4} ry={1.6} fill="rgb(var(--bg))" />
+                ) : activePose.expression === "focus" ? (
+                  <line x1={-1.5} y1={5} x2={1.5} y2={5} stroke="rgb(var(--bg))" strokeWidth={1.1} strokeLinecap="round" />
+                ) : isFront ? (
+                  <line x1={-2} y1={5} x2={2} y2={5} stroke="rgb(var(--bg))" strokeWidth={0.9} strokeLinecap="round" />
+                ) : (
+                  // Side view neutral mouth: shorter line shifted toward facing side
+                  <line x1={facingSign * 0.5} y1={5} x2={facingSign * 3} y2={5} stroke="rgb(var(--bg))" strokeWidth={0.9} strokeLinecap="round" />
+                )}
+              </>
+            )}
+          </g>
+        </g>
+      </>
+    );
+  };
+
   // Trigger a one-shot CSS class on the wrapper when the current frame fires
   // a `shake-cam` effect. Auto-clears after the keyframe completes.
   const [shakeTick, setShakeTick] = useState(0);
@@ -1736,196 +1936,37 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
           transition: "var(--pose-transition)"
         }}
       >
-        {/* Neck (thin line between head and torso) */}
-        <line
-          x1={CX}
-          y1={HEAD_CY + HEAD_R - 1}
-          x2={CX}
-          y2={TORSO_TOP + 1}
-          stroke={strokeColor}
-          strokeWidth={3}
-          strokeLinecap="round"
-          opacity={0.85}
-        />
-
-        {/* Torso */}
-        <rect
-          x={CX - TORSO_W / 2}
-          y={TORSO_TOP}
-          width={TORSO_W}
-          height={TORSO_H}
-          rx={TORSO_W / 3}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={1.2}
-          style={{ transition: "all 360ms cubic-bezier(0.22,1,0.36,1)" }}
-        />
-
-        {/* Waist divider (chest / belly separator) */}
-        <line
-          x1={CX - TORSO_W / 2 + 2}
-          y1={WAIST_Y}
-          x2={CX + TORSO_W / 2 - 2}
-          y2={WAIST_Y}
-          stroke={strokeColor}
-          strokeWidth={0.6}
-          opacity={0.55}
-        />
-
-        {/* Head */}
-        <g
-          transform={`translate(${CX} ${HEAD_CY}) rotate(${activePose.headTilt})`}
-          style={{ transition: "var(--pose-transition)" }}
-        >
-          <g style={animStyle(activePose.anim?.head)}>
-            <circle cx={0} cy={0} r={HEAD_R} fill={fillColor} stroke={strokeColor} strokeWidth={1.2} />
-            {!dimmed && (
-              <>
-                {/* Eyes (focus expression adds slight brow lines above) */}
-                <circle cx={-4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
-                <circle cx={4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
-                {activePose.expression === "focus" && (
-                  <>
-                    <line x1={-6} y1={-5} x2={-2.5} y2={-3.5} stroke="rgb(var(--bg))" strokeWidth={0.7} strokeLinecap="round" />
-                    <line x1={6} y1={-5} x2={2.5} y2={-3.5} stroke="rgb(var(--bg))" strokeWidth={0.7} strokeLinecap="round" />
-                  </>
-                )}
-                {/* Mouth */}
-                {activePose.expression === "smile" ? (
-                  <path
-                    d="M -2.5 4.5 Q 0 6.5 2.5 4.5"
-                    fill="none"
-                    stroke="rgb(var(--bg))"
-                    strokeWidth={0.9}
-                    strokeLinecap="round"
-                  />
-                ) : activePose.expression === "open-mouth" ? (
-                  <ellipse cx={0} cy={5} rx={1.4} ry={1.6} fill="rgb(var(--bg))" />
-                ) : activePose.expression === "focus" ? (
-                  <line x1={-1.5} y1={5} x2={1.5} y2={5} stroke="rgb(var(--bg))" strokeWidth={1.1} strokeLinecap="round" />
-                ) : (
-                  <line x1={-2} y1={5} x2={2} y2={5} stroke="rgb(var(--bg))" strokeWidth={0.9} strokeLinecap="round" />
-                )}
-              </>
-            )}
-          </g>
-        </g>
-
-        {/* LEFT arm chain */}
-        <g
-          transform={`translate(${L_SHOULDER_X} ${SHOULDER_Y}) rotate(${activePose.lShoulder})`}
-          style={{ transition: "var(--pose-transition)" }}
-        >
-          <g style={animStyle(activePose.anim?.lShoulder)}>
-            <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
-            <JointDot />
-            <g
-              transform={`translate(0 ${UPPER_ARM_H}) rotate(${activePose.lElbow})`}
-              style={{ transition: "var(--pose-transition)" }}
-            >
-              <g style={animStyle(activePose.anim?.lElbow)}>
-                <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
-                <JointDot />
-                <g
-                  transform={`translate(0 ${FOREARM_H}) rotate(${activePose.lWrist})`}
-                  style={{ transition: "var(--pose-transition)" }}
-                >
-                  <g style={animStyle(activePose.anim?.lWrist)}>
-                    <JointDot r={1.4} />
-                    <HandAndBall slot="left-hand" />
-                  </g>
-                </g>
-              </g>
-            </g>
-          </g>
-        </g>
-
-        {/* RIGHT arm chain */}
-        <g
-          transform={`translate(${R_SHOULDER_X} ${SHOULDER_Y}) rotate(${activePose.rShoulder})`}
-          style={{ transition: "var(--pose-transition)" }}
-        >
-          <g style={animStyle(activePose.anim?.rShoulder)}>
-            <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
-            <JointDot />
-            <g
-              transform={`translate(0 ${UPPER_ARM_H}) rotate(${activePose.rElbow})`}
-              style={{ transition: "var(--pose-transition)" }}
-            >
-              <g style={animStyle(activePose.anim?.rElbow)}>
-                <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
-                <JointDot />
-                <g
-                  transform={`translate(0 ${FOREARM_H}) rotate(${activePose.rWrist})`}
-                  style={{ transition: "var(--pose-transition)" }}
-                >
-                  <g style={animStyle(activePose.anim?.rWrist)}>
-                    <JointDot r={1.4} />
-                    <HandAndBall slot="right-hand" />
-                  </g>
-                </g>
-              </g>
-            </g>
-          </g>
-        </g>
-
-        {/* LEFT leg chain */}
-        <g
-          transform={`translate(${L_HIP_X} ${HIP_Y}) rotate(${activePose.lHip})`}
-          style={{ transition: "var(--pose-transition)" }}
-        >
-          <g style={animStyle(activePose.anim?.lHip)}>
-            <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
-            <JointDot r={1.8} />
-            <g
-              transform={`translate(0 ${THIGH_H}) rotate(${activePose.lKnee})`}
-              style={{ transition: "var(--pose-transition)" }}
-            >
-              <g style={animStyle(activePose.anim?.lKnee)}>
-                <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
-                <JointDot r={1.8} />
-                <g
-                  transform={`translate(0 ${SHIN_H}) rotate(${activePose.lAnkle})`}
-                  style={{ transition: "var(--pose-transition)" }}
-                >
-                  <g style={animStyle(activePose.anim?.lAnkle)}>
-                    <JointDot r={1.5} />
-                    <Foot />
-                  </g>
-                </g>
-              </g>
-            </g>
-          </g>
-        </g>
-
-        {/* RIGHT leg chain */}
-        <g
-          transform={`translate(${R_HIP_X} ${HIP_Y}) rotate(${activePose.rHip})`}
-          style={{ transition: "var(--pose-transition)" }}
-        >
-          <g style={animStyle(activePose.anim?.rHip)}>
-            <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
-            <JointDot r={1.8} />
-            <g
-              transform={`translate(0 ${THIGH_H}) rotate(${activePose.rKnee})`}
-              style={{ transition: "var(--pose-transition)" }}
-            >
-              <g style={animStyle(activePose.anim?.rKnee)}>
-                <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
-                <JointDot r={1.8} />
-                <g
-                  transform={`translate(0 ${SHIN_H}) rotate(${activePose.rAnkle})`}
-                  style={{ transition: "var(--pose-transition)" }}
-                >
-                  <g style={animStyle(activePose.anim?.rAnkle)}>
-                    <JointDot r={1.5} />
-                    <Foot />
-                  </g>
-                </g>
-              </g>
-            </g>
-          </g>
-        </g>
+        {/* Limb + torso order depends on view:
+            - front: torso/head first, then both arms, then both legs
+            - side-r: far (L) limbs first (behind torso), then torso/head,
+                      then near (R) limbs (on top)
+            - side-l: mirror of side-r */}
+        {activePose.view === "front" ? (
+          <>
+            <TorsoAndHead />
+            <ArmChain side="l" />
+            <ArmChain side="r" />
+            <LegChain side="l" />
+            <LegChain side="r" />
+          </>
+        ) : activePose.view === "side-r" ? (
+          <>
+            <LegChain side="l" opacity={0.7} />
+            <ArmChain side="l" opacity={0.55} />
+            <TorsoAndHead />
+            <LegChain side="r" />
+            <ArmChain side="r" />
+          </>
+        ) : (
+          // side-l: figure faces left; near limbs are L, far limbs are R.
+          <>
+            <LegChain side="r" opacity={0.7} />
+            <ArmChain side="r" opacity={0.55} />
+            <TorsoAndHead />
+            <LegChain side="l" />
+            <ArmChain side="l" />
+          </>
+        )}
 
         {/* Free-floating balls (not in any joint chain). Scale combines the
             ball slot default with any per-frame / per-action override. */}
