@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { HomeHero } from "@/components/home/home-hero";
-import { HomeTable } from "@/components/home/home-table";
+import { HomeFeed } from "@/components/home/home-feed";
+import { HomeModeProvider } from "@/components/home/home-mode-context";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePersona } from "@/components/preferences/persona-provider";
 import { Shoe } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -31,6 +33,7 @@ type Props = {
 
 export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Props) {
   const { translate } = useLocale();
+  const { persona } = usePersona();
   const TOTAL = 2;
   const [slide, setSlide] = useState(0);
   const slideRef = useRef(0);
@@ -136,11 +139,12 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
     return () => window.removeEventListener("tutorial:goto-slide", onTutorialGoto as EventListener);
   }, [goTo]);
 
-  const labels = [translate("Index"), translate("Database")];
+  const labels = [translate("Home"), translate("Recommendations")];
 
   const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
 
   return (
+    <HomeModeProvider defaultMode={persona ? "personalized" : "browse"}>
     <div
       ref={rootRef}
       className="relative"
@@ -173,7 +177,7 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
           style={{ height: slideHeight }}
         >
           <div className="container-shell flex h-full flex-col py-6 md:py-10">
-            <HomeTable
+            <HomeFeed
               shoes={shoes}
               initialQuery={initialQuery}
               active={slide === 1}
@@ -254,5 +258,6 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
         }
       `}</style>
     </div>
+    </HomeModeProvider>
   );
 }

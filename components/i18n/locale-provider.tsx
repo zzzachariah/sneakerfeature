@@ -485,6 +485,83 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "want a refresher?": "想再看一遍？",
   "re-open this tour anytime from this icon in the navbar. enjoy snkrfeature.":
     "随时通过导航栏的这个图标重新打开导览。祝你使用愉快。",
+
+  // Persona / personalized recommendations
+  "sneaker database": "球鞋信息库",
+  "browse all": "浏览全部",
+  "personalized": "个性化推荐",
+  "recommended for you": "为你推荐",
+  "why?": "为什么?",
+  "match": "匹配",
+  "log in to personalize": "登录以个性化推荐",
+  "log in to personalize your feed.": "登录后即可获得个性化推荐。",
+  "tap the avatar to set up your player profile.": "点小人设置你的球员档案。",
+  "compare mode": "对比模式",
+  "your personalized feed": "你的个性化推荐",
+  "your player avatar": "你的球员形象",
+  "edit your player profile": "编辑你的球员档案",
+  "set up your player profile": "设置你的球员档案",
+  "sign in to set up your player profile.": "登录后即可设置你的球员档案。",
+  "pick your position(s), skill level, whether you have flat feet, and your height & weight. we will use these to recommend shoes.":
+    "选择你的位置、水平、是否扁平足,以及身高体重。我们用这些信息来推荐球鞋。",
+  "position": "位置",
+  "pick up to 2 positions": "最多选择 2 个位置",
+  "pick at least one position.": "请至少选择 1 个位置。",
+  "please enter a valid height.": "请输入有效的身高。",
+  "please enter a valid weight.": "请输入有效的体重。",
+  "skill level": "水平",
+  "beginner": "初学者",
+  "amateur": "业余",
+  "semi-pro": "半职业",
+  "pro": "职业",
+  "yes": "是",
+  "no": "否",
+  "are you flat-footed?": "你是平足吗?",
+  "what is flat foot?": "什么是平足?",
+  "flat foot means your arch is collapsed and your sole touches the ground more flatly. flat-footed players typically benefit from extra stability and arch support.":
+    "平足意味着足弓塌陷,脚掌更平地接触地面。平足球员通常需要更强的稳定性和足弓支撑。",
+  "height (cm)": "身高 (厘米)",
+  "weight (kg)": "体重 (公斤)",
+  "clear profile": "清除档案",
+
+  // Match reasons
+  "great for guards": "适合后卫",
+  "great for wings": "适合锋线",
+  "great for bigs": "适合内线",
+  "stable for flat-footed players": "平足球员稳定性好",
+  "forgiving for beginners": "对初学者友好",
+  "responsive for advanced players": "进阶球员响应迅速",
+  "lightweight for your build": "适合你身材的轻量化",
+  "supportive for heavier players": "给重体型球员的支撑",
+  "low-profile for shorter players": "适合矮身材的低帮",
+  "containment for taller players": "给高身材的包裹",
+
+  // Branding update
+  "sneakers scored to your game. sign in to get started.": "为你的打法打分的球鞋。登录开始体验。",
+  "personalized basketball sneaker recommendations. let me show you around in under a minute.":
+    "个性化篮球鞋推荐。一分钟内带你逛一圈。",
+  "recommendations": "推荐",
+
+  // Tutorial copy updates
+  "filter by tech, keywords, and structured fields when the homepage feed isn't enough.":
+    "当主页瀑布流不够用时,可以按技术、关键词和结构化字段过滤。",
+  "sneaker database — built around you": "球鞋信息库 —— 为你而建",
+  "live counts and what we cover. below the fold you'll see shoes ranked for your player profile.":
+    "实时数量与覆盖范围。下方就是为你的球员档案排序的球鞋列表。",
+  "every shoe scored against your player profile. tap a card to open the full spec sheet.":
+    "每双鞋都根据你的档案评分。点卡片即可打开完整规格页。",
+  "type a model, player, or tech keyword. filter by brand from the toolbar.":
+    "输入型号、球员或技术关键词。在工具栏按品牌过滤。",
+
+  // Tutorial new steps
+  "this little figure represents you. tap it to set your position, skill level, height and weight so we can score every shoe for you.":
+    "这个小人代表你。点它设置你的位置、水平、身高和体重,我们会据此为你打分每双鞋。",
+  "browse all or personalized": "浏览全部或个性化",
+  "flip between personalized recommendations and the unfiltered database any time.":
+    "随时在个性化推荐和完整数据库之间切换。",
+
+  // Card / search misc
+  "search shoes…": "搜索球鞋…",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePersona } from "@/components/preferences/persona-provider";
+import { PersonaAvatar } from "@/components/home/persona-avatar";
 
 function useCountUp(target: number, duration: number, trigger: boolean) {
   const [value, setValue] = useState(0);
@@ -33,36 +32,6 @@ function useCountUp(target: number, duration: number, trigger: boolean) {
   return { value, done };
 }
 
-function BrowseButton({ label, href }: { label: string; href: Route }) {
-  const [hover, setHover] = useState(false);
-
-  return (
-    <Link
-      href={href}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      className="shimmer-on-hover relative inline-flex h-11 w-full max-w-[220px] flex-shrink-0 items-center justify-center overflow-hidden border border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))] transition-[border-radius,box-shadow,transform] duration-[240ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-[0.97] sm:w-[188px]"
-      style={{
-        borderRadius: hover ? 50 : 9,
-        boxShadow: hover ? "0 8px 28px rgb(var(--shadow)/0.4)" : "none"
-      }}
-    >
-      <span
-        className="absolute inset-0 z-10 flex items-center justify-center whitespace-nowrap text-[0.875rem] font-bold tracking-[-0.01em] transition-opacity duration-[110ms]"
-        style={{ opacity: hover ? 0 : 1 }}
-      >
-        {label} <ArrowRight className="ml-1.5 h-4 w-4" />
-      </span>
-      <span
-        className="absolute inset-0 z-10 flex items-center justify-center text-[1.25rem] font-bold transition-opacity duration-[160ms]"
-        style={{ opacity: hover ? 1 : 0, transitionDelay: hover ? "80ms" : "0ms" }}
-      >
-        →
-      </span>
-    </Link>
-  );
-}
-
 export function HomeHero({
   shoesCount,
   brandsCount,
@@ -73,6 +42,7 @@ export function HomeHero({
   active?: boolean;
 }) {
   const { translate } = useLocale();
+  const { persona, isLoggedIn, openModal } = usePersona();
   const [up, setUp] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -100,11 +70,13 @@ export function HomeHero({
     transitionDelay: `${delay}ms`
   });
 
-  const headlineLines = [
-    translate("A LIVING INDEX"),
-    translate("OF EVERY PAIR"),
-    translate("WORTH PLAYING IN.")
-  ];
+  function handleAvatarClick() {
+    if (!isLoggedIn) {
+      window.location.href = "/login";
+      return;
+    }
+    openModal();
+  }
 
   return (
     <section
@@ -130,67 +102,85 @@ export function HomeHero({
         className="pointer-events-none absolute bottom-0 left-0 right-0 h-[40%]"
         style={{ background: "linear-gradient(to top,rgb(var(--bg)),transparent)" }}
       />
-      <div className="relative z-10 w-full">
-        <p className="t-eyebrow" style={{ fontSize: "0.85rem", marginBottom: 28, ...reveal(0) }}>
-          {translate("The Decision Layer for Basketball Sneakers")}
-        </p>
+      <div className="relative z-10 grid w-full grid-cols-1 items-center gap-6 md:grid-cols-[1fr_280px] md:gap-10">
+        <div className="order-2 md:order-1">
+          <p
+            className="t-eyebrow"
+            style={{ fontSize: "0.72rem", marginBottom: 18, ...reveal(0) }}
+          >
+            {translate("The Decision Layer for Basketball Sneakers")}
+          </p>
 
-        <div style={{ marginBottom: 22 }}>
-          {headlineLines.map((line, i) => (
+          <div style={{ marginBottom: 18 }}>
             <div
-              key={i}
               style={{
                 display: "block",
                 overflow: "hidden",
                 paddingBottom: "0.08em"
               }}
             >
-              <div
-                className="t-display"
+              <h1
+                className="t-display-sm"
                 style={{
                   color: "rgb(var(--text))",
                   display: "block",
+                  fontSize: "clamp(1.75rem, 4vw, 3rem)",
+                  lineHeight: 1.05,
+                  letterSpacing: "-0.02em",
                   transform: up ? "translate3d(0,0,0)" : "translate3d(0,110%,0)",
-                  transition:
-                    "transform 760ms cubic-bezier(0.22,1,0.36,1)",
-                  transitionDelay: `${80 + i * 90}ms`,
+                  transition: "transform 760ms cubic-bezier(0.22,1,0.36,1)",
+                  transitionDelay: "80ms",
                   willChange: "transform"
                 }}
               >
-                {line}
-              </div>
+                {translate("Sneaker Database")}
+              </h1>
             </div>
-          ))}
+          </div>
+
+          <div
+            className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:gap-x-4"
+            style={{ marginBottom: 24, ...reveal(220) }}
+          >
+            <Stat value={shoes.value.toString()} label={translate("shoes indexed")} done={shoes.done} />
+            <Dot />
+            <Stat value={brands.value.toString()} label={translate("brands represented")} done={brands.done} />
+            <Dot />
+            <Stat value={translate("Live")} label={translate("submission pipeline")} done={up} />
+          </div>
+
+          <p
+            className="max-w-[460px] text-[0.85rem] leading-[1.5] tracking-[-0.01em] sm:text-[0.9rem]"
+            style={{ color: "rgb(var(--subtext))", ...reveal(320) }}
+          >
+            {translate(
+              "Cushion, traction, court feel — structured and comparable. Because choosing a shoe shouldn't take 10 tabs."
+            )}
+          </p>
+
+          {!persona && (
+            <p
+              className="mt-3 text-[0.78rem] soft-text"
+              style={reveal(380)}
+            >
+              {isLoggedIn
+                ? translate("Tap the avatar to set up your player profile.")
+                : translate("Log in to personalize your feed.")}
+            </p>
+          )}
         </div>
 
         <div
-          className="flex flex-wrap items-center gap-x-4 gap-y-2 sm:gap-[22px]"
-          style={{ marginBottom: 40, ...reveal(320) }}
+          className="order-1 flex justify-center md:order-2 md:justify-end"
+          style={reveal(180)}
+          data-tutorial="hero-avatar"
         >
-          <Stat value={shoes.value.toString()} label={translate("shoes indexed")} done={shoes.done} />
-          <Dot />
-          <Stat value={brands.value.toString()} label={translate("brands represented")} done={brands.done} />
-          <Dot />
-          <Stat value={translate("Live")} label={translate("submission pipeline")} done={up} />
-        </div>
-
-        <p
-          className="max-w-[460px] text-[0.95rem] leading-[1.55] tracking-[-0.01em] sm:text-[1rem]"
-          style={{ color: "rgb(var(--subtext))", marginBottom: 44, ...reveal(380) }}
-        >
-          {translate(
-            "Cushion, traction, court feel — structured and comparable. Because choosing a shoe shouldn't take 10 tabs."
-          )}
-        </p>
-
-        <div className="flex flex-wrap gap-3" style={reveal(440)}>
-          <BrowseButton label={translate("Go to compare")} href="/compare" />
-          <Link
-            href="/submit"
-            className="inline-flex h-11 items-center justify-center rounded-[9px] border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-transparent px-5 text-[0.875rem] font-medium tracking-[-0.01em] text-[rgb(var(--subtext))] transition-[border-color,color,transform] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-[1px] hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))]"
-          >
-            {translate("Submit a shoe")}
-          </Link>
+          <PersonaAvatar
+            persona={persona}
+            dimmed={!isLoggedIn || !persona}
+            onClick={handleAvatarClick}
+            size="md"
+          />
         </div>
       </div>
     </section>
@@ -199,7 +189,7 @@ export function HomeHero({
 
 function Stat({ value, label, done }: { value: string; label: string; done: boolean }) {
   return (
-    <span className="text-[0.95rem] text-[rgb(var(--subtext))]">
+    <span className="text-[0.85rem] text-[rgb(var(--subtext))]">
       <span
         className={`stat-underline font-bold tracking-[-0.02em] text-[rgb(var(--text))] tabular-nums ${
           done ? "is-complete" : ""
@@ -214,7 +204,7 @@ function Stat({ value, label, done }: { value: string; label: string; done: bool
 
 function Dot() {
   return (
-    <span aria-hidden className="select-none text-[1.05rem] leading-none text-[rgb(var(--muted)/0.9)]">
+    <span aria-hidden className="select-none text-[1rem] leading-none text-[rgb(var(--muted)/0.9)]">
       ·
     </span>
   );

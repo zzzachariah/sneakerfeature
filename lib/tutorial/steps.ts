@@ -10,13 +10,14 @@ export type TutorialStep = {
   requiresSlide?: 0 | 1;
   requiresPath?: string;
   scrollIntoView?: boolean;
+  action?: { type: "open-modal"; modalId: "persona" | "rating-focus" };
 };
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
     title: "Welcome to snkrfeature",
-    body: "A living index of basketball sneakers. Let me show you around in under a minute.",
+    body: "Personalized basketball sneaker recommendations. Let me show you around in under a minute.",
     placement: "center"
   },
   {
@@ -31,7 +32,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "nav-search",
     selector: "[data-tutorial='nav-search']",
     title: "Advanced search",
-    body: "Filter by tech, keywords, and structured fields when the homepage table isn't enough.",
+    body: "Filter by tech, keywords, and structured fields when the homepage feed isn't enough.",
     placement: "bottom",
     shape: "circle",
     padding: 6
@@ -75,8 +76,8 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "hero",
     selector: "[data-tutorial='hero']",
-    title: "Home — the index at a glance",
-    body: "Live counts, what we cover, and quick links to Compare and Submit.",
+    title: "Sneaker Database — built around you",
+    body: "Live counts and what we cover. Below the fold you'll see shoes ranked for your player profile.",
     placement: "right",
     padding: 14,
     requiresSlide: 0,
@@ -84,10 +85,32 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     scrollIntoView: false
   },
   {
-    id: "database",
-    selector: "[data-tutorial='home-table']",
-    title: "The database",
-    body: "Every indexed pair, sortable and searchable. Tap a row to open the full spec sheet.",
+    id: "persona-avatar",
+    selector: "[data-tutorial='hero-avatar']",
+    title: "Your player avatar",
+    body: "This little figure represents you. Tap it to set your position, skill level, height and weight so we can score every shoe for you.",
+    placement: "left",
+    requiresSlide: 0,
+    requiresPath: "/",
+    padding: 12,
+    radius: 16,
+    scrollIntoView: true
+  },
+  {
+    id: "persona-setup",
+    selector: "[data-tutorial='hero-avatar']",
+    title: "Set up your player profile",
+    body: "Pick your position(s), skill level, whether you have flat feet, and your height & weight. We will use these to recommend shoes.",
+    placement: "center",
+    requiresSlide: 0,
+    requiresPath: "/",
+    action: { type: "open-modal", modalId: "persona" }
+  },
+  {
+    id: "feed",
+    selector: "[data-tutorial='home-feed']",
+    title: "Your personalized feed",
+    body: "Every shoe scored against your player profile. Tap a card to open the full spec sheet.",
     placement: "top",
     padding: 12,
     requiresSlide: 1,
@@ -95,10 +118,20 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     scrollIntoView: false
   },
   {
-    id: "database-search",
-    selector: "[data-tutorial='home-table-search']",
+    id: "mode-toggle",
+    selector: "[data-tutorial='home-mode-toggle']",
+    title: "Browse all or Personalized",
+    body: "Flip between personalized recommendations and the unfiltered database any time.",
+    placement: "bottom",
+    requiresSlide: 1,
+    requiresPath: "/",
+    padding: 8
+  },
+  {
+    id: "feed-search",
+    selector: "[data-tutorial='home-feed-search']",
     title: "Quick search",
-    body: "Type a model, player, or tech keyword. Filter by brand on the left.",
+    body: "Type a model, player, or tech keyword. Filter by brand from the toolbar.",
     placement: "bottom",
     padding: 8,
     requiresSlide: 1,

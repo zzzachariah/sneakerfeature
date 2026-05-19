@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DIM_KEYS } from "@/lib/star-rating";
+import { POSITIONS, SKILL_LEVELS, HEIGHT_MIN, HEIGHT_MAX, WEIGHT_MIN, WEIGHT_MAX } from "@/lib/persona/types";
 
 export const authSchema = z.object({
   identifier: z.string().min(3, "Use at least 3 characters for username/email."),
@@ -55,6 +56,18 @@ export const ratingFocusSchema = z
     (d) => new Set([d.primary, d.secondary, d.tertiary]).size === 3,
     "Three picks must be distinct."
   );
+
+export const personaSchema = z.object({
+  positions: z
+    .array(z.enum(POSITIONS))
+    .min(1, "Pick at least one position.")
+    .max(2, "Pick at most two positions.")
+    .refine((arr) => new Set(arr).size === arr.length, "Duplicate positions are not allowed."),
+  skill_level: z.enum(SKILL_LEVELS),
+  flat_foot: z.boolean(),
+  height_cm: z.coerce.number().int().min(HEIGHT_MIN).max(HEIGHT_MAX),
+  weight_kg: z.coerce.number().int().min(WEIGHT_MIN).max(WEIGHT_MAX)
+});
 
 export const submissionSchema = z.object({
   shoe_name: z.string().min(2),

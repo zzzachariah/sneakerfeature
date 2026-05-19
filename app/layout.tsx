@@ -6,6 +6,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
+import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
@@ -45,15 +46,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LocaleProvider>
           <AuthStateProvider>
             <RatingFocusProvider>
-              <TutorialProvider>
-                <div className="relative flex min-h-[100dvh] flex-col">
-                  <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
-                  <Navbar />
-                  <div className="flex-1 has-mobile-nav-pad">{children}</div>
-                  <MobileBottomNav />
-                </div>
-                <TutorialOverlay />
-              </TutorialProvider>
+              <PersonaProvider>
+                <TutorialProvider>
+                  <div className="relative flex min-h-[100dvh] flex-col">
+                    <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
+                    <Navbar />
+                    <div className="flex-1 has-mobile-nav-pad">{children}</div>
+                    <MobileBottomNav />
+                  </div>
+                  <TutorialOverlay />
+                </TutorialProvider>
+              </PersonaProvider>
             </RatingFocusProvider>
           </AuthStateProvider>
         </LocaleProvider>
