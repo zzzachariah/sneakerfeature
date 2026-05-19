@@ -489,85 +489,6 @@ const POSES: Pose[] = [
     bodyShiftY: -8, ball: "overhead", hasHoop: true
   }),
 
-  // ── Celebrations / casual ──────────────────────────────────
-  pose({
-    name: "wave", label: "Wave",
-    headTilt: 8,
-    lShoulder: 8, lElbow: -8,
-    rShoulder: -148, rElbow: -22,
-    anim: { rWrist: "pa-wave-hand" }
-  }),
-  pose({
-    name: "thumbs-up", label: "Thumbs up",
-    lShoulder: 8, lElbow: -8,
-    rShoulder: -22, rElbow: -108, rWrist: -10
-  }),
-  pose({
-    name: "peace-sign", label: "Peace",
-    headTilt: -4,
-    lShoulder: 8, lElbow: -8,
-    rShoulder: -32, rElbow: -130, rWrist: -8
-  }),
-  pose({
-    name: "heart-hands", label: "Heart hands",
-    headTilt: -3,
-    lShoulder: 138, lElbow: 38, lWrist: -10,
-    rShoulder: -138, rElbow: -38, rWrist: 10,
-    decoration: "heart"
-  }),
-  pose({
-    name: "bow", label: "Bow",
-    headTilt: 22,
-    lShoulder: 8, lElbow: -10,
-    rShoulder: -8, rElbow: 10,
-    bodyShiftY: 6
-  }),
-  pose({
-    name: "clap", label: "Clap",
-    lShoulder: 22, lElbow: -120, lWrist: -8,
-    rShoulder: -22, rElbow: 120, rWrist: 8,
-    anim: { lWrist: "pa-clap", rWrist: "pa-clap" }
-  }),
-  pose({
-    name: "jump-celebrate", label: "Jump for joy",
-    headTilt: -2,
-    lShoulder: 168, lElbow: 8,
-    rShoulder: -168, rElbow: -8,
-    lAnkle: -10, rAnkle: 10,
-    bodyShiftY: -10, decoration: "stars"
-  }),
-  pose({
-    name: "point-up", label: "Point up",
-    headTilt: -10,
-    lShoulder: 8, lElbow: -8,
-    rShoulder: -174, rElbow: -8
-  }),
-  pose({
-    name: "point-coach", label: "Coaching",
-    headTilt: -4,
-    lShoulder: 12, lElbow: -10,
-    rShoulder: -100, rElbow: -10
-  }),
-  pose({
-    name: "fist-pump", label: "Fist pump",
-    headTilt: 8,
-    lShoulder: 4, lElbow: -8,
-    rShoulder: -8, rElbow: -130, rWrist: 10,
-    anim: { body: "pa-bounce" }
-  }),
-  pose({
-    name: "flex", label: "Flex",
-    headTilt: 0,
-    lShoulder: 80, lElbow: -148, lWrist: -10,
-    rShoulder: -80, rElbow: 148, rWrist: 10
-  }),
-  pose({
-    name: "victory-arms-wide", label: "Arms wide",
-    headTilt: 0,
-    lShoulder: 95, lElbow: -8,
-    rShoulder: -95, rElbow: 8,
-    anim: { body: "pa-breathe" }
-  })
 ];
 
 // ───────────────────────────────────────────────────────────────
@@ -1541,6 +1462,261 @@ const ACTIONS: ActionSequence[] = [
         expression: "smile",
         effects: ["dust-puff", "confetti"],
         enterMs: 320, hold: 1500
+      }
+    ]
+  },
+
+  // ── Celebrations / casual ───────────────────────────────────
+  {
+    name: "wave",
+    label: "Wave",
+    category: "celebration",
+    view: "front",
+    anim: { rWrist: "pa-wave-hand", body: "pa-breathe" },
+    frames: [
+      {
+        headTilt: 8,
+        lShoulder: 8, lElbow: -8,
+        rShoulder: -148, rElbow: -22,
+        lHandPose: "relaxed", rHandPose: "open-palm",
+        expression: "smile"
+      }
+    ]
+  },
+  {
+    name: "thumbs-up",
+    label: "Thumbs up",
+    category: "celebration",
+    view: "front",
+    frames: [
+      {
+        lShoulder: 8, lElbow: -8,
+        rShoulder: -22, rElbow: -108, rWrist: -10,
+        lHandPose: "relaxed", rHandPose: "thumbs-up",
+        expression: "smile"
+      }
+    ]
+  },
+  {
+    name: "peace-sign",
+    label: "Peace",
+    category: "celebration",
+    view: "front",
+    frames: [
+      {
+        headTilt: -4,
+        lShoulder: 8, lElbow: -8,
+        rShoulder: -32, rElbow: -130, rWrist: -8,
+        lHandPose: "relaxed", rHandPose: "peace",
+        expression: "smile"
+      }
+    ]
+  },
+  {
+    name: "heart-hands",
+    label: "Heart hands",
+    category: "celebration",
+    view: "front",
+    decoration: "heart",
+    frames: [
+      // Hands begin coming together near chest
+      {
+        headTilt: -2,
+        lShoulder: 90, lElbow: 30,
+        rShoulder: -90, rElbow: -30,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "smile",
+        decoration: null,
+        enterMs: 480, hold: 200
+      },
+      // Hands lock at heart shape over chest
+      {
+        lShoulder: 138, lElbow: 38, lWrist: -10,
+        rShoulder: -138, rElbow: -38, rWrist: 10,
+        decoration: "heart",
+        enterMs: 360, hold: 900
+      }
+    ]
+  },
+  {
+    name: "bow",
+    label: "Bow",
+    category: "celebration",
+    view: "side-r",
+    frames: [
+      // Bow down
+      {
+        headTilt: 32,
+        lShoulder: 8, lElbow: -10,
+        rShoulder: -8, rElbow: 10,
+        bodyShiftY: 10,
+        lHandPose: "relaxed", rHandPose: "relaxed",
+        expression: "smile",
+        enterMs: 520, hold: 800
+      },
+      // Return
+      {
+        headTilt: 0,
+        bodyShiftY: 0,
+        enterMs: 520, hold: 500
+      }
+    ]
+  },
+  {
+    name: "clap",
+    label: "Clap",
+    category: "celebration",
+    view: "front",
+    anim: { lWrist: "pa-clap", rWrist: "pa-clap" },
+    frames: [
+      {
+        lShoulder: 22, lElbow: -120, lWrist: -8,
+        rShoulder: -22, rElbow: 120, rWrist: 8,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "smile"
+      }
+    ]
+  },
+  {
+    name: "jump-celebrate",
+    label: "Jump for joy",
+    category: "celebration",
+    view: "front",
+    sceneBg: "scoreboard",
+    decoration: "stars",
+    frames: [
+      // Crouch
+      {
+        lShoulder: 30, lElbow: -60,
+        rShoulder: -30, rElbow: 60,
+        lHip: 6, lKnee: -22, rHip: -6, rKnee: 22,
+        bodyShiftY: 10,
+        lHandPose: "fist", rHandPose: "fist",
+        expression: "open-mouth",
+        enterMs: 280, hold: 80
+      },
+      // Apex
+      {
+        headTilt: -2,
+        lShoulder: 168, lElbow: 8,
+        rShoulder: -168, rElbow: -8,
+        lAnkle: -10, rAnkle: 10,
+        bodyShiftY: -22,
+        effects: ["flash-pop", "motion-lines-up"],
+        enterMs: 240, hold: 100
+      },
+      // Land
+      {
+        lShoulder: 30, lElbow: -28,
+        rShoulder: -30, rElbow: 28,
+        lKnee: -12, rKnee: 12,
+        bodyShiftY: 4,
+        effects: ["dust-puff", "confetti"],
+        enterMs: 360, hold: 1000
+      }
+    ]
+  },
+  {
+    name: "point-up",
+    label: "Point up",
+    category: "celebration",
+    view: "front",
+    sceneBg: "spotlight",
+    frames: [
+      {
+        headTilt: -10,
+        lShoulder: 8, lElbow: -8,
+        rShoulder: -174, rElbow: -8,
+        lHandPose: "relaxed", rHandPose: "point-index",
+        expression: "smile"
+      }
+    ]
+  },
+  {
+    name: "point-coach",
+    label: "Coaching",
+    category: "celebration",
+    view: "side-r",
+    sceneBg: "court-floor",
+    frames: [
+      {
+        headTilt: -4,
+        lShoulder: 12, lElbow: -10,
+        rShoulder: -100, rElbow: -10,
+        lHandPose: "fist", rHandPose: "point-index",
+        expression: "focus"
+      }
+    ]
+  },
+  {
+    name: "fist-pump",
+    label: "Fist pump",
+    category: "celebration",
+    view: "front",
+    sceneBg: "scoreboard",
+    anim: { body: "pa-bounce" },
+    frames: [
+      // Wind-up
+      {
+        headTilt: 8,
+        lShoulder: 4, lElbow: -8,
+        rShoulder: -8, rElbow: -22,
+        bodyShiftY: 4,
+        lHandPose: "fist", rHandPose: "fist",
+        expression: "open-mouth",
+        enterMs: 280, hold: 100
+      },
+      // Pump up
+      {
+        rShoulder: -8, rElbow: -130, rWrist: 10,
+        bodyShiftY: -2,
+        effects: ["motion-lines-up"],
+        enterMs: 200, hold: 240
+      }
+    ]
+  },
+  {
+    name: "flex",
+    label: "Flex",
+    category: "celebration",
+    view: "front",
+    sceneBg: "spotlight",
+    frames: [
+      {
+        headTilt: 0,
+        lShoulder: 80, lElbow: -148, lWrist: -10,
+        rShoulder: -80, rElbow: 148, rWrist: 10,
+        lHandPose: "fist", rHandPose: "fist",
+        expression: "focus",
+        effects: ["flash-pop"]
+      }
+    ]
+  },
+  {
+    name: "victory-arms-wide",
+    label: "Arms wide",
+    category: "celebration",
+    view: "front",
+    sceneBg: "spotlight",
+    decoration: "stars",
+    anim: { body: "pa-breathe" },
+    frames: [
+      // Open arms gradually
+      {
+        lShoulder: 60, lElbow: -8,
+        rShoulder: -60, rElbow: 8,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "smile",
+        decoration: null,
+        enterMs: 480, hold: 200
+      },
+      // Locked wide
+      {
+        lShoulder: 95, lElbow: -8,
+        rShoulder: -95, rElbow: 8,
+        decoration: "stars",
+        effects: ["flash-pop"],
+        enterMs: 420, hold: 1200
       }
     ]
   }
