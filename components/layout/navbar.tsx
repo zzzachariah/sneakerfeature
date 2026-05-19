@@ -3,15 +3,14 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Languages, Search, Sliders, Sparkles } from "lucide-react";
+import { Check, Languages, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
 import { TutorialTrigger } from "@/components/tutorial/tutorial-trigger";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
+import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
-import { DIM_LABELS } from "@/lib/star-rating";
 import { NAV_ORDER } from "@/lib/nav-order";
 
 type NavHref = "/" | "/compare" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
@@ -27,10 +26,9 @@ const NAV_LABELS: Record<(typeof NAV_ORDER)[number], string> = {
 export function Navbar() {
   const pathname = usePathname();
   const { locale, requestLocaleChange, translate } = useLocale();
-  const { focus: ratingFocus, isLoggedIn: focusLoggedIn, openModal: openFocusModal } = useRatingFocus();
+  const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
   const { isAdmin } = useAuthState();
   const [langOpen, setLangOpen] = useState(false);
-  const [focusOpen, setFocusOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -46,13 +44,6 @@ export function Navbar() {
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, [langOpen]);
-
-  useEffect(() => {
-    if (!focusOpen) return;
-    const onClick = () => setFocusOpen(false);
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, [focusOpen]);
 
   const navItems = useMemo(() => {
     return NAV_ORDER.filter((href) => href !== "/admin" || isAdmin).map((href) => ({
@@ -165,68 +156,22 @@ export function Navbar() {
             )}
           </div>
 
-          <div className="relative" onClick={(e) => e.stopPropagation()} data-tutorial="nav-focus">
-            <button
-              type="button"
-              onClick={() => setFocusOpen((prev) => !prev)}
-              className={iconBtn}
-              aria-haspopup="menu"
-              aria-expanded={focusOpen}
-              aria-label={translate("Rating focus")}
-              title={translate("Rating focus")}
-            >
-              <Sliders className="h-[18px] w-[18px] md:h-4 md:w-4" />
-            </button>
-            {focusOpen && (
-              <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[15rem] rounded-xl p-2">
-                <p className="px-2 pb-1 text-[0.65rem] uppercase tracking-[0.14em] soft-text">
-                  {translate("Rating focus")}
-                </p>
-                {ratingFocus ? (
-                  <ul className="grid gap-0.5 px-1 pb-2 text-sm">
-                    <li className="flex items-center justify-between gap-2">
-                      <span>{translate("Primary")}</span>
-                      <span className="text-amber-300">
-                        {translate(DIM_LABELS[ratingFocus.primary])} · 40%
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between gap-2">
-                      <span>{translate("Secondary")}</span>
-                      <span className="text-amber-300">
-                        {translate(DIM_LABELS[ratingFocus.secondary])} · 30%
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between gap-2">
-                      <span>{translate("Tertiary")}</span>
-                      <span className="text-amber-300">
-                        {translate(DIM_LABELS[ratingFocus.tertiary])} · 20%
-                      </span>
-                    </li>
-                  </ul>
-                ) : (
-                  <p className="px-1 pb-2 text-xs soft-text">
-                    {focusLoggedIn
-                      ? translate("Pick playstyle to see ratings")
-                      : translate("Sign in to pick playstyle")}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
-                  onClick={() => {
-                    setFocusOpen(false);
-                    if (!focusLoggedIn) {
-                      window.location.href = "/login";
-                      return;
-                    }
-                    openFocusModal();
-                  }}
-                >
-                  {ratingFocus ? translate("Edit playstyle") : translate("Pick playstyle")}
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (!personaLoggedIn) {
+                window.location.href = "/login";
+                return;
+              }
+              openPersonaModal();
+            }}
+            className={iconBtn}
+            aria-label={translate("Player profile")}
+            title={translate("Player profile")}
+            data-tutorial="nav-persona"
+          >
+            <User className="h-[18px] w-[18px] md:h-4 md:w-4" />
+          </button>
 
           <span className="inline-flex" data-tutorial="nav-theme">
             <ThemeToggle />

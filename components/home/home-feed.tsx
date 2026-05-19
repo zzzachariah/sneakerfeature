@@ -95,15 +95,18 @@ export function HomeFeed({
   return (
     <section className="flex h-full min-h-0 flex-col gap-4" data-tutorial="home-feed">
       <div
-        className="flex flex-col items-stretch gap-3 md:flex-row md:flex-wrap md:items-end md:justify-between md:gap-4"
+        className="flex flex-col items-stretch gap-2 md:flex-row md:flex-wrap md:items-end md:justify-between md:gap-4"
         style={revealStyle(0)}
       >
-        <div>
+        <div className="hidden md:block">
           <p className="t-eyebrow mb-2">{translate("Your personalized feed")}</p>
           <h2 className="t-display-sm">{translate("Sneaker Database")}</h2>
         </div>
         <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
-          <div className="inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]" data-tutorial="home-mode-toggle">
+          <div
+            className="hidden md:inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]"
+            data-tutorial="home-mode-toggle"
+          >
             <button
               type="button"
               onClick={() => setMode("browse")}
@@ -137,11 +140,11 @@ export function HomeFeed({
           </div>
           <form
             onSubmit={runSearch}
-            className="flex flex-col items-stretch gap-2 md:flex-row md:items-center"
+            className="flex flex-row items-center gap-2 md:flex-row md:items-center"
           >
-            <div className="relative">
+            <div className="relative hidden md:block">
               <select
-                className="h-11 w-full appearance-none rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--surface)/0.7)] pl-3 pr-8 text-[0.95rem] text-[rgb(var(--subtext))] outline-none transition hover:border-[rgb(var(--text)/0.35)] md:h-9 md:w-auto md:text-[0.77rem]"
+                className="h-9 w-auto appearance-none rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--surface)/0.7)] pl-3 pr-8 text-[0.77rem] text-[rgb(var(--subtext))] outline-none transition hover:border-[rgb(var(--text)/0.35)]"
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
               >
@@ -157,7 +160,7 @@ export function HomeFeed({
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-11 w-full pr-9 md:h-9 md:w-[220px] md:text-[0.77rem]"
+                className="h-10 w-full pr-9 md:h-9 md:w-[220px] md:text-[0.77rem]"
               />
               {searchDraft.trim().length > 0 && (
                 <button
@@ -173,14 +176,14 @@ export function HomeFeed({
             <Button
               type="submit"
               variant="secondary"
-              className="h-11 px-4 text-sm md:h-9 md:px-3 md:text-[0.77rem]"
+              className="h-10 px-3 text-sm md:h-9 md:px-3 md:text-[0.77rem]"
             >
               {translate("Search")}
             </Button>
             <button
               type="button"
               onClick={() => setCompareMode((v) => !v)}
-              className={`h-11 rounded-md border px-3 text-[0.78rem] font-medium transition md:h-9 md:text-[0.77rem] ${
+              className={`hidden md:inline-flex h-9 rounded-md border px-3 text-[0.77rem] font-medium transition ${
                 compareMode
                   ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
                   : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)]"

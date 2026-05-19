@@ -47,10 +47,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     padding: 6
   },
   {
-    id: "nav-focus",
-    selector: "[data-tutorial='nav-focus']",
-    title: "Rating focus",
-    body: "Pick your playstyle and ratings reweight to what matters to you on court.",
+    id: "nav-persona",
+    selector: "[data-tutorial='nav-persona']",
+    title: "Player profile",
+    body: "Set your position, skill, height, weight, and playstyle here. We use these to recommend shoes.",
     placement: "bottom",
     shape: "circle",
     padding: 6
