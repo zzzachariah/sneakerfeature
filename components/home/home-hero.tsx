@@ -102,7 +102,7 @@ export function HomeHero({
         className="pointer-events-none absolute bottom-0 left-0 right-0 h-[40%]"
         style={{ background: "linear-gradient(to top,rgb(var(--bg)),transparent)" }}
       />
-      <div className="relative z-10 grid w-full grid-cols-1 items-center gap-6 md:grid-cols-[1fr_280px] md:gap-10">
+      <div className="relative z-10 grid w-full grid-cols-1 items-center gap-6 md:grid-cols-[1fr_minmax(300px,360px)] md:gap-10">
         <div className="order-2 md:order-1">
           <p
             className="t-eyebrow"
