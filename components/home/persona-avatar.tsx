@@ -307,15 +307,6 @@ const EFFECT_LAYER: Record<EffectKey, "back" | "front"> = {
   "confetti": "front"
 };
 
-const Z = {
-  headTilt: 0,
-  lShoulder: 0, lElbow: 0, lWrist: 0,
-  rShoulder: 0, rElbow: 0, rWrist: 0,
-  lHip: 0, lKnee: 0, lAnkle: 0,
-  rHip: 0, rKnee: 0, rAnkle: 0,
-  ball: "none" as BallSlot
-};
-
 // Zero skeleton — the implicit "starting point" all Frame deltas are folded onto.
 const Z_SKEL: Skeleton = {
   headTilt: 0,
@@ -330,10 +321,6 @@ const Z_SKEL: Skeleton = {
   rHandPose: "relaxed",
   expression: "neutral"
 };
-
-function pose(p: Partial<Pose> & Pick<Pose, "name" | "label">): Pose {
-  return { ...Z, ...p };
-}
 
 // Fold frames[0..idx] left-to-right over Z_SKEL to get the absolute snapshot.
 function resolveSkeleton(action: ActionSequence, idx: number): Skeleton {
@@ -396,100 +383,10 @@ function actionFromPose(p: Pose): ActionSequence {
   };
 }
 
-const POSES: Pose[] = [
-  // ── Signature ──────────────────────────────────────────────
-  pose({
-    name: "curry-nightnight", label: "Curry · Night-night",
-    headTilt: 14,
-    lShoulder: 70, lElbow: -130, lWrist: -28,
-    rShoulder: -70, rElbow: 130, rWrist: 28,
-    decoration: "zzz", anim: { head: "pa-zzz" }
-  }),
-  pose({
-    name: "curry-shimmy", label: "Curry · Shimmy",
-    headTilt: -4,
-    lShoulder: 30, lElbow: -82,
-    rShoulder: -30, rElbow: 82,
-    anim: { body: "pa-shimmy", head: "pa-shimmy" }
-  }),
-  pose({
-    name: "curry-3pt-point", label: "Curry · Three fingers",
-    headTilt: -8,
-    lShoulder: -16, lElbow: -50,
-    rShoulder: -135, rElbow: 30, rWrist: -10,
-    decoration: "three-fingers"
-  }),
-  pose({
-    name: "harden-stir-pot", label: "Harden · Stir the pot",
-    headTilt: -8,
-    lShoulder: 22, lElbow: -120, lWrist: 10,
-    rShoulder: -22, rElbow: -2,
-    anim: { rElbow: "pa-stir-pot" }
-  }),
-  pose({
-    name: "harden-salt", label: "Harden · Sprinkle salt",
-    headTilt: 8,
-    lShoulder: 14, lElbow: -55,
-    rShoulder: -22, rElbow: -65, rWrist: -32,
-    decoration: "salt", anim: { rWrist: "pa-shake-wrist" }
-  }),
-  pose({
-    name: "lebron-silencer", label: "LeBron · Silencer",
-    headTilt: -4,
-    lShoulder: 8, lElbow: -10,
-    rShoulder: -28, rElbow: -132, rWrist: -10,
-    decoration: "shh"
-  }),
-  pose({
-    name: "lebron-crown", label: "LeBron · Crown",
-    headTilt: 0,
-    lShoulder: 132, lElbow: 48, lWrist: -10,
-    rShoulder: -132, rElbow: -48, rWrist: 10,
-    decoration: "crown"
-  }),
-  pose({
-    name: "lebron-king-walk", label: "LeBron · King walk",
-    headTilt: 6,
-    lShoulder: 18, lElbow: -8,
-    rShoulder: -10, rElbow: -22,
-    lHip: -6, lKnee: 14, rHip: 10, rKnee: -10,
-    anim: { body: "pa-slow-bounce" }
-  }),
-  pose({
-    name: "mj-shrug", label: "MJ · Shrug",
-    headTilt: 0,
-    lShoulder: 70, lElbow: -110, lWrist: -22,
-    rShoulder: -70, rElbow: 110, rWrist: 22,
-    decoration: "question"
-  }),
-  pose({
-    name: "iverson-step-over", label: "Iverson · Step-over",
-    headTilt: -10,
-    lShoulder: 32, lElbow: -65,
-    rShoulder: -32, rElbow: 65,
-    lHip: 6,
-    rHip: -65, rKnee: 95, rAnkle: -22,
-    bodyShiftY: -2, hasDefender: true
-  }),
-  pose({
-    name: "iverson-low-cross", label: "Iverson · Low crossover",
-    headTilt: 12,
-    lShoulder: -8, lElbow: -8,
-    rShoulder: 25, rElbow: -55, rWrist: 28,
-    lHip: 10, lKnee: -22, rHip: -10, rKnee: 22,
-    bodyShiftY: 10, ball: "right-hand"
-  }),
-  pose({
-    name: "dirk-onefoot-fade", label: "Dirk · One-foot fade",
-    headTilt: -14,
-    lShoulder: 38, lElbow: 100, lWrist: -8,
-    rShoulder: -88, rElbow: -100, rWrist: -10,
-    lHip: -4,
-    rHip: -58, rKnee: 75,
-    bodyShiftY: -8, ball: "overhead", hasHoop: true
-  }),
-
-];
+// POSES is now empty — all 50 actions have migrated to ACTIONS. The pose()
+// helper and the fallback in pickRandomAction/findAction remain in case a
+// future action wants to be quickly sketched as a legacy single-frame pose.
+const POSES: Pose[] = [];
 
 // ───────────────────────────────────────────────────────────────
 // ACTIONS — multi-frame, view-aware action sequences. Each action
@@ -1719,6 +1616,394 @@ const ACTIONS: ActionSequence[] = [
         enterMs: 420, hold: 1200
       }
     ]
+  },
+
+  // ── Signature moves ─────────────────────────────────────────
+  {
+    name: "curry-nightnight",
+    label: "Curry · Night-night",
+    category: "signature",
+    view: "front",
+    decoration: "zzz",
+    anim: { head: "pa-zzz" },
+    frames: [
+      // Head tilt right, hands cradle face
+      {
+        headTilt: 14,
+        lShoulder: 70, lElbow: -130, lWrist: -28,
+        rShoulder: -70, rElbow: 130, rWrist: 28,
+        lHandPose: "relaxed", rHandPose: "relaxed",
+        expression: "smile",
+        enterMs: 700, hold: 1100
+      },
+      // Slow rock to the other side
+      {
+        headTilt: -14,
+        enterMs: 700, hold: 1100
+      }
+    ]
+  },
+  {
+    name: "curry-shimmy",
+    label: "Curry · Shimmy",
+    category: "signature",
+    view: "front",
+    anim: {
+      body: "pa-shimmy",
+      head: "pa-shimmy",
+      lShoulder: "pa-shimmy",
+      rShoulder: "pa-shimmy"
+    },
+    frames: [
+      {
+        headTilt: -4,
+        lShoulder: 30, lElbow: -82,
+        rShoulder: -30, rElbow: 82,
+        lHandPose: "fist", rHandPose: "fist",
+        expression: "smile",
+        effects: ["motion-lines-l", "motion-lines-r"]
+      }
+    ]
+  },
+  {
+    name: "curry-3pt-point",
+    label: "Curry · Three fingers",
+    category: "signature",
+    view: "front",
+    sceneBg: "three-pt-arc",
+    frames: [
+      // Just released, three fingers in air
+      {
+        headTilt: -8,
+        lShoulder: -16, lElbow: -50,
+        rShoulder: -135, rElbow: 30, rWrist: -10,
+        lHandPose: "relaxed", rHandPose: "three-fingers",
+        expression: "smile",
+        effects: ["swish"],
+        enterMs: 380, hold: 200
+      },
+      // Hold the three-finger salute up
+      {
+        headTilt: -10,
+        rShoulder: -150, rElbow: 20, rWrist: -5,
+        enterMs: 320, hold: 800
+      },
+      // Small head bob (the trademark cocky look-away)
+      {
+        headTilt: -2,
+        enterMs: 360, hold: 400
+      }
+    ]
+  },
+  {
+    name: "harden-stir-pot",
+    label: "Harden · Stir the pot",
+    category: "signature",
+    view: "side-l",
+    anim: { rElbow: "pa-stir-pot" },
+    frames: [
+      {
+        headTilt: -8,
+        lShoulder: 22, lElbow: -120, lWrist: 10,
+        rShoulder: -22, rElbow: -2,
+        lHandPose: "fist", rHandPose: "gripping-ball",
+        expression: "smile",
+        effects: ["motion-lines-r"]
+      }
+    ]
+  },
+  {
+    name: "harden-salt",
+    label: "Harden · Sprinkle salt",
+    category: "signature",
+    view: "front",
+    decoration: "salt",
+    anim: { rWrist: "pa-shake-wrist" },
+    frames: [
+      // Sprinkle (look at the salt)
+      {
+        headTilt: 8,
+        lShoulder: 14, lElbow: -55,
+        rShoulder: -22, rElbow: -65, rWrist: -32,
+        lHandPose: "fist", rHandPose: "open-palm",
+        expression: "smile",
+        enterMs: 520, hold: 600
+      },
+      // Smirk away
+      {
+        headTilt: -2,
+        rShoulder: -28, rElbow: -70, rWrist: -28,
+        enterMs: 420, hold: 600
+      }
+    ]
+  },
+  {
+    name: "lebron-silencer",
+    label: "LeBron · Silencer",
+    category: "signature",
+    view: "front",
+    sceneBg: "spotlight",
+    frames: [
+      // Right hand rises toward face
+      {
+        headTilt: -2,
+        lShoulder: 8, lElbow: -10,
+        rShoulder: -20, rElbow: -90, rWrist: -10,
+        lHandPose: "relaxed", rHandPose: "point-index",
+        expression: "focus",
+        enterMs: 380, hold: 200
+      },
+      // Index finger at lips — silence
+      {
+        headTilt: -4,
+        rShoulder: -28, rElbow: -132, rWrist: -10,
+        decoration: "shh",
+        enterMs: 320, hold: 1200
+      }
+    ]
+  },
+  {
+    name: "lebron-crown",
+    label: "LeBron · Crown",
+    category: "signature",
+    view: "front",
+    sceneBg: "spotlight",
+    frames: [
+      // Hands rise toward head
+      {
+        headTilt: 0,
+        lShoulder: 90, lElbow: 38,
+        rShoulder: -90, rElbow: -38,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "focus",
+        enterMs: 420, hold: 100
+      },
+      // Crown lands above head
+      {
+        lShoulder: 132, lElbow: 48, lWrist: -10,
+        rShoulder: -132, rElbow: -48, rWrist: 10,
+        decoration: "crown",
+        effects: ["flash-pop"],
+        enterMs: 360, hold: 200
+      },
+      // Hold the throne
+      {
+        expression: "smile",
+        enterMs: 400, hold: 1000
+      }
+    ]
+  },
+  {
+    name: "lebron-king-walk",
+    label: "LeBron · King walk",
+    category: "signature",
+    view: "side-r",
+    sceneBg: "bench",
+    anim: { body: "pa-slow-bounce" },
+    frames: [
+      // Left foot forward
+      {
+        headTilt: 6,
+        lShoulder: 18, lElbow: -8,
+        rShoulder: -10, rElbow: -22,
+        lHip: -10, lKnee: 18, rHip: 12, rKnee: -10,
+        lHandPose: "fist", rHandPose: "fist",
+        expression: "focus",
+        effects: ["trail-arm"],
+        enterMs: 480, hold: 80
+      },
+      // Both feet planted
+      {
+        lHip: 0, lKnee: 0, rHip: 0, rKnee: 0,
+        enterMs: 240, hold: 60
+      },
+      // Right foot forward
+      {
+        headTilt: 4,
+        lShoulder: -10, lElbow: -22,
+        rShoulder: 18, rElbow: -8,
+        lHip: 12, lKnee: -10, rHip: -10, rKnee: 18,
+        enterMs: 480, hold: 80
+      },
+      // Both feet planted
+      {
+        lHip: 0, lKnee: 0, rHip: 0, rKnee: 0,
+        enterMs: 240, hold: 60
+      }
+    ]
+  },
+  {
+    name: "mj-shrug",
+    label: "MJ · Shrug",
+    category: "signature",
+    view: "front",
+    sceneBg: "spotlight",
+    decoration: "question",
+    frames: [
+      // Arms natural at sides
+      {
+        headTilt: 0,
+        lShoulder: 10, lElbow: -10,
+        rShoulder: -10, rElbow: 10,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "smile",
+        enterMs: 420, hold: 240
+      },
+      // Shoulders shrug up + arms open out
+      {
+        lShoulder: 70, lElbow: -110, lWrist: -22,
+        rShoulder: -70, rElbow: 110, rWrist: 22,
+        bodyShiftY: -2,
+        effects: ["flash-pop"],
+        enterMs: 280, hold: 800
+      },
+      // Drop back down with a smile
+      {
+        lShoulder: 14, lElbow: -10,
+        rShoulder: -14, rElbow: 10,
+        bodyShiftY: 0,
+        enterMs: 360, hold: 600
+      }
+    ]
+  },
+  {
+    name: "iverson-step-over",
+    label: "Iverson · Step-over",
+    category: "signature",
+    view: "side-r",
+    hasDefender: true,
+    sceneBg: "court-floor",
+    loop: false,
+    frames: [
+      // Stand and look down at fallen defender
+      {
+        headTilt: -14,
+        lShoulder: 22, lElbow: -45,
+        rShoulder: -22, rElbow: 45,
+        lHandPose: "fist", rHandPose: "fist",
+        expression: "smile",
+        enterMs: 520, hold: 200
+      },
+      // Lift right leg
+      {
+        headTilt: -10,
+        lShoulder: 22, lElbow: -45,
+        rShoulder: -22, rElbow: 45,
+        lHip: 6,
+        rHip: -45, rKnee: 65, rAnkle: -10,
+        bodyShiftY: -2,
+        effects: ["dust-puff"],
+        enterMs: 360, hold: 60
+      },
+      // Step-over apex
+      {
+        headTilt: -8,
+        rHip: -65, rKnee: 95, rAnkle: -22,
+        effects: ["motion-lines-r"],
+        enterMs: 380, hold: 220
+      },
+      // Plant past the defender + glance back
+      {
+        headTilt: -4,
+        rHip: -10, rKnee: 15, rAnkle: 0,
+        bodyShiftY: 2,
+        effects: ["dust-puff"],
+        enterMs: 420, hold: 1600
+      }
+    ]
+  },
+  {
+    name: "iverson-low-cross",
+    label: "Iverson · Low crossover",
+    category: "signature",
+    view: "front",
+    sceneBg: "court-floor",
+    frames: [
+      // Ball right, low base
+      {
+        headTilt: 8,
+        lShoulder: -8, lElbow: -8,
+        rShoulder: 25, rElbow: -55, rWrist: 28,
+        lHip: 10, lKnee: -28, rHip: -14, rKnee: 28,
+        bodyShiftY: 14,
+        ball: "right-hand",
+        lHandPose: "open-palm", rHandPose: "gripping-ball",
+        expression: "focus",
+        effects: ["motion-lines-r"],
+        enterMs: 240, hold: 0
+      },
+      // Cross mid
+      {
+        headTilt: 0,
+        lShoulder: 12, lElbow: -45,
+        rShoulder: -12, rElbow: 45,
+        ball: "two-hands",
+        ballScale: 0.85,
+        effects: ["slash"],
+        enterMs: 160, hold: 0
+      },
+      // Ball left
+      {
+        headTilt: -8,
+        lShoulder: -25, lElbow: -55, lWrist: -28,
+        rShoulder: 8, rElbow: 8,
+        lHip: 14, lKnee: -28, rHip: -10, rKnee: 28,
+        ball: "left-hand",
+        lHandPose: "gripping-ball", rHandPose: "open-palm",
+        effects: ["motion-lines-l"],
+        enterMs: 240, hold: 0
+      }
+    ]
+  },
+  {
+    name: "dirk-onefoot-fade",
+    label: "Dirk · One-foot fade",
+    category: "signature",
+    view: "side-r",
+    hasHoop: true,
+    sceneBg: "three-pt-arc",
+    loop: false,
+    frames: [
+      // Gather (both feet down)
+      {
+        headTilt: -6,
+        lShoulder: 35, lElbow: 70,
+        rShoulder: -35, rElbow: -70,
+        lHip: 6, lKnee: -14, rHip: -6, rKnee: 14,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 420, hold: 140
+      },
+      // Lift right leg (the one-foot signature)
+      {
+        headTilt: -10,
+        lShoulder: 38, lElbow: 100, lWrist: -8,
+        rShoulder: -88, rElbow: -100, rWrist: -10,
+        lHip: -4,
+        rHip: -58, rKnee: 75,
+        bodyShiftY: -8,
+        ball: "overhead",
+        effects: ["motion-lines-up"],
+        enterMs: 360, hold: 80
+      },
+      // Apex fade back
+      {
+        headTilt: -14,
+        bodyShiftX: 3,
+        bodyShiftY: -10,
+        ball: "none",
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["trail-arm"],
+        enterMs: 320, hold: 120
+      },
+      // Follow-through with swish
+      {
+        rWrist: -32,
+        effects: ["swish"],
+        enterMs: 320, hold: 900
+      }
+    ]
   }
 ];
 
@@ -2473,9 +2758,18 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
 
   // SSR-safe: idle on server, randomize on mount. The renderer reads from
   // `activePose` (the resolved RuntimePose for the current action + frameIdx).
-  const [activeAction, setActiveAction] = useState<ActionSequence>(() =>
-    actionFromPose(POSES[0])
-  );
+  // Default is the first ACTIONS entry (idle), with legacy POSES fallback.
+  const [activeAction, setActiveAction] = useState<ActionSequence>(() => {
+    if (ACTIONS.length > 0) return ACTIONS[0];
+    if (POSES.length > 0) return actionFromPose(POSES[0]);
+    // Shouldn't reach here, but provide a safe fallback.
+    return {
+      name: "idle",
+      label: "Idle",
+      category: "idle",
+      frames: [{}]
+    };
+  });
   const [frameIdx, setFrameIdx] = useState(0);
   const [runKey, setRunKey] = useState(0);
   const timeoutRef = useRef<number | null>(null);
