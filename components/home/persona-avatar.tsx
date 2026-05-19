@@ -397,47 +397,6 @@ function actionFromPose(p: Pose): ActionSequence {
 }
 
 const POSES: Pose[] = [
-  // ── Dribbling ──────────────────────────────────────────────
-  pose({
-    name: "dribble-low", label: "Low dribble",
-    headTilt: 4,
-    lShoulder: 12, lElbow: -10,
-    rShoulder: -5, rElbow: -15, rWrist: 25,
-    lHip: 8, lKnee: -16, rHip: -6, rKnee: 12,
-    bodyShiftY: 4, ball: "right-hand",
-    anim: { rWrist: "pa-ball-bob" }
-  }),
-  pose({
-    name: "dribble-high", label: "High dribble",
-    headTilt: 2,
-    lShoulder: 14, lElbow: -10,
-    rShoulder: -30, rElbow: -110, rWrist: 20,
-    ball: "right-hand",
-    anim: { rWrist: "pa-ball-bob" }
-  }),
-  pose({
-    name: "crossover", label: "Crossover",
-    headTilt: -8,
-    lShoulder: -10, lElbow: -75, lWrist: 18,
-    rShoulder: 16, rElbow: 60,
-    lHip: 10, lKnee: -16, rHip: -4, rKnee: 8,
-    bodyShiftY: 3, ball: "left-hand"
-  }),
-  pose({
-    name: "between-legs", label: "Between the legs",
-    headTilt: 8,
-    lShoulder: 22, lElbow: -100, lWrist: 8,
-    rShoulder: -22, rElbow: 100, rWrist: -8,
-    lHip: 4, lKnee: -8, rHip: -24, rKnee: 40,
-    bodyShiftY: 3, ball: "two-hands"
-  }),
-  pose({
-    name: "behind-back", label: "Behind-the-back",
-    headTilt: 4,
-    lShoulder: -28, lElbow: -110, lWrist: -20,
-    rShoulder: 28, rElbow: 110, rWrist: 20
-  }),
-
   // ── Passing ────────────────────────────────────────────────
   pose({
     name: "chest-pass", label: "Chest pass",
@@ -1064,6 +1023,195 @@ const ACTIONS: ActionSequence[] = [
         ball: "none",
         effects: ["swish", "flash-pop"],
         enterMs: 320, hold: 800
+      }
+    ]
+  },
+
+  // ── Dribbling ───────────────────────────────────────────────
+  {
+    name: "dribble-low",
+    label: "Low dribble",
+    category: "dribbling",
+    view: "side-r",
+    sceneBg: "court-floor",
+    anim: { rWrist: "pa-ball-bob" },
+    frames: [
+      // Down (hand pressing ball into floor)
+      {
+        headTilt: 4,
+        lShoulder: 12, lElbow: -10,
+        rShoulder: -5, rElbow: -15, rWrist: 25,
+        lHip: 10, lKnee: -22, rHip: -8, rKnee: 16,
+        bodyShiftY: 10,
+        ball: "right-hand",
+        ballScale: 0.95,
+        lHandPose: "open-palm", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 220, hold: 60
+      },
+      // Up (slight rise as ball bounces back)
+      {
+        bodyShiftY: 6,
+        rWrist: 18,
+        enterMs: 220, hold: 60
+      }
+    ]
+  },
+  {
+    name: "dribble-high",
+    label: "High dribble",
+    category: "dribbling",
+    view: "side-r",
+    sceneBg: "court-floor",
+    anim: { rWrist: "pa-ball-bob" },
+    frames: [
+      {
+        headTilt: 2,
+        lShoulder: 14, lElbow: -10,
+        rShoulder: -30, rElbow: -110, rWrist: 20,
+        lHip: 4, lKnee: -10,
+        ball: "right-hand",
+        lHandPose: "open-palm", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 280, hold: 60
+      },
+      {
+        rWrist: 12,
+        bodyShiftY: -2,
+        enterMs: 280, hold: 60
+      }
+    ]
+  },
+  {
+    name: "crossover",
+    label: "Crossover",
+    category: "dribbling",
+    view: "front",
+    sceneBg: "court-floor",
+    frames: [
+      // Ball right, weight on right leg
+      {
+        headTilt: -8,
+        lShoulder: -10, lElbow: -75, lWrist: 18,
+        rShoulder: 16, rElbow: 60,
+        lHip: -6, lKnee: 8, rHip: 12, rKnee: -18,
+        bodyShiftY: 8,
+        ball: "right-hand",
+        lHandPose: "open-palm", rHandPose: "gripping-ball",
+        expression: "focus",
+        effects: ["motion-lines-r"],
+        enterMs: 360, hold: 60
+      },
+      // Ball crosses mid (two-hands transient + slash)
+      {
+        headTilt: 0,
+        lShoulder: 12, lElbow: -60,
+        rShoulder: -12, rElbow: 60,
+        ball: "two-hands",
+        ballScale: 0.85,
+        effects: ["slash"],
+        enterMs: 180, hold: 0
+      },
+      // Ball lands in left hand, weight shifts left
+      {
+        headTilt: 8,
+        lShoulder: -16, lElbow: -60, lWrist: -25,
+        rShoulder: 10, rElbow: 75,
+        lHip: 12, lKnee: -18, rHip: -6, rKnee: 8,
+        ball: "left-hand",
+        lHandPose: "gripping-ball", rHandPose: "open-palm",
+        effects: ["motion-lines-l"],
+        enterMs: 360, hold: 60
+      },
+      // Settle low
+      {
+        bodyShiftY: 10,
+        enterMs: 280, hold: 120
+      }
+    ]
+  },
+  {
+    name: "between-legs",
+    label: "Between the legs",
+    category: "dribbling",
+    view: "front",
+    sceneBg: "court-floor",
+    frames: [
+      // Deep crouch with ball at right side — much deeper than before
+      {
+        headTilt: 8,
+        lShoulder: 22, lElbow: -100, lWrist: 8,
+        rShoulder: -8, rElbow: -20, rWrist: 30,
+        lHip: 14, lKnee: -38, rHip: -20, rKnee: 42,
+        bodyShiftY: 22,
+        ball: "right-hand",
+        lHandPose: "open-palm", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 360, hold: 100
+      },
+      // Ball passes between the splayed legs (slash + smaller ball)
+      {
+        headTilt: 10,
+        lShoulder: 22, lElbow: -100,
+        rShoulder: -22, rElbow: 100,
+        lHip: 18, lKnee: -50, rHip: -28, rKnee: 52,
+        bodyShiftY: 24,
+        ball: "two-hands",
+        ballScale: 0.85,
+        effects: ["slash"],
+        enterMs: 200, hold: 20
+      },
+      // Ball catches on left side, still low
+      {
+        headTilt: 8,
+        lShoulder: 8, lElbow: 20, lWrist: -30,
+        rShoulder: -22, rElbow: 100,
+        ball: "left-hand",
+        ballScale: 0.95,
+        lHandPose: "gripping-ball", rHandPose: "open-palm",
+        enterMs: 320, hold: 100
+      },
+      // Recover slightly
+      {
+        bodyShiftY: 18,
+        enterMs: 320, hold: 200
+      }
+    ]
+  },
+  {
+    name: "behind-back",
+    label: "Behind-the-back",
+    category: "dribbling",
+    view: "side-l",
+    sceneBg: "court-floor",
+    frames: [
+      // Right hand starts with ball forward
+      {
+        headTilt: 4,
+        lShoulder: -10, lElbow: -8,
+        rShoulder: 18, rElbow: -40, rWrist: 18,
+        lHip: -6, lKnee: 8, rHip: 8, rKnee: -10,
+        bodyShiftY: 6,
+        ball: "right-hand",
+        rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 360, hold: 60
+      },
+      // Sweep behind (slash, transient two-hands suggests pass crossing)
+      {
+        rShoulder: 80, rElbow: -130, rWrist: -10,
+        ball: "two-hands",
+        ballScale: 0.85,
+        effects: ["slash"],
+        enterMs: 200, hold: 0
+      },
+      // Land in left hand on the other side
+      {
+        lShoulder: -28, lElbow: -110, lWrist: -20,
+        rShoulder: 28, rElbow: 110, rWrist: 20,
+        ball: "left-hand",
+        lHandPose: "gripping-ball", rHandPose: "relaxed",
+        enterMs: 380, hold: 280
       }
     ]
   }
