@@ -106,7 +106,7 @@ export function HomeHero({
         <div className="order-2 md:order-1">
           <p
             className="t-eyebrow"
-            style={{ fontSize: "0.72rem", marginBottom: 18, ...reveal(0) }}
+            style={{ fontSize: "clamp(0.72rem, 0.9vw, 0.8rem)", marginBottom: 18, ...reveal(0) }}
           >
             {translate("The Decision Layer for Basketball Sneakers")}
           </p>
@@ -124,7 +124,7 @@ export function HomeHero({
                 style={{
                   color: "rgb(var(--text))",
                   display: "block",
-                  fontSize: "clamp(1.75rem, 4vw, 3rem)",
+                  fontSize: "clamp(1.75rem, 3.4vw, 2.5rem)",
                   lineHeight: 1.05,
                   letterSpacing: "-0.02em",
                   transform: up ? "translate3d(0,0,0)" : "translate3d(0,110%,0)",
@@ -150,8 +150,8 @@ export function HomeHero({
           </div>
 
           <p
-            className="max-w-[460px] text-[0.85rem] leading-[1.5] tracking-[-0.01em] sm:text-[0.9rem]"
-            style={{ color: "rgb(var(--subtext))", ...reveal(320) }}
+            className="max-w-[460px] leading-[1.5] tracking-[-0.01em]"
+            style={{ color: "rgb(var(--subtext))", fontSize: "clamp(0.85rem, 1.1vw, 0.95rem)", ...reveal(320) }}
           >
             {translate(
               "Cushion, traction, court feel — structured and comparable. Because choosing a shoe shouldn't take 10 tabs."
@@ -160,8 +160,8 @@ export function HomeHero({
 
           {!persona && (
             <p
-              className="mt-3 text-[0.78rem] soft-text"
-              style={reveal(380)}
+              className="mt-3 soft-text"
+              style={{ fontSize: "clamp(0.78rem, 0.95vw, 0.86rem)", ...reveal(380) }}
             >
               {isLoggedIn
                 ? translate("Tap the avatar to set up your player profile.")
@@ -189,7 +189,10 @@ export function HomeHero({
 
 function Stat({ value, label, done }: { value: string; label: string; done: boolean }) {
   return (
-    <span className="text-[0.85rem] text-[rgb(var(--subtext))]">
+    <span
+      className="text-[rgb(var(--subtext))]"
+      style={{ fontSize: "clamp(0.85rem, 1.05vw, 0.95rem)" }}
+    >
       <span
         className={`stat-underline font-bold tracking-[-0.02em] text-[rgb(var(--text))] tabular-nums ${
           done ? "is-complete" : ""
