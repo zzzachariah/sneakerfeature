@@ -805,6 +805,168 @@ const POSE_TRANSITION = "transform 640ms cubic-bezier(0.22,1,0.36,1)";
 // Sub-components
 // ───────────────────────────────────────────────────────────────
 
+// Hand rendered at the wrist's local origin. The hand extends "down" in
+// the wrist's local frame (which the wrist rotation places correctly).
+// Wrist socket = (0, 0); palm center ≈ (0, 5); fingers extend toward (0, 11+).
+function Hand({
+  pose,
+  side,
+  dimmed
+}: {
+  pose: HandPose;
+  side: "l" | "r";
+  dimmed?: boolean;
+}) {
+  const fill = dimmed ? "rgb(var(--muted)/0.5)" : "rgb(var(--text)/0.85)";
+  const stroke = dimmed ? "rgb(var(--muted)/0.7)" : "rgb(var(--text))";
+  // sign: +1 if right hand (thumb on viewer-left), -1 if left hand (mirror).
+  const s = side === "r" ? 1 : -1;
+
+  const finger = (cx: number, cy: number, len = 3, w = 1.4) => (
+    <rect
+      x={cx - w / 2}
+      y={cy}
+      width={w}
+      height={len}
+      rx={w / 2}
+      fill={fill}
+      stroke={stroke}
+      strokeWidth={0.6}
+    />
+  );
+
+  switch (pose) {
+    case "fist":
+      return (
+        <g>
+          {/* Compact, slightly larger than relaxed ball */}
+          <ellipse cx={0} cy={5} rx={3.8} ry={4.2} fill={fill} stroke={stroke} strokeWidth={0.9} />
+          {/* Knuckle ridges */}
+          <line x1={-2.4} y1={3.5} x2={2.4} y2={3.5} stroke={stroke} strokeWidth={0.5} opacity={0.6} />
+          <line x1={-2.4} y1={5.5} x2={2.4} y2={5.5} stroke={stroke} strokeWidth={0.5} opacity={0.6} />
+          {/* Thumb bump on the thumb-side */}
+          <circle cx={s * 3} cy={4.5} r={1.2} fill={fill} stroke={stroke} strokeWidth={0.6} />
+        </g>
+      );
+    case "open-palm":
+      return (
+        <g>
+          {/* Palm */}
+          <rect x={-3} y={2.5} width={6} height={5.5} rx={2.5} fill={fill} stroke={stroke} strokeWidth={0.8} />
+          {/* 4 fingers fanned downward */}
+          {finger(-2.2, 7.5, 3.8)}
+          {finger(-0.7, 8, 4.2)}
+          {finger(0.7, 8, 4.2)}
+          {finger(2.2, 7.5, 3.8)}
+          {/* Thumb out the side */}
+          <rect
+            x={s * 2.5 - 0.7}
+            y={3.5}
+            width={1.4}
+            height={3.4}
+            rx={0.7}
+            transform={`rotate(${s * 40} ${s * 2.5} 5)`}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={0.6}
+          />
+        </g>
+      );
+    case "gripping-ball":
+      return (
+        <g>
+          {/* Curved hand cupping a ball */}
+          <path
+            d={`M -3.5 3 Q -4 7 -2 9 L 2 9 Q 4 7 3.5 3 Z`}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={0.8}
+          />
+          {/* Finger separators */}
+          <line x1={-1.5} y1={4} x2={-1.5} y2={8.5} stroke={stroke} strokeWidth={0.4} opacity={0.5} />
+          <line x1={0} y1={4} x2={0} y2={8.5} stroke={stroke} strokeWidth={0.4} opacity={0.5} />
+          <line x1={1.5} y1={4} x2={1.5} y2={8.5} stroke={stroke} strokeWidth={0.4} opacity={0.5} />
+        </g>
+      );
+    case "point-index": {
+      // The index points downward; others curl into palm.
+      // For the "right" hand, the index sits slightly toward viewer-left of center.
+      return (
+        <g>
+          {/* Small palm */}
+          <ellipse cx={0} cy={4.5} rx={2.8} ry={3} fill={fill} stroke={stroke} strokeWidth={0.7} />
+          {/* Index finger (long) */}
+          {finger(0, 6.5, 6.5, 1.5)}
+          {/* Other 3 curled — visible as small bumps */}
+          <circle cx={-2} cy={6.5} r={1} fill={fill} stroke={stroke} strokeWidth={0.4} />
+          <circle cx={2} cy={6.5} r={1} fill={fill} stroke={stroke} strokeWidth={0.4} />
+          {/* Thumb tucked */}
+          <circle cx={s * 2.5} cy={4} r={1} fill={fill} stroke={stroke} strokeWidth={0.4} />
+        </g>
+      );
+    }
+    case "three-fingers":
+      return (
+        <g>
+          {/* Palm */}
+          <ellipse cx={0} cy={4.5} rx={3} ry={3} fill={fill} stroke={stroke} strokeWidth={0.7} />
+          {/* 3 fingers fanned down */}
+          {finger(-1.6, 6.5, 5, 1.3)}
+          {finger(0, 7, 5.5, 1.3)}
+          {finger(1.6, 6.5, 5, 1.3)}
+          {/* 2 curled (pinky + thumb) as bumps */}
+          <circle cx={s * 2.8} cy={5} r={0.9} fill={fill} stroke={stroke} strokeWidth={0.4} />
+          <circle cx={-s * 2.6} cy={6.2} r={0.8} fill={fill} stroke={stroke} strokeWidth={0.4} />
+        </g>
+      );
+    case "thumbs-up":
+      return (
+        <g>
+          {/* Closed fist */}
+          <ellipse cx={0} cy={5} rx={3.5} ry={4} fill={fill} stroke={stroke} strokeWidth={0.9} />
+          {/* Thumb pointing UP (away from wrist) */}
+          <rect
+            x={-1}
+            y={-3.5}
+            width={2}
+            height={4}
+            rx={1}
+            fill={fill}
+            stroke={stroke}
+            strokeWidth={0.7}
+          />
+          {/* Finger ridges */}
+          <line x1={-2.4} y1={4} x2={2.4} y2={4} stroke={stroke} strokeWidth={0.5} opacity={0.55} />
+          <line x1={-2.4} y1={6} x2={2.4} y2={6} stroke={stroke} strokeWidth={0.5} opacity={0.55} />
+        </g>
+      );
+    case "peace":
+      return (
+        <g>
+          {/* Palm */}
+          <ellipse cx={0} cy={4.5} rx={2.8} ry={3} fill={fill} stroke={stroke} strokeWidth={0.7} />
+          {/* Index + middle splayed in V */}
+          <rect x={-1.4 - 0.7} y={6} width={1.4} height={5.5} rx={0.7} transform={`rotate(-10 -1.4 6)`} fill={fill} stroke={stroke} strokeWidth={0.6} />
+          <rect x={1.4 - 0.7} y={6} width={1.4} height={5.5} rx={0.7} transform={`rotate(10 1.4 6)`} fill={fill} stroke={stroke} strokeWidth={0.6} />
+          {/* Curled fingers */}
+          <circle cx={s * 2.7} cy={5} r={0.9} fill={fill} stroke={stroke} strokeWidth={0.4} />
+          <circle cx={-s * 2.5} cy={6.5} r={0.8} fill={fill} stroke={stroke} strokeWidth={0.4} />
+        </g>
+      );
+    case "relaxed":
+    default:
+      return (
+        <g>
+          {/* Soft hand: palm ellipse + 3 finger bumps */}
+          <ellipse cx={0} cy={5} rx={3} ry={3.3} fill={fill} stroke={stroke} strokeWidth={0.8} />
+          <circle cx={-1.5} cy={7.8} r={1} fill={fill} stroke={stroke} strokeWidth={0.4} />
+          <circle cx={0} cy={8.1} r={1.1} fill={fill} stroke={stroke} strokeWidth={0.4} />
+          <circle cx={1.5} cy={7.8} r={1} fill={fill} stroke={stroke} strokeWidth={0.4} />
+        </g>
+      );
+  }
+}
+
 function Ball({ r = 7, dimmed = false }: { r?: number; dimmed?: boolean }) {
   const fill = dimmed ? "#a3a3a3" : "#f97316";
   const stroke = dimmed ? "#525252" : "#7c2d12";
@@ -1006,16 +1168,22 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   const footColor = dimmed ? "rgb(var(--muted)/0.8)" : "rgb(var(--text))";
 
   // Hand + (optional) held ball at the wrist's local origin.
-  const HandAndBall = ({ slot }: { slot: "left-hand" | "right-hand" }) => (
-    <>
-      <circle cx={0} cy={HAND_R + 1} r={HAND_R} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
-      {activePose.ball === slot && (
-        <g transform={`translate(0 ${HAND_R * 2 + 6})`}>
-          <Ball dimmed={dimmed} />
-        </g>
-      )}
-    </>
-  );
+  // Legacy POSES default to "relaxed"; ActionSequence frames can specify
+  // lHandPose / rHandPose to override per side and per frame.
+  const HandAndBall = ({ slot }: { slot: "left-hand" | "right-hand" }) => {
+    const handPose: HandPose = "relaxed";
+    const side = slot === "left-hand" ? "l" : "r";
+    return (
+      <>
+        <Hand pose={handPose} side={side} dimmed={dimmed} />
+        {activePose.ball === slot && (
+          <g transform={`translate(0 ${HAND_R * 2 + 6})`}>
+            <Ball dimmed={dimmed} />
+          </g>
+        )}
+      </>
+    );
+  };
 
   const Foot = () =>
     flat ? (
