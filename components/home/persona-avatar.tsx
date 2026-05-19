@@ -1185,17 +1185,61 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
     );
   };
 
-  const Foot = () =>
-    flat ? (
-      <rect x={-LEG_W / 2 - 1} y={0} width={LEG_W + 6} height={FOOT_H} rx={2} fill={footColor} />
-    ) : (
-      <path
-        d={`M ${-LEG_W / 2 - 1} ${FOOT_H} Q 0 ${-2} ${LEG_W / 2 + 5} ${FOOT_H} Z`}
-        fill={footColor}
-        stroke={footColor}
-        strokeWidth={0.8}
+  // Sneaker: a darker sole + lighter upper. Foot extends toward +x ("forward").
+  const soleColor = dimmed ? "rgb(var(--muted)/0.95)" : "rgb(var(--text))";
+  const upperColor = dimmed ? "rgb(var(--muted)/0.5)" : "rgb(var(--bg-elev))";
+  const Foot = () => (
+    <g>
+      {/* Sole (dark, full length, extends forward) */}
+      <rect
+        x={-LEG_W / 2 - 1.5}
+        y={2}
+        width={LEG_W + 7}
+        height={3}
+        rx={1.5}
+        fill={soleColor}
+        stroke={strokeColor}
+        strokeWidth={0.4}
       />
-    );
+      {/* Upper (lighter, sits on sole) — arched figures get a slight lift at toe */}
+      <rect
+        x={-LEG_W / 2 - 0.5}
+        y={flat ? -1 : -1.5}
+        width={LEG_W + 5}
+        height={3.5}
+        rx={1.4}
+        fill={upperColor}
+        stroke={strokeColor}
+        strokeWidth={0.6}
+      />
+      {/* Toe accent at the front */}
+      <ellipse
+        cx={LEG_W / 2 + 3.5}
+        cy={1}
+        rx={1.4}
+        ry={1.1}
+        fill={soleColor}
+        opacity={0.55}
+      />
+      {/* Heel detail */}
+      <line
+        x1={-LEG_W / 2 - 1}
+        y1={2}
+        x2={-LEG_W / 2 - 1}
+        y2={4.6}
+        stroke={strokeColor}
+        strokeWidth={0.6}
+        opacity={0.6}
+      />
+    </g>
+  );
+
+  // Small filled circle drawn at a joint's local origin to make the bone
+  // structure read. Color matches the limb so it blends in but adds a subtle
+  // articulation hint.
+  const JointDot = ({ r = 1.6 }: { r?: number }) => (
+    <circle cx={0} cy={0} r={r} fill={fillColor} stroke={strokeColor} strokeWidth={0.5} />
+  );
 
   const figure = (
     <svg
@@ -1282,17 +1326,20 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         >
           <g style={animStyle(activePose.anim?.lShoulder)}>
             <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
+            <JointDot />
             <g
               transform={`translate(0 ${UPPER_ARM_H}) rotate(${activePose.lElbow})`}
               style={{ transition: POSE_TRANSITION }}
             >
               <g style={animStyle(activePose.anim?.lElbow)}>
                 <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
+                <JointDot />
                 <g
                   transform={`translate(0 ${FOREARM_H}) rotate(${activePose.lWrist})`}
                   style={{ transition: POSE_TRANSITION }}
                 >
                   <g style={animStyle(activePose.anim?.lWrist)}>
+                    <JointDot r={1.4} />
                     <HandAndBall slot="left-hand" />
                   </g>
                 </g>
@@ -1308,17 +1355,20 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         >
           <g style={animStyle(activePose.anim?.rShoulder)}>
             <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
+            <JointDot />
             <g
               transform={`translate(0 ${UPPER_ARM_H}) rotate(${activePose.rElbow})`}
               style={{ transition: POSE_TRANSITION }}
             >
               <g style={animStyle(activePose.anim?.rElbow)}>
                 <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
+                <JointDot />
                 <g
                   transform={`translate(0 ${FOREARM_H}) rotate(${activePose.rWrist})`}
                   style={{ transition: POSE_TRANSITION }}
                 >
                   <g style={animStyle(activePose.anim?.rWrist)}>
+                    <JointDot r={1.4} />
                     <HandAndBall slot="right-hand" />
                   </g>
                 </g>
@@ -1334,17 +1384,20 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         >
           <g style={animStyle(activePose.anim?.lHip)}>
             <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
+            <JointDot r={1.8} />
             <g
               transform={`translate(0 ${THIGH_H}) rotate(${activePose.lKnee})`}
               style={{ transition: POSE_TRANSITION }}
             >
               <g style={animStyle(activePose.anim?.lKnee)}>
                 <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
+                <JointDot r={1.8} />
                 <g
                   transform={`translate(0 ${SHIN_H}) rotate(${activePose.lAnkle})`}
                   style={{ transition: POSE_TRANSITION }}
                 >
                   <g style={animStyle(activePose.anim?.lAnkle)}>
+                    <JointDot r={1.5} />
                     <Foot />
                   </g>
                 </g>
@@ -1360,17 +1413,20 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         >
           <g style={animStyle(activePose.anim?.rHip)}>
             <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
+            <JointDot r={1.8} />
             <g
               transform={`translate(0 ${THIGH_H}) rotate(${activePose.rKnee})`}
               style={{ transition: POSE_TRANSITION }}
             >
               <g style={animStyle(activePose.anim?.rKnee)}>
                 <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
+                <JointDot r={1.8} />
                 <g
                   transform={`translate(0 ${SHIN_H}) rotate(${activePose.rAnkle})`}
                   style={{ transition: POSE_TRANSITION }}
                 >
                   <g style={animStyle(activePose.anim?.rAnkle)}>
+                    <JointDot r={1.5} />
                     <Foot />
                   </g>
                 </g>
