@@ -397,33 +397,6 @@ function actionFromPose(p: Pose): ActionSequence {
 }
 
 const POSES: Pose[] = [
-  // ── Idle / casual ──────────────────────────────────────────
-  pose({ name: "idle", label: "Idle", lShoulder: 4, rShoulder: -4, anim: { body: "pa-breathe" } }),
-  pose({
-    name: "ready", label: "Ready stance",
-    lShoulder: 12, lElbow: -25, rShoulder: -12, rElbow: 25,
-    lHip: 8, lKnee: -14, rHip: -8, rKnee: 14,
-    bodyShiftY: 4, anim: { body: "pa-bounce" }
-  }),
-  pose({
-    name: "tip-toe", label: "Tip-toe stretch",
-    lShoulder: 172, lElbow: -8, rShoulder: -172, rElbow: 8,
-    lAnkle: -20, rAnkle: 20, bodyShiftY: -3
-  }),
-  pose({
-    name: "hands-on-knees", label: "Catching breath",
-    headTilt: 14,
-    lShoulder: 35, lElbow: -110, lWrist: 8,
-    rShoulder: -35, rElbow: 110, rWrist: -8,
-    lHip: 8, lKnee: -22, rHip: -8, rKnee: 22, bodyShiftY: 5
-  }),
-  pose({
-    name: "arms-crossed", label: "Arms crossed",
-    lShoulder: 30, lElbow: -130, lWrist: -8,
-    rShoulder: -30, rElbow: 130, rWrist: 8,
-    anim: { body: "pa-breathe" }
-  }),
-
   // ── Shooting ───────────────────────────────────────────────
   pose({
     name: "set-shot", label: "Set shot",
@@ -769,11 +742,132 @@ const POSES: Pose[] = [
 ];
 
 // ───────────────────────────────────────────────────────────────
-// New ActionSequence array — populated incrementally per-action.
-// Until an action moves here, the legacy POSES entry is wrapped via
+// ACTIONS — multi-frame, view-aware action sequences. Each action
+// is choreographed to be recognizable at a glance (action + person).
+// Until a name is here, the legacy POSES entry is wrapped via
 // actionFromPose() in the runtime fallback path.
 // ───────────────────────────────────────────────────────────────
-const ACTIONS: ActionSequence[] = [];
+const ACTIONS: ActionSequence[] = [
+  // ── Idle / casual ───────────────────────────────────────────
+  {
+    name: "idle",
+    label: "Idle",
+    category: "idle",
+    view: "front",
+    anim: { body: "pa-breathe" },
+    frames: [
+      {
+        lShoulder: 4,
+        rShoulder: -4,
+        lHandPose: "relaxed",
+        rHandPose: "relaxed",
+        expression: "neutral",
+        hold: 0
+      }
+    ]
+  },
+  {
+    name: "ready",
+    label: "Ready stance",
+    category: "idle",
+    view: "front",
+    sceneBg: "court-floor",
+    anim: { body: "pa-bounce" },
+    frames: [
+      {
+        // Athletic stance: slight knee bend, hands ready
+        lShoulder: 14, lElbow: -28,
+        rShoulder: -14, rElbow: 28,
+        lHip: 10, lKnee: -22, rHip: -10, rKnee: 22,
+        bodyShiftY: 8,
+        lHandPose: "open-palm",
+        rHandPose: "open-palm",
+        expression: "focus",
+        enterMs: 520, hold: 200
+      },
+      {
+        // Tiny weight-shift left
+        bodyShiftX: -1,
+        enterMs: 520, hold: 200
+      },
+      {
+        // Tiny weight-shift right
+        bodyShiftX: 1,
+        enterMs: 520, hold: 200
+      }
+    ]
+  },
+  {
+    name: "tip-toe",
+    label: "Tip-toe stretch",
+    category: "idle",
+    view: "front",
+    frames: [
+      {
+        // Inhale: arms up
+        lShoulder: 172, lElbow: -8,
+        rShoulder: -172, rElbow: 8,
+        lAnkle: -22, rAnkle: 22,
+        bodyShiftY: -6,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        expression: "smile",
+        enterMs: 900, hold: 500
+      },
+      {
+        // Exhale: arms slightly relax
+        lShoulder: 165, lElbow: -14,
+        rShoulder: -165, rElbow: 14,
+        bodyShiftY: -3,
+        enterMs: 600, hold: 200
+      }
+    ]
+  },
+  {
+    name: "hands-on-knees",
+    label: "Catching breath",
+    category: "idle",
+    view: "side-r",
+    anim: { body: "pa-breathe" },
+    frames: [
+      {
+        // Bent over, hands on knees, gasping
+        headTilt: 20,
+        lShoulder: 30, lElbow: -110, lWrist: 8,
+        rShoulder: -25, rElbow: 100, rWrist: -8,
+        lHip: 8, lKnee: -24, rHip: -8, rKnee: 22,
+        bodyShiftY: 6,
+        lHandPose: "gripping-ball",
+        rHandPose: "gripping-ball",
+        expression: "open-mouth",
+        effects: ["sweat-drops"],
+        enterMs: 720, hold: 1400
+      },
+      {
+        // Slight head lift (recovering)
+        headTilt: 14,
+        bodyShiftY: 4,
+        expression: "open-mouth",
+        enterMs: 600, hold: 600
+      }
+    ]
+  },
+  {
+    name: "arms-crossed",
+    label: "Arms crossed",
+    category: "idle",
+    view: "front",
+    anim: { body: "pa-breathe" },
+    frames: [
+      {
+        lShoulder: 30, lElbow: -130, lWrist: -8,
+        rShoulder: -30, rElbow: 130, rWrist: 8,
+        lHandPose: "fist",
+        rHandPose: "fist",
+        expression: "focus"
+      }
+    ]
+  }
+];
 
 function pickRandomAction(exclude?: string): ActionSequence {
   // Prefer ACTIONS once populated; fall back to POSES wrapped as 1-frame actions.
