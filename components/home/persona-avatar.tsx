@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Shuffle } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
@@ -799,7 +799,85 @@ function findAction(name: string): ActionSequence | undefined {
   );
 }
 
-const POSE_TRANSITION = "transform 640ms cubic-bezier(0.22,1,0.36,1)";
+// Resolves an (action, frameIdx) pair into the runtime visual state used by
+// the renderer. Includes the merged Skeleton plus action/frame-level flags.
+type RuntimePose = {
+  name: string;
+  label: string;
+  // Skeleton
+  headTilt: number;
+  lShoulder: number; lElbow: number; lWrist: number;
+  rShoulder: number; rElbow: number; rWrist: number;
+  lHip: number; lKnee: number; lAnkle: number;
+  rHip: number; rKnee: number; rAnkle: number;
+  ball: BallSlot;
+  bodyShiftY: number;
+  bodyShiftX: number;
+  lHandPose: HandPose;
+  rHandPose: HandPose;
+  expression: Expression;
+  // Action / frame flags
+  hasHoop?: boolean;
+  hasDefender?: boolean;
+  decoration?: Decoration;
+  anim?: JointAnims;
+  view: View;
+  ballScale: number;
+  enterMs: number;
+  effects: EffectKey[];
+  sceneBg?: SceneBgKey;
+  zOrder?: ZOrderConfig;
+};
+
+function resolveRuntimePose(action: ActionSequence, idx: number): RuntimePose {
+  const safeIdx = Math.max(0, Math.min(idx, action.frames.length - 1));
+  const skel = resolveSkeleton(action, safeIdx);
+  const frame = action.frames[safeIdx];
+  // Decoration: frame overrides action; null explicitly clears.
+  const decoration =
+    frame.decoration !== undefined
+      ? frame.decoration === null
+        ? undefined
+        : frame.decoration
+      : action.decoration;
+  // Anim: frame replaces action (not merged).
+  const anim = frame.anim ?? action.anim;
+  const view = frame.view ?? action.view ?? "front";
+  const slotScale = BALL_SLOT_SCALE[skel.ball] ?? 1;
+  const ballScale = slotScale * (frame.ballScale ?? action.ballScale ?? 1);
+
+  return {
+    name: action.name,
+    label: action.label,
+    headTilt: skel.headTilt,
+    lShoulder: skel.lShoulder, lElbow: skel.lElbow, lWrist: skel.lWrist,
+    rShoulder: skel.rShoulder, rElbow: skel.rElbow, rWrist: skel.rWrist,
+    lHip: skel.lHip, lKnee: skel.lKnee, lAnkle: skel.lAnkle,
+    rHip: skel.rHip, rKnee: skel.rKnee, rAnkle: skel.rAnkle,
+    ball: skel.ball,
+    bodyShiftY: skel.bodyShiftY,
+    bodyShiftX: skel.bodyShiftX,
+    lHandPose: skel.lHandPose,
+    rHandPose: skel.rHandPose,
+    expression: skel.expression,
+    hasHoop: action.hasHoop,
+    hasDefender: action.hasDefender,
+    decoration,
+    anim,
+    view,
+    ballScale,
+    enterMs: frame.enterMs ?? 640,
+    effects: frame.effects ?? [],
+    sceneBg: action.sceneBg,
+    zOrder: frame.zOrder ?? action.zOrder
+  };
+}
+
+// String produced for the `transition` CSS property based on the current
+// frame's enterMs. enterMs === 0 yields a 0ms (snap) transition.
+function poseTransitionFor(enterMs: number): string {
+  return `transform ${enterMs}ms cubic-bezier(0.22,1,0.36,1)`;
+}
 
 // ───────────────────────────────────────────────────────────────
 // Sub-components
@@ -1148,25 +1226,72 @@ function Decorations({ kind, dimmed }: { kind?: Decoration; dimmed?: boolean }) 
 export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }: Props) {
   const { translate } = useLocale();
 
-  // SSR-safe: idle on server, randomize on mount.
-  const [activePose, setActivePose] = useState<Pose>(POSES[0]);
+  // SSR-safe: idle on server, randomize on mount. The renderer reads from
+  // `activePose` (the resolved RuntimePose for the current action + frameIdx).
+  const [activeAction, setActiveAction] = useState<ActionSequence>(() =>
+    actionFromPose(POSES[0])
+  );
+  const [frameIdx, setFrameIdx] = useState(0);
+  const [runKey, setRunKey] = useState(0);
+  const timeoutRef = useRef<number | null>(null);
 
+  // URL ?avatar-pose=<name> forces a specific action; else pick random on mount.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const forced = params.get("avatar-pose");
     if (forced) {
-      const match = POSES.find((p) => p.name === forced);
+      const match = findAction(forced);
       if (match) {
-        setActivePose(match);
+        setActiveAction(match);
+        setRunKey((k) => k + 1);
         return;
       }
     }
-    setActivePose(pickRandomPose());
+    setActiveAction(pickRandomAction());
+    setRunKey((k) => k + 1);
   }, []);
 
+  // Reset frame index whenever the active action changes or shuffle bumps runKey.
+  useEffect(() => {
+    setFrameIdx(0);
+  }, [activeAction, runKey]);
+
+  // Schedule the next frame advance. The CSS transition handles smooth
+  // interpolation; we just bump frameIdx at the right time.
+  useEffect(() => {
+    if (activeAction.frames.length <= 1) return;
+    const frame = activeAction.frames[frameIdx];
+    if (!frame) return;
+    const dur = frameDurationMs(frame);
+    timeoutRef.current = window.setTimeout(() => {
+      const next = frameIdx + 1;
+      if (next < activeAction.frames.length) {
+        setFrameIdx(next);
+      } else if (activeAction.loop !== false) {
+        setFrameIdx(0);
+      }
+      // else: stop on last frame, no further schedule
+    }, dur);
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [activeAction, frameIdx, runKey]);
+
   const handleShuffle = useCallback(() => {
-    setActivePose((cur) => pickRandomPose(cur.name));
+    setActiveAction((cur) => pickRandomAction(cur.name));
+    setRunKey((k) => k + 1);
   }, []);
+
+  // Derived runtime snapshot used by the renderer below.
+  const activePose: RuntimePose = useMemo(
+    () => resolveRuntimePose(activeAction, frameIdx),
+    [activeAction, frameIdx]
+  );
+
+  const poseTransition = poseTransitionFor(activePose.enterMs);
 
   const flat = persona?.flat_foot ?? false;
 
@@ -1187,12 +1312,12 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   const footColor = dimmed ? "rgb(var(--muted)/0.8)" : "rgb(var(--text))";
 
   // Hand + (optional) held ball at the wrist's local origin.
-  // Legacy POSES default to "relaxed"; ActionSequence frames can specify
-  // lHandPose / rHandPose to override per side and per frame.
+  // ActionSequence frames can set lHandPose / rHandPose; legacy POSES (via
+  // actionFromPose) fall back to "relaxed".
   const HandAndBall = ({ slot }: { slot: "left-hand" | "right-hand" }) => {
-    const handPose: HandPose = "relaxed";
-    const side = slot === "left-hand" ? "l" : "r";
-    const ballScale = BALL_SLOT_SCALE[activePose.ball] ?? 1;
+    const side: "l" | "r" = slot === "left-hand" ? "l" : "r";
+    const handPose = side === "l" ? activePose.lHandPose : activePose.rHandPose;
+    const ballScale = activePose.ballScale;
     return (
       <>
         <Hand pose={handPose} side={side} dimmed={dimmed} />
@@ -1273,8 +1398,14 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
 
       {/* Whole-body translate (jump / crouch). Torso ITSELF never rotates. */}
       <g
-        transform={`translate(0 ${activePose.bodyShiftY ?? 0})`}
-        style={{ ...animStyle(activePose.anim?.body), transition: POSE_TRANSITION }}
+        transform={`translate(${activePose.bodyShiftX} ${activePose.bodyShiftY})`}
+        style={{
+          ...animStyle(activePose.anim?.body),
+          // CSS variable cascades to all child joint groups so a single
+          // per-frame enterMs change drives the whole skeleton's interpolation.
+          ["--pose-transition" as string]: poseTransition,
+          transition: "var(--pose-transition)"
+        }}
       >
         {/* Neck (thin line between head and torso) */}
         <line
@@ -1315,25 +1446,37 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         {/* Head */}
         <g
           transform={`translate(${CX} ${HEAD_CY}) rotate(${activePose.headTilt})`}
-          style={{ transition: POSE_TRANSITION }}
+          style={{ transition: "var(--pose-transition)" }}
         >
           <g style={animStyle(activePose.anim?.head)}>
             <circle cx={0} cy={0} r={HEAD_R} fill={fillColor} stroke={strokeColor} strokeWidth={1.2} />
             {!dimmed && (
               <>
-                {/* Eyes */}
+                {/* Eyes (focus expression adds slight brow lines above) */}
                 <circle cx={-4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
                 <circle cx={4} cy={-1} r={1.2} fill="rgb(var(--bg))" />
-                {/* Mouth (default neutral line) */}
-                <line
-                  x1={-2}
-                  y1={5}
-                  x2={2}
-                  y2={5}
-                  stroke="rgb(var(--bg))"
-                  strokeWidth={0.9}
-                  strokeLinecap="round"
-                />
+                {activePose.expression === "focus" && (
+                  <>
+                    <line x1={-6} y1={-5} x2={-2.5} y2={-3.5} stroke="rgb(var(--bg))" strokeWidth={0.7} strokeLinecap="round" />
+                    <line x1={6} y1={-5} x2={2.5} y2={-3.5} stroke="rgb(var(--bg))" strokeWidth={0.7} strokeLinecap="round" />
+                  </>
+                )}
+                {/* Mouth */}
+                {activePose.expression === "smile" ? (
+                  <path
+                    d="M -2.5 4.5 Q 0 6.5 2.5 4.5"
+                    fill="none"
+                    stroke="rgb(var(--bg))"
+                    strokeWidth={0.9}
+                    strokeLinecap="round"
+                  />
+                ) : activePose.expression === "open-mouth" ? (
+                  <ellipse cx={0} cy={5} rx={1.4} ry={1.6} fill="rgb(var(--bg))" />
+                ) : activePose.expression === "focus" ? (
+                  <line x1={-1.5} y1={5} x2={1.5} y2={5} stroke="rgb(var(--bg))" strokeWidth={1.1} strokeLinecap="round" />
+                ) : (
+                  <line x1={-2} y1={5} x2={2} y2={5} stroke="rgb(var(--bg))" strokeWidth={0.9} strokeLinecap="round" />
+                )}
               </>
             )}
           </g>
@@ -1342,21 +1485,21 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         {/* LEFT arm chain */}
         <g
           transform={`translate(${L_SHOULDER_X} ${SHOULDER_Y}) rotate(${activePose.lShoulder})`}
-          style={{ transition: POSE_TRANSITION }}
+          style={{ transition: "var(--pose-transition)" }}
         >
           <g style={animStyle(activePose.anim?.lShoulder)}>
             <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
             <JointDot />
             <g
               transform={`translate(0 ${UPPER_ARM_H}) rotate(${activePose.lElbow})`}
-              style={{ transition: POSE_TRANSITION }}
+              style={{ transition: "var(--pose-transition)" }}
             >
               <g style={animStyle(activePose.anim?.lElbow)}>
                 <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
                 <JointDot />
                 <g
                   transform={`translate(0 ${FOREARM_H}) rotate(${activePose.lWrist})`}
-                  style={{ transition: POSE_TRANSITION }}
+                  style={{ transition: "var(--pose-transition)" }}
                 >
                   <g style={animStyle(activePose.anim?.lWrist)}>
                     <JointDot r={1.4} />
@@ -1371,21 +1514,21 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         {/* RIGHT arm chain */}
         <g
           transform={`translate(${R_SHOULDER_X} ${SHOULDER_Y}) rotate(${activePose.rShoulder})`}
-          style={{ transition: POSE_TRANSITION }}
+          style={{ transition: "var(--pose-transition)" }}
         >
           <g style={animStyle(activePose.anim?.rShoulder)}>
             <rect x={-ARM_W / 2} y={0} width={ARM_W} height={UPPER_ARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
             <JointDot />
             <g
               transform={`translate(0 ${UPPER_ARM_H}) rotate(${activePose.rElbow})`}
-              style={{ transition: POSE_TRANSITION }}
+              style={{ transition: "var(--pose-transition)" }}
             >
               <g style={animStyle(activePose.anim?.rElbow)}>
                 <rect x={-ARM_W / 2} y={0} width={ARM_W} height={FOREARM_H} rx={ARM_W / 2} fill={fillColor} stroke={strokeColor} strokeWidth={0.9} />
                 <JointDot />
                 <g
                   transform={`translate(0 ${FOREARM_H}) rotate(${activePose.rWrist})`}
-                  style={{ transition: POSE_TRANSITION }}
+                  style={{ transition: "var(--pose-transition)" }}
                 >
                   <g style={animStyle(activePose.anim?.rWrist)}>
                     <JointDot r={1.4} />
@@ -1400,21 +1543,21 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         {/* LEFT leg chain */}
         <g
           transform={`translate(${L_HIP_X} ${HIP_Y}) rotate(${activePose.lHip})`}
-          style={{ transition: POSE_TRANSITION }}
+          style={{ transition: "var(--pose-transition)" }}
         >
           <g style={animStyle(activePose.anim?.lHip)}>
             <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
             <JointDot r={1.8} />
             <g
               transform={`translate(0 ${THIGH_H}) rotate(${activePose.lKnee})`}
-              style={{ transition: POSE_TRANSITION }}
+              style={{ transition: "var(--pose-transition)" }}
             >
               <g style={animStyle(activePose.anim?.lKnee)}>
                 <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
                 <JointDot r={1.8} />
                 <g
                   transform={`translate(0 ${SHIN_H}) rotate(${activePose.lAnkle})`}
-                  style={{ transition: POSE_TRANSITION }}
+                  style={{ transition: "var(--pose-transition)" }}
                 >
                   <g style={animStyle(activePose.anim?.lAnkle)}>
                     <JointDot r={1.5} />
@@ -1429,21 +1572,21 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         {/* RIGHT leg chain */}
         <g
           transform={`translate(${R_HIP_X} ${HIP_Y}) rotate(${activePose.rHip})`}
-          style={{ transition: POSE_TRANSITION }}
+          style={{ transition: "var(--pose-transition)" }}
         >
           <g style={animStyle(activePose.anim?.rHip)}>
             <rect x={-LEG_W / 2} y={0} width={LEG_W} height={THIGH_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
             <JointDot r={1.8} />
             <g
               transform={`translate(0 ${THIGH_H}) rotate(${activePose.rKnee})`}
-              style={{ transition: POSE_TRANSITION }}
+              style={{ transition: "var(--pose-transition)" }}
             >
               <g style={animStyle(activePose.anim?.rKnee)}>
                 <rect x={-LEG_W / 2} y={0} width={LEG_W} height={SHIN_H} rx={LEG_W / 2.4} fill={fillColor} stroke={strokeColor} strokeWidth={1} />
                 <JointDot r={1.8} />
                 <g
                   transform={`translate(0 ${SHIN_H}) rotate(${activePose.rAnkle})`}
-                  style={{ transition: POSE_TRANSITION }}
+                  style={{ transition: "var(--pose-transition)" }}
                 >
                   <g style={animStyle(activePose.anim?.rAnkle)}>
                     <JointDot r={1.5} />
@@ -1455,40 +1598,30 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
           </g>
         </g>
 
-        {/* Free-floating balls (not in any joint chain) */}
-        {activePose.ball === "two-hands" && (() => {
-          const sc = BALL_SLOT_SCALE["two-hands"];
-          return (
-            <g transform={`translate(${CX} ${TORSO_TOP + TORSO_H * 0.42})`}>
-              <Ball scale={sc} dimmed={dimmed} />
-            </g>
-          );
-        })()}
-        {activePose.ball === "overhead" && (() => {
-          const sc = BALL_SLOT_SCALE.overhead;
-          const r = BALL_BASE_R * sc;
-          return (
-            <g transform={`translate(${CX} ${HEAD_CY - HEAD_R - r - 2})`}>
-              <Ball scale={sc} dimmed={dimmed} />
-            </g>
-          );
-        })()}
-        {activePose.ball === "floor-r" && (() => {
-          const sc = BALL_SLOT_SCALE["floor-r"];
-          return (
-            <g transform={`translate(${CX + TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
-              <Ball scale={sc} dimmed={dimmed} />
-            </g>
-          );
-        })()}
-        {activePose.ball === "floor-l" && (() => {
-          const sc = BALL_SLOT_SCALE["floor-l"];
-          return (
-            <g transform={`translate(${CX - TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
-              <Ball scale={sc} dimmed={dimmed} />
-            </g>
-          );
-        })()}
+        {/* Free-floating balls (not in any joint chain). Scale combines the
+            ball slot default with any per-frame / per-action override. */}
+        {activePose.ball === "two-hands" && (
+          <g transform={`translate(${CX} ${TORSO_TOP + TORSO_H * 0.42})`}>
+            <Ball scale={activePose.ballScale} dimmed={dimmed} />
+          </g>
+        )}
+        {activePose.ball === "overhead" && (
+          <g
+            transform={`translate(${CX} ${HEAD_CY - HEAD_R - BALL_BASE_R * activePose.ballScale - 2})`}
+          >
+            <Ball scale={activePose.ballScale} dimmed={dimmed} />
+          </g>
+        )}
+        {activePose.ball === "floor-r" && (
+          <g transform={`translate(${CX + TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
+            <Ball scale={activePose.ballScale} dimmed={dimmed} />
+          </g>
+        )}
+        {activePose.ball === "floor-l" && (
+          <g transform={`translate(${CX - TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
+            <Ball scale={activePose.ballScale} dimmed={dimmed} />
+          </g>
+        )}
       </g>
 
       {/* Defender lies on the ground (drawn outside the body transform). */}
