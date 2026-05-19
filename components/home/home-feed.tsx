@@ -182,8 +182,13 @@ export function HomeFeed({
             </Button>
             <button
               type="button"
-              onClick={() => setCompareMode((v) => !v)}
-              className={`hidden md:inline-flex h-9 rounded-md border px-3 text-[0.77rem] font-medium transition ${
+              onClick={() => {
+                setCompareMode((v) => {
+                  if (v) setSelected([]);
+                  return !v;
+                });
+              }}
+              className={`hidden md:inline-flex h-9 items-center justify-center rounded-md border px-3 text-[0.77rem] font-medium leading-none transition ${
                 compareMode
                   ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
                   : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)]"
@@ -191,6 +196,23 @@ export function HomeFeed({
             >
               {translate("Compare mode")}
             </button>
+            {compareMode &&
+              (selected.length > 1 ? (
+                <Link
+                  href={`/compare?ids=${selected.join(",")}`}
+                  className="hidden md:inline-flex h-9 items-center justify-center rounded-md border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.77rem] font-semibold leading-none text-[rgb(var(--bg))] transition hover:opacity-90"
+                >
+                  {translate("Compare")} ({selected.length})
+                </Link>
+              ) : (
+                <span
+                  aria-disabled="true"
+                  className="hidden md:inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.77rem] font-medium leading-none text-[rgb(var(--subtext))] opacity-60"
+                >
+                  {translate("Compare")}
+                  {selected.length === 1 ? ` (${selected.length})` : ""}
+                </span>
+              ))}
           </form>
         </div>
       </div>
@@ -243,7 +265,7 @@ export function HomeFeed({
 
       {compareMode && selected.length > 1 && (
         <div
-          className="sticky flex flex-col gap-2 rounded-xl border border-[rgb(var(--text)/0.35)] bg-[rgb(var(--bg-elev)/0.92)] p-3 shadow-lift backdrop-blur-[20px] sm:flex-row sm:items-center sm:justify-between"
+          className="sticky flex flex-col gap-2 rounded-xl border border-[rgb(var(--text)/0.35)] bg-[rgb(var(--bg-elev)/0.92)] p-3 shadow-lift backdrop-blur-[20px] sm:flex-row sm:items-center sm:justify-between md:hidden"
           style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 16px)" }}
         >
           <p className="text-sm">
