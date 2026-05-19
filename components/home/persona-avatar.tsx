@@ -2872,7 +2872,7 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   const skillPipsCount = persona ? SKILL_PIPS[persona.skill_level] : 0;
   const skillLabel = persona ? translate(SKILL_LEVEL_LABEL[persona.skill_level]) : translate("Skill");
 
-  const figureWidth: string = size === "sm" ? "96px" : "clamp(130px, 12vw, 170px)";
+  const figureWidth: string = size === "sm" ? "96px" : "clamp(130px, 13vw, 200px)";
   const figureClass = onClick
     ? "rounded-2xl border border-transparent p-1.5 transition hover:border-[rgb(var(--text)/0.2)] hover:bg-[rgb(var(--text)/0.04)]"
     : "p-1.5";
