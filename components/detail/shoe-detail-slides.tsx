@@ -67,6 +67,8 @@ type Props = {
   hasStory: boolean;
   storyTitle: string | undefined;
   storyContent: string | undefined;
+  storySourceLabel: string | undefined;
+  storySourceUrl: string | undefined;
   specStars: number | null;
   finalStars: number | null;
 };
@@ -612,34 +614,77 @@ function PerformanceSlide({
   );
 }
 
-function StorySlide({ shoe, hasStory, storyTitle, storyContent, active }: Props & { active: boolean }) {
+function StorySlide({
+  shoe,
+  hasStory,
+  storyTitle,
+  storyContent,
+  storySourceLabel,
+  storySourceUrl,
+  active
+}: Props & { active: boolean }) {
   const { translate } = useLocale();
+  const sourceText = storySourceLabel || storySourceUrl;
   return (
-    <div className={`flex h-full flex-col justify-center py-10 ${slideEntranceClass(active)}`}>
-      <Card className="mx-auto w-full max-w-3xl p-6 md:p-8">
-        <p className="t-eyebrow mb-2">{translate("Context")}</p>
-        <h2 className="text-lg font-semibold tracking-[-0.02em]">{translate("Story & provenance")}</h2>
+    <div className={`flex h-full flex-col justify-center py-6 md:py-10 ${slideEntranceClass(active)}`}>
+      <Card className="mx-auto w-full max-w-2xl p-5 sm:p-7 md:max-w-3xl md:p-10">
+        <p className="t-eyebrow mb-2 md:mb-3">{translate("Context")}</p>
+        <h2 className="text-xl font-semibold tracking-[-0.02em] md:text-3xl">
+          {translate("Story & provenance")}
+        </h2>
         {hasStory ? (
           <div
             data-detail-scroll-container
-            className="mt-3 max-h-[50vh] space-y-2 overflow-y-auto pr-2"
+            className="mt-4 max-h-[55dvh] space-y-3 overflow-y-auto pr-2 md:mt-6 md:max-h-[60vh] md:space-y-4"
           >
             {storyTitle ? (
-              <DynamicTranslatedText as="p" className="text-sm font-medium" text={storyTitle} />
+              <DynamicTranslatedText
+                as="p"
+                className="text-base font-semibold md:text-lg"
+                text={storyTitle}
+              />
             ) : (
-              <p data-field-key="shoe_name" className="text-sm font-medium">{`${shoe.brand} ${shoe.shoe_name}`}</p>
+              <p data-field-key="shoe_name" className="text-base font-semibold md:text-lg">
+                {`${shoe.brand} ${shoe.shoe_name}`}
+              </p>
             )}
 
             {storyContent ? (
-              <DynamicTranslatedText as="p" className="text-sm soft-text" text={storyContent} />
+              <DynamicTranslatedText
+                as="p"
+                className="whitespace-pre-line text-[0.95rem] leading-7 soft-text md:text-base md:leading-8"
+                text={storyContent}
+              />
             ) : (
-              <p className="text-sm soft-text">{translate("No editorial story content yet.")}</p>
+              <p className="text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
+                {translate("No editorial story content yet.")}
+              </p>
             )}
+
+            {sourceText ? (
+              <p className="border-t border-[rgb(var(--muted)/0.4)] pt-3 text-xs soft-text md:pt-4 md:text-sm">
+                {translate("Source")}:{" "}
+                {storySourceUrl ? (
+                  <a
+                    href={storySourceUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 hover:text-[rgb(var(--text))]"
+                  >
+                    {storySourceLabel || storySourceUrl}
+                  </a>
+                ) : (
+                  storySourceLabel
+                )}
+              </p>
+            ) : null}
           </div>
         ) : (
           <>
-            <p className="mt-2 text-sm soft-text">{translate("No editorial story yet.")}</p>
-            <div className="mt-4 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text">
+            <p className="mt-4 text-[0.95rem] leading-7 soft-text md:mt-6 md:text-base md:leading-8">
+              {translate("No editorial story yet.")}
+            </p>
+            <div className="mt-4 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text md:mt-5 md:p-4 md:text-sm">
               {translate(
                 "Source/evidence: Seed dataset + community validation pipeline. Admin review required before promotion to official records."
               )}

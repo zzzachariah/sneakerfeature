@@ -52,8 +52,13 @@ export function ShoeDetailClient({
     { storage_path: string; public_url: string } | null
   >(null);
 
-  const storyTitle = shoe.story?.title?.trim();
-  const storyContent = shoe.story?.content?.trim();
+  const rawStoryTitle = shoe.story?.title?.trim();
+  const rawStoryContent = shoe.story?.content?.trim();
+  const specSummary = shoe.spec?.story_summary?.trim();
+  const storyTitle = rawStoryTitle || undefined;
+  const storyContent = rawStoryContent || specSummary || undefined;
+  const storySourceLabel = shoe.story?.source_label?.trim() || undefined;
+  const storySourceUrl = shoe.story?.source_url?.trim() || undefined;
   const hasStory = Boolean(storyTitle || storyContent);
 
   const stabilityText = shoe.spec.stability ?? "";
@@ -254,6 +259,8 @@ export function ShoeDetailClient({
         hasStory={hasStory}
         storyTitle={storyTitle}
         storyContent={storyContent}
+        storySourceLabel={storySourceLabel}
+        storySourceUrl={storySourceUrl}
         specStars={specStars}
         finalStars={finalStars}
       />
