@@ -397,33 +397,6 @@ function actionFromPose(p: Pose): ActionSequence {
 }
 
 const POSES: Pose[] = [
-  // ── Finishing ──────────────────────────────────────────────
-  pose({
-    name: "layup", label: "Layup",
-    headTilt: -8,
-    lShoulder: 14, lElbow: -42,
-    rShoulder: -172, rElbow: -8, rWrist: -10,
-    lHip: 6, rHip: -32, rKnee: 55,
-    bodyShiftY: -8, ball: "right-hand", hasHoop: true
-  }),
-  pose({
-    name: "reverse-layup", label: "Reverse layup",
-    headTilt: 8,
-    lShoulder: 172, lElbow: 8, lWrist: 10,
-    rShoulder: -14, rElbow: 42,
-    lHip: 32, lKnee: 55, rHip: -6,
-    bodyShiftY: -8, ball: "left-hand", hasHoop: true
-  }),
-  pose({
-    name: "dunk", label: "Dunk",
-    headTilt: -3,
-    lShoulder: 172, lElbow: 8,
-    rShoulder: -172, rElbow: -8,
-    lKnee: -16, rKnee: 16, lAnkle: -12, rAnkle: 12,
-    bodyShiftY: -16, ball: "overhead", hasHoop: true,
-    decoration: "stars"
-  }),
-
   // ── Signature ──────────────────────────────────────────────
   pose({
     name: "curry-nightnight", label: "Curry · Night-night",
@@ -1398,6 +1371,176 @@ const ACTIONS: ActionSequence[] = [
         bodyShiftY: 16,
         lKnee: -28, rKnee: 28,
         enterMs: 420, hold: 240
+      }
+    ]
+  },
+
+  // ── Finishing ───────────────────────────────────────────────
+  {
+    name: "layup",
+    label: "Layup",
+    category: "finishing",
+    view: "side-r",
+    hasHoop: true,
+    sceneBg: "paint-zone",
+    frames: [
+      // Takeoff: load
+      {
+        headTilt: -4,
+        lShoulder: 30, lElbow: -60,
+        rShoulder: -30, rElbow: -50,
+        lHip: 6, lKnee: -22, rHip: -22, rKnee: 32,
+        bodyShiftY: 8,
+        ball: "right-hand",
+        rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 320, hold: 100
+      },
+      // Mid-rise (knee high)
+      {
+        headTilt: -8,
+        lShoulder: 14, lElbow: -42,
+        rShoulder: -150, rElbow: -10, rWrist: -8,
+        lHip: 6, lKnee: -8, rHip: -32, rKnee: 55,
+        bodyShiftY: -14,
+        effects: ["motion-lines-up"],
+        enterMs: 260, hold: 80
+      },
+      // Apex release
+      {
+        rShoulder: -172, rElbow: -8, rWrist: -12,
+        bodyShiftY: -22,
+        ball: "none",
+        rHandPose: "open-palm",
+        effects: ["trail-arm", "swish"],
+        enterMs: 240, hold: 100
+      },
+      // Land
+      {
+        lShoulder: 14, lElbow: -28,
+        rShoulder: -14, rElbow: 28,
+        lKnee: -16, rKnee: 16,
+        bodyShiftY: 8,
+        effects: ["dust-puff"],
+        enterMs: 380, hold: 600
+      }
+    ]
+  },
+  {
+    name: "reverse-layup",
+    label: "Reverse layup",
+    category: "finishing",
+    view: "side-l",
+    hasHoop: true,
+    sceneBg: "paint-zone",
+    frames: [
+      // Mirror of layup: takeoff
+      {
+        headTilt: 4,
+        lShoulder: 30, lElbow: 50,
+        rShoulder: -30, rElbow: 60,
+        lHip: 22, lKnee: -32, rHip: -6, rKnee: 22,
+        bodyShiftY: 8,
+        ball: "left-hand",
+        lHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 320, hold: 100
+      },
+      // Mid-rise
+      {
+        headTilt: 8,
+        lShoulder: 150, lElbow: 10, lWrist: 8,
+        rShoulder: -14, rElbow: 42,
+        lHip: 32, lKnee: 55, rHip: -6,
+        bodyShiftY: -14,
+        effects: ["motion-lines-up"],
+        enterMs: 260, hold: 80
+      },
+      // Apex release reverse
+      {
+        lShoulder: 172, lElbow: 8, lWrist: 12,
+        bodyShiftY: -22,
+        ball: "none",
+        lHandPose: "open-palm",
+        effects: ["trail-arm", "swish"],
+        enterMs: 240, hold: 100
+      },
+      // Land
+      {
+        lShoulder: 14, lElbow: 28,
+        rShoulder: -14, rElbow: -28,
+        lKnee: 16, rKnee: -16,
+        bodyShiftY: 8,
+        effects: ["dust-puff"],
+        enterMs: 380, hold: 600
+      }
+    ]
+  },
+  {
+    name: "dunk",
+    label: "Dunk",
+    category: "finishing",
+    view: "side-r",
+    hasHoop: true,
+    sceneBg: "paint-zone",
+    decoration: "stars",
+    loop: false,
+    frames: [
+      // 0: Crouch / gather (load knees, two-hand ball)
+      {
+        headTilt: -2,
+        lShoulder: 30, lElbow: -60,
+        rShoulder: -30, rElbow: 60,
+        lHip: 18, lKnee: -36, rHip: -18, rKnee: 36,
+        bodyShiftY: 14,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 280, hold: 100
+      },
+      // 1: Mid leap (knees straightening, arms sweeping up)
+      {
+        lShoulder: 90, lElbow: 40,
+        rShoulder: -90, rElbow: -40,
+        lHip: 0, lKnee: -8, rHip: 0, rKnee: 8,
+        bodyShiftY: 4,
+        ball: "two-hands",
+        effects: ["motion-lines-up", "dust-puff"],
+        enterMs: 220, hold: 60
+      },
+      // 2: Apex (arms overhead, ball held)
+      {
+        headTilt: -4,
+        lShoulder: 172, lElbow: 8,
+        rShoulder: -172, rElbow: -8,
+        lKnee: -8, rKnee: 8, lAnkle: -10, rAnkle: 10,
+        bodyShiftY: -22,
+        ball: "overhead",
+        expression: "open-mouth",
+        effects: ["trail-arm"],
+        enterMs: 280, hold: 60
+      },
+      // 3: HAMMER — snap arms down, ball gone (in the rim)
+      {
+        lShoulder: 150, lElbow: 40,
+        rShoulder: -150, rElbow: -40,
+        bodyShiftY: -10,
+        ball: "none",
+        lHandPose: "fist", rHandPose: "fist",
+        effects: ["impact-rings", "shake-cam"],
+        enterMs: 90, hold: 200    // snap!
+      },
+      // 4: Land + brag (hang on shimmy)
+      {
+        headTilt: 4,
+        lShoulder: 18, lElbow: -8,
+        rShoulder: -18, rElbow: 8,
+        lKnee: -14, rKnee: 14,
+        bodyShiftY: 8,
+        anim: { body: "pa-shimmy" },
+        expression: "smile",
+        effects: ["dust-puff", "confetti"],
+        enterMs: 320, hold: 1500
       }
     ]
   }
