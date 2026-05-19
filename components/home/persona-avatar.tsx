@@ -824,7 +824,9 @@ type RuntimePose = {
   view: View;
   ballScale: number;
   enterMs: number;
-  effects: EffectKey[];
+  effects: EffectKey[];           // current frame's one-shot effects (filtered by !EFFECT_LOOPING)
+  loopingEffects: EffectKey[];    // union across the whole action
+  shakeCam: boolean;              // true if current frame triggers a one-shot camera shake
   sceneBg?: SceneBgKey;
   zOrder?: ZOrderConfig;
 };
@@ -845,6 +847,20 @@ function resolveRuntimePose(action: ActionSequence, idx: number): RuntimePose {
   const view = frame.view ?? action.view ?? "front";
   const slotScale = BALL_SLOT_SCALE[skel.ball] ?? 1;
   const ballScale = slotScale * (frame.ballScale ?? action.ballScale ?? 1);
+
+  // Effects: split looping (union over all frames) vs one-shot (current frame).
+  const loopingEffects: EffectKey[] = [];
+  const seen = new Set<EffectKey>();
+  for (const f of action.frames) {
+    for (const e of f.effects ?? []) {
+      if (EFFECT_LOOPING.has(e) && !seen.has(e)) {
+        seen.add(e);
+        loopingEffects.push(e);
+      }
+    }
+  }
+  const frameEffects = (frame.effects ?? []).filter((e) => !EFFECT_LOOPING.has(e) && e !== "shake-cam");
+  const shakeCam = (frame.effects ?? []).includes("shake-cam");
 
   return {
     name: action.name,
@@ -867,7 +883,9 @@ function resolveRuntimePose(action: ActionSequence, idx: number): RuntimePose {
     view,
     ballScale,
     enterMs: frame.enterMs ?? 640,
-    effects: frame.effects ?? [],
+    effects: frameEffects,
+    loopingEffects,
+    shakeCam,
     sceneBg: action.sceneBg,
     zOrder: frame.zOrder ?? action.zOrder
   };
@@ -1102,6 +1120,291 @@ function Hoop({ dimmed }: { dimmed?: boolean }) {
         strokeLinecap="round"
       />
     </g>
+  );
+}
+
+function SceneBg({ kind, dimmed }: { kind?: SceneBgKey; dimmed?: boolean }) {
+  if (!kind) return null;
+  const line = dimmed ? "rgb(var(--muted)/0.4)" : "rgb(var(--text)/0.22)";
+  const lineMuted = dimmed ? "rgb(var(--muted)/0.25)" : "rgb(var(--text)/0.12)";
+
+  switch (kind) {
+    case "three-pt-arc":
+      // Arc near the figure's feet to evoke the 3-pt line.
+      return (
+        <path
+          d={`M ${CX - 70} ${GROUND_Y - 6} Q ${CX} ${GROUND_Y - 40} ${CX + 70} ${GROUND_Y - 6}`}
+          fill="none"
+          stroke={line}
+          strokeWidth={1.4}
+          strokeLinecap="round"
+        />
+      );
+    case "free-throw-line":
+      return (
+        <g>
+          <line
+            x1={CX - 50}
+            y1={GROUND_Y - 2}
+            x2={CX + 50}
+            y2={GROUND_Y - 2}
+            stroke={line}
+            strokeWidth={1.4}
+            strokeDasharray="3 3"
+          />
+          <line
+            x1={CX - 50}
+            y1={GROUND_Y - 2}
+            x2={CX - 50}
+            y2={GROUND_Y - 24}
+            stroke={lineMuted}
+            strokeWidth={1}
+          />
+          <line
+            x1={CX + 50}
+            y1={GROUND_Y - 2}
+            x2={CX + 50}
+            y2={GROUND_Y - 24}
+            stroke={lineMuted}
+            strokeWidth={1}
+          />
+        </g>
+      );
+    case "paint-zone":
+      return (
+        <path
+          d={`M ${CX - 48} ${GROUND_Y - 2} L ${CX - 32} ${GROUND_Y - 60} L ${CX + 32} ${GROUND_Y - 60} L ${CX + 48} ${GROUND_Y - 2} Z`}
+          fill={lineMuted}
+          stroke={line}
+          strokeWidth={0.8}
+          opacity={0.7}
+        />
+      );
+    case "court-floor":
+      return (
+        <g>
+          <line x1={20} y1={GROUND_Y} x2={SVG_W - 20} y2={GROUND_Y} stroke={line} strokeWidth={1} />
+          <line x1={40} y1={GROUND_Y + 4} x2={50} y2={GROUND_Y + 4} stroke={lineMuted} strokeWidth={0.7} />
+          <line x1={150} y1={GROUND_Y + 4} x2={160} y2={GROUND_Y + 4} stroke={lineMuted} strokeWidth={0.7} />
+        </g>
+      );
+    case "scoreboard":
+      return (
+        <g transform="translate(12 12)">
+          <rect width={38} height={20} rx={3} fill={lineMuted} stroke={line} strokeWidth={0.8} />
+          <text x={19} y={14} fontSize="8" textAnchor="middle" fill={line} fontWeight={700}>
+            00 : 02
+          </text>
+        </g>
+      );
+    case "spotlight":
+      return (
+        <circle cx={CX} cy={HEAD_CY + 30} r={80} fill="url(#pa-spotlight)" opacity={0.55} />
+      );
+    case "bench":
+      return (
+        <g transform={`translate(0 ${GROUND_Y - 14})`}>
+          <line x1={20} y1={0} x2={SVG_W - 20} y2={0} stroke={line} strokeWidth={0.9} />
+          {[30, 60, 90, 120, 150, 180].map((x, i) => (
+            <line key={i} x1={x} y1={0} x2={x} y2={6} stroke={lineMuted} strokeWidth={0.7} />
+          ))}
+        </g>
+      );
+    default:
+      return null;
+  }
+}
+
+function Effect({
+  kind,
+  dimmed,
+  refreshKey
+}: {
+  kind: EffectKey;
+  dimmed?: boolean;
+  refreshKey: string;
+}) {
+  const accent = dimmed ? "rgb(var(--muted)/0.7)" : "rgb(var(--text)/0.8)";
+  const gold = dimmed ? "#a3a3a3" : "#fbbf24";
+  const orange = dimmed ? "#a3a3a3" : "#f97316";
+  const ringStroke = dimmed ? "rgb(var(--muted)/0.7)" : "rgb(var(--text)/0.7)";
+
+  // Per-effect rendering. One-shot effects use refreshKey via React `key`
+  // on the wrapper to force remount and restart their CSS animation.
+  switch (kind) {
+    case "motion-lines-r":
+      return (
+        <g key={refreshKey} opacity={0.78}>
+          <line x1={CX + 30} y1={TORSO_TOP + 12} x2={CX + 46} y2={TORSO_TOP + 12} stroke={accent} strokeWidth={1.4} strokeLinecap="round" />
+          <line x1={CX + 28} y1={TORSO_TOP + 26} x2={CX + 50} y2={TORSO_TOP + 26} stroke={accent} strokeWidth={1.4} strokeLinecap="round" />
+          <line x1={CX + 30} y1={TORSO_TOP + 40} x2={CX + 46} y2={TORSO_TOP + 40} stroke={accent} strokeWidth={1.2} strokeLinecap="round" />
+        </g>
+      );
+    case "motion-lines-l":
+      return (
+        <g key={refreshKey} opacity={0.78}>
+          <line x1={CX - 30} y1={TORSO_TOP + 12} x2={CX - 46} y2={TORSO_TOP + 12} stroke={accent} strokeWidth={1.4} strokeLinecap="round" />
+          <line x1={CX - 28} y1={TORSO_TOP + 26} x2={CX - 50} y2={TORSO_TOP + 26} stroke={accent} strokeWidth={1.4} strokeLinecap="round" />
+          <line x1={CX - 30} y1={TORSO_TOP + 40} x2={CX - 46} y2={TORSO_TOP + 40} stroke={accent} strokeWidth={1.2} strokeLinecap="round" />
+        </g>
+      );
+    case "motion-lines-up":
+      return (
+        <g key={refreshKey} opacity={0.78}>
+          <line x1={CX - 12} y1={GROUND_Y + 4} x2={CX - 12} y2={GROUND_Y + 18} stroke={accent} strokeWidth={1.3} strokeLinecap="round" />
+          <line x1={CX} y1={GROUND_Y + 8} x2={CX} y2={GROUND_Y + 22} stroke={accent} strokeWidth={1.3} strokeLinecap="round" />
+          <line x1={CX + 12} y1={GROUND_Y + 4} x2={CX + 12} y2={GROUND_Y + 18} stroke={accent} strokeWidth={1.3} strokeLinecap="round" />
+        </g>
+      );
+    case "sweat-drops":
+      return (
+        <g key={refreshKey} style={{ animation: "pa-sweat 1.2s ease-in-out infinite" }}>
+          <ellipse cx={CX - HEAD_R - 1} cy={HEAD_CY - 4} rx={1.4} ry={2.2} fill="#60a5fa" stroke="#1d4ed8" strokeWidth={0.4} />
+          <ellipse cx={CX - HEAD_R - 3} cy={HEAD_CY + 4} rx={1.2} ry={1.8} fill="#60a5fa" stroke="#1d4ed8" strokeWidth={0.4} opacity={0.85} />
+        </g>
+      );
+    case "dust-puff":
+      return (
+        <g key={refreshKey} style={{ animation: "pa-dust 480ms ease-out forwards" }}>
+          <ellipse cx={CX - 14} cy={GROUND_Y + 1} rx={7} ry={2.2} fill={accent} opacity={0.55} />
+          <ellipse cx={CX + 14} cy={GROUND_Y + 1} rx={7} ry={2.2} fill={accent} opacity={0.55} />
+          <ellipse cx={CX} cy={GROUND_Y + 3} rx={6} ry={1.6} fill={accent} opacity={0.4} />
+        </g>
+      );
+    case "impact-rings":
+      return (
+        <g
+          key={refreshKey}
+          transform={`translate(${HOOP_BACKBOARD_X - 2} ${HOOP_BACKBOARD_Y + 18})`}
+          style={{ animation: "pa-impact 600ms ease-out forwards" }}
+        >
+          <circle r={4} fill="none" stroke={ringStroke} strokeWidth={1.4} />
+          <circle r={7} fill="none" stroke={ringStroke} strokeWidth={1} opacity={0.7} />
+        </g>
+      );
+    case "slash":
+      return (
+        <g key={refreshKey} style={{ animation: "pa-flash 360ms ease-out forwards" }}>
+          <path
+            d={`M ${CX - 22} ${TORSO_TOP + TORSO_H * 0.6} Q ${CX} ${TORSO_TOP + TORSO_H * 0.4} ${CX + 22} ${TORSO_TOP + TORSO_H * 0.6}`}
+            fill="none"
+            stroke={accent}
+            strokeWidth={1.6}
+            strokeLinecap="round"
+          />
+        </g>
+      );
+    case "swish":
+      return (
+        <g
+          key={refreshKey}
+          transform={`translate(${HOOP_BACKBOARD_X - 2} ${HOOP_BACKBOARD_Y + 26})`}
+          style={{ animation: "pa-swish 560ms ease-out forwards" }}
+        >
+          <path
+            d={`M -8 0 Q 0 6 8 0`}
+            fill="none"
+            stroke={orange}
+            strokeWidth={1.4}
+            strokeDasharray="20 20"
+            strokeLinecap="round"
+          />
+        </g>
+      );
+    case "trail-arm":
+      // Subtle ghost arm hint near the right shoulder area.
+      return (
+        <g key={refreshKey} opacity={0.35}>
+          <line
+            x1={R_SHOULDER_X}
+            y1={SHOULDER_Y}
+            x2={R_SHOULDER_X + 14}
+            y2={SHOULDER_Y - 18}
+            stroke={accent}
+            strokeWidth={2.4}
+            strokeLinecap="round"
+          />
+          <line
+            x1={R_SHOULDER_X}
+            y1={SHOULDER_Y}
+            x2={R_SHOULDER_X + 8}
+            y2={SHOULDER_Y - 22}
+            stroke={accent}
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            opacity={0.7}
+          />
+        </g>
+      );
+    case "flash-pop":
+      return (
+        <g
+          key={refreshKey}
+          transform={`translate(${CX} ${HEAD_CY + 30})`}
+          style={{ animation: "pa-flash 360ms ease-out forwards" }}
+        >
+          <circle r={48} fill={gold} opacity={0.35} />
+        </g>
+      );
+    case "confetti":
+      return (
+        <g key={refreshKey}>
+          {[
+            { x: CX - 28, c: "#f97316" },
+            { x: CX - 14, c: "#fbbf24" },
+            { x: CX, c: "#ef4444" },
+            { x: CX + 14, c: "#10b981" },
+            { x: CX + 28, c: "#3b82f6" },
+            { x: CX - 7, c: "#a855f7" },
+            { x: CX + 21, c: "#fbbf24" }
+          ].map((d, i) => (
+            <rect
+              key={i}
+              x={d.x}
+              y={HEAD_CY - 24}
+              width={2}
+              height={3}
+              rx={0.5}
+              fill={d.c}
+              style={{ animation: `pa-confetti ${1.4 + (i % 3) * 0.3}s ${i * 0.12}s ease-in infinite` }}
+            />
+          ))}
+        </g>
+      );
+    case "shake-cam":
+      // Handled at the wrapper level (class toggle), nothing to render here.
+      return null;
+    default:
+      return null;
+  }
+}
+
+function Effects({
+  list,
+  layer,
+  runKey,
+  frameIdx,
+  dimmed
+}: {
+  list: EffectKey[];
+  layer: "back" | "front";
+  runKey: number;
+  frameIdx: number;
+  dimmed?: boolean;
+}) {
+  return (
+    <>
+      {list
+        .filter((e) => EFFECT_LAYER[e] === layer)
+        .map((e) => (
+          <Effect
+            key={`${e}-${EFFECT_LOOPING.has(e) ? "loop" : `${runKey}-${frameIdx}`}`}
+            kind={e}
+            dimmed={dimmed}
+            refreshKey={`${e}-${runKey}-${frameIdx}`}
+          />
+        ))}
+    </>
   );
 }
 
@@ -1386,6 +1689,19 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
     <circle cx={0} cy={0} r={r} fill={fillColor} stroke={strokeColor} strokeWidth={0.5} />
   );
 
+  // Trigger a one-shot CSS class on the wrapper when the current frame fires
+  // a `shake-cam` effect. Auto-clears after the keyframe completes.
+  const [shakeTick, setShakeTick] = useState(0);
+  useEffect(() => {
+    if (activePose.shakeCam) {
+      setShakeTick((t) => t + 1);
+      const t = window.setTimeout(() => setShakeTick(0), 280);
+      return () => window.clearTimeout(t);
+    }
+  }, [activePose.shakeCam, runKey, frameIdx]);
+
+  const allEffects = activePose.effects.concat(activePose.loopingEffects);
+
   const figure = (
     <svg
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
@@ -1393,8 +1709,21 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
       style={{ maxWidth: figureWidth, height: "auto" }}
       aria-label={persona ? translate("Your player avatar") : translate("Log in to personalize")}
     >
+      <defs>
+        <radialGradient id="pa-spotlight" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={dimmed ? "rgb(var(--muted))" : "rgb(251,191,36)"} stopOpacity="0.65" />
+          <stop offset="100%" stopColor={dimmed ? "rgb(var(--muted))" : "rgb(251,191,36)"} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Scene background (lowest z-order) */}
+      <SceneBg kind={activePose.sceneBg} dimmed={dimmed} />
+
       {/* Decorative hoop (drawn behind body) */}
       {activePose.hasHoop && <Hoop dimmed={dimmed} />}
+
+      {/* Back-layer effects (motion lines, swish, impact rings, ghost trails) */}
+      <Effects list={allEffects} layer="back" runKey={runKey} frameIdx={frameIdx} dimmed={dimmed} />
 
       {/* Whole-body translate (jump / crouch). Torso ITSELF never rotates. */}
       <g
@@ -1627,13 +1956,23 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
       {/* Defender lies on the ground (drawn outside the body transform). */}
       {activePose.hasDefender && <Defender dimmed={dimmed} />}
 
+      {/* Front-layer effects (sweat, dust, slash, confetti, flash) */}
+      <Effects list={allEffects} layer="front" runKey={runKey} frameIdx={frameIdx} dimmed={dimmed} />
+
       {/* Decorations float over everything (drawn last). */}
       <Decorations kind={activePose.decoration} dimmed={dimmed} />
     </svg>
   );
 
   return (
-    <div className={`flex items-center ${size === "sm" ? "gap-2" : "gap-3"}`}>
+    <div
+      className={`flex items-center ${size === "sm" ? "gap-2" : "gap-3"}`}
+      style={
+        shakeTick > 0
+          ? { animation: "pa-cam-shake 240ms ease-in-out" }
+          : undefined
+      }
+    >
       <style>{`
         @keyframes pa-breathe      { 0%,100% { transform: translateY(0) }    50% { transform: translateY(-1px) } }
         @keyframes pa-bounce       { 0%,100% { transform: translateY(0) }    50% { transform: translateY(-2px) } }
