@@ -176,6 +176,135 @@ type Pose = {
 //   ±180 = limb points UP
 // Child rotation is RELATIVE to parent's (already rotated) frame.
 
+// ───────────────────────────────────────────────────────────────
+// New action-sequence types (multi-frame choreography upgrade)
+// ───────────────────────────────────────────────────────────────
+
+type View = "front" | "side-r" | "side-l";
+
+type HandPose =
+  | "relaxed"
+  | "fist"
+  | "open-palm"
+  | "gripping-ball"
+  | "point-index"
+  | "three-fingers"
+  | "thumbs-up"
+  | "peace";
+
+type Expression = "neutral" | "smile" | "open-mouth" | "focus";
+
+type ActionCategory =
+  | "idle"
+  | "shooting"
+  | "dribbling"
+  | "passing"
+  | "defense"
+  | "finishing"
+  | "signature"
+  | "celebration";
+
+type EffectKey =
+  | "motion-lines-r"
+  | "motion-lines-l"
+  | "motion-lines-up"
+  | "sweat-drops"
+  | "dust-puff"
+  | "impact-rings"
+  | "shake-cam"
+  | "slash"
+  | "swish"
+  | "trail-arm"
+  | "flash-pop"
+  | "confetti";
+
+type SceneBgKey =
+  | "three-pt-arc"
+  | "free-throw-line"
+  | "paint-zone"
+  | "court-floor"
+  | "scoreboard"
+  | "spotlight"
+  | "bench";
+
+type ZOrderConfig = {
+  hoop?: "back" | "front";
+  ball?: "back" | "front";
+  defender?: "back" | "front";
+  decoration?: "back" | "front-of-head" | "above-all";
+};
+
+// Full visual snapshot of the skeleton at one instant.
+type Skeleton = {
+  headTilt: number;
+  lShoulder: number; lElbow: number; lWrist: number;
+  rShoulder: number; rElbow: number; rWrist: number;
+  lHip: number; lKnee: number; lAnkle: number;
+  rHip: number; rKnee: number; rAnkle: number;
+  ball: BallSlot;
+  bodyShiftY: number;
+  bodyShiftX: number;
+  lHandPose: HandPose;
+  rHandPose: HandPose;
+  expression: Expression;
+};
+
+// A frame is a delta — only restate fields that change from the prior frame.
+type Frame = Partial<Skeleton> & {
+  effects?: EffectKey[];
+  decoration?: Decoration | null;
+  anim?: JointAnims;
+  hold?: number;        // ms to stay after the transition settles (default 0)
+  enterMs?: number;     // ms to interpolate INTO this frame (default 640; 0 = snap)
+  view?: View;          // per-frame view override
+  ballScale?: number;
+  zOrder?: ZOrderConfig;
+};
+
+type ActionSequence = {
+  name: string;
+  label: string;
+  category: ActionCategory;
+  view?: View;          // default "front"
+  frames: Frame[];      // length >= 1
+  loop?: boolean;       // default true
+  hasHoop?: boolean;
+  hasDefender?: boolean;
+  sceneBg?: SceneBgKey;
+  decoration?: Decoration;
+  anim?: JointAnims;
+  ballScale?: number;
+  zOrder?: ZOrderConfig;
+};
+
+// Effects that loop continuously while the action plays (rendered union over
+// all frames). One-shot effects only render on the current frame and remount
+// via a key that includes runKey + frameIdx so the CSS animation restarts.
+const EFFECT_LOOPING = new Set<EffectKey>([
+  "sweat-drops",
+  "motion-lines-r",
+  "motion-lines-l",
+  "motion-lines-up",
+  "confetti",
+  "trail-arm"
+]);
+
+// Z-layer per effect: "back" renders behind the body group, "front" renders on top.
+const EFFECT_LAYER: Record<EffectKey, "back" | "front"> = {
+  "motion-lines-r": "back",
+  "motion-lines-l": "back",
+  "motion-lines-up": "back",
+  "sweat-drops": "front",
+  "dust-puff": "front",
+  "impact-rings": "back",
+  "shake-cam": "front",  // applied to wrapper, not actually rendered here
+  "slash": "front",
+  "swish": "back",
+  "trail-arm": "back",
+  "flash-pop": "front",
+  "confetti": "front"
+};
+
 const Z = {
   headTilt: 0,
   lShoulder: 0, lElbow: 0, lWrist: 0,
@@ -185,8 +314,84 @@ const Z = {
   ball: "none" as BallSlot
 };
 
+// Zero skeleton — the implicit "starting point" all Frame deltas are folded onto.
+const Z_SKEL: Skeleton = {
+  headTilt: 0,
+  lShoulder: 0, lElbow: 0, lWrist: 0,
+  rShoulder: 0, rElbow: 0, rWrist: 0,
+  lHip: 0, lKnee: 0, lAnkle: 0,
+  rHip: 0, rKnee: 0, rAnkle: 0,
+  ball: "none",
+  bodyShiftY: 0,
+  bodyShiftX: 0,
+  lHandPose: "relaxed",
+  rHandPose: "relaxed",
+  expression: "neutral"
+};
+
 function pose(p: Partial<Pose> & Pick<Pose, "name" | "label">): Pose {
   return { ...Z, ...p };
+}
+
+// Fold frames[0..idx] left-to-right over Z_SKEL to get the absolute snapshot.
+function resolveSkeleton(action: ActionSequence, idx: number): Skeleton {
+  let s: Skeleton = { ...Z_SKEL };
+  const limit = Math.min(idx, action.frames.length - 1);
+  for (let i = 0; i <= limit; i++) {
+    const f = action.frames[i];
+    s = {
+      ...s,
+      ...(f.headTilt !== undefined && { headTilt: f.headTilt }),
+      ...(f.lShoulder !== undefined && { lShoulder: f.lShoulder }),
+      ...(f.lElbow !== undefined && { lElbow: f.lElbow }),
+      ...(f.lWrist !== undefined && { lWrist: f.lWrist }),
+      ...(f.rShoulder !== undefined && { rShoulder: f.rShoulder }),
+      ...(f.rElbow !== undefined && { rElbow: f.rElbow }),
+      ...(f.rWrist !== undefined && { rWrist: f.rWrist }),
+      ...(f.lHip !== undefined && { lHip: f.lHip }),
+      ...(f.lKnee !== undefined && { lKnee: f.lKnee }),
+      ...(f.lAnkle !== undefined && { lAnkle: f.lAnkle }),
+      ...(f.rHip !== undefined && { rHip: f.rHip }),
+      ...(f.rKnee !== undefined && { rKnee: f.rKnee }),
+      ...(f.rAnkle !== undefined && { rAnkle: f.rAnkle }),
+      ...(f.ball !== undefined && { ball: f.ball }),
+      ...(f.bodyShiftY !== undefined && { bodyShiftY: f.bodyShiftY }),
+      ...(f.bodyShiftX !== undefined && { bodyShiftX: f.bodyShiftX }),
+      ...(f.lHandPose !== undefined && { lHandPose: f.lHandPose }),
+      ...(f.rHandPose !== undefined && { rHandPose: f.rHandPose }),
+      ...(f.expression !== undefined && { expression: f.expression })
+    };
+  }
+  return s;
+}
+
+function frameDurationMs(frame: Frame): number {
+  return (frame.enterMs ?? 640) + (frame.hold ?? 0);
+}
+
+// Wrap a legacy Pose into a 1-frame ActionSequence for backward compatibility.
+function actionFromPose(p: Pose): ActionSequence {
+  return {
+    name: p.name,
+    label: p.label,
+    category: "idle",  // legacy poses get a placeholder category
+    frames: [
+      {
+        headTilt: p.headTilt,
+        lShoulder: p.lShoulder, lElbow: p.lElbow, lWrist: p.lWrist,
+        rShoulder: p.rShoulder, rElbow: p.rElbow, rWrist: p.rWrist,
+        lHip: p.lHip, lKnee: p.lKnee, lAnkle: p.lAnkle,
+        rHip: p.rHip, rKnee: p.rKnee, rAnkle: p.rAnkle,
+        ball: p.ball,
+        bodyShiftY: p.bodyShiftY ?? 0,
+        anim: p.anim
+      }
+    ],
+    hasHoop: p.hasHoop,
+    hasDefender: p.hasDefender,
+    decoration: p.decoration,
+    anim: p.anim
+  };
 }
 
 const POSES: Pose[] = [
@@ -564,6 +769,32 @@ const POSES: Pose[] = [
 function pickRandomPose(exclude?: string): Pose {
   const pool = exclude ? POSES.filter((p) => p.name !== exclude) : POSES;
   return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ───────────────────────────────────────────────────────────────
+// New ActionSequence array — populated incrementally per-action.
+// Until an action moves here, the legacy POSES entry is wrapped via
+// actionFromPose() in the runtime fallback path.
+// ───────────────────────────────────────────────────────────────
+const ACTIONS: ActionSequence[] = [];
+
+function pickRandomAction(exclude?: string): ActionSequence {
+  // Prefer ACTIONS once populated; fall back to POSES wrapped as 1-frame actions.
+  const wrapped = POSES
+    .filter((p) => !ACTIONS.some((a) => a.name === p.name))
+    .map(actionFromPose);
+  const all = ACTIONS.concat(wrapped);
+  const pool = exclude ? all.filter((a) => a.name !== exclude) : all;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function findAction(name: string): ActionSequence | undefined {
+  return (
+    ACTIONS.find((a) => a.name === name) ??
+    (POSES.find((p) => p.name === name)
+      ? actionFromPose(POSES.find((p) => p.name === name)!)
+      : undefined)
+  );
 }
 
 const POSE_TRANSITION = "transform 640ms cubic-bezier(0.22,1,0.36,1)";
@@ -990,6 +1221,14 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         @keyframes pa-wave-hand    { 0%,100% { transform: rotate(-22deg) }   50% { transform: rotate(22deg) } }
         @keyframes pa-zzz          { 0%,100% { opacity: 0.55; transform: translateY(0) } 50% { opacity: 1; transform: translateY(-3px) } }
         @keyframes pa-salt-fall    { 0% { opacity: 0; transform: translateY(-4px) } 60% { opacity: 1; transform: translateY(0) } 100% { opacity: 0; transform: translateY(8px) } }
+        @keyframes pa-sweat        { 0% { opacity: 0; transform: translate(0,-2px) } 30% { opacity: 1 } 100% { opacity: 0; transform: translate(0,10px) } }
+        @keyframes pa-dust         { 0% { opacity: 0; transform: scaleX(0.4) } 30% { opacity: 0.9 } 100% { opacity: 0; transform: scaleX(1.4) } }
+        @keyframes pa-impact       { 0% { opacity: 0.9; transform: scale(0.4) } 100% { opacity: 0; transform: scale(1.8) } }
+        @keyframes pa-cam-shake    { 0%,100% { transform: translate(0,0) } 25% { transform: translate(-1.2px,1px) } 50% { transform: translate(1px,-0.6px) } 75% { transform: translate(-0.8px,0.6px) } }
+        @keyframes pa-swish        { 0% { stroke-dashoffset: 20; opacity: 0 } 30% { opacity: 1 } 100% { stroke-dashoffset: 0; opacity: 0 } }
+        @keyframes pa-flash        { 0% { opacity: 0.85; transform: scale(0.4) } 100% { opacity: 0; transform: scale(2) } }
+        @keyframes pa-confetti     { 0% { opacity: 0; transform: translate(0,-4px) } 20% { opacity: 1 } 100% { opacity: 0; transform: translate(0,22px) } }
+        @keyframes pa-motion-fade  { 0% { opacity: 0; transform: translateX(0) } 30% { opacity: 0.8 } 100% { opacity: 0; transform: translateX(-6px) } }
       `}</style>
 
       {onClick ? (
