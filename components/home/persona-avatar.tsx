@@ -967,15 +967,34 @@ function Hand({
   }
 }
 
-function Ball({ r = 7, dimmed = false }: { r?: number; dimmed?: boolean }) {
+const BALL_BASE_R = 7;
+
+// Default visual scale per ball slot. Per-frame ballScale further multiplies.
+const BALL_SLOT_SCALE: Record<BallSlot, number> = {
+  none: 1,
+  "left-hand": 1.0,
+  "right-hand": 1.0,
+  "two-hands": 1.15,
+  overhead: 1.3,
+  "floor-r": 0.9,
+  "floor-l": 0.9
+};
+
+function Ball({ scale = 1, dimmed = false }: { scale?: number; dimmed?: boolean }) {
+  const r = BALL_BASE_R * scale;
   const fill = dimmed ? "#a3a3a3" : "#f97316";
   const stroke = dimmed ? "#525252" : "#7c2d12";
+  const highlight = dimmed ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.45)";
   return (
     <g>
       <circle r={r} fill={fill} stroke={stroke} strokeWidth={0.9} />
       <path d={`M ${-r} 0 Q 0 ${-r * 0.5} ${r} 0`} fill="none" stroke={stroke} strokeWidth={0.9} />
       <path d={`M 0 ${-r} Q ${r * 0.5} 0 0 ${r}`} fill="none" stroke={stroke} strokeWidth={0.9} />
       <line x1={-r} y1={0} x2={r} y2={0} stroke={stroke} strokeWidth={0.6} opacity={0.7} />
+      {/* Extra curve for depth */}
+      <path d={`M 0 ${-r} Q ${-r * 0.5} 0 0 ${r}`} fill="none" stroke={stroke} strokeWidth={0.6} opacity={0.6} />
+      {/* Highlight (upper-left) */}
+      <ellipse cx={-r * 0.4} cy={-r * 0.45} rx={r * 0.28} ry={r * 0.22} fill={highlight} />
     </g>
   );
 }
@@ -1173,12 +1192,13 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   const HandAndBall = ({ slot }: { slot: "left-hand" | "right-hand" }) => {
     const handPose: HandPose = "relaxed";
     const side = slot === "left-hand" ? "l" : "r";
+    const ballScale = BALL_SLOT_SCALE[activePose.ball] ?? 1;
     return (
       <>
         <Hand pose={handPose} side={side} dimmed={dimmed} />
         {activePose.ball === slot && (
-          <g transform={`translate(0 ${HAND_R * 2 + 6})`}>
-            <Ball dimmed={dimmed} />
+          <g transform={`translate(0 ${HAND_R * 2 + 6 + (ballScale - 1) * 4})`}>
+            <Ball scale={ballScale} dimmed={dimmed} />
           </g>
         )}
       </>
@@ -1436,26 +1456,39 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         </g>
 
         {/* Free-floating balls (not in any joint chain) */}
-        {activePose.ball === "two-hands" && (
-          <g transform={`translate(${CX} ${TORSO_TOP + TORSO_H * 0.42})`}>
-            <Ball dimmed={dimmed} />
-          </g>
-        )}
-        {activePose.ball === "overhead" && (
-          <g transform={`translate(${CX} ${HEAD_CY - HEAD_R - 8})`}>
-            <Ball dimmed={dimmed} />
-          </g>
-        )}
-        {activePose.ball === "floor-r" && (
-          <g transform={`translate(${CX + TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
-            <Ball dimmed={dimmed} />
-          </g>
-        )}
-        {activePose.ball === "floor-l" && (
-          <g transform={`translate(${CX - TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
-            <Ball dimmed={dimmed} />
-          </g>
-        )}
+        {activePose.ball === "two-hands" && (() => {
+          const sc = BALL_SLOT_SCALE["two-hands"];
+          return (
+            <g transform={`translate(${CX} ${TORSO_TOP + TORSO_H * 0.42})`}>
+              <Ball scale={sc} dimmed={dimmed} />
+            </g>
+          );
+        })()}
+        {activePose.ball === "overhead" && (() => {
+          const sc = BALL_SLOT_SCALE.overhead;
+          const r = BALL_BASE_R * sc;
+          return (
+            <g transform={`translate(${CX} ${HEAD_CY - HEAD_R - r - 2})`}>
+              <Ball scale={sc} dimmed={dimmed} />
+            </g>
+          );
+        })()}
+        {activePose.ball === "floor-r" && (() => {
+          const sc = BALL_SLOT_SCALE["floor-r"];
+          return (
+            <g transform={`translate(${CX + TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
+              <Ball scale={sc} dimmed={dimmed} />
+            </g>
+          );
+        })()}
+        {activePose.ball === "floor-l" && (() => {
+          const sc = BALL_SLOT_SCALE["floor-l"];
+          return (
+            <g transform={`translate(${CX - TORSO_W * 0.55} ${HIP_Y + THIGH_H + SHIN_H + 2})`}>
+              <Ball scale={sc} dimmed={dimmed} />
+            </g>
+          );
+        })()}
       </g>
 
       {/* Defender lies on the ground (drawn outside the body transform). */}
