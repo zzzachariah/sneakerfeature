@@ -397,54 +397,6 @@ function actionFromPose(p: Pose): ActionSequence {
 }
 
 const POSES: Pose[] = [
-  // ── Shooting ───────────────────────────────────────────────
-  pose({
-    name: "set-shot", label: "Set shot",
-    headTilt: -2,
-    lShoulder: 38, lElbow: 105, lWrist: -8,
-    rShoulder: -80, rElbow: -100, rWrist: -8,
-    lHip: 6, lKnee: -8, rHip: -6, rKnee: 8,
-    ball: "overhead", hasHoop: true
-  }),
-  pose({
-    name: "jump-shot", label: "Jump shot",
-    headTilt: -3,
-    lShoulder: 38, lElbow: 110, lWrist: -8,
-    rShoulder: -90, rElbow: -110, rWrist: -10,
-    lAnkle: -22, rAnkle: 22, bodyShiftY: -10,
-    ball: "overhead", hasHoop: true
-  }),
-  pose({
-    name: "fadeaway", label: "Fadeaway",
-    headTilt: -14,
-    lShoulder: 95, lElbow: 90, lWrist: 8,
-    rShoulder: -100, rElbow: -100, rWrist: -10,
-    lHip: 18, lKnee: -8, rHip: 6, rKnee: -10,
-    ball: "overhead", hasHoop: true
-  }),
-  pose({
-    name: "floater", label: "Floater",
-    headTilt: -4,
-    lShoulder: 15, lElbow: -45,
-    rShoulder: -170, rElbow: -10, rWrist: -15,
-    lKnee: -10, rHip: -22, rKnee: 38,
-    bodyShiftY: -4, ball: "right-hand", hasHoop: true
-  }),
-  pose({
-    name: "free-throw", label: "Free throw",
-    lShoulder: 30, lElbow: -120, lWrist: -5,
-    rShoulder: -30, rElbow: 120, rWrist: 5,
-    ball: "two-hands", hasHoop: true
-  }),
-  pose({
-    name: "three-pointer", label: "Three-pointer",
-    headTilt: -4,
-    lShoulder: 38, lElbow: 105, lWrist: -8,
-    rShoulder: -88, rElbow: -100, rWrist: -12,
-    lKnee: -6, rKnee: 6, bodyShiftY: -2,
-    ball: "overhead", hasHoop: true, decoration: "sparkle"
-  }),
-
   // ── Dribbling ──────────────────────────────────────────────
   pose({
     name: "dribble-low", label: "Low dribble",
@@ -864,6 +816,254 @@ const ACTIONS: ActionSequence[] = [
         lHandPose: "fist",
         rHandPose: "fist",
         expression: "focus"
+      }
+    ]
+  },
+
+  // ── Shooting ────────────────────────────────────────────────
+  {
+    name: "set-shot",
+    label: "Set shot",
+    category: "shooting",
+    view: "side-r",
+    hasHoop: true,
+    frames: [
+      // Setup: ball cradled at chest, knees slight bent
+      {
+        headTilt: -2,
+        lShoulder: 38, lElbow: 100,
+        rShoulder: -50, rElbow: -90, rWrist: -8,
+        lHip: 6, lKnee: -10, rHip: -6, rKnee: 10,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 520, hold: 180
+      },
+      // Release: ball overhead, right arm extending
+      {
+        headTilt: -4,
+        lShoulder: 38, lElbow: 105, lWrist: -8,
+        rShoulder: -88, rElbow: -100, rWrist: -10,
+        ball: "overhead",
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["trail-arm"],
+        enterMs: 280, hold: 80
+      },
+      // Follow-through: gooseneck wrist, ball gone, swish at rim
+      {
+        headTilt: -4,
+        rWrist: -28,
+        ball: "none",
+        effects: ["swish"],
+        enterMs: 320, hold: 600
+      }
+    ]
+  },
+  {
+    name: "jump-shot",
+    label: "Jump shot",
+    category: "shooting",
+    view: "side-r",
+    hasHoop: true,
+    frames: [
+      // Crouch (gather)
+      {
+        headTilt: -2,
+        lShoulder: 35, lElbow: -75,
+        rShoulder: -35, rElbow: 75,
+        lHip: 8, lKnee: -22, rHip: -8, rKnee: 22,
+        ball: "two-hands",
+        bodyShiftY: 8,
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 380, hold: 140
+      },
+      // Takeoff (up and reaching)
+      {
+        headTilt: -3,
+        lShoulder: 38, lElbow: 105, lWrist: -8,
+        rShoulder: -90, rElbow: -110, rWrist: -10,
+        lHip: 0, lKnee: -4, rHip: 0, rKnee: 4,
+        lAnkle: -18, rAnkle: 18,
+        ball: "overhead",
+        bodyShiftY: -22,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["motion-lines-up"],
+        enterMs: 320, hold: 60
+      },
+      // Apex release with follow
+      {
+        rWrist: -28,
+        ball: "none",
+        effects: ["trail-arm", "swish"],
+        enterMs: 280, hold: 240
+      },
+      // Landing
+      {
+        lShoulder: 14, lElbow: -22,
+        rShoulder: -14, rElbow: 22,
+        lKnee: -16, rKnee: 16,
+        bodyShiftY: 6,
+        enterMs: 380, hold: 600
+      }
+    ]
+  },
+  {
+    name: "fadeaway",
+    label: "Fadeaway",
+    category: "shooting",
+    view: "side-r",
+    hasHoop: true,
+    frames: [
+      // Load
+      {
+        headTilt: -8,
+        lShoulder: 95, lElbow: 90, lWrist: 8,
+        rShoulder: -100, rElbow: -100, rWrist: -10,
+        lHip: 18, lKnee: -8, rHip: 6, rKnee: -10,
+        ball: "overhead",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 420, hold: 140
+      },
+      // Fade back + release
+      {
+        headTilt: -14,
+        bodyShiftX: 3,
+        bodyShiftY: -8,
+        ball: "none",
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["trail-arm"],
+        enterMs: 360, hold: 180
+      },
+      // Swish (follow through with hand still up)
+      {
+        headTilt: -16,
+        rWrist: -32,
+        effects: ["swish"],
+        enterMs: 300, hold: 700
+      }
+    ]
+  },
+  {
+    name: "floater",
+    label: "Floater",
+    category: "shooting",
+    view: "side-r",
+    hasHoop: true,
+    frames: [
+      // Stride lift
+      {
+        headTilt: -4,
+        lShoulder: 15, lElbow: -45,
+        rShoulder: -110, rElbow: -65, rWrist: -12,
+        lHip: -6, lKnee: 10,
+        rHip: -22, rKnee: 38,
+        bodyShiftY: -10,
+        ball: "right-hand",
+        rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 380, hold: 120
+      },
+      // Soft toss release (ball flicks up)
+      {
+        rShoulder: -170, rElbow: -10, rWrist: -22,
+        ballScale: 1.3,
+        ball: "right-hand",
+        rHandPose: "open-palm",
+        effects: ["motion-lines-up"],
+        enterMs: 320, hold: 100
+      },
+      // Drop and soft net contact
+      {
+        ball: "none",
+        effects: ["swish"],
+        enterMs: 360, hold: 600
+      }
+    ]
+  },
+  {
+    name: "free-throw",
+    label: "Free throw",
+    category: "shooting",
+    view: "front",
+    hasHoop: true,
+    sceneBg: "free-throw-line",
+    frames: [
+      // Dribble settle (centered, focused)
+      {
+        lShoulder: 22, lElbow: -85,
+        rShoulder: -22, rElbow: 85,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 480, hold: 320
+      },
+      // Lift / bend knees
+      {
+        lShoulder: 30, lElbow: -120, lWrist: -5,
+        rShoulder: -30, rElbow: 120, rWrist: 5,
+        lKnee: -10, rKnee: 10,
+        bodyShiftY: 4,
+        ball: "two-hands",
+        enterMs: 420, hold: 180
+      },
+      // Release overhead
+      {
+        lShoulder: 38, lElbow: 105, lWrist: -8,
+        rShoulder: -38, rElbow: -105, rWrist: -10,
+        lKnee: 0, rKnee: 0,
+        bodyShiftY: -2,
+        ball: "none",
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["trail-arm"],
+        enterMs: 320, hold: 100
+      },
+      // Follow-through gooseneck + swish
+      {
+        rWrist: -28, lWrist: 28,
+        effects: ["swish"],
+        enterMs: 320, hold: 720
+      }
+    ]
+  },
+  {
+    name: "three-pointer",
+    label: "Three-pointer",
+    category: "shooting",
+    view: "side-r",
+    hasHoop: true,
+    sceneBg: "three-pt-arc",
+    decoration: "sparkle",
+    frames: [
+      // Setup
+      {
+        headTilt: -2,
+        lShoulder: 35, lElbow: 95,
+        rShoulder: -50, rElbow: -90, rWrist: -8,
+        lKnee: -6, rKnee: 6,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 420, hold: 140
+      },
+      // Release with slight hop
+      {
+        headTilt: -4,
+        lShoulder: 38, lElbow: 105, lWrist: -8,
+        rShoulder: -88, rElbow: -100, rWrist: -10,
+        bodyShiftY: -6,
+        ball: "overhead",
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["motion-lines-up"],
+        enterMs: 300, hold: 80
+      },
+      // Follow + swish + spark
+      {
+        rWrist: -32,
+        ball: "none",
+        effects: ["swish", "flash-pop"],
+        enterMs: 320, hold: 800
       }
     ]
   }
