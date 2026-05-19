@@ -522,6 +522,15 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
     "平足意味着足弓塌陷,脚掌更平地接触地面。平足球员通常需要更强的稳定性和足弓支撑。",
   "height (cm)": "身高 (厘米)",
   "weight (kg)": "体重 (公斤)",
+  "cm": "厘米",
+  "kg": "公斤",
+  "skill": "水平",
+  "not set": "未设置",
+  "player profile": "球员档案",
+  "pick 3 in order (optional)": "按顺序选 3 个(可选)",
+  "pick exactly 3 playstyle dimensions in order, or none.": "请按顺序选 3 个打法,或全部不选。",
+  "set your position, skill, height, weight, and playstyle here. we use these to recommend shoes.":
+    "在这里设置你的位置、水平、身高、体重和打法。我们用这些信息来推荐球鞋。",
   "clear profile": "清除档案",
 
   // Match reasons
