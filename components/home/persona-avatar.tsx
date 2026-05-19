@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
   HEIGHT_MAX,
@@ -26,15 +27,49 @@ const SKILL_PIPS: Record<SkillLevel, number> = {
   pro: 4
 };
 
+type Pose = {
+  name: string;
+  leftArm: number;
+  rightArm: number;
+  leftLeg: number;
+  rightLeg: number;
+  headTilt: number;
+};
+
+// Joint rotations (degrees) around shoulder/hip/head-center anchors.
+// 0 = arm/leg pointing straight down; positive = clockwise in SVG coords.
+const POSES: Pose[] = [
+  { name: "idle",      leftArm: 0,    rightArm: 0,    leftLeg: 0,   rightLeg: 0,   headTilt: 0 },
+  { name: "shoot",     leftArm: -125, rightArm: 130,  leftLeg: 0,   rightLeg: 0,   headTilt: 0 },
+  { name: "dribble",   leftArm: -8,   rightArm: 55,   leftLeg: 0,   rightLeg: 0,   headTilt: 6 },
+  { name: "defend",    leftArm: -78,  rightArm: 78,   leftLeg: -10, rightLeg: 10,  headTilt: 0 },
+  { name: "celebrate", leftArm: -155, rightArm: 155,  leftLeg: 0,   rightLeg: 0,   headTilt: -4 },
+  { name: "crossover", leftArm: -38,  rightArm: 22,   leftLeg: 8,   rightLeg: -3,  headTilt: -7 },
+  { name: "wave",      leftArm: 6,    rightArm: -150, leftLeg: 0,   rightLeg: 0,   headTilt: 4 },
+  { name: "ready",     leftArm: -22,  rightArm: 22,   leftLeg: -4,  rightLeg: 4,   headTilt: 0 },
+  { name: "pass",      leftArm: -55,  rightArm: 55,   leftLeg: -2,  rightLeg: 2,   headTilt: 0 }
+];
+
+const POSE_TRANSITION = "transform 540ms cubic-bezier(0.22,1,0.36,1)";
+
 function clamp01(v: number) {
   return Math.max(0, Math.min(1, v));
 }
 function lerp(t: number, a: number, b: number) {
   return a + (b - a) * t;
 }
+function pickRandomPose(): Pose {
+  return POSES[Math.floor(Math.random() * POSES.length)];
+}
 
 export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }: Props) {
   const { translate } = useLocale();
+
+  // SSR-safe: render idle on the server, randomize on mount.
+  const [pose, setPose] = useState<Pose>(POSES[0]);
+  useEffect(() => {
+    setPose(pickRandomPose());
+  }, []);
 
   const heightT = persona ? clamp01((persona.height_cm - HEIGHT_MIN) / (HEIGHT_MAX - HEIGHT_MIN)) : 0.55;
   const weightT = persona ? clamp01((persona.weight_kg - WEIGHT_MIN) / (WEIGHT_MAX - WEIGHT_MIN)) : 0.4;
@@ -57,6 +92,21 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   const legTop = torsoBottom;
   const legBottom = legTop + legH;
   const footTop = legBottom;
+
+  // Joint anchors used as rotation pivots.
+  const leftArmX = cx - torsoW / 2 - 8;
+  const rightArmX = cx + torsoW / 2 + 2;
+  const armW = 6;
+  const armH = torsoH * 0.72;
+  const leftShoulderX = leftArmX + armW / 2;
+  const rightShoulderX = rightArmX + armW / 2;
+  const shoulderY = torsoTop + 4;
+
+  const leftLegX = cx - torsoW / 2 + 2;
+  const rightLegX = cx + 2;
+  const legW = torsoW / 2 - 4;
+  const leftHipX = leftLegX + legW / 2;
+  const rightHipX = rightLegX + legW / 2;
 
   const flat = persona?.flat_foot ?? false;
   const positionsText = persona && persona.positions.length > 0
@@ -90,32 +140,49 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         style={{ maxWidth: maxBodyWidth, height: "auto" }}
         aria-label={persona ? translate("Your player avatar") : translate("Log in to personalize")}
       >
-        {/* Head */}
-        <circle cx={cx} cy={headCy} r={headR} fill={fillColor} stroke={strokeColor} strokeWidth={1.2} />
+        {/* Head (tilts) */}
+        <g
+          transform={`rotate(${pose.headTilt} ${cx} ${headCy})`}
+          style={{ transition: POSE_TRANSITION }}
+        >
+          <circle cx={cx} cy={headCy} r={headR} fill={fillColor} stroke={strokeColor} strokeWidth={1.2} />
+        </g>
 
-        {/* Arms */}
-        <rect
-          x={cx - torsoW / 2 - 8}
-          y={torsoTop + 4}
-          width={6}
-          height={torsoH * 0.72}
-          rx={3}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={1}
-        />
-        <rect
-          x={cx + torsoW / 2 + 2}
-          y={torsoTop + 4}
-          width={6}
-          height={torsoH * 0.72}
-          rx={3}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={1}
-        />
+        {/* Left arm */}
+        <g
+          transform={`rotate(${pose.leftArm} ${leftShoulderX} ${shoulderY})`}
+          style={{ transition: POSE_TRANSITION }}
+        >
+          <rect
+            x={leftArmX}
+            y={shoulderY}
+            width={armW}
+            height={armH}
+            rx={3}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={1}
+          />
+        </g>
 
-        {/* Torso */}
+        {/* Right arm */}
+        <g
+          transform={`rotate(${pose.rightArm} ${rightShoulderX} ${shoulderY})`}
+          style={{ transition: POSE_TRANSITION }}
+        >
+          <rect
+            x={rightArmX}
+            y={shoulderY}
+            width={armW}
+            height={armH}
+            rx={3}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={1}
+          />
+        </g>
+
+        {/* Torso (static — never rotates per spec) */}
         <rect
           x={cx - torsoW / 2}
           y={torsoTop}
@@ -128,33 +195,22 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
           style={{ transition: "all 360ms cubic-bezier(0.22,1,0.36,1)" }}
         />
 
-        {/* Legs */}
-        <rect
-          x={cx - torsoW / 2 + 2}
-          y={legTop}
-          width={torsoW / 2 - 4}
-          height={legH}
-          rx={5}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={1.2}
-          style={{ transition: "all 360ms cubic-bezier(0.22,1,0.36,1)" }}
-        />
-        <rect
-          x={cx + 2}
-          y={legTop}
-          width={torsoW / 2 - 4}
-          height={legH}
-          rx={5}
-          fill={fillColor}
-          stroke={strokeColor}
-          strokeWidth={1.2}
-          style={{ transition: "all 360ms cubic-bezier(0.22,1,0.36,1)" }}
-        />
-
-        {/* Feet */}
-        {flat ? (
-          <>
+        {/* Left leg + foot */}
+        <g
+          transform={`rotate(${pose.leftLeg} ${leftHipX} ${legTop})`}
+          style={{ transition: POSE_TRANSITION }}
+        >
+          <rect
+            x={leftLegX}
+            y={legTop}
+            width={legW}
+            height={legH}
+            rx={5}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={1.2}
+          />
+          {flat ? (
             <rect
               x={cx - torsoW / 2 - 2}
               y={footTop}
@@ -163,6 +219,32 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
               rx={2}
               fill={footColor}
             />
+          ) : (
+            <path
+              d={`M ${cx - torsoW / 2 - 2} ${footTop + 6} Q ${cx - torsoW / 4} ${footTop - 2} ${cx - 2} ${footTop + 6} Z`}
+              fill={footColor}
+              stroke={footColor}
+              strokeWidth={1}
+            />
+          )}
+        </g>
+
+        {/* Right leg + foot */}
+        <g
+          transform={`rotate(${pose.rightLeg} ${rightHipX} ${legTop})`}
+          style={{ transition: POSE_TRANSITION }}
+        >
+          <rect
+            x={rightLegX}
+            y={legTop}
+            width={legW}
+            height={legH}
+            rx={5}
+            fill={fillColor}
+            stroke={strokeColor}
+            strokeWidth={1.2}
+          />
+          {flat ? (
             <rect
               x={cx - 2}
               y={footTop}
@@ -171,25 +253,15 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
               rx={2}
               fill={footColor}
             />
-          </>
-        ) : (
-          <>
+          ) : (
             <path
-              d={`M ${cx - torsoW / 2 - 2} ${footTop + 6}
-                  Q ${cx - torsoW / 4} ${footTop - 2} ${cx - 2} ${footTop + 6} Z`}
+              d={`M ${cx + 2} ${footTop + 6} Q ${cx + torsoW / 4} ${footTop - 2} ${cx + torsoW / 2 + 2} ${footTop + 6} Z`}
               fill={footColor}
               stroke={footColor}
               strokeWidth={1}
             />
-            <path
-              d={`M ${cx + 2} ${footTop + 6}
-                  Q ${cx + torsoW / 4} ${footTop - 2} ${cx + torsoW / 2 + 2} ${footTop + 6} Z`}
-              fill={footColor}
-              stroke={footColor}
-              strokeWidth={1}
-            />
-          </>
-        )}
+          )}
+        </g>
       </svg>
 
       <div className={`flex items-center gap-1.5 ${labelClass} soft-text`}>
