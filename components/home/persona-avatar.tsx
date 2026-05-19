@@ -397,29 +397,6 @@ function actionFromPose(p: Pose): ActionSequence {
 }
 
 const POSES: Pose[] = [
-  // ── Passing ────────────────────────────────────────────────
-  pose({
-    name: "chest-pass", label: "Chest pass",
-    lShoulder: 26, lElbow: -100, lWrist: -10,
-    rShoulder: -26, rElbow: 100, rWrist: 10,
-    ball: "two-hands"
-  }),
-  pose({
-    name: "bounce-pass", label: "Bounce pass",
-    headTilt: 6,
-    lShoulder: 38, lElbow: -75,
-    rShoulder: -38, rElbow: 75,
-    lKnee: -10, rKnee: 10, bodyShiftY: 4,
-    ball: "two-hands"
-  }),
-  pose({
-    name: "overhead-pass", label: "Overhead pass",
-    headTilt: -4,
-    lShoulder: 155, lElbow: 22, lWrist: -8,
-    rShoulder: -155, rElbow: -22, rWrist: 8,
-    ball: "overhead"
-  }),
-
   // ── Defense ────────────────────────────────────────────────
   pose({
     name: "defend-stance", label: "Defending",
@@ -1212,6 +1189,113 @@ const ACTIONS: ActionSequence[] = [
         ball: "left-hand",
         lHandPose: "gripping-ball", rHandPose: "relaxed",
         enterMs: 380, hold: 280
+      }
+    ]
+  },
+
+  // ── Passing ─────────────────────────────────────────────────
+  {
+    name: "chest-pass",
+    label: "Chest pass",
+    category: "passing",
+    view: "front",
+    sceneBg: "court-floor",
+    frames: [
+      // Load: ball at chest
+      {
+        lShoulder: 26, lElbow: -100, lWrist: -10,
+        rShoulder: -26, rElbow: 100, rWrist: 10,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 360, hold: 120
+      },
+      // Extend: arms push forward, ball gone
+      {
+        lShoulder: 60, lElbow: -40,
+        rShoulder: -60, rElbow: 40,
+        ball: "none",
+        ballScale: 1.2,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["motion-lines-r"],
+        enterMs: 200, hold: 0
+      },
+      // Recoil
+      {
+        lShoulder: 28, lElbow: -90,
+        rShoulder: -28, rElbow: 90,
+        enterMs: 320, hold: 360
+      }
+    ]
+  },
+  {
+    name: "bounce-pass",
+    label: "Bounce pass",
+    category: "passing",
+    view: "side-r",
+    sceneBg: "court-floor",
+    frames: [
+      // Load low
+      {
+        headTilt: 6,
+        lShoulder: 38, lElbow: -75,
+        rShoulder: -38, rElbow: 75,
+        lKnee: -10, rKnee: 10,
+        bodyShiftY: 4,
+        ball: "two-hands",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 360, hold: 100
+      },
+      // Drive ball down and forward (gone)
+      {
+        lShoulder: 65, lElbow: -22,
+        rShoulder: -65, rElbow: 22,
+        ball: "none",
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["dust-puff", "motion-lines-r"],
+        enterMs: 220, hold: 0
+      },
+      // Recoil
+      {
+        lShoulder: 38, lElbow: -75,
+        rShoulder: -38, rElbow: 75,
+        enterMs: 320, hold: 320
+      }
+    ]
+  },
+  {
+    name: "overhead-pass",
+    label: "Overhead pass",
+    category: "passing",
+    view: "front",
+    frames: [
+      // Load behind head
+      {
+        headTilt: -2,
+        lShoulder: 140, lElbow: 40,
+        rShoulder: -140, rElbow: -40,
+        ball: "overhead",
+        lHandPose: "gripping-ball", rHandPose: "gripping-ball",
+        expression: "focus",
+        enterMs: 360, hold: 120
+      },
+      // Whip forward, ball released
+      {
+        headTilt: -4,
+        lShoulder: 155, lElbow: 22,
+        rShoulder: -155, rElbow: -22,
+        ball: "none",
+        ballScale: 1.3,
+        lHandPose: "open-palm", rHandPose: "open-palm",
+        effects: ["motion-lines-up"],
+        enterMs: 200, hold: 0
+      },
+      // Recoil
+      {
+        lShoulder: 132, lElbow: 50,
+        rShoulder: -132, rElbow: -50,
+        enterMs: 360, hold: 360
       }
     ]
   }
