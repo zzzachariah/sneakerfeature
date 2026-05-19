@@ -768,11 +768,6 @@ const POSES: Pose[] = [
   })
 ];
 
-function pickRandomPose(exclude?: string): Pose {
-  const pool = exclude ? POSES.filter((p) => p.name !== exclude) : POSES;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
 // ───────────────────────────────────────────────────────────────
 // New ActionSequence array — populated incrementally per-action.
 // Until an action moves here, the legacy POSES entry is wrapped via
@@ -1643,7 +1638,6 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
 
   const fillColor = dimmed ? "rgb(var(--muted)/0.5)" : "rgb(var(--text)/0.85)";
   const strokeColor = dimmed ? "rgb(var(--muted)/0.7)" : "rgb(var(--text))";
-  const footColor = dimmed ? "rgb(var(--muted)/0.8)" : "rgb(var(--text))";
 
   // Hand + (optional) held ball at the wrist's local origin.
   // ActionSequence frames can set lHandPose / rHandPose; legacy POSES (via
