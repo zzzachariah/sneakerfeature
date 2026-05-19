@@ -1538,9 +1538,26 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   const [runKey, setRunKey] = useState(0);
   const timeoutRef = useRef<number | null>(null);
 
+  // Debug URL params parsed once on mount.
+  const [debugFrame, setDebugFrame] = useState<number | null>(null);
+  const [debugStep, setDebugStep] = useState(false);
+  const [debugSpeed, setDebugSpeed] = useState(1);
+  const [debugView, setDebugView] = useState<View | null>(null);
+
   // URL ?avatar-pose=<name> forces a specific action; else pick random on mount.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const forcedFrame = params.get("avatar-frame");
+    if (forcedFrame !== null) setDebugFrame(parseInt(forcedFrame, 10));
+    if (params.get("avatar-step") === "1") setDebugStep(true);
+    const speed = params.get("avatar-speed");
+    if (speed) {
+      const f = parseFloat(speed);
+      if (!isNaN(f) && f > 0) setDebugSpeed(f);
+    }
+    const v = params.get("avatar-view");
+    if (v === "front" || v === "side-r" || v === "side-l") setDebugView(v);
+
     const forced = params.get("avatar-pose");
     if (forced) {
       const match = findAction(forced);
@@ -1556,16 +1573,22 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
 
   // Reset frame index whenever the active action changes or shuffle bumps runKey.
   useEffect(() => {
-    setFrameIdx(0);
-  }, [activeAction, runKey]);
+    if (debugFrame !== null) {
+      setFrameIdx(Math.max(0, Math.min(debugFrame, activeAction.frames.length - 1)));
+    } else {
+      setFrameIdx(0);
+    }
+  }, [activeAction, runKey, debugFrame]);
 
   // Schedule the next frame advance. The CSS transition handles smooth
   // interpolation; we just bump frameIdx at the right time.
   useEffect(() => {
+    if (debugFrame !== null) return; // freeze
+    if (debugStep) return; // manual step mode
     if (activeAction.frames.length <= 1) return;
     const frame = activeAction.frames[frameIdx];
     if (!frame) return;
-    const dur = frameDurationMs(frame);
+    const dur = frameDurationMs(frame) * debugSpeed;
     timeoutRef.current = window.setTimeout(() => {
       const next = frameIdx + 1;
       if (next < activeAction.frames.length) {
@@ -1581,7 +1604,15 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         timeoutRef.current = null;
       }
     };
-  }, [activeAction, frameIdx, runKey]);
+  }, [activeAction, frameIdx, runKey, debugFrame, debugStep, debugSpeed]);
+
+  const handleStepFrame = useCallback(() => {
+    setFrameIdx((cur) => {
+      const next = cur + 1;
+      if (next < activeAction.frames.length) return next;
+      return activeAction.loop !== false ? 0 : cur;
+    });
+  }, [activeAction]);
 
   const handleShuffle = useCallback(() => {
     setActiveAction((cur) => pickRandomAction(cur.name));
@@ -1589,10 +1620,10 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
   }, []);
 
   // Derived runtime snapshot used by the renderer below.
-  const activePose: RuntimePose = useMemo(
-    () => resolveRuntimePose(activeAction, frameIdx),
-    [activeAction, frameIdx]
-  );
+  const activePose: RuntimePose = useMemo(() => {
+    const base = resolveRuntimePose(activeAction, frameIdx);
+    return debugView ? { ...base, view: debugView } : base;
+  }, [activeAction, frameIdx, debugView]);
 
   const poseTransition = poseTransitionFor(activePose.enterMs);
 
@@ -2088,17 +2119,33 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={handleShuffle}
-          aria-label={translate("Change move")}
-          className={`group/shuffle inline-flex w-fit items-center gap-1 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.7)] transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.06)] ${
-            size === "sm" ? "h-5 px-2 text-[0.62rem]" : "h-6 px-2.5 text-[0.68rem]"
-          }`}
-        >
-          <Shuffle className="h-3 w-3 transition group-hover/shuffle:rotate-12" />
-          <span>{translate("Change move")}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleShuffle}
+            aria-label={translate("Change move")}
+            className={`group/shuffle inline-flex w-fit items-center gap-1 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.7)] transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.06)] ${
+              size === "sm" ? "h-5 px-2 text-[0.62rem]" : "h-6 px-2.5 text-[0.68rem]"
+            }`}
+          >
+            <Shuffle className="h-3 w-3 transition group-hover/shuffle:rotate-12" />
+            <span>{translate("Change move")}</span>
+          </button>
+          {debugStep && (
+            <button
+              type="button"
+              onClick={handleStepFrame}
+              className={`inline-flex w-fit items-center gap-1 rounded-full border border-[rgb(var(--text)/0.4)] bg-[rgb(var(--bg-elev)/0.7)] font-mono ${
+                size === "sm" ? "h-5 px-2 text-[0.62rem]" : "h-6 px-2.5 text-[0.68rem]"
+              }`}
+              title={`Frame ${frameIdx + 1} / ${activeAction.frames.length}`}
+            >
+              <span>
+                Frame {frameIdx + 1}/{activeAction.frames.length} →
+              </span>
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
