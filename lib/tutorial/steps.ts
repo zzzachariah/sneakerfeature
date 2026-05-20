@@ -11,6 +11,11 @@ export type TutorialStep = {
   requiresPath?: string;
   scrollIntoView?: boolean;
   action?: { type: "open-modal"; modalId: "persona" | "rating-focus" };
+  // When true, the tour hands control to the user: the overlay drops its dimmer,
+  // click blocker, and input interception so the opened UI is fully usable.
+  // The tour advances when the user completes the action (saves), or stops if
+  // they dismiss it.
+  awaitUserAction?: boolean;
 };
 
 export const TUTORIAL_STEPS: TutorialStep[] = [
@@ -100,11 +105,12 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "persona-setup",
     selector: "[data-tutorial='hero-avatar']",
     title: "Set up your player profile",
-    body: "Pick your position(s), skill level, whether you have flat feet, and your height & weight. We will use these to recommend shoes.",
+    body: "Pick your position(s), skill level, whether you have flat feet, and your height & weight. Save to continue the tour, or cancel to exit.",
     placement: "center",
     requiresSlide: 0,
     requiresPath: "/",
-    action: { type: "open-modal", modalId: "persona" }
+    action: { type: "open-modal", modalId: "persona" },
+    awaitUserAction: true
   },
   {
     id: "feed",
