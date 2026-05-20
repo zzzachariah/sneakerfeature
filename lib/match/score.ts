@@ -9,9 +9,20 @@ export const WEIGHTS = {
   height: 10
 } as const;
 
+const BASE_WEIGHTS = {
+  position: 0.30,
+  weight: 0.18,
+  flatFoot: 0.17,
+  skill: 0.25,
+  height: 0.10
+} as const;
+
 const GUARD_POSITIONS: Position[] = ["PG", "SG"];
 const WING_POSITIONS: Position[] = ["SG", "SF"];
 const BIG_POSITIONS: Position[] = ["PF", "C"];
+
+type DimResult = { score: number; applicable: boolean };
+type DimensionKey = "position" | "weight" | "flatFoot" | "skill" | "height";
 
 export function parseShoeWeightOz(raw: string | null | undefined): number | null {
   if (!raw) return null;
@@ -22,75 +33,75 @@ export function parseShoeWeightOz(raw: string | null | undefined): number | null
   return null;
 }
 
-function categoryFitness(category: string | null | undefined, positions: Position[]): number {
-  if (!category) return 0.5;
-  const cat = category.toLowerCase();
+const STRONG = ["excellent", "elite", "outstanding", "very high"];
+const GOOD = ["good", "great", "high", "strong"];
+const MEDIUM = ["decent", "moderate", "balanced", "solid", "adequate"];
+const WEAK = ["low", "poor", "minimal", "thin", "weak"];
+
+function keywordScore(text: string | null | undefined): number | null {
+  if (!text) return null;
+  const t = text.toLowerCase();
+  if (STRONG.some((k) => t.includes(k))) return 1.0;
+  if (GOOD.some((k) => t.includes(k))) return 0.80;
+  if (MEDIUM.some((k) => t.includes(k))) return 0.50;
+  if (WEAK.some((k) => t.includes(k))) return 0.15;
+  return 0.40;
+}
+
+function positionDimension(shoe: Shoe, positions: Position[]): DimResult {
+  if (!shoe.category) return { score: 0, applicable: false };
+  const cat = shoe.category.toLowerCase();
   const matchAny = (set: Position[]) => positions.some((p) => set.includes(p));
 
-  if (cat.includes("all") || cat.includes("hybrid") || cat.includes("versatile")) return 1;
-
-  if (cat.includes("guard")) {
-    if (matchAny(GUARD_POSITIONS)) return 1;
-    if (matchAny(WING_POSITIONS)) return 0.5;
-    return 0.15;
+  if (cat.includes("all") || cat.includes("hybrid") || cat.includes("versatile")) {
+    return { score: 0.92, applicable: true };
   }
-  if (cat.includes("wing") || cat.includes("forward") && !cat.includes("power")) {
-    if (matchAny(WING_POSITIONS)) return 1;
-    if (matchAny(GUARD_POSITIONS) || matchAny(["PF"])) return 0.5;
-    return 0.2;
+  if (cat.includes("guard")) {
+    if (matchAny(GUARD_POSITIONS)) return { score: 1.0, applicable: true };
+    if (matchAny(WING_POSITIONS)) return { score: 0.45, applicable: true };
+    return { score: 0.10, applicable: true };
+  }
+  if (cat.includes("wing") || (cat.includes("forward") && !cat.includes("power"))) {
+    if (matchAny(WING_POSITIONS)) return { score: 1.0, applicable: true };
+    if (matchAny(GUARD_POSITIONS) || matchAny(["PF"])) return { score: 0.45, applicable: true };
+    return { score: 0.15, applicable: true };
   }
   if (cat.includes("big") || cat.includes("center") || cat.includes("power")) {
-    if (matchAny(BIG_POSITIONS)) return 1;
-    if (matchAny(["SF"])) return 0.5;
-    return 0.15;
+    if (matchAny(BIG_POSITIONS)) return { score: 1.0, applicable: true };
+    if (matchAny(["SF"])) return { score: 0.45, applicable: true };
+    return { score: 0.10, applicable: true };
   }
-  return 0.5;
+  return { score: 0, applicable: false };
 }
 
-function weightFitness(weightOz: number | null, weightKg: number): number {
-  if (weightOz === null) return 0.5;
-  if (weightKg >= 85) {
-    if (weightOz >= 13) return 1;
-    if (weightOz >= 12) return 0.6;
-    return 0.25;
-  }
-  if (weightKg < 70) {
-    if (weightOz <= 12) return 1;
-    if (weightOz <= 13) return 0.6;
-    return 0.25;
-  }
-  if (weightOz >= 11.5 && weightOz <= 14) return 0.9;
-  return 0.6;
+function weightDimension(shoe: Shoe, weightKg: number): DimResult {
+  const oz = parseShoeWeightOz(shoe.weight);
+  if (oz === null) return { score: 0, applicable: false };
+
+  const ideal = Math.max(10.8, Math.min(14.2, 11.5 + (weightKg - 60) * 0.04));
+  const diff = Math.abs(oz - ideal);
+  const score = Math.max(0.05, 1 - diff / 3.0);
+  return { score, applicable: true };
 }
 
-const STRONG = ["good", "great", "excellent", "high", "strong", "elite", "best"];
-const MEDIUM = ["decent", "moderate", "balanced", "solid", "stable", "adequate"];
-const WEAK = ["low", "poor", "minimal", "thin", "soft only", "weak"];
-
-function rateKeyword(text: string | null | undefined): number {
-  if (!text) return 0;
-  const t = text.toLowerCase();
-  if (STRONG.some((k) => t.includes(k))) return 1;
-  if (MEDIUM.some((k) => t.includes(k))) return 0.5;
-  if (WEAK.some((k) => t.includes(k))) return 0.15;
-  return 0.4;
-}
-
-function flatFootFitness(shoe: Shoe, flatFoot: boolean): number {
-  if (!flatFoot) return 0.7;
+function flatFootDimension(shoe: Shoe, flatFoot: boolean): DimResult {
+  if (!flatFoot) return { score: 0, applicable: false };
   const spec = shoe.spec ?? {};
-  const scores = [
-    rateKeyword(spec.stability ?? null),
-    rateKeyword(spec.support ?? null),
-    rateKeyword(spec.torsional_rigidity ?? null)
-  ];
-  return scores.reduce((s, v) => s + v, 0) / scores.length;
+  const candidates = [spec.stability, spec.support, spec.torsional_rigidity];
+  const scores: number[] = [];
+  for (const c of candidates) {
+    const s = keywordScore(c);
+    if (s !== null) scores.push(s);
+  }
+  if (scores.length < 2) return { score: 0, applicable: false };
+  const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+  return { score: avg, applicable: true };
 }
 
 const FORGIVING = ["soft", "plush", "stable", "forgiving", "smooth", "easy"];
 const RESPONSIVE = ["responsive", "snappy", "low", "court feel", "quick", "explosive", "fast"];
 
-function skillFitness(shoe: Shoe, skill: Persona["skill_level"]): number {
+function skillDimension(shoe: Shoe, skill: Persona["skill_level"]): DimResult {
   const spec = shoe.spec ?? {};
   const text = [
     spec.cushioning_feel,
@@ -102,81 +113,112 @@ function skillFitness(shoe: Shoe, skill: Persona["skill_level"]): number {
     .filter(Boolean)
     .join(" ")
     .toLowerCase();
-  if (!text) return 0.5;
+  if (!text) return { score: 0, applicable: false };
 
-  const forgivingScore = FORGIVING.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
-  const responsiveScore = RESPONSIVE.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
+  const forgivingCount = FORGIVING.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
+  const responsiveCount = RESPONSIVE.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
 
+  let score: number;
   if (skill === "beginner") {
-    if (forgivingScore >= 2) return 1;
-    if (forgivingScore === 1) return 0.7;
-    if (responsiveScore >= 2) return 0.3;
-    return 0.5;
+    if (forgivingCount >= 2) score = 1.0;
+    else if (forgivingCount === 1) score = 0.75;
+    else if (responsiveCount >= 2) score = 0.20;
+    else score = 0.45;
+  } else if (skill === "amateur") {
+    if (forgivingCount >= 1) score = 0.85;
+    else if (responsiveCount >= 1) score = 0.70;
+    else score = 0.55;
+  } else if (skill === "semi_pro") {
+    if (responsiveCount >= 2) score = 0.95;
+    else if (responsiveCount === 1) score = 0.78;
+    else if (forgivingCount >= 2) score = 0.40;
+    else score = 0.55;
+  } else {
+    if (responsiveCount >= 2) score = 1.0;
+    else if (responsiveCount === 1) score = 0.78;
+    else if (forgivingCount >= 2) score = 0.25;
+    else score = 0.50;
   }
-  if (skill === "amateur") {
-    if (forgivingScore >= 1) return 0.85;
-    if (responsiveScore >= 1) return 0.7;
-    return 0.6;
-  }
-  if (skill === "semi_pro") {
-    if (responsiveScore >= 1) return 0.9;
-    if (forgivingScore >= 1) return 0.65;
-    return 0.6;
-  }
-  if (responsiveScore >= 2) return 1;
-  if (responsiveScore === 1) return 0.8;
-  if (forgivingScore >= 2) return 0.4;
-  return 0.55;
+  return { score, applicable: true };
 }
 
-function heightFitness(shoe: Shoe, heightCm: number): number {
+function heightDimension(shoe: Shoe, heightCm: number): DimResult {
+  if (heightCm >= 175 && heightCm <= 195) return { score: 0, applicable: false };
+
   const spec = shoe.spec ?? {};
   const tags = (spec.tags ?? []).map((t) => t.toLowerCase());
-  const containmentScore = rateKeyword(spec.containment ?? null);
-  const supportScore = rateKeyword(spec.support ?? null);
+  const containment = keywordScore(spec.containment ?? null);
+  const support = keywordScore(spec.support ?? null);
   const lowProfile = tags.some((t) => t.includes("low") || t.includes("speed") || t.includes("quick"));
   const highTop = tags.some((t) => t.includes("high") || t.includes("support") || t.includes("ankle"));
 
-  if (heightCm >= 195) {
-    return Math.max(containmentScore, supportScore, highTop ? 0.9 : 0);
+  if (heightCm > 195) {
+    const signals: number[] = [];
+    if (containment !== null) signals.push(containment);
+    if (support !== null) signals.push(support);
+    if (highTop) signals.push(0.92);
+    if (signals.length === 0) return { score: 0.20, applicable: true };
+    return { score: Math.max(...signals), applicable: true };
   }
-  if (heightCm < 175) {
-    return Math.max(lowProfile ? 0.9 : 0, 1 - containmentScore * 0.4);
+
+  if (lowProfile) return { score: 0.95, applicable: true };
+  if (containment !== null) {
+    return { score: Math.max(0.20, 1 - containment * 0.7), applicable: true };
   }
-  return 0.7;
+  return { score: 0.30, applicable: true };
+}
+
+export function computeDimensions(persona: Persona, shoe: Shoe): Record<DimensionKey, DimResult> {
+  return {
+    position: positionDimension(shoe, persona.positions),
+    weight: weightDimension(shoe, persona.weight_kg),
+    flatFoot: flatFootDimension(shoe, persona.flat_foot),
+    skill: skillDimension(shoe, persona.skill_level),
+    height: heightDimension(shoe, persona.height_cm)
+  };
+}
+
+function transformRaw(raw: number): number {
+  const clamped = Math.max(0, Math.min(1, raw));
+  return Math.max(30, Math.min(99, Math.round(30 + clamped * 69)));
 }
 
 export function computeMatchScore(persona: Persona, shoe: Shoe): number {
-  const positionPart = categoryFitness(shoe.category, persona.positions) * WEIGHTS.position;
-  const weightPart = weightFitness(parseShoeWeightOz(shoe.weight), persona.weight_kg) * WEIGHTS.weight;
-  const flatFootPart = flatFootFitness(shoe, persona.flat_foot) * WEIGHTS.flatFoot;
-  const skillPart = skillFitness(shoe, persona.skill_level) * WEIGHTS.skill;
-  const heightPart = heightFitness(shoe, persona.height_cm) * WEIGHTS.height;
-
-  const total = positionPart + weightPart + flatFootPart + skillPart + heightPart;
-  return Math.max(0, Math.min(100, Math.round(total)));
+  const dims = computeDimensions(persona, shoe);
+  let weighted = 0;
+  let denom = 0;
+  (Object.keys(dims) as DimensionKey[]).forEach((key) => {
+    const d = dims[key];
+    if (d.applicable) {
+      weighted += d.score * BASE_WEIGHTS[key];
+      denom += BASE_WEIGHTS[key];
+    }
+  });
+  const raw = denom > 0 ? weighted / denom : 0.5;
+  return transformRaw(raw);
 }
 
-const REASON_THRESHOLD = 0.6;
+const REASON_THRESHOLD = 0.65;
 
 export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
+  const dims = computeDimensions(persona, shoe);
   const reasons: string[] = [];
 
-  const posFit = categoryFitness(shoe.category, persona.positions);
-  if (posFit >= REASON_THRESHOLD) {
+  if (dims.position.applicable && dims.position.score >= REASON_THRESHOLD) {
     const cat = (shoe.category ?? "").toLowerCase();
     if (cat.includes("guard")) reasons.push("Great for guards");
-    else if (cat.includes("wing") || (cat.includes("forward") && !cat.includes("power"))) reasons.push("Great for wings");
-    else if (cat.includes("big") || cat.includes("center") || cat.includes("power")) reasons.push("Great for bigs");
+    else if (cat.includes("wing") || (cat.includes("forward") && !cat.includes("power"))) {
+      reasons.push("Great for wings");
+    } else if (cat.includes("big") || cat.includes("center") || cat.includes("power")) {
+      reasons.push("Great for bigs");
+    }
   }
 
-  if (persona.flat_foot) {
-    const ff = flatFootFitness(shoe, true);
-    if (ff >= REASON_THRESHOLD) reasons.push("Stable for flat-footed players");
+  if (dims.flatFoot.applicable && dims.flatFoot.score >= REASON_THRESHOLD) {
+    reasons.push("Stable for flat-footed players");
   }
 
-  const skillFit = skillFitness(shoe, persona.skill_level);
-  if (skillFit >= REASON_THRESHOLD) {
+  if (dims.skill.applicable && dims.skill.score >= REASON_THRESHOLD) {
     if (persona.skill_level === "beginner" || persona.skill_level === "amateur") {
       reasons.push("Forgiving for beginners");
     } else {
@@ -184,16 +226,14 @@ export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
     }
   }
 
-  const weightFit = weightFitness(parseShoeWeightOz(shoe.weight), persona.weight_kg);
-  if (weightFit >= REASON_THRESHOLD) {
+  if (dims.weight.applicable && dims.weight.score >= REASON_THRESHOLD) {
     if (persona.weight_kg < 70) reasons.push("Lightweight for your build");
     else if (persona.weight_kg >= 85) reasons.push("Supportive for heavier players");
   }
 
-  const heightFit = heightFitness(shoe, persona.height_cm);
-  if (heightFit >= REASON_THRESHOLD) {
+  if (dims.height.applicable && dims.height.score >= REASON_THRESHOLD) {
     if (persona.height_cm < 175) reasons.push("Low-profile for shorter players");
-    else if (persona.height_cm >= 195) reasons.push("Containment for taller players");
+    else if (persona.height_cm > 195) reasons.push("Containment for taller players");
   }
 
   return reasons.slice(0, 4);
