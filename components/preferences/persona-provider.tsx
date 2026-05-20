@@ -42,6 +42,9 @@ export function PersonaProvider({
   const [message, setMessage] = useState<string | null>(null);
   const [isError, setIsError] = useState(false);
   const forcePromptedRef = useRef(false);
+  // Tracks whether the current modal session ended in a successful save, so the
+  // tutorial can tell "saved → continue" apart from "dismissed → exit".
+  const savedThisSessionRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,9 +99,17 @@ export function PersonaProvider({
   const openModal = useCallback(() => {
     setMessage(null);
     setIsError(false);
+    savedThisSessionRef.current = false;
     setModalOpen(true);
   }, []);
-  const closeModal = useCallback(() => setModalOpen(false), []);
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    const eventName = savedThisSessionRef.current
+      ? "tutorial:user-action-complete"
+      : "tutorial:user-action-cancelled";
+    savedThisSessionRef.current = false;
+    window.dispatchEvent(new CustomEvent(eventName, { detail: { modalId: "persona" } }));
+  }, []);
 
   useEffect(() => {
     if (!loaded) return;
@@ -139,6 +150,7 @@ export function PersonaProvider({
       setIsError(false);
       setMessage(data?.message ?? null);
       setPersona(next);
+      savedThisSessionRef.current = true;
       startRefresh(() => {
         router.refresh();
       });

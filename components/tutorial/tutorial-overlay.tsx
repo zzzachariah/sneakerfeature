@@ -46,6 +46,7 @@ export function TutorialOverlay() {
 
   const step: TutorialStep | undefined = TUTORIAL_STEPS[stepIndex];
   const isFinalStep = stepIndex === totalSteps - 1;
+  const awaitUserAction = step?.awaitUserAction === true;
 
   // Dispatch slide change when step requires it
   useEffect(() => {
@@ -65,6 +66,20 @@ export function TutorialOverlay() {
       );
     }
   }, [active, step]);
+
+  // On an await-user-action step the user drives the highlighted UI directly.
+  // Saving advances the tour; dismissing without saving exits it.
+  useEffect(() => {
+    if (!active || !awaitUserAction) return;
+    const onComplete = () => next();
+    const onCancel = () => stop();
+    window.addEventListener("tutorial:user-action-complete", onComplete);
+    window.addEventListener("tutorial:user-action-cancelled", onCancel);
+    return () => {
+      window.removeEventListener("tutorial:user-action-complete", onComplete);
+      window.removeEventListener("tutorial:user-action-cancelled", onCancel);
+    };
+  }, [active, awaitUserAction, next, stop]);
 
   // Viewport tracking
   useEffect(() => {
@@ -150,7 +165,12 @@ export function TutorialOverlay() {
       if (e.key === "Escape") {
         e.preventDefault();
         stop();
-      } else if (e.key === "ArrowRight" || e.key === "Enter") {
+        return;
+      }
+      // On await-user-action steps the user is typing in / interacting with the
+      // opened modal, so don't hijack arrows/enter for tour navigation.
+      if (awaitUserAction) return;
+      if (e.key === "ArrowRight" || e.key === "Enter") {
         e.preventDefault();
         next();
       } else if (e.key === "ArrowLeft") {
@@ -160,14 +180,15 @@ export function TutorialOverlay() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [active, next, prev, stop]);
+  }, [active, next, prev, stop, awaitUserAction]);
 
   // Lock user-initiated scroll/swipe/slide-nav while the tour is active. The
   // tour's own `scrollIntoView` calls still work because they don't go through
   // these listeners. Touches inside the tutorial card are allowed so its
-  // buttons remain tappable.
+  // buttons remain tappable. Skipped on await-user-action steps so the opened
+  // UI (e.g. the player-profile modal) can be scrolled and used freely.
   useEffect(() => {
-    if (!active) return;
+    if (!active || awaitUserAction) return;
 
     const isInCard = (target: EventTarget | null): boolean =>
       !!(target as HTMLElement | null)?.closest?.(".tutorial-card");
@@ -219,7 +240,7 @@ export function TutorialOverlay() {
       window.removeEventListener("touchend", blockTouchEnds, true);
       window.removeEventListener("keydown", blockKeys, true);
     };
-  }, [active]);
+  }, [active, awaitUserAction]);
 
   const padding = step?.padding ?? SPOTLIGHT_PAD;
   const radius = step?.radius ?? 14;
@@ -313,7 +334,9 @@ export function TutorialOverlay() {
 
   return createPortal(
     <div role="dialog" aria-modal="true" aria-label={translate("Site tour")}>
-      {/* Visual layer — dimmer + spotlight outline */}
+      {/* Visual layer — dimmer + spotlight outline. Hidden on await-user-action
+          steps so the opened UI (e.g. player-profile modal) shows without a veil. */}
+      {!awaitUserAction && (
       <svg
         className="fixed inset-0"
         style={{
@@ -388,22 +411,32 @@ export function TutorialOverlay() {
           </>
         )}
       </svg>
+      )}
 
-      {/* Full-screen click blocker — keeps the tour from being broken by stray clicks. */}
-      <div className="fixed inset-0" style={{ zIndex: 61, ...blockerStyle }} />
+      {/* Full-screen click blocker — keeps the tour from being broken by stray
+          clicks. Removed on await-user-action steps so the opened UI is usable. */}
+      {!awaitUserAction && (
+        <div className="fixed inset-0" style={{ zIndex: 61, ...blockerStyle }} />
+      )}
 
 
-      {/* Card */}
+      {/* Card. On await-user-action steps it tucks into the bottom-right corner
+          so the user-driven modal stays clear. */}
       <div
         key={step.id}
         className="glass-card tutorial-card"
         style={{
           position: "fixed",
-          left: cardPos.left,
-          top: cardPos.top,
+          ...(awaitUserAction
+            ? { right: 16, bottom: 16 }
+            : { left: cardPos.left, top: cardPos.top }),
           width: CARD_W,
           maxWidth: "calc(100vw - 24px)",
           zIndex: 63,
+          // While the user drives the opened modal, the card is an informational
+          // reminder only — let every click pass through to the modal beneath so
+          // it can never cover an action button on narrow screens.
+          pointerEvents: awaitUserAction ? "none" : undefined,
           padding: "18px 18px 14px 18px",
           borderRadius: 20,
           color: "rgb(var(--text))"
