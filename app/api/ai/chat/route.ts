@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getAdminContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getShoes } from "@/lib/data/shoes";
-import { createPackyClient, getMissingPackyEnv } from "@/lib/ai/packy-client";
+import { createPackyClient, getPackyEnvReport, describePackyEnvProblem } from "@/lib/ai/packy-client";
 import { recommendShoes, enrichRecommendations, type ChatTurn } from "@/lib/ai/recommend";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw } from "@/lib/ai/types";
@@ -51,15 +51,9 @@ export async function POST(request: Request) {
   // Fail fast if the AI provider isn't configured (before persisting anything).
   const client = createPackyClient();
   if (!client) {
-    const missing = getMissingPackyEnv();
-    console.error("[ai/chat] packyapi not configured — missing env:", missing.join(", "));
-    return NextResponse.json(
-      {
-        ok: false,
-        message: `AI 服务未配置：当前部署读取不到 ${missing.join("、")}。请在 Vercel 对应环境（Production/Preview）设置后，重新部署（Redeploy）使其生效。`
-      },
-      { status: 503 }
-    );
+    const report = getPackyEnvReport();
+    console.error("[ai/chat] packyapi not configured", report);
+    return NextResponse.json({ ok: false, message: describePackyEnvProblem(report) }, { status: 503 });
   }
 
   // Persist the user message.
