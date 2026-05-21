@@ -5,13 +5,17 @@ import Image from "next/image";
 import { AlertTriangle, ArrowLeft, Check, Copy, Loader2, Upload } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import { CREDIT_PACKAGES } from "@/lib/ai/packages";
+import type { CheckinStatus } from "@/lib/ai/checkin";
 
 type Props = {
   open: boolean;
   onClose: () => void;
   balance: number;
   onBalance: (next: number) => void;
+  checkin: CheckinStatus;
+  onClaimCheckin: () => Promise<void>;
 };
 
 type PaymentMethod = "wechat" | "alipay";
@@ -70,7 +74,7 @@ const QR_BRAND_COLOR: Record<PaymentMethod, string> = {
   alipay: "#1677ff"
 };
 
-export function RechargeModal({ open, onClose, balance, onBalance }: Props) {
+export function RechargeModal({ open, onClose, balance, onBalance, checkin, onClaimCheckin }: Props) {
   const { translate } = useLocale();
   const [step, setStep] = useState<Step>("package");
   const [packageId, setPackageId] = useState<string | null>(null);
@@ -154,8 +158,14 @@ export function RechargeModal({ open, onClose, balance, onBalance }: Props) {
       <div className="space-y-4">
         <div className="flex items-center justify-between rounded-xl bg-[rgb(var(--text)/0.05)] px-4 py-3">
           <span className="text-sm soft-text">{translate("Balance")}</span>
-          <span className="text-base font-semibold">
+          <span className="inline-flex items-center gap-2 text-base font-semibold">
             {balance} {translate("credits")}
+            <CheckinBadge
+              canClaim={checkin.canClaim}
+              dailyAmount={checkin.dailyAmount}
+              onClaim={onClaimCheckin}
+              size="md"
+            />
           </span>
         </div>
 

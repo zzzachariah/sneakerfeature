@@ -709,6 +709,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "if you forgot the remark, please contact support directly to avoid your payment being refunded.": "如果您忘填备注，请尽快直接联系客服，避免款项被退回。",
   "for appeals, please add wechat:": "如需申诉，请添加微信：",
   "copy support wechat id": "复制客服微信号",
+  "claim daily bonus": "领取每日奖励",
   "got it": "知道了",
   "submission failed": "提交失败",
   "try again": "重试",
