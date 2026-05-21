@@ -691,6 +691,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "honest trading reminder": "诚信交易提醒",
   "please trade honestly. once purchased, no refunds and no exchanges.": "请诚信交易，一旦购买不退不换。",
   "step 3 — upload bill-detail screenshot": "第三步 — 上传账单详情截图",
+  "principle: the screenshot must contain both the amount and the verification code.": "原则：截图中必须同时包含「金额」和「6 位验证码」。",
   "after paying, do not upload the payment-success screen. open the bill detail (账单详情) — the page that shows your remark — and upload that screenshot.": "付款成功后，请不要上传「支付成功」那张截图。打开「微信支付凭证 → 查看账单详情」（即显示您留言的那一页），并上传该页截图。",
   "show example": "查看示意图",
   "bill detail screenshot example": "账单详情截图示意",

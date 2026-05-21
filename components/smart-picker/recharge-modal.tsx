@@ -396,7 +396,10 @@ function StepQrAndUpload({
 
       <div className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.6)] p-3 text-sm">
         <p className="font-semibold">{translate("Step 3 — Upload bill-detail screenshot")}</p>
-        <p className="mt-1 text-[0.78rem] leading-relaxed soft-text">
+        <div className="mt-2 rounded-lg border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-[0.78rem] font-semibold leading-relaxed text-amber-700 dark:text-amber-300">
+          {translate("Principle: the screenshot must contain BOTH the amount and the verification code.")}
+        </div>
+        <p className="mt-2 text-[0.78rem] leading-relaxed soft-text">
           {translate("After paying, do NOT upload the payment-success screen. Open the bill detail (账单详情) — the page that shows your remark — and upload that screenshot.")}
         </p>
         <details className="mt-2">
