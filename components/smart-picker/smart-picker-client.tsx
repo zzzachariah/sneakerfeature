@@ -76,6 +76,25 @@ export function SmartPickerClient() {
     setSidebarOpen(false);
   }, []);
 
+  const handleRename = useCallback(async (id: string, title: string) => {
+    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+    await getJson(`/api/ai/chats/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title })
+    });
+  }, []);
+
+  const handleDelete = useCallback(async (id: string) => {
+    const res = await getJson(`/api/ai/chats/${id}`, { method: "DELETE" });
+    if (!res?.ok) return;
+    setChats((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      setActiveChatId((cur) => (cur === id ? next[0]?.id ?? null : cur));
+      return next;
+    });
+  }, []);
+
   const handleRecharge = useCallback(async (packageId: string) => {
     const res = await getJson("/api/ai/recharge", {
       method: "POST",
@@ -159,6 +178,8 @@ export function SmartPickerClient() {
           activeChatId={activeChatId}
           onSelect={handleSelect}
           onNewChat={handleNewChat}
+          onRename={handleRename}
+          onDelete={handleDelete}
           balance={balance}
           onOpenRecharge={() => setRechargeOpen(true)}
         />
@@ -173,6 +194,8 @@ export function SmartPickerClient() {
               activeChatId={activeChatId}
               onSelect={handleSelect}
               onNewChat={handleNewChat}
+              onRename={handleRename}
+              onDelete={handleDelete}
               balance={balance}
               onOpenRecharge={() => {
                 setSidebarOpen(false);

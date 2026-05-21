@@ -670,6 +670,9 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "recommendation": "推荐指数",
   "request": "本次需求",
   "recommendation report": "智能选鞋推荐报告",
+  "more": "更多",
+  "rename": "重命名",
+  "delete this conversation?": "删除该对话？",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {
