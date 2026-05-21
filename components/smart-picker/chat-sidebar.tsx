@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Wallet, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MoreHorizontal, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { AiChatSummary } from "@/lib/ai/types";
 
@@ -9,6 +10,8 @@ type Props = {
   activeChatId: string | null;
   onSelect: (id: string) => void;
   onNewChat: () => void;
+  onRename: (id: string, title: string) => void;
+  onDelete: (id: string) => void;
   balance: number;
   onOpenRecharge: () => void;
   onClose?: () => void;
@@ -30,8 +33,41 @@ const GROUP_LABEL: Record<"today" | "yesterday" | "earlier", string> = {
   earlier: "Earlier"
 };
 
-export function ChatSidebar({ chats, activeChatId, onSelect, onNewChat, balance, onOpenRecharge, onClose }: Props) {
+export function ChatSidebar({
+  chats,
+  activeChatId,
+  onSelect,
+  onNewChat,
+  onRename,
+  onDelete,
+  balance,
+  onOpenRecharge,
+  onClose
+}: Props) {
   const { translate } = useLocale();
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    if (!menuId) return;
+    const close = () => setMenuId(null);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [menuId]);
+
+  const startRename = (chat: AiChatSummary) => {
+    setMenuId(null);
+    setRenamingId(chat.id);
+    setDraft(chat.title ?? "");
+  };
+
+  const commitRename = (id: string) => {
+    const title = draft.trim();
+    setRenamingId(null);
+    const current = chats.find((c) => c.id === id)?.title ?? "";
+    if (title && title !== current) onRename(id, title);
+  };
 
   const groups: { key: "today" | "yesterday" | "earlier"; chats: AiChatSummary[] }[] = [];
   for (const key of ["today", "yesterday", "earlier"] as const) {
@@ -74,17 +110,77 @@ export function ChatSidebar({ chats, activeChatId, onSelect, onNewChat, balance,
             <ul className="space-y-0.5">
               {group.chats.map((chat) => {
                 const active = chat.id === activeChatId;
+                if (renamingId === chat.id) {
+                  return (
+                    <li key={chat.id}>
+                      <input
+                        autoFocus
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename(chat.id);
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        onBlur={() => commitRename(chat.id)}
+                        maxLength={60}
+                        className="w-full rounded-lg bg-[rgb(var(--surface))] px-2.5 py-2 text-sm outline-none ring-1 ring-[rgb(var(--text)/0.25)]"
+                      />
+                    </li>
+                  );
+                }
                 return (
                   <li key={chat.id}>
-                    <button
-                      type="button"
-                      onClick={() => onSelect(chat.id)}
-                      className={`w-full truncate rounded-lg px-2.5 py-2 text-left text-sm transition ${
-                        active ? "bg-[rgb(var(--text)/0.1)] font-medium" : "hover:bg-[rgb(var(--text)/0.06)]"
+                    <div
+                      className={`group/item relative flex items-center rounded-lg transition ${
+                        active ? "bg-[rgb(var(--text)/0.1)]" : "hover:bg-[rgb(var(--text)/0.06)]"
                       }`}
                     >
-                      {chat.title?.trim() || translate("New conversation")}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelect(chat.id)}
+                        className={`min-w-0 flex-1 truncate px-2.5 py-2 text-left text-sm ${active ? "font-medium" : ""}`}
+                      >
+                        {chat.title?.trim() || translate("New conversation")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuId(menuId === chat.id ? null : chat.id);
+                        }}
+                        aria-label={translate("More")}
+                        className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[rgb(var(--subtext))] opacity-100 transition hover:bg-[rgb(var(--text)/0.1)] hover:text-[rgb(var(--text))] md:opacity-0 md:group-hover/item:opacity-100"
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </button>
+
+                      {menuId === chat.id && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="nav-dropdown-panel absolute right-1 top-[calc(100%-0.25rem)] z-30 w-36 rounded-xl p-1"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => startRename(chat)}
+                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            {translate("Rename")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMenuId(null);
+                              if (window.confirm(translate("Delete this conversation?"))) onDelete(chat.id);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)]"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            {translate("Delete")}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </li>
                 );
               })}
