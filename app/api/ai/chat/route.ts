@@ -126,7 +126,7 @@ export async function POST(request: Request) {
   for (const rec of result.recommendations) {
     if (!rec.shoe_id || seen.has(rec.shoe_id) || !byId.has(rec.shoe_id)) continue;
     seen.add(rec.shoe_id);
-    validRaw.push({ shoe_id: rec.shoe_id, reason: rec.reason ?? "" });
+    validRaw.push(rec);
     if (validRaw.length >= count) break;
   }
   const charge = validRaw.length;
@@ -157,6 +157,7 @@ export async function POST(request: Request) {
   if (charge === 0) {
     const r = result.recommendations.length;
     replyText += `（检索了 ${shoes.length} 双库内鞋款；AI 返回 ${r} 条建议${r > 0 ? "，但都不在库内（型号未收录或 id 无效）" : ""}）`;
+    if (result.raw) replyText += `\nAI原文片段：${result.raw.slice(0, 300)}`;
   }
   if (usingDemo) {
     replyText = `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。\n${replyText}`;

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { Menu, Sparkles, Wallet } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Download, Menu, Sparkles, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
-import type { AiChatMessage } from "@/lib/ai/types";
+import { ReportDocument } from "@/components/smart-picker/report-document";
+import type { AiChatMessage, RecommendationItem } from "@/lib/ai/types";
 
 type Props = {
   messages: AiChatMessage[];
@@ -28,11 +29,24 @@ export function ChatConversation({
 }: Props) {
   const { translate } = useLocale();
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [report, setReport] = useState<{ requestText: string; recs: RecommendationItem[] } | null>(null);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, sending]);
+
+  // Trigger the browser print dialog (→ Save as PDF) once the report is rendered.
+  useEffect(() => {
+    if (!report) return;
+    const done = () => setReport(null);
+    window.addEventListener("afterprint", done);
+    const t = window.setTimeout(() => window.print(), 80);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener("afterprint", done);
+    };
+  }, [report]);
 
   const isEmpty = !loadingMessages && messages.length === 0;
 
@@ -75,7 +89,7 @@ export function ChatConversation({
             </div>
           )}
 
-          {messages.map((message) =>
+          {messages.map((message, idx) =>
             message.role === "user" ? (
               <div key={message.id} className="flex justify-end">
                 <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[rgb(var(--text))] px-3.5 py-2 text-sm text-[rgb(var(--bg))]">
@@ -90,7 +104,22 @@ export function ChatConversation({
                   </div>
                 )}
                 {message.recommendations && message.recommendations.length > 0 && (
-                  <RecommendationGroup recommendations={message.recommendations} />
+                  <>
+                    <RecommendationGroup recommendations={message.recommendations} />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setReport({
+                          requestText: idx > 0 && messages[idx - 1].role === "user" ? messages[idx - 1].content : "",
+                          recs: message.recommendations ?? []
+                        })
+                      }
+                      className="inline-flex h-8 self-start items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)]"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      {translate("Download report")}
+                    </button>
+                  </>
                 )}
               </div>
             )
@@ -110,6 +139,8 @@ export function ChatConversation({
       <div className="mx-auto w-full max-w-2xl">
         <MessageInput balance={balance} sending={sending} onSend={onSend} onOpenRecharge={onOpenRecharge} />
       </div>
+
+      {report && <ReportDocument requestText={report.requestText} recommendations={report.recs} />}
     </div>
   );
 }
