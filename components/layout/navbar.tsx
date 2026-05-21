@@ -13,11 +13,12 @@ import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { NAV_ORDER } from "@/lib/nav-order";
 
-type NavHref = "/" | "/compare" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
+type NavHref = "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
 
 const NAV_LABELS: Record<(typeof NAV_ORDER)[number], string> = {
   "/": "Home",
   "/compare": "Compare",
+  "/smart-picker": "Smart Picker",
   "/submit": "Submit",
   "/dashboard": "Dashboard",
   "/admin": "Admin"
