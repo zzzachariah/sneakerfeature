@@ -176,34 +176,60 @@ const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   }
 };
 
-async function callModel(
+// packyapi's relay behavior (tools / response_format support) is unknown, so we
+// try several structured-output mechanisms in order of reliability and use the
+// first that yields parseable recommendations: forced tool call → assistant
+// prefill (the canonical Claude method) → plain call.
+async function getRecommendations(
   client: OpenAI,
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
-): Promise<{ text: string; raw: string }> {
-  // Primary: forced tool call → structured JSON args (most reliable for Claude).
+): Promise<RecommendResult> {
+  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 2000 };
+  const ok = (text: string): RecommendResult | null => {
+    const r = parseResult(text);
+    return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
+  };
+
+  // 1) Forced tool call — clean structured args when the relay supports tools.
   try {
     const c = await client.chat.completions.create({
-      model: PACKY_MODEL,
-      temperature: 0.3,
-      max_tokens: 2000,
+      ...base,
       messages,
       tools: [RECOMMEND_TOOL],
       tool_choice: { type: "function", function: { name: "recommend_shoes" } }
     });
     const msg = c.choices?.[0]?.message;
     const args = msg?.tool_calls?.[0]?.function?.arguments;
-    if (typeof args === "string" && args.trim()) return { text: args, raw: args };
-    if (typeof msg?.content === "string" && msg.content.trim()) return { text: msg.content, raw: msg.content };
+    if (typeof args === "string") {
+      const r = ok(args);
+      if (r) return r;
+    }
+    if (typeof msg?.content === "string") {
+      const r = ok(msg.content);
+      if (r) return r;
+    }
   } catch {
-    // Relay may not support tools — fall back to a plain call.
+    /* tools unsupported — try the next strategy */
   }
 
-  const c = await client.chat.completions.create({
-    model: PACKY_MODEL,
-    temperature: 0.3,
-    max_tokens: 2000,
-    messages
-  });
+  // 2) Assistant prefill — Claude continues the JSON object we started.
+  try {
+    const prefill = '{"recommendations":';
+    const c = await client.chat.completions.create({
+      ...base,
+      messages: [...messages, { role: "assistant", content: prefill }]
+    });
+    const out = c.choices?.[0]?.message?.content;
+    if (typeof out === "string") {
+      const r = ok(prefill + out) ?? ok(out);
+      if (r) return r;
+    }
+  } catch {
+    /* prefill not accepted — try the next strategy */
+  }
+
+  // 3) Plain call — last resort; parse whatever comes back (may be empty prose).
+  const c = await client.chat.completions.create({ ...base, messages });
   const content = c?.choices?.[0]?.message?.content;
   if (typeof content !== "string") {
     const snippet = JSON.stringify(c ?? {}).slice(0, 300);
@@ -211,7 +237,8 @@ async function callModel(
       `上游返回了非预期响应（缺少 choices/content）——通常是 Base URL 路径不对（应以 /v1 结尾）或上游报错。响应片段：${snippet}`
     );
   }
-  return { text: content, raw: content };
+  const parsed = parseResult(content);
+  return { ...parsed, raw: content.slice(0, 600) };
 }
 
 export async function recommendShoes(
@@ -237,10 +264,7 @@ export async function recommendShoes(
       `{"reply":"…","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由"}]}，不要任何 markdown 或多余文字。`
   });
 
-  const { text, raw } = await callModel(client, messages);
-  const result = parseResult(text);
-  result.raw = raw.slice(0, 600);
-  return result;
+  return getRecommendations(client, messages);
 }
 
 export function enrichRecommendations(
