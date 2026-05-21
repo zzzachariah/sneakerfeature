@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getAdminContext } from "@/lib/admin/auth";
+import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getShoes } from "@/lib/data/shoes";
 import { demoShoes } from "@/lib/data/demo-shoes";
@@ -26,7 +26,7 @@ const schema = z.object({
 type HistoryRow = { role: "user" | "assistant"; content: string; recommendations: RecommendationRaw[] | null };
 
 export async function POST(request: Request) {
-  const ctx = await getAdminContext();
+  const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   let body: unknown;

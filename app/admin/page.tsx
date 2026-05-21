@@ -2,9 +2,11 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminPageContext } from "@/lib/admin/auth";
+import { isSmartPickerPublicEnabled } from "@/lib/admin/settings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BulkImageImportButton } from "@/components/admin/bulk-image-import-button";
+import { SmartPickerToggle } from "@/components/admin/smart-picker-toggle";
 
 export default async function AdminPage() {
   await requireAdminPageContext();
@@ -12,6 +14,7 @@ export default async function AdminPage() {
   if (!supabase) {
     return <Card className="p-5">Supabase is not configured.</Card>;
   }
+  const smartPickerPublic = await isSmartPickerPublicEnabled();
 
   const [pending, recentSubmissions, recentPublished] = await Promise.all([
     supabase.from("user_submissions").select("id", { count: "exact", head: true }).in("status", ["pending", "normalized", "draft"]),
@@ -39,6 +42,16 @@ export default async function AdminPage() {
         <p className="mt-2 text-sm soft-text">Use Review Queue for pending moderation. Use Published Records for live edits.</p>
         <div className="mt-3">
           <BulkImageImportButton />
+        </div>
+      </Card>
+
+      <Card className="p-4">
+        <h2 className="text-base font-semibold">Smart Picker access</h2>
+        <p className="mt-1 text-xs soft-text">
+          Decide whether the AI Smart Picker (chat, recharge, payment flow) is visible to regular users.
+        </p>
+        <div className="mt-3">
+          <SmartPickerToggle initialEnabled={smartPickerPublic} />
         </div>
       </Card>
 

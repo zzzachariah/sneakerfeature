@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { getAdminContext } from "@/lib/admin/auth";
+import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getShoes } from "@/lib/data/shoes";
 import { enrichRecommendations } from "@/lib/ai/recommend";
 import type { RecommendationRaw } from "@/lib/ai/types";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const ctx = await getAdminContext();
+  const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   const { id } = await params;

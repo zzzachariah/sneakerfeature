@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getAdminContext } from "@/lib/admin/auth";
+import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET() {
-  const ctx = await getAdminContext();
+  const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   const admin = createAdminClient();
@@ -20,7 +20,7 @@ export async function GET() {
 }
 
 export async function POST() {
-  const ctx = await getAdminContext();
+  const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   const admin = createAdminClient();

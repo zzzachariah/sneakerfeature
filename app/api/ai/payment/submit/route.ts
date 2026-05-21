@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/data/auth";
+import { getSmartPickerContext } from "@/lib/ai/access";
 import { submitPaymentScreenshot } from "@/lib/ai/payment-orders";
 
 export const runtime = "nodejs";
@@ -9,8 +9,8 @@ export const maxDuration = 60;
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
+  const ctx = await getSmartPickerContext();
+  if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   let form: FormData;
   try {
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const bytes = new Uint8Array(await file.arrayBuffer());
   const result = await submitPaymentScreenshot({
-    userId: user.id,
+    userId: ctx.userId,
     orderId,
     fileBytes: bytes,
     filename: file.name || "screenshot.jpg",

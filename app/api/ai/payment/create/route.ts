@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/data/auth";
+import { getSmartPickerContext } from "@/lib/ai/access";
 import { createPaymentOrder, PAYMENT_ORDER_TTL_MIN } from "@/lib/ai/payment-orders";
 
 const schema = z.object({
@@ -9,8 +9,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
+  const ctx = await getSmartPickerContext();
+  if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   let body: unknown;
   try {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   }
 
   const result = await createPaymentOrder({
-    userId: user.id,
+    userId: ctx.userId,
     packageId: parsed.data.packageId,
     paymentMethod: parsed.data.paymentMethod
   });
