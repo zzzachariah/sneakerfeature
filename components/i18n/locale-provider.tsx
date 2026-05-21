@@ -681,6 +681,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "choose a payment method:": "选择支付方式：",
   "wechat pay": "微信支付",
   "alipay": "支付宝",
+  "please pay exactly this amount": "请支付以下金额",
   "expires in": "剩余",
   "expired": "已过期",
   "required remark (must fill in!)": "支付备注（务必填写！）",

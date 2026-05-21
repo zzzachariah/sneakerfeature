@@ -346,8 +346,14 @@ function StepQrAndUpload({
       </div>
 
       <div className="rounded-2xl border-2 p-3" style={{ borderColor: `${brand}55` }}>
-        <p className="mb-2 text-center text-sm font-semibold" style={{ color: brand }}>
-          {methodName} · ¥{order.amountYuan}
+        <p className="text-center text-sm font-semibold" style={{ color: brand }}>
+          {methodName}
+        </p>
+        <p className="mt-1 text-center text-4xl font-bold tabular-nums tracking-[-0.02em]" style={{ color: brand }}>
+          ¥{order.amountYuan.toFixed(2)}
+        </p>
+        <p className="mb-3 text-center text-xs soft-text">
+          {translate("Please pay exactly this amount")} · {order.credits} {translate("credits")}
         </p>
         <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-xl bg-white">
           <Image
