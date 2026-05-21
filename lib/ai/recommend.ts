@@ -156,17 +156,26 @@ export async function recommendShoes(
   messages.push({ role: "user", content: `现在推荐的要求是：${opts.currentInput}${personaSuffix}` });
   messages.push({
     role: "system",
-    content: `本次必须推荐 ${opts.count} 双（除非匹配良好的鞋款不足 ${opts.count} 双）。只返回 JSON，不要 markdown。`
+    content:
+      `本次必须推荐 ${opts.count} 双（除非匹配良好的鞋款不足 ${opts.count} 双）。\n` +
+      "⚠️输出格式（必须严格遵守）：只返回一个 JSON 对象，第一个字符必须是 {，最后一个字符必须是 }。" +
+      "禁止任何说明文字、markdown、代码块、标题、星号、序号或列表。" +
+      "把每双鞋的星级/优点/缺点/总结分别放进 JSON 的 stars/pros/cons/summary 字段里，绝不要写成正文。"
   });
 
-  // No response_format: the packyapi → Claude relay may not accept it. The
-  // prompt demands strict JSON and parseResult() is defensive (fence-stripping
-  // + first-object extraction).
-  const completion = await client.chat.completions.create({
-    model: PACKY_MODEL,
-    temperature: 0.4,
-    messages
-  });
+  // Prefer JSON mode; some OpenAI-compatible relays reject `response_format`, so
+  // fall back to a plain call (the forceful prompt + defensive parseResult cover it).
+  let completion: OpenAI.Chat.Completions.ChatCompletion;
+  try {
+    completion = await client.chat.completions.create({
+      model: PACKY_MODEL,
+      temperature: 0.3,
+      messages,
+      response_format: { type: "json_object" }
+    });
+  } catch {
+    completion = await client.chat.completions.create({ model: PACKY_MODEL, temperature: 0.3, messages });
+  }
 
   const content = completion?.choices?.[0]?.message?.content;
   if (typeof content !== "string") {
