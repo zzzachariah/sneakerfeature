@@ -29,15 +29,24 @@ create index if not exists idx_ai_credit_transactions_user_created
 alter table ai_credits enable row level security;
 alter table ai_credit_transactions enable row level security;
 
-create policy if not exists "User reads own credits" on ai_credits
+-- Postgres has no `create policy if not exists`, so drop-then-create to stay
+-- idempotent across re-runs.
+drop policy if exists "User reads own credits" on ai_credits;
+create policy "User reads own credits" on ai_credits
   for select using (auth.uid() = user_id);
-create policy if not exists "Admin reads all credits" on ai_credits
+
+drop policy if exists "Admin reads all credits" on ai_credits;
+create policy "Admin reads all credits" on ai_credits
   for select using (
     exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
   );
-create policy if not exists "User reads own credit txns" on ai_credit_transactions
+
+drop policy if exists "User reads own credit txns" on ai_credit_transactions;
+create policy "User reads own credit txns" on ai_credit_transactions
   for select using (auth.uid() = user_id);
-create policy if not exists "Admin reads all credit txns" on ai_credit_transactions
+
+drop policy if exists "Admin reads all credit txns" on ai_credit_transactions;
+create policy "Admin reads all credit txns" on ai_credit_transactions
   for select using (
     exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
   );
@@ -77,9 +86,12 @@ create index if not exists idx_ai_payment_orders_status_created
 
 alter table ai_payment_orders enable row level security;
 
-create policy if not exists "User reads own payment orders" on ai_payment_orders
+drop policy if exists "User reads own payment orders" on ai_payment_orders;
+create policy "User reads own payment orders" on ai_payment_orders
   for select using (auth.uid() = user_id);
-create policy if not exists "Admin reads all payment orders" on ai_payment_orders
+
+drop policy if exists "Admin reads all payment orders" on ai_payment_orders;
+create policy "Admin reads all payment orders" on ai_payment_orders
   for select using (
     exists (select 1 from profiles p where p.id = auth.uid() and p.role = 'admin')
   );
