@@ -3,7 +3,7 @@ import type { Shoe } from "@/lib/types";
 import type { RecommendationItem, RecommendationRaw } from "@/lib/ai/types";
 import type { Persona } from "@/lib/persona/types";
 import { computeMatchScore } from "@/lib/match/score";
-import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
+import { normalizeSearchText, normalizeCompactText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { PACKY_MODEL } from "@/lib/ai/packy-client";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
@@ -149,6 +149,42 @@ export function matchShoeByName(name: string, shoes: Shoe[]): Shoe | null {
   return fallback;
 }
 
+// Last-resort recovery: when the model answers in prose (ignoring the JSON
+// contract) but still names real catalog shoes, pull them out by scanning the
+// text for catalog names. Precision over recall — a false positive would charge
+// the user for a shoe the model never recommended.
+function salvageFromProse(text: string, shoes: Shoe[]): ParsedRec[] {
+  const compactProse = normalizeCompactText(text);
+  if (!compactProse) return [];
+
+  type Hit = { shoe: Shoe; compactName: string; index: number };
+  const hits: Hit[] = [];
+  for (const shoe of shoes) {
+    const compactName = normalizeCompactText(shoe.shoe_name);
+    if (compactName.length < 6) continue; // skip short names that collide easily
+    const index = compactProse.indexOf(compactName);
+    if (index >= 0) hits.push({ shoe, compactName, index });
+  }
+  if (!hits.length) return [];
+
+  // Drop a name that is a substring of a longer matched name (keep "kobe8protro",
+  // drop "kobe8") so overlapping models don't both fire.
+  const kept: Hit[] = [];
+  for (const hit of [...hits].sort((a, b) => b.compactName.length - a.compactName.length)) {
+    if (kept.some((k) => k.compactName !== hit.compactName && k.compactName.includes(hit.compactName))) continue;
+    kept.push(hit);
+  }
+
+  const seen = new Set<string>();
+  const recs: ParsedRec[] = [];
+  for (const hit of kept.sort((a, b) => a.index - b.index)) { // preserve prose order
+    if (seen.has(hit.shoe.id)) continue;
+    seen.add(hit.shoe.id);
+    recs.push({ name: hit.shoe.shoe_name, stars: 3, reason: "" });
+  }
+  return recs;
+}
+
 const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: "function",
   function: {
@@ -178,19 +214,41 @@ const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
 
 // packyapi's relay behavior (tools / response_format support) is unknown, so we
 // try several structured-output mechanisms in order of reliability and use the
-// first that yields parseable recommendations: forced tool call → assistant
-// prefill (the canonical Claude method) → plain call.
+// first that yields parseable recommendations: JSON mode → forced tool call →
+// assistant prefill (the canonical Claude method) → plain call. If every attempt
+// comes back as prose, salvage shoe names from that prose as a last resort.
 async function getRecommendations(
   client: OpenAI,
-  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+  shoes: Shoe[]
 ): Promise<RecommendResult> {
   const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 2000 };
   const ok = (text: string): RecommendResult | null => {
     const r = parseResult(text);
     return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
   };
+  // Prose seen from attempts that produced no JSON — salvaged at the end.
+  const prose: string[] = [];
 
-  // 1) Forced tool call — clean structured args when the relay supports tools.
+  // 1) JSON mode — the most widely supported OpenAI-compatible structured-output
+  //    primitive; the prompt contains the word "JSON" + an example as required.
+  try {
+    const c = await client.chat.completions.create({
+      ...base,
+      messages,
+      response_format: { type: "json_object" }
+    });
+    const content = c.choices?.[0]?.message?.content;
+    if (typeof content === "string") {
+      const r = ok(content);
+      if (r) return r;
+      prose.push(content);
+    }
+  } catch {
+    /* response_format unsupported — try the next strategy */
+  }
+
+  // 2) Forced tool call — clean structured args when the relay supports tools.
   try {
     const c = await client.chat.completions.create({
       ...base,
@@ -212,7 +270,7 @@ async function getRecommendations(
     /* tools unsupported — try the next strategy */
   }
 
-  // 2) Assistant prefill — Claude continues the JSON object we started.
+  // 3) Assistant prefill — Claude continues the JSON object we started.
   try {
     const prefill = '{"recommendations":';
     const c = await client.chat.completions.create({
@@ -228,7 +286,7 @@ async function getRecommendations(
     /* prefill not accepted — try the next strategy */
   }
 
-  // 3) Plain call — last resort; parse whatever comes back (may be empty prose).
+  // 4) Plain call — last resort; parse whatever comes back (may be prose).
   const c = await client.chat.completions.create({ ...base, messages });
   const content = c?.choices?.[0]?.message?.content;
   if (typeof content !== "string") {
@@ -238,6 +296,16 @@ async function getRecommendations(
     );
   }
   const parsed = parseResult(content);
+  if (parsed.recommendations.length) return { ...parsed, raw: content.slice(0, 600) };
+
+  // Salvage: the model answered in prose but may have named real catalog shoes.
+  // Prefer the plain answer, then any prose seen from earlier strategies.
+  for (const text of [content, ...prose]) {
+    const recs = salvageFromProse(text, shoes);
+    if (recs.length) {
+      return { reply: text.trim().slice(0, 500), recommendations: recs, raw: text.slice(0, 600) };
+    }
+  }
   return { ...parsed, raw: content.slice(0, 600) };
 }
 
@@ -255,16 +323,19 @@ export async function recommendShoes(
     else messages.push({ role: "assistant", content: turn.content });
   }
   const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
-  messages.push({ role: "user", content: `现在推荐的要求是：${opts.currentInput}${personaSuffix}` });
+  // The strict output contract lives in the final user turn (not a trailing
+  // system message): Claude-style relays merge system messages to the top, which
+  // would bury this "last word" and let the model answer the casual query in prose.
   messages.push({
-    role: "system",
+    role: "user",
     content:
+      `现在推荐的要求是：${opts.currentInput}${personaSuffix}\n\n` +
       `本次必须推荐 ${opts.count} 双（除非匹配良好的鞋款不足 ${opts.count} 双），按推荐指数从高到低排序。` +
       `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
       `{"reply":"…","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由"}]}，不要任何 markdown 或多余文字。`
   });
 
-  return getRecommendations(client, messages);
+  return getRecommendations(client, messages, opts.shoes);
 }
 
 export function enrichRecommendations(
