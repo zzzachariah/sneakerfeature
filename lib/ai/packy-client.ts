@@ -70,6 +70,27 @@ export function describePackyEnvProblem(report: PackyEnvReport): string {
   );
 }
 
+// The (non-secret) target we send requests to — handy to surface in errors so
+// a wrong base URL / model is obvious. Never includes the API key.
+export function getPackyTarget(): { baseURL: string | null; model: string } {
+  const baseURL = readEnv(BASE_URL_NAMES);
+  return { baseURL: baseURL ? normalizeBaseURL(baseURL) : null, model: PACKY_MODEL };
+}
+
+// Turn an SDK/network error into a short, admin-readable detail string. Only
+// pulls fields that can't contain the API key (status/code/type/body message).
+export function describePackyError(error: unknown): string {
+  if (error instanceof OpenAI.APIError) {
+    const meta: string[] = [`HTTP ${error.status ?? "?"}`];
+    if (error.code) meta.push(`code=${error.code}`);
+    if (error.type) meta.push(`type=${error.type}`);
+    const msg = (error.message || "").slice(0, 600);
+    return `${meta.join(" ")}${msg ? ` — ${msg}` : ""}`;
+  }
+  if (error instanceof Error) return (error.message || error.name).slice(0, 600);
+  return String(error).slice(0, 600);
+}
+
 // packyapi.com is OpenAI-API-compatible, so we reuse the OpenAI SDK and only
 // swap the base URL + key. Returns null when env is missing so callers can
 // surface a clear "not configured" error instead of throwing.
