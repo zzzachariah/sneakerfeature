@@ -207,7 +207,7 @@ export function ChatSidebar({
           </span>
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
             {balance} {translate("credits")}
-            <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+            <CheckinBadge checkin={checkin} onClaim={onClaimCheckin} />
           </span>
         </button>
       </div>

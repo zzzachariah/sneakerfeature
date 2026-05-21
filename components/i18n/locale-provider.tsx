@@ -710,6 +710,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "for appeals, please add wechat:": "如需申诉，请添加微信：",
   "copy support wechat id": "复制客服微信号",
   "claim daily bonus": "领取每日奖励",
+  "next daily bonus in": "下次签到剩余",
   "got it": "知道了",
   "submission failed": "提交失败",
   "try again": "重试",
