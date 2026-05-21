@@ -1,4 +1,4 @@
-export const NAV_ORDER = ["/", "/compare", "/submit", "/dashboard", "/admin"] as const;
+export const NAV_ORDER = ["/", "/compare", "/smart-picker", "/submit", "/dashboard", "/admin"] as const;
 
 export function navIndex(pathname: string): number {
   const exact = (NAV_ORDER as readonly string[]).indexOf(pathname);

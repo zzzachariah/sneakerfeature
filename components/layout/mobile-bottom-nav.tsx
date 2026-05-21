@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { GitCompare, Home, Plus, Shield, UserCircle } from "lucide-react";
+import { GitCompare, Home, Plus, Shield, Sparkles, UserCircle } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type Tab = {
-  href: "/" | "/compare" | "/submit" | "/dashboard" | "/admin";
+  href: "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin";
   label: string;
   icon: typeof Home;
   match: (pathname: string) => boolean;
@@ -26,6 +26,12 @@ const TABS: Tab[] = [
     label: "Compare",
     icon: GitCompare,
     match: (p) => p === "/compare" || p.startsWith("/compare/"),
+  },
+  {
+    href: "/smart-picker",
+    label: "Picker",
+    icon: Sparkles,
+    match: (p) => p === "/smart-picker" || p.startsWith("/smart-picker/"),
   },
   {
     href: "/submit",

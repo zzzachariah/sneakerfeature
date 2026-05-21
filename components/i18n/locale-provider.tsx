@@ -625,6 +625,45 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
 
   // Card / search misc
   "search shoes…": "搜索球鞋…",
+
+  // Smart Picker (AI recommendation chat)
+  "smart picker": "智能选鞋",
+  "picker": "选鞋",
+  "under development": "正在开发中",
+  "smart picker is under development. stay tuned.": "智能选鞋功能正在开发中，敬请期待。",
+  "recharge credits": "充值额度",
+  "balance": "余额",
+  "credits": "次",
+  "1 credit = 1 recommended shoe. asking ai for 10 shoes at once costs 10 credits. please choose the number before sending.":
+    "1 次 = 推荐 1 双球鞋。一次让 AI 推荐 10 双即扣 10 次。发送前请先选择本次推荐数量。",
+  "complete payment (trial)": "完成支付（试用）",
+  "added": "已到账",
+  "payment integration is in progress; this is a trial — credits are granted instantly.":
+    "收款功能开发中，当前为试用：点击即直接到账。",
+  "view details": "查看详情",
+  "pick up to 5 to compare": "最多选 5 双对比",
+  "compare selected": "对比所选",
+  "describe what you're looking for (e.g. responsive cushioning for a guard, under ¥1000)…":
+    "描述你想要的球鞋（例如：后卫用、软弹缓震、1000 以内）…",
+  "recommend": "推荐",
+  "decrease": "减少",
+  "increase": "增加",
+  "send": "发送",
+  "insufficient balance": "余额不足",
+  "go recharge": "去充值",
+  "this will use": "本次消耗",
+  "conversations": "对话",
+  "find your next pair": "找到你的下一双",
+  "tell me your playstyle, position, the feel you want, and your budget — i'll recommend shoes from our database.":
+    "告诉我你的打法、位置、想要的脚感和预算，我会从数据库里为你推荐球鞋。",
+  "ai is thinking…": "AI 思考中…",
+  "new chat": "新建对话",
+  "close": "关闭",
+  "no conversations yet.": "还没有对话。",
+  "today": "今天",
+  "yesterday": "昨天",
+  "earlier": "更早",
+  "new conversation": "新对话",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {
