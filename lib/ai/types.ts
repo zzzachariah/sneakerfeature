@@ -8,9 +8,7 @@ export type AiChatSummary = {
 export type RecommendationRaw = {
   shoe_id: string;
   stars: number;
-  pros: string[];
-  cons: string[];
-  summary: string;
+  reason: string;
 };
 
 export type RecommendationItem = RecommendationRaw & {

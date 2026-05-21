@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowRight, Check, Minus } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRating } from "@/components/shoe/star-rating";
@@ -65,43 +65,18 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: 
             <StarRating value={rec.stars} size="sm" showNumber />
           </div>
 
-          {rec.summary && <p className="mt-1.5 text-[0.82rem] leading-snug">{rec.summary}</p>}
-        </div>
-      </div>
+          {rec.reason && <p className="mt-1.5 text-[0.82rem] leading-snug">{rec.reason}</p>}
 
-      {(rec.pros.length > 0 || rec.cons.length > 0) && (
-        <div className="mt-2.5 grid gap-1.5 sm:grid-cols-2">
-          {rec.pros.length > 0 && (
-            <ul className="space-y-1">
-              {rec.pros.map((p, i) => (
-                <li key={`p-${i}`} className="flex items-start gap-1.5 text-[0.78rem] leading-snug">
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[rgb(var(--success))]" />
-                  <span>{p}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          {rec.cons.length > 0 && (
-            <ul className="space-y-1">
-              {rec.cons.map((c, i) => (
-                <li key={`c-${i}`} className="flex items-start gap-1.5 text-[0.78rem] leading-snug soft-text">
-                  <Minus className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[rgb(var(--subtext))]" />
-                  <span>{c}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="mt-2">
+            <Link
+              href={href}
+              className="inline-flex items-center gap-0.5 text-[0.75rem] font-medium text-[rgb(var(--text))] hover:underline"
+            >
+              {translate("View details")}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
         </div>
-      )}
-
-      <div className="mt-2.5 border-t border-[rgb(var(--glass-stroke-soft)/0.4)] pt-2">
-        <Link
-          href={href}
-          className="inline-flex items-center gap-0.5 text-[0.75rem] font-medium text-[rgb(var(--text))] hover:underline"
-        >
-          {translate("View details")}
-          <ArrowRight className="h-3 w-3" />
-        </Link>
       </div>
     </div>
   );

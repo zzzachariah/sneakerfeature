@@ -42,19 +42,7 @@ export function ReportDocument({
             <div style={{ color: "#b8860b", margin: "2px 0 6px" }}>
               {translate("Recommendation")}: {starString(rec.stars)} {rec.stars.toFixed(1)}
             </div>
-            {rec.summary && <div style={{ margin: "0 0 6px" }}>{rec.summary}</div>}
-            {rec.pros.length > 0 && (
-              <div style={{ margin: "0 0 4px" }}>
-                <strong>{translate("Pros")}：</strong>
-                {rec.pros.join("；")}
-              </div>
-            )}
-            {rec.cons.length > 0 && (
-              <div style={{ margin: "0 0 4px" }}>
-                <strong>{translate("Cons")}：</strong>
-                {rec.cons.join("；")}
-              </div>
-            )}
+            {rec.reason && <div style={{ margin: "0 0 6px" }}>{rec.reason}</div>}
             <div style={{ color: "#555", fontSize: "11px" }}>
               {origin}/shoes/{rec.slug}
             </div>
