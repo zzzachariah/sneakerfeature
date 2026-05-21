@@ -1,6 +1,21 @@
 import OpenAI from "openai";
 
-export const PACKY_MODEL = process.env.PACKYAPI_MODEL?.trim() || "claude-haiku-4-5-20251001";
+// Accept both naming conventions so deployments configured either way work:
+//   PACKYAPI_*  (PACKYAPI_API_KEY / PACKYAPI_BASE_URL / PACKYAPI_MODEL)
+//   PACKY_API_* (PACKY_API_KEY    / PACKY_API_BASE_URL / PACKY_API_MODEL)
+const API_KEY_NAMES = ["PACKYAPI_API_KEY", "PACKY_API_KEY"] as const;
+const BASE_URL_NAMES = ["PACKYAPI_BASE_URL", "PACKY_API_BASE_URL"] as const;
+const MODEL_NAMES = ["PACKYAPI_MODEL", "PACKY_API_MODEL"] as const;
+
+function readEnv(names: readonly string[]): string | undefined {
+  for (const name of names) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
+export const PACKY_MODEL = readEnv(MODEL_NAMES) ?? "claude-haiku-4-5-20251001";
 
 function normalizeBaseURL(raw: string): string {
   const trimmed = raw.trim().replace(/\/+$/, "");
@@ -10,9 +25,15 @@ function normalizeBaseURL(raw: string): string {
 
 type EnvState = "ok" | "empty" | "missing";
 
-function envState(name: string): EnvState {
-  if (!(name in process.env)) return "missing";
-  return process.env[name]?.trim() ? "ok" : "empty";
+function envState(names: readonly string[]): EnvState {
+  let anyPresent = false;
+  for (const name of names) {
+    if (name in process.env) {
+      anyPresent = true;
+      if (process.env[name]?.trim()) return "ok";
+    }
+  }
+  return anyPresent ? "empty" : "missing";
 }
 
 export type PackyEnvReport = {
@@ -27,8 +48,8 @@ export type PackyEnvReport = {
 // values themselves are never exposed.
 export function getPackyEnvReport(): PackyEnvReport {
   return {
-    apiKey: envState("PACKYAPI_API_KEY"),
-    baseURL: envState("PACKYAPI_BASE_URL"),
+    apiKey: envState(API_KEY_NAMES),
+    baseURL: envState(BASE_URL_NAMES),
     detected: Object.keys(process.env)
       .filter((k) => k.toUpperCase().startsWith("PACKY"))
       .sort()
@@ -38,14 +59,14 @@ export function getPackyEnvReport(): PackyEnvReport {
 export function describePackyEnvProblem(report: PackyEnvReport): string {
   const stateText = (s: EnvState) => (s === "missing" ? "未找到" : s === "empty" ? "已设置但值为空" : "正常");
   const problems: string[] = [];
-  if (report.apiKey !== "ok") problems.push(`PACKYAPI_API_KEY（${stateText(report.apiKey)}）`);
-  if (report.baseURL !== "ok") problems.push(`PACKYAPI_BASE_URL（${stateText(report.baseURL)}）`);
+  if (report.apiKey !== "ok") problems.push(`API key（${stateText(report.apiKey)}，可用名：${API_KEY_NAMES.join(" 或 ")}）`);
+  if (report.baseURL !== "ok") problems.push(`Base URL（${stateText(report.baseURL)}，可用名：${BASE_URL_NAMES.join(" 或 ")}）`);
   const detectedText = report.detected.length
     ? `本次部署实际读取到的 PACKY* 变量：${JSON.stringify(report.detected)}`
     : "本次部署未读取到任何以 PACKY 开头的变量";
   return (
     `AI 服务未配置：${problems.join("、")}。${detectedText}。` +
-    "请核对：变量名是否完全一致（区分大小写、无多余空格）、是否设置在你正在访问的环境（Production 或 Preview）、值是否非空；修改后必须 Redeploy 才会生效。"
+    "请核对变量名是否在上述可用名之列（区分大小写、无多余空格）、是否设置在你正在访问的环境（Production 或 Preview）、值是否非空；修改后必须 Redeploy 才会生效。"
   );
 }
 
@@ -53,8 +74,8 @@ export function describePackyEnvProblem(report: PackyEnvReport): string {
 // swap the base URL + key. Returns null when env is missing so callers can
 // surface a clear "not configured" error instead of throwing.
 export function createPackyClient(): OpenAI | null {
-  const apiKey = process.env.PACKYAPI_API_KEY?.trim();
-  const baseURL = process.env.PACKYAPI_BASE_URL?.trim();
+  const apiKey = readEnv(API_KEY_NAMES);
+  const baseURL = readEnv(BASE_URL_NAMES);
   if (!apiKey || !baseURL) return null;
   return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL) });
 }
