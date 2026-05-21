@@ -5,6 +5,9 @@ import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
 import { RechargeModal } from "@/components/smart-picker/recharge-modal";
 import type { AiChatMessage, AiChatSummary } from "@/lib/ai/types";
+import type { CheckinStatus } from "@/lib/ai/checkin";
+
+const INITIAL_CHECKIN: CheckinStatus = { canClaim: false, nextClaimAt: null, dailyAmount: 3 };
 
 async function getJson(input: string, init?: RequestInit) {
   try {
@@ -20,6 +23,7 @@ export function SmartPickerClient() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [balance, setBalance] = useState(0);
+  const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [rechargeOpen, setRechargeOpen] = useState(false);
@@ -33,7 +37,10 @@ export function SmartPickerClient() {
         setChats(chatsRes.chats as AiChatSummary[]);
         if (chatsRes.chats[0]) setActiveChatId(chatsRes.chats[0].id);
       }
-      if (creditsRes?.ok) setBalance(creditsRes.balance);
+      if (creditsRes?.ok) {
+        setBalance(creditsRes.balance);
+        if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
+      }
     })();
   }, []);
 
@@ -96,6 +103,18 @@ export function SmartPickerClient() {
   }, []);
 
   const handleBalance = useCallback((next: number) => setBalance(next), []);
+
+  const handleClaimCheckin = useCallback(async () => {
+    const res = await getJson("/api/ai/checkin/claim", { method: "POST" });
+    if (res?.ok) {
+      setBalance(res.balance);
+      if (res.checkin) setCheckin(res.checkin as CheckinStatus);
+    } else if (res?.checkin) {
+      // Already claimed (e.g., two tabs raced) — refresh local state so the
+      // badge disappears.
+      setCheckin(res.checkin as CheckinStatus);
+    }
+  }, []);
 
   const handleSend = useCallback(
     async (message: string, count: number) => {
@@ -170,6 +189,8 @@ export function SmartPickerClient() {
           onRename={handleRename}
           onDelete={handleDelete}
           balance={balance}
+          checkin={checkin}
+          onClaimCheckin={handleClaimCheckin}
           onOpenRecharge={() => setRechargeOpen(true)}
         />
       </aside>
@@ -186,6 +207,8 @@ export function SmartPickerClient() {
               onRename={handleRename}
               onDelete={handleDelete}
               balance={balance}
+              checkin={checkin}
+              onClaimCheckin={handleClaimCheckin}
               onOpenRecharge={() => {
                 setSidebarOpen(false);
                 setRechargeOpen(true);
@@ -201,6 +224,8 @@ export function SmartPickerClient() {
         loadingMessages={loadingMessages}
         sending={sending}
         balance={balance}
+        checkin={checkin}
+        onClaimCheckin={handleClaimCheckin}
         onSend={handleSend}
         onOpenRecharge={() => setRechargeOpen(true)}
         onOpenSidebar={() => setSidebarOpen(true)}
@@ -211,6 +236,8 @@ export function SmartPickerClient() {
         onClose={() => setRechargeOpen(false)}
         balance={balance}
         onBalance={handleBalance}
+        checkin={checkin}
+        onClaimCheckin={handleClaimCheckin}
       />
     </div>
   );

@@ -6,13 +6,17 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
+import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import type { AiChatMessage, RecommendationItem } from "@/lib/ai/types";
+import type { CheckinStatus } from "@/lib/ai/checkin";
 
 type Props = {
   messages: AiChatMessage[];
   loadingMessages: boolean;
   sending: boolean;
   balance: number;
+  checkin: CheckinStatus;
+  onClaimCheckin: () => Promise<void>;
   onSend: (message: string, count: number) => void;
   onOpenRecharge: () => void;
   onOpenSidebar: () => void;
@@ -23,6 +27,8 @@ export function ChatConversation({
   loadingMessages,
   sending,
   balance,
+  checkin,
+  onClaimCheckin,
   onSend,
   onOpenRecharge,
   onOpenSidebar
@@ -57,6 +63,7 @@ export function ChatConversation({
         >
           <Wallet className="h-3.5 w-3.5" />
           {balance} {translate("credits")}
+          <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
         </button>
       </div>
 
@@ -78,6 +85,7 @@ export function ChatConversation({
         >
           <Wallet className="h-3.5 w-3.5" />
           {balance} {translate("credits")}
+          <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
         </button>
       </div>
 

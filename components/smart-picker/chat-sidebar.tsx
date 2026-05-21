@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { MoreHorizontal, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import type { AiChatSummary } from "@/lib/ai/types";
+import type { CheckinStatus } from "@/lib/ai/checkin";
 
 type Props = {
   chats: AiChatSummary[];
@@ -13,6 +15,8 @@ type Props = {
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
   balance: number;
+  checkin: CheckinStatus;
+  onClaimCheckin: () => Promise<void>;
   onOpenRecharge: () => void;
   onClose?: () => void;
 };
@@ -41,6 +45,8 @@ export function ChatSidebar({
   onRename,
   onDelete,
   balance,
+  checkin,
+  onClaimCheckin,
   onOpenRecharge,
   onClose
 }: Props) {
@@ -199,8 +205,9 @@ export function ChatSidebar({
             <Wallet className="h-4 w-4" />
             {translate("Balance")}
           </span>
-          <span className="text-sm font-semibold">
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
             {balance} {translate("credits")}
+            <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
           </span>
         </button>
       </div>
