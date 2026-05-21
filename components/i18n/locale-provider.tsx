@@ -664,6 +664,12 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "yesterday": "昨天",
   "earlier": "更早",
   "new conversation": "新对话",
+  "download report": "下载报告",
+  "pros": "优点",
+  "cons": "缺点",
+  "recommendation": "推荐指数",
+  "request": "本次需求",
+  "recommendation report": "智能选鞋推荐报告",
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

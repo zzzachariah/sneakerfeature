@@ -31,10 +31,11 @@ export function RecommendationGroup({ recommendations }: { recommendations: Reco
   return (
     <div className="space-y-2">
       <div className="grid gap-2.5">
-        {recommendations.map((rec) => (
+        {recommendations.map((rec, i) => (
           <RecommendationCard
             key={rec.shoe_id}
             rec={rec}
+            rank={i + 1}
             selected={selected.includes(rec.shoe_id)}
             disabled={atLimit}
             onToggle={() => toggle(rec.shoe_id)}

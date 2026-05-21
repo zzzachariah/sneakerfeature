@@ -7,7 +7,10 @@ export type AiChatSummary = {
 
 export type RecommendationRaw = {
   shoe_id: string;
-  reason: string;
+  stars: number;
+  pros: string[];
+  cons: string[];
+  summary: string;
 };
 
 export type RecommendationItem = RecommendationRaw & {
@@ -16,7 +19,6 @@ export type RecommendationItem = RecommendationRaw & {
   shoe_name: string;
   image_url: string | null;
   category: string | null;
-  price: number | null;
 };
 
 export type AiChatMessage = {

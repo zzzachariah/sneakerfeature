@@ -761,3 +761,24 @@ body {
     transform: none;
   }
 }
+
+/* Smart Picker — printable recommendation report (print → Save as PDF).
+   Hidden on screen; on print, only this report is shown. */
+.print-report {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .print-report,
+  .print-report * {
+    visibility: visible !important;
+  }
+  .print-report {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    padding: 24px;
+  }
+}

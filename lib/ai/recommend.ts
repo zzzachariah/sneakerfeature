@@ -10,27 +10,21 @@ export type ChatTurn = { role: "user" | "assistant"; content: string };
 export type RecommendResult = {
   reply: string;
   recommendations: RecommendationRaw[];
+  raw?: string;
 };
 
-const SYSTEM_PROMPT = `你是 SNKR Feature 的篮球鞋推荐专家。你只能从下方提供的「鞋款目录」(JSON) 中推荐球鞋，绝不能编造目录里不存在的球鞋或 id，也不要依赖目录之外的网络信息。
+const SYSTEM_PROMPT = `你是 SNKR Feature 的专业篮球鞋推荐顾问。你只能从下方「鞋款目录」(JSON 数组) 中挑选球鞋，绝不能编造目录里没有的鞋；每条目录项的 "id" 是唯一标识，必须在结果里原样照抄这个 "id"。不要使用目录之外的网络知识。
 
-请理解用户用自然语言描述的偏好，并映射到目录字段，包括跨品牌、跨语言的同义词与科技等价关系，例如：
-- "气垫"/"气垫感"/"软弹"/"脚感" ↔ 任意中底缓震科技：Zoom Air、Air、Boost、React、Nitro、Lightstrike、Cushlon、FF/FlightSpeed、䨻 等（看 forefoot_midsole / heel_midsole / cushioning_feel / bounce）
-- "抓地"/"防滑"/"急停" ↔ traction / 人字纹 herringbone outsole
-- "稳定"/"防崴脚"/"支撑" ↔ stability / support / containment / 抗扭
-- "轻"/"轻量" ↔ weight 较小
-- "后卫"/"控卫"/"小个子"/"灵活" ↔ category=guard、低帮、court_feel 好
-- "内线"/"中锋"/"大个子"/"暴力" ↔ category=big/forward、缓震足、支撑强
-- 预算（元/块/RMB/¥）↔ price 字段
+用户随后会给出「本次要求」和需要推荐的数量 N，可能还会给出「球员档案」。请：
+1. 自行理解「本次要求」的真实意图——中英文、口语、同义词、跨品牌的科技等价你都要靠自己的知识理解（例如"气垫/airsole"指 Zoom Air、Boost 等中底科技；"抓地"指 traction），把它对应到目录字段（品牌、型号、球员、中底/外底/鞋面科技、缓震/场地感/抓地/稳定/包裹、tags 等），不要拘泥字面、不要被某几个关键词限制。
+2. 在目录里找出最匹配的鞋。
+3. 若提供了「球员档案」（位置/水平/扁平足/身高/体重，及每双鞋的 personaFit 0-99），据此个性化：后卫→低帮/灵活/场地感；内线→缓震足/支撑/抗扭；扁平足→更强稳定与足弓支撑；体重大→更强缓震与支撑；初学者→容错，半职业/职业→响应。本次要求优先，档案为辅。
+4. 对每双鞋，依据目录配置给出：stars（推荐指数，1-5 的数字，可用 0.5，与排序一致，越靠前越高）；pros（1-3 条优点）；cons（0-2 条缺点或注意点）；summary（一句话总结为什么推荐）。
 
-如果用户提供了「球员档案」（位置/水平/是否扁平足/身高/体重），请据此做个性化推荐：后卫(PG/SG)偏好低帮、灵活、场地感好；锋线(SF)偏均衡；内线(PF/C)偏好缓震足、支撑强、抗扭好；扁平足需要更强的稳定与足弓支撑；体重较大者需要更强缓震与支撑；初学者偏容错，半职业/职业偏响应。目录里每双鞋的 personaFit(0-99) 是它与该档案的契合度参考。注意：用户本次的文字需求优先，球员档案只作为个性化参考。
+输出 N 双，并【按推荐指数从高到低排序】（最推荐的放在数组第一个）。尽量凑满 N 双：只要目录里有沾边的，就返回最接近的，并在 cons/summary 说明差距。【不要返回空数组】，除非整个目录里确实没有任何篮球鞋。全部用用户的语言（默认中文）。
 
-用户会明确告诉你这次需要推荐几双 (N)。请正好推荐 N 双，按匹配度从高到低排序。如果真正匹配良好的不足 N 双，可以少给（不要用劣质匹配来凑数）。
-
-为每一双推荐写 1-2 句简洁的「推荐理由」，使用用户的语言（默认中文），并引用具体配置/科技来解释为什么符合需求。
-
-只输出严格的 JSON，不要 markdown、不要多余文字，结构如下：
-{"reply":"<用用户语言写的一句友好开场/总结>","recommendations":[{"shoe_id":"<目录中的 id>","reason":"<推荐理由>"}]}`;
+只输出一个 JSON 对象，不要 markdown、不要代码块、不要多余文字，结构如下：
+{"reply":"<用用户语言写的一句总结>","recommendations":[{"id":"<原样照抄目录中的 id>","stars":4.5,"pros":["优点1","优点2"],"cons":["注意点"],"summary":"一句话总结"}]}`;
 
 const SKILL_LABEL_ZH: Record<string, string> = {
   beginner: "初学者",
@@ -57,7 +51,6 @@ function buildCompactCatalog(shoes: Shoe[], persona?: Persona | null) {
     if (shoe.category) entry.category = shoe.category;
     if (shoe.player) entry.player = shoe.player;
     if (shoe.release_year) entry.year = shoe.release_year;
-    if (shoe.price != null) entry.price = shoe.price;
     if (shoe.weight) entry.weight = shoe.weight;
     if (spec.forefoot_midsole_tech) entry.forefoot_midsole = spec.forefoot_midsole_tech;
     if (spec.heel_midsole_tech) entry.heel_midsole = spec.heel_midsole_tech;
@@ -80,6 +73,17 @@ function stripFences(text: string): string {
   return text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
 }
 
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((s) => s.trim());
+}
+
+function coerceStars(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(5, Math.max(1, n));
+}
+
 function parseResult(text: string): RecommendResult {
   const empty: RecommendResult = { reply: "", recommendations: [] };
   if (!text) return empty;
@@ -91,10 +95,29 @@ function parseResult(text: string): RecommendResult {
       const recs = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
       const recommendations: RecommendationRaw[] = recs
         .map((rec) => {
-          const r = rec as { shoe_id?: unknown; reason?: unknown };
+          // Accept "id" (matches the catalog key) or "shoe_id"; tolerate non-string ids.
+          const r = rec as {
+            id?: unknown;
+            shoe_id?: unknown;
+            stars?: unknown;
+            pros?: unknown;
+            cons?: unknown;
+            summary?: unknown;
+            reason?: unknown;
+          };
+          const idVal = r.id ?? r.shoe_id;
+          const summary =
+            typeof r.summary === "string" && r.summary.trim()
+              ? r.summary.trim()
+              : typeof r.reason === "string"
+                ? r.reason.trim()
+                : "";
           return {
-            shoe_id: typeof r.shoe_id === "string" ? r.shoe_id : "",
-            reason: typeof r.reason === "string" ? r.reason : ""
+            shoe_id: typeof idVal === "string" ? idVal : idVal != null ? String(idVal) : "",
+            stars: coerceStars(r.stars),
+            pros: toStringArray(r.pros),
+            cons: toStringArray(r.cons),
+            summary
           };
         })
         .filter((rec) => rec.shoe_id);
@@ -152,7 +175,9 @@ export async function recommendShoes(
       `上游返回了非预期响应（缺少 choices/content）——通常是 Base URL 路径不对（应以 /v1 结尾）或上游报错。响应片段：${snippet}`
     );
   }
-  return parseResult(content);
+  const result = parseResult(content);
+  result.raw = content.slice(0, 600);
+  return result;
 }
 
 export function enrichRecommendations(
@@ -166,13 +191,15 @@ export function enrichRecommendations(
     if (!shoe) continue;
     items.push({
       shoe_id: shoe.id,
-      reason: rec.reason ?? "",
+      stars: typeof rec.stars === "number" ? rec.stars : 3,
+      pros: Array.isArray(rec.pros) ? rec.pros : [],
+      cons: Array.isArray(rec.cons) ? rec.cons : [],
+      summary: typeof rec.summary === "string" ? rec.summary : "",
       slug: shoe.slug,
       brand: shoe.brand,
       shoe_name: shoe.shoe_name,
       image_url: shoe.image_url ?? null,
-      category: shoe.category ?? null,
-      price: shoe.price ?? null
+      category: shoe.category ?? null
     });
   }
   return items;
