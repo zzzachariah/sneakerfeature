@@ -3,7 +3,13 @@ import { z } from "zod";
 import { getAdminContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getShoes } from "@/lib/data/shoes";
-import { createPackyClient, getPackyEnvReport, describePackyEnvProblem } from "@/lib/ai/packy-client";
+import {
+  createPackyClient,
+  getPackyEnvReport,
+  describePackyEnvProblem,
+  getPackyTarget,
+  describePackyError
+} from "@/lib/ai/packy-client";
 import { recommendShoes, enrichRecommendations, type ChatTurn } from "@/lib/ai/recommend";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw } from "@/lib/ai/types";
@@ -98,7 +104,14 @@ export async function POST(request: Request) {
     result = await recommendShoes(client, { shoes, turns, count });
   } catch (error) {
     console.error("[ai/chat] recommend failed", error);
-    return NextResponse.json({ ok: false, message: "AI 调用失败，请稍后再试。" }, { status: 502 });
+    const target = getPackyTarget();
+    return NextResponse.json(
+      {
+        ok: false,
+        message: `AI 调用失败：${describePackyError(error)}。请求目标 Base URL：${target.baseURL ?? "(未设置)"}，模型：${target.model}。`
+      },
+      { status: 502 }
+    );
   }
 
   // Keep only valid, in-catalog, de-duplicated ids, capped at the paid count.
