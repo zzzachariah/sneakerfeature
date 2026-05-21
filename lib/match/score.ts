@@ -238,3 +238,37 @@ export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
 
   return reasons.slice(0, 4);
 }
+
+export const SPREAD_MAX_STEPS = 6;
+
+// Spreads the integer match scores so tied shoes get a descending gradient
+// instead of a flat block (e.g. dozens of 89s). `ranked` MUST already be in
+// display order (objective score desc, then the caller's tiebreakers); only
+// `score` is read here, to find the boundaries of each tied cluster. Each
+// cluster is fanned out over up to SPREAD_MAX_STEPS tiers, so the per-tier
+// shoe count scales with cluster size, and the result stays monotonically
+// non-increasing across clusters. Returns id -> display score.
+export function spreadTiedScores(ranked: { id: string; score: number }[]): Map<string, number> {
+  const out = new Map<string, number>();
+  let ceiling = 100;
+  let i = 0;
+  while (i < ranked.length) {
+    const base = ranked[i].score;
+    let j = i;
+    while (j < ranked.length && ranked[j].score === base) j++;
+    const size = j - i;
+
+    const clusterTop = Math.min(base, ceiling - 1);
+    const steps = Math.min(SPREAD_MAX_STEPS, size);
+    const perStep = Math.ceil(size / steps);
+
+    for (let k = 0; k < size; k++) {
+      const tier = Math.floor(k / perStep);
+      const display = Math.max(30, Math.min(99, clusterTop - tier));
+      out.set(ranked[i + k].id, display);
+    }
+    ceiling = out.get(ranked[j - 1].id)!;
+    i = j;
+  }
+  return out;
+}
