@@ -27,19 +27,16 @@ function formatRemaining(ms: number): string {
 export function CheckinBadge({ checkin, onClaim, size = "sm" }: Props) {
   const { translate } = useLocale();
   const [busy, setBusy] = useState(false);
-  const [remainingMs, setRemainingMs] = useState(() => computeRemainingMs(checkin.nextClaimAt));
 
-  // Re-sync whenever the server gives us a new cooldown timestamp.
-  useEffect(() => {
-    setRemainingMs(computeRemainingMs(checkin.nextClaimAt));
-  }, [checkin.nextClaimAt]);
-
-  // Tick the countdown every second while we're in cooldown.
+  // Used only to force a re-render once a second while we're in cooldown.
+  // The actual remaining time is *derived* from `checkin.nextClaimAt` on
+  // every render, so a fresh `checkin` prop coming back from a successful
+  // claim is reflected immediately — no stale-state flash where the gold
+  // badge briefly stays on screen because the previous remainingMs was 0.
+  const [, forceTick] = useState(0);
   useEffect(() => {
     if (checkin.canClaim || !checkin.nextClaimAt) return;
-    const t = setInterval(() => {
-      setRemainingMs(computeRemainingMs(checkin.nextClaimAt));
-    }, 1000);
+    const t = setInterval(() => forceTick((x) => x + 1), 1000);
     return () => clearInterval(t);
   }, [checkin.canClaim, checkin.nextClaimAt]);
 
@@ -63,9 +60,11 @@ export function CheckinBadge({ checkin, onClaim, size = "sm" }: Props) {
   // Hide entirely when we haven't loaded a status yet (initial mount).
   if (!checkin.canClaim && !checkin.nextClaimAt) return null;
 
+  const remainingMs = computeRemainingMs(checkin.nextClaimAt);
   // Local clock may have ticked past the cooldown before the server status
   // was refreshed — treat the badge as claimable in that case.
-  const effectiveCanClaim = checkin.canClaim || (checkin.nextClaimAt !== null && remainingMs <= 0);
+  const effectiveCanClaim =
+    checkin.canClaim || (checkin.nextClaimAt !== null && remainingMs <= 0);
 
   const sizeClasses =
     size === "md" ? "h-7 px-2.5 text-xs gap-1.5" : "h-5 px-1.5 text-[0.7rem] gap-1";
