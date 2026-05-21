@@ -2,6 +2,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { getCurrentProfile } from "@/lib/data/auth";
 import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
@@ -77,6 +78,13 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
     return null;
   }
 
+  // shoe_stories is public-by-design but its public-read RLS policy has been
+  // unreliable (see migration 021). Read it with the service-role client when
+  // available so a misconfigured policy can't silently hide every story; this
+  // runs server-side only and never reaches the browser. Falls back to the
+  // anon client when no service-role key is configured.
+  const storiesClient = createAdminClient() ?? supabase;
+
   const [shoesRes, ratingsRes, storiesRes] = await Promise.all([
     supabase
       .from("shoes")
@@ -85,7 +93,7 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
     supabase
       .from("shoe_ratings")
       .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit"),
-    supabase
+    storiesClient
       .from("shoe_stories")
       .select("shoe_id, title, content, source_label, source_url")
       .order("created_at", { ascending: false })
@@ -126,7 +134,7 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v2"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v3"], {
   tags: ["shoes"],
   revalidate: 300
 });
