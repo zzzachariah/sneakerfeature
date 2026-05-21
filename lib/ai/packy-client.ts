@@ -18,9 +18,20 @@ function readEnv(names: readonly string[]): string | undefined {
 export const PACKY_MODEL = readEnv(MODEL_NAMES) ?? "claude-haiku-4-5-20251001";
 
 function normalizeBaseURL(raw: string): string {
-  const trimmed = raw.trim().replace(/\/+$/, "");
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  return `https://${trimmed}`;
+  let s = raw.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+  try {
+    const url = new URL(s);
+    // Bare host (no path) → target the OpenAI-compatible /v1 base, so a value
+    // like "https://www.packyapi.com" hits ".../v1/chat/completions". An
+    // explicit path (already /v1, or a custom gateway path) is left untouched.
+    if (url.pathname === "" || url.pathname === "/") {
+      url.pathname = "/v1";
+    }
+    return url.toString().replace(/\/+$/, "");
+  } catch {
+    return s;
+  }
 }
 
 type EnvState = "ok" | "empty" | "missing";
