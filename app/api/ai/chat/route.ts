@@ -3,6 +3,8 @@ import { z } from "zod";
 import { getAdminContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getShoes } from "@/lib/data/shoes";
+import { demoShoes } from "@/lib/data/demo-shoes";
+import { isValidPersona, type Persona } from "@/lib/persona/types";
 import {
   createPackyClient,
   getPackyEnvReport,
@@ -62,7 +64,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: describePackyEnvProblem(report) }, { status: 503 });
   }
 
-  // Persist the user message.
+  // Load PRIOR history (before inserting this turn) + catalog + persona in parallel.
+  const [{ data: historyRows }, shoes, { data: profileRow }] = await Promise.all([
+    admin
+      .from("ai_messages")
+      .select("role, content, recommendations")
+      .eq("chat_id", chatId)
+      .order("created_at", { ascending: true }),
+    getShoes(),
+    admin.from("profiles").select("persona").eq("id", ctx.userId).maybeSingle()
+  ]);
+  const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
+  const usingDemo = shoes === demoShoes; // getShoes() returns demoShoes by reference when the DB is empty/unreachable
+  const rawPersona = profileRow?.persona;
+  const persona: Persona | null = isValidPersona(rawPersona) ? rawPersona : null;
+
+  // Build prior LLM turns; surface previously-recommended shoe names so follow-ups
+  // ("第一双太贵了") have context.
+  const history: ChatTurn[] = (historyRows ?? []).map((row) => {
+    const r = row as HistoryRow;
+    if (r.role === "assistant" && Array.isArray(r.recommendations) && r.recommendations.length) {
+      const names = r.recommendations.map((rec) => byId.get(rec.shoe_id)?.shoe_name).filter(Boolean);
+      return { role: "assistant", content: names.length ? `${r.content}\n[已推荐: ${names.join(", ")}]` : r.content };
+    }
+    return { role: r.role, content: r.content };
+  });
+
+  // Persist the user message (after capturing prior history).
   const { data: userMessage, error: userErr } = await admin
     .from("ai_messages")
     .insert({ chat_id: chatId, role: "user", content: message, credits_charged: 0 })
@@ -77,31 +105,9 @@ export async function POST(request: Request) {
     await admin.from("ai_chats").update({ title: message.slice(0, 30), updated_at: new Date().toISOString() }).eq("id", chatId);
   }
 
-  // Load full history (includes the message we just inserted) + catalog.
-  const [{ data: historyRows }, shoes] = await Promise.all([
-    admin
-      .from("ai_messages")
-      .select("role, content, recommendations")
-      .eq("chat_id", chatId)
-      .order("created_at", { ascending: true }),
-    getShoes()
-  ]);
-  const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
-
-  // Build LLM turns; surface previously-recommended shoe names so follow-ups
-  // ("第一双太贵了") have context.
-  const turns: ChatTurn[] = (historyRows ?? []).map((row) => {
-    const r = row as HistoryRow;
-    if (r.role === "assistant" && Array.isArray(r.recommendations) && r.recommendations.length) {
-      const names = r.recommendations.map((rec) => byId.get(rec.shoe_id)?.shoe_name).filter(Boolean);
-      return { role: "assistant", content: names.length ? `${r.content}\n[已推荐: ${names.join(", ")}]` : r.content };
-    }
-    return { role: r.role, content: r.content };
-  });
-
   let result;
   try {
-    result = await recommendShoes(client, { shoes, turns, count });
+    result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona });
   } catch (error) {
     console.error("[ai/chat] recommend failed", error);
     const target = getPackyTarget();
@@ -139,8 +145,22 @@ export async function POST(request: Request) {
     }
   }
 
-  const replyText =
-    result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
+  console.warn("[ai/chat] catalog", {
+    size: shoes.length,
+    usingDemo,
+    hasPersona: persona !== null,
+    aiReturned: result.recommendations.length,
+    matched: charge
+  });
+
+  let replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
+  if (charge === 0) {
+    const r = result.recommendations.length;
+    replyText += `（检索了 ${shoes.length} 双库内鞋款；AI 返回 ${r} 条建议${r > 0 ? "，但都不在库内（型号未收录或 id 无效）" : ""}）`;
+  }
+  if (usingDemo) {
+    replyText = `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。\n${replyText}`;
+  }
 
   const { data: assistantRow, error: assistantErr } = await admin
     .from("ai_messages")
