@@ -126,8 +126,14 @@ export async function recommendShoes(
     messages
   });
 
-  const text = completion.choices[0]?.message?.content ?? "";
-  return parseResult(text);
+  const content = completion?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") {
+    const snippet = JSON.stringify(completion ?? {}).slice(0, 300);
+    throw new Error(
+      `上游返回了非预期响应（缺少 choices/content）——通常是 Base URL 路径不对（应以 /v1 结尾）或上游报错。响应片段：${snippet}`
+    );
+  }
+  return parseResult(content);
 }
 
 export function enrichRecommendations(
