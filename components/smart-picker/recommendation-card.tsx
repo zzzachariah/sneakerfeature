@@ -17,12 +17,31 @@ type Props = {
   onToggle: () => void;
 };
 
+function ProsCons({ label, items, tone }: { label: string; items: string[]; tone: "pro" | "con" }) {
+  const dot = tone === "pro" ? "bg-emerald-500" : "bg-rose-400";
+  const labelColor = tone === "pro" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400";
+  return (
+    <section>
+      <p className={`mb-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] ${labelColor}`}>{label}</p>
+      <ul className="space-y-1">
+        {items.map((it, i) => (
+          <li key={i} className="flex gap-1.5 text-[0.78rem] leading-snug">
+            <span className={`mt-[0.5em] h-1 w-1 shrink-0 rounded-full ${dot}`} />
+            <span>{it}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: Props) {
   const { translate } = useLocale();
   const href = `/shoes/${rec.slug}` as Route;
+  const hasProsCons = rec.pros.length > 0 || rec.cons.length > 0;
 
   return (
-    <div className="surface-card premium-border overflow-hidden rounded-2xl p-3.5 transition hover:shadow-[0_10px_30px_rgb(var(--glass-shadow)/0.16)]">
+    <div className="surface-card premium-border flex flex-col overflow-hidden rounded-2xl p-3.5 transition hover:shadow-[0_10px_30px_rgb(var(--glass-shadow)/0.16)]">
       <div className="flex gap-3">
         <div className="relative shrink-0">
           <span className="absolute -left-1 -top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--text))] px-1 text-[0.7rem] font-bold text-[rgb(var(--bg))]">
@@ -73,8 +92,15 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: 
         </div>
       </div>
 
+      {hasProsCons && (
+        <div className="mt-2.5 space-y-2 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-2.5">
+          {rec.pros.length > 0 && <ProsCons label={translate("Pros")} items={rec.pros} tone="pro" />}
+          {rec.cons.length > 0 && <ProsCons label={translate("Cons")} items={rec.cons} tone="con" />}
+        </div>
+      )}
+
       {rec.radar.length > 0 && (
-        <div className="mt-3 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 pb-3 pt-2.5">
+        <div className="mt-2.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 pb-3 pt-2.5">
           <p className="mb-1 text-center text-[0.62rem] font-semibold uppercase tracking-[0.18em] soft-text">
             {translate("Performance")}
           </p>
