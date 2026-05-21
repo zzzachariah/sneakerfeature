@@ -707,6 +707,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "ocr service was unavailable. we will review it manually.": "OCR 服务暂时不可用，将转入人工审核。",
   "we could not auto-verify your screenshot. we will review it manually.": "无法自动核对该截图，已转入人工审核。",
   "if you forgot the remark, please contact support directly to avoid your payment being refunded.": "如果您忘填备注，请尽快直接联系客服，避免款项被退回。",
+  "for appeals, please add wechat:": "如需申诉，请添加微信：",
+  "copy support wechat id": "复制客服微信号",
   "got it": "知道了",
   "submission failed": "提交失败",
   "try again": "重试",

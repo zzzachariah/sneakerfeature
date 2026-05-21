@@ -33,6 +33,33 @@ type SubmitOutcome =
   | { kind: "pending"; reason: "amount_mismatch" | "code_mismatch" | "ocr_failed" | "no_match" }
   | { kind: "error"; message: string };
 
+const SUPPORT_WECHAT_ID = "UserName_0000000";
+
+function CopyableWechat() {
+  const { translate } = useLocale();
+  const [copied, setCopied] = useState(false);
+  const copy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(SUPPORT_WECHAT_ID);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard blocked — silently ignore; the ID is still visible to read.
+    }
+  }, []);
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      className="inline-flex items-center gap-1 rounded-md border border-[rgb(var(--text)/0.25)] bg-[rgb(var(--bg))]/60 px-2 py-1 font-mono text-[0.78rem] hover:bg-[rgb(var(--surface))]"
+      aria-label={translate("Copy support WeChat ID")}
+    >
+      <span>{SUPPORT_WECHAT_ID}</span>
+      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+}
+
 const QR_SRC: Record<PaymentMethod, string> = {
   wechat: "/wechat-qr.png.jpg",
   alipay: "/alipay-qr.png.jpg"
@@ -392,6 +419,10 @@ function StepQrAndUpload({
         <p className="mt-1 opacity-90">
           {translate("Please trade honestly. Once purchased, no refunds and no exchanges.")}
         </p>
+        <p className="mt-2 flex flex-wrap items-center gap-2 opacity-90">
+          <span>{translate("For appeals, please add WeChat:")}</span>
+          <CopyableWechat />
+        </p>
       </div>
 
       <div className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.6)] p-3 text-sm">
@@ -503,6 +534,10 @@ function StepResult({
           <p className="mt-1 text-sm soft-text">{reasonText[outcome.reason]}</p>
           <p className="mt-3 text-[0.78rem] leading-relaxed soft-text">
             {translate("If you forgot the remark, please contact support directly to avoid your payment being refunded.")}
+          </p>
+          <p className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[0.78rem]">
+            <span>{translate("For appeals, please add WeChat:")}</span>
+            <CopyableWechat />
           </p>
         </div>
         <button
