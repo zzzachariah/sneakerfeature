@@ -90,7 +90,7 @@ export function ChatConversation({
               </span>
               <h2 className="text-lg font-semibold">{translate("Find your next pair")}</h2>
               <p className="max-w-md text-sm soft-text">
-                {translate("Tell me your playstyle, position, the feel you want, and your budget — I'll recommend shoes from our database.")}
+                {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
               </p>
               <p className="max-w-md rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.6)] p-3 text-[0.78rem] leading-relaxed soft-text">
                 {translate("1 credit = 1 recommended shoe. Asking AI for 10 shoes at once costs 10 credits. Please choose the number before sending.")}

@@ -8,7 +8,7 @@ import type { RecommendationItem } from "@/lib/ai/types";
 
 // A shareable spec sheet won't fit more than this many shoes legibly, and the
 // overlay radar only has five distinct line styles.
-const MAX_REPORT = 5;
+const MAX_REPORT = 4;
 
 const RADAR_SIZE = 360;
 const RADAR_CX = RADAR_SIZE / 2;
@@ -282,6 +282,22 @@ export function RecommendationReportCard({
                   <TechLine label="Heel Midsole" value={rec.tech.heel} />
                   <TechLine label="Upper" value={rec.tech.upper} />
                 </div>
+                {(rec.pros.length > 0 || rec.cons.length > 0) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 18px", marginTop: 5 }}>
+                    {rec.pros.length > 0 && (
+                      <span style={{ fontSize: 13, lineHeight: 1.35 }}>
+                        <span style={{ fontWeight: 700, color: "#15803d" }}>＋ {translate("Pros")}: </span>
+                        <span style={{ color: "rgb(var(--text))" }}>{rec.pros.join(" · ")}</span>
+                      </span>
+                    )}
+                    {rec.cons.length > 0 && (
+                      <span style={{ fontSize: 13, lineHeight: 1.35 }}>
+                        <span style={{ fontWeight: 700, color: "#be123c" }}>－ {translate("Cons")}: </span>
+                        <span style={{ color: "rgb(var(--text))" }}>{rec.cons.join(" · ")}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}

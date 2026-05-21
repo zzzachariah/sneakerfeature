@@ -135,7 +135,9 @@ export async function POST(request: Request) {
     matched.push({
       shoe_id: shoe.id,
       stars: blendedRecommendationStars(rec.stars, shoe.spec, focus),
-      reason: rec.reason
+      reason: rec.reason,
+      pros: rec.pros,
+      cons: rec.cons
     });
   }
   matched.sort((a, b) => b.stars - a.stars);

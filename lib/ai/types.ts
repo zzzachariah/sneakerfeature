@@ -9,6 +9,8 @@ export type RecommendationRaw = {
   shoe_id: string;
   stars: number;
   reason: string;
+  pros: string[];
+  cons: string[];
 };
 
 // Six-dimension radar point. Structurally compatible with the detail

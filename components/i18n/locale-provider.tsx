@@ -643,8 +643,10 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "view details": "查看详情",
   "pick up to 5 to compare": "最多选 5 双对比",
   "compare selected": "对比所选",
-  "describe what you're looking for (e.g. responsive cushioning for a guard, under ¥1000)…":
-    "描述你想要的球鞋（例如：后卫用、软弹缓震、1000 以内）…",
+  "describe what you're looking for (e.g. responsive cushioning for a guard)…":
+    "描述你想要的球鞋（例如：后卫用、软弹缓震）…",
+  "ai picks": "AI 精选",
+  "ai shoe recommendations from our database": "来自数据库的 AI 球鞋推荐",
   "recommend": "推荐",
   "decrease": "减少",
   "increase": "增加",
@@ -654,8 +656,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "this will use": "本次消耗",
   "conversations": "对话",
   "find your next pair": "找到你的下一双",
-  "tell me your playstyle, position, the feel you want, and your budget — i'll recommend shoes from our database.":
-    "告诉我你的打法、位置、想要的脚感和预算，我会从数据库里为你推荐球鞋。",
+  "tell me your playstyle, position, and the feel you want — i'll recommend shoes from our database.":
+    "告诉我你的打法、位置和想要的脚感，我会从数据库里为你推荐球鞋。",
   "ai is thinking…": "AI 思考中…",
   "new chat": "新建对话",
   "close": "关闭",

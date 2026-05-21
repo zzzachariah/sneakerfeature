@@ -30,7 +30,7 @@ export function RecommendationGroup({ recommendations }: { recommendations: Reco
 
   return (
     <div className="space-y-2">
-      <div className="grid gap-2.5">
+      <div className="grid items-stretch gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
         {recommendations.map((rec, i) => (
           <RecommendationCard
             key={rec.shoe_id}

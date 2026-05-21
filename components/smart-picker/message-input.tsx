@@ -47,7 +47,7 @@ export function MessageInput({ balance, sending, onSend, onOpenRecharge }: Props
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           rows={2}
-          placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard, under ¥1000)…")}
+          placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
           className="w-full resize-none bg-transparent px-1.5 py-1 text-sm outline-none placeholder:text-[rgb(var(--subtext)/0.7)]"
         />
 
