@@ -1,4 +1,4 @@
-import { computeMatchScore, computeDimensions } from "../lib/match/score";
+import { computeMatchScore, computeDimensions, spreadTiedScores, SPREAD_MAX_STEPS } from "../lib/match/score";
 import type { Persona } from "../lib/persona/types";
 import type { Shoe } from "../lib/types";
 
@@ -239,3 +239,56 @@ console.log(`所有分数: min=${sortedAll[0]} p25=${percentile(sortedAll, 0.25)
 console.log(`所有 personas 通过率: ${allPasses.filter(Boolean).length}/${allPasses.length}`);
 const overallHist = histogram(sortedAll);
 console.log("总体直方图: " + Object.entries(overallHist).map(([k, v]) => `${k}:${v}`).join(" "));
+
+// --- spreadTiedScores: 同分簇展开测试 ---
+console.log("\n\n========== 同分簇展开 (spreadTiedScores) ==========");
+console.log(`SPREAD_MAX_STEPS=${SPREAD_MAX_STEPS}`);
+
+// 模拟真实场景:几个客观分簇,含大簇/小簇/相邻簇
+const clusterSpec: Array<{ score: number; count: number }> = [
+  { score: 95, count: 1 },
+  { score: 89, count: 30 },
+  { score: 85, count: 6 },
+  { score: 78, count: 12 },
+  { score: 70, count: 3 },
+  { score: 65, count: 50 },
+  { score: 50, count: 2 }
+];
+
+const ranked: { id: string; score: number }[] = [];
+for (const { score, count } of clusterSpec) {
+  for (let n = 0; n < count; n++) ranked.push({ id: `${score}-${n}`, score });
+}
+
+const spread = spreadTiedScores(ranked);
+const displays = ranked.map((r) => spread.get(r.id)!);
+
+// 1) 单调非增
+let monotonic = true;
+for (let k = 1; k < displays.length; k++) {
+  if (displays[k] > displays[k - 1]) { monotonic = false; break; }
+}
+
+// 2) 每簇展开情况
+console.log("\n各簇展开后的分数序列:");
+let idx = 0;
+let allClustersOk = true;
+for (const { score, count } of clusterSpec) {
+  const seg = displays.slice(idx, idx + count);
+  idx += count;
+  const tierCounts: Record<number, number> = {};
+  for (const d of seg) tierCounts[d] = (tierCounts[d] ?? 0) + 1;
+  const distinctTiers = Object.keys(tierCounts).length;
+  const expectedTiers = Math.min(SPREAD_MAX_STEPS, count);
+  const span = seg[0] - seg[seg.length - 1];
+  const ok = distinctTiers === expectedTiers;
+  if (!ok) allClustersOk = false;
+  console.log(
+    `  客观分 ${score} (${count} 只): 展开档=${distinctTiers}(期望${expectedTiers}) 跨度=${span} ` +
+    `分布=[${Object.entries(tierCounts).map(([s, c]) => `${s}×${c}`).join(", ")}] ${ok ? "✓" : "✗"}`
+  );
+}
+
+console.log(`\n单调非增: ${monotonic ? "✓" : "✗"}`);
+console.log(`各簇档数符合 min(${SPREAD_MAX_STEPS}, 簇大小): ${allClustersOk ? "✓" : "✗"}`);
+console.log(`展开后唯一分数值: ${new Set(displays).size} 个 (原本只有 ${clusterSpec.length} 个)`);
