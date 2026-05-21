@@ -15,6 +15,7 @@ import {
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw } from "@/lib/ai/types";
+import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/lib/star-rating";
 
 const schema = z.object({
   chatId: z.string().uuid(),
@@ -72,12 +73,14 @@ export async function POST(request: Request) {
       .eq("chat_id", chatId)
       .order("created_at", { ascending: true }),
     getShoes(),
-    admin.from("profiles").select("persona").eq("id", ctx.userId).maybeSingle()
+    admin.from("profiles").select("persona, rating_focus").eq("id", ctx.userId).maybeSingle()
   ]);
   const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
   const usingDemo = shoes === demoShoes; // getShoes() returns demoShoes by reference when the DB is empty/unreachable
   const rawPersona = profileRow?.persona;
   const persona: Persona | null = isValidPersona(rawPersona) ? rawPersona : null;
+  const rawFocus = profileRow?.rating_focus;
+  const focus: RatingFocus | null = isValidFocus(rawFocus) ? rawFocus : null;
 
   // Build prior LLM turns; surface previously-recommended shoe names so follow-ups
   // ("第一双太贵了") have context.
@@ -120,16 +123,23 @@ export async function POST(request: Request) {
     );
   }
 
-  // Resolve each AI-provided name to a catalog shoe; de-duplicate; cap at the paid count.
+  // Resolve each AI-provided name to a catalog shoe; de-duplicate. Recompute the
+  // star as a strict 1-5 blend of the AI's star and a preference-weighted spec
+  // score, then sort by that blended star and cap at the paid count.
   const seen = new Set<string>();
-  const validRaw: RecommendationRaw[] = [];
+  const matched: RecommendationRaw[] = [];
   for (const rec of result.recommendations) {
     const shoe = matchShoeByName(rec.name, shoes);
     if (!shoe || seen.has(shoe.id)) continue;
     seen.add(shoe.id);
-    validRaw.push({ shoe_id: shoe.id, stars: rec.stars, reason: rec.reason });
-    if (validRaw.length >= count) break;
+    matched.push({
+      shoe_id: shoe.id,
+      stars: blendedRecommendationStars(rec.stars, shoe.spec, focus),
+      reason: rec.reason
+    });
   }
+  matched.sort((a, b) => b.stars - a.stars);
+  const validRaw: RecommendationRaw[] = matched.slice(0, count);
   const charge = validRaw.length;
 
   // Charge only for shoes actually recommended.

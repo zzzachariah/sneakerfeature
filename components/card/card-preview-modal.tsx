@@ -7,14 +7,17 @@ import { createPortal } from "react-dom";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/components/card/card-frame";
 import { CompareCard } from "@/components/card/compare-card";
 import { SingleShoeCard } from "@/components/card/single-shoe-card";
+import { RecommendationReportCard } from "@/components/smart-picker/recommendation-report-card";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { RadarAxis } from "@/components/detail/performance-radar";
 import { captureCardToBlob, safeFilename, triggerDownload } from "@/lib/card/capture";
+import type { RecommendationItem } from "@/lib/ai/types";
 import type { Shoe } from "@/lib/types";
 
 type Mode =
   | { kind: "single"; shoe: Shoe; axes: RadarAxis[] }
-  | { kind: "compare"; shoes: Shoe[] };
+  | { kind: "compare"; shoes: Shoe[] }
+  | { kind: "report"; requestText: string; recommendations: RecommendationItem[] };
 
 type Props = {
   open: boolean;
@@ -72,6 +75,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
   const filename = useMemo(() => {
     if (!mode) return "snkrfeature-card.png";
     if (mode.kind === "single") return safeFilename(["snkrfeature", mode.shoe.slug]);
+    if (mode.kind === "report") return safeFilename(["snkrfeature", "picks", ...mode.recommendations.slice(0, 5).map((r) => r.slug)]);
     return safeFilename(["snkrfeature", "compare", ...mode.shoes.map((s) => s.slug)]);
   }, [mode]);
 
@@ -91,6 +95,12 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
   }
 
   if (!mounted || !open || !mode) return null;
+
+  const renderCard = () => {
+    if (mode.kind === "single") return <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />;
+    if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} recommendations={mode.recommendations} />;
+    return <CompareCard shoes={mode.shoes} />;
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -118,7 +128,11 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
             <div className="min-w-0">
               <p className="t-eyebrow">{translate("Share card")}</p>
               <h2 className="mt-0.5 text-base font-semibold tracking-[-0.02em] md:text-lg">
-                {mode.kind === "single" ? translate("Spec sheet") : translate("Comparison sheet")}
+                {mode.kind === "single"
+                  ? translate("Spec sheet")
+                  : mode.kind === "report"
+                    ? translate("Recommendation report")
+                    : translate("Comparison sheet")}
               </h2>
             </div>
             <button
@@ -143,13 +157,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
               pointerEvents: "none",
             }}
           >
-            <div ref={cardRef}>
-              {mode.kind === "single" ? (
-                <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />
-              ) : (
-                <CompareCard shoes={mode.shoes} />
-              )}
-            </div>
+            <div ref={cardRef}>{renderCard()}</div>
           </div>
 
           {/* Visible scaled preview — separate render */}
@@ -180,11 +188,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
                   transformOrigin: "0 0",
                 }}
               >
-                {mode.kind === "single" ? (
-                  <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />
-                ) : (
-                  <CompareCard shoes={mode.shoes} />
-                )}
+                {renderCard()}
               </div>
             </div>
           </div>

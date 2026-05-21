@@ -146,6 +146,33 @@ export function rankScoresToPercentiles(scores: number[]): number[] {
   return out;
 }
 
+// Map a 0-100 performance score onto the 1-5 star scale (linear).
+function score100ToStars(score100: number): number {
+  return 1 + (Math.max(0, Math.min(100, score100)) / 100) * 4;
+}
+
+/**
+ * Recommendation star (strictly 1-5, in 0.5 steps): the average of the AI's
+ * own recommendation star and a deterministic, preference-weighted spec score.
+ * When the user has a valid Rating Focus we weight the six dimensions by it;
+ * otherwise we fall back to an equal-weight average of the dimension scores.
+ */
+export function blendedRecommendationStars(
+  aiStars: number,
+  spec: ShoeSpec | null | undefined,
+  focus: RatingFocus | null | undefined
+): number {
+  const score100 = focus
+    ? weightedSpecScore(spec, focus)
+    : (() => {
+        const d = dimScores(spec);
+        return DIM_KEYS.reduce((sum, k) => sum + d[k], 0) / DIM_KEYS.length;
+      })();
+  const specStars = score100ToStars(score100);
+  const ai = Math.max(1, Math.min(5, Number.isFinite(aiStars) ? aiStars : 3));
+  return Math.max(1, Math.min(5, roundToHalf((ai + specStars) / 2)));
+}
+
 export function computeFinalStars(
   specStars: number,
   userAvg: number | null | undefined,
