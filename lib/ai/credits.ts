@@ -39,6 +39,31 @@ export async function grantCredits(userId: string, credits: number, packageLabel
   return next;
 }
 
+// Admin reset: zero out a user's balance and record the deduction as a
+// single transaction. Returns the prior balance.
+export async function clearCreditsAsAdmin(userId: string, note: string): Promise<number> {
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Service-role client unavailable");
+
+  const current = await getBalance(userId);
+  if (current === 0) return 0;
+
+  const { error: balanceError } = await admin
+    .from("ai_credits")
+    .upsert(
+      { user_id: userId, balance: 0, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    );
+  if (balanceError) throw balanceError;
+
+  const { error: txError } = await admin
+    .from("ai_credit_transactions")
+    .insert({ user_id: userId, delta: -current, reason: "admin_clear", package_label: note });
+  if (txError) throw txError;
+
+  return current;
+}
+
 export async function deductCredits(userId: string, amount: number): Promise<number> {
   const admin = createAdminClient();
   if (!admin) throw new Error("Service-role client unavailable");

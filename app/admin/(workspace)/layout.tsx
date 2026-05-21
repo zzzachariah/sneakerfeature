@@ -6,7 +6,9 @@ import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
 const navItems = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/review", label: "Submission review" },
-  { href: "/admin/published", label: "Published records" }
+  { href: "/admin/published", label: "Published records" },
+  { href: "/admin/payments", label: "Payment orders" },
+  { href: "/admin/credits", label: "Credits & balances" }
 ] as const;
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

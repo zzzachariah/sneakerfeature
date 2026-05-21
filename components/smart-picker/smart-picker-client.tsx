@@ -95,18 +95,7 @@ export function SmartPickerClient() {
     });
   }, []);
 
-  const handleRecharge = useCallback(async (packageId: string) => {
-    const res = await getJson("/api/ai/recharge", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ packageId })
-    });
-    if (res?.ok) {
-      setBalance(res.balance);
-      return true;
-    }
-    return false;
-  }, []);
+  const handleBalance = useCallback((next: number) => setBalance(next), []);
 
   const handleSend = useCallback(
     async (message: string, count: number) => {
@@ -221,7 +210,7 @@ export function SmartPickerClient() {
         open={rechargeOpen}
         onClose={() => setRechargeOpen(false)}
         balance={balance}
-        onRecharge={handleRecharge}
+        onBalance={handleBalance}
       />
     </div>
   );
