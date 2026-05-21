@@ -12,7 +12,7 @@ import {
   getPackyTarget,
   describePackyError
 } from "@/lib/ai/packy-client";
-import { recommendShoes, enrichRecommendations, type ChatTurn } from "@/lib/ai/recommend";
+import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw } from "@/lib/ai/types";
 
@@ -120,13 +120,14 @@ export async function POST(request: Request) {
     );
   }
 
-  // Keep only valid, in-catalog, de-duplicated ids, capped at the paid count.
+  // Resolve each AI-provided name to a catalog shoe; de-duplicate; cap at the paid count.
   const seen = new Set<string>();
   const validRaw: RecommendationRaw[] = [];
   for (const rec of result.recommendations) {
-    if (!rec.shoe_id || seen.has(rec.shoe_id) || !byId.has(rec.shoe_id)) continue;
-    seen.add(rec.shoe_id);
-    validRaw.push(rec);
+    const shoe = matchShoeByName(rec.name, shoes);
+    if (!shoe || seen.has(shoe.id)) continue;
+    seen.add(shoe.id);
+    validRaw.push({ shoe_id: shoe.id, stars: rec.stars, reason: rec.reason });
     if (validRaw.length >= count) break;
   }
   const charge = validRaw.length;
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
   let replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
   if (charge === 0) {
     const r = result.recommendations.length;
-    replyText += `（检索了 ${shoes.length} 双库内鞋款；AI 返回 ${r} 条建议${r > 0 ? "，但都不在库内（型号未收录或 id 无效）" : ""}）`;
+    replyText += `（检索了 ${shoes.length} 双库内鞋款；AI 返回 ${r} 条建议${r > 0 ? "，但都没匹配到库内鞋款（名称对不上或型号未收录）" : ""}）`;
     if (result.raw) replyText += `\nAI原文片段：${result.raw.slice(0, 300)}`;
   }
   if (usingDemo) {
