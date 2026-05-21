@@ -160,12 +160,7 @@ export function RechargeModal({ open, onClose, balance, onBalance, checkin, onCl
           <span className="text-sm soft-text">{translate("Balance")}</span>
           <span className="inline-flex items-center gap-2 text-base font-semibold">
             {balance} {translate("credits")}
-            <CheckinBadge
-              canClaim={checkin.canClaim}
-              dailyAmount={checkin.dailyAmount}
-              onClaim={onClaimCheckin}
-              size="md"
-            />
+            <CheckinBadge checkin={checkin} onClaim={onClaimCheckin} size="md" />
           </span>
         </div>
 

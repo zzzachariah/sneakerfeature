@@ -63,7 +63,7 @@ export function ChatConversation({
         >
           <Wallet className="h-3.5 w-3.5" />
           {balance} {translate("credits")}
-          <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+          <CheckinBadge checkin={checkin} onClaim={onClaimCheckin} />
         </button>
       </div>
 
@@ -85,7 +85,7 @@ export function ChatConversation({
         >
           <Wallet className="h-3.5 w-3.5" />
           {balance} {translate("credits")}
-          <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+          <CheckinBadge checkin={checkin} onClaim={onClaimCheckin} />
         </button>
       </div>
 
