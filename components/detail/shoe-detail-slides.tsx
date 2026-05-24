@@ -551,51 +551,83 @@ function PerformanceSlide({
   active
 }: Props & { active: boolean }) {
   const { translate } = useLocale();
+
+  const dimensionCards: Array<{ label: string; field: keyof typeof shoe.spec; value: string | null | undefined }> = [
+    { label: "Cushioning feel", field: "cushioning_feel", value: shoe.spec.cushioning_feel },
+    { label: "Court feel", field: "court_feel", value: shoe.spec.court_feel },
+    { label: "Bounce", field: "bounce", value: shoe.spec.bounce },
+    { label: "Stability", field: "stability", value: shoe.spec.stability },
+    { label: "Traction", field: "traction", value: shoe.spec.traction },
+    { label: "Fit", field: "fit", value: shoe.spec.fit }
+  ];
+
   return (
     <div className={`flex h-full min-h-0 flex-row items-stretch gap-2 py-4 md:gap-4 md:py-6 ${slideEntranceClass(active)}`}>
-      <div className="flex min-h-0 w-1/2 flex-col gap-2 md:gap-3">
-        <Card className="flex min-h-0 flex-1 flex-col justify-center p-2.5 md:p-4">
-          <p className="text-[0.6rem] uppercase tracking-wide soft-text md:text-xs">
+      <div className="grid min-h-0 w-1/2 grid-cols-2 gap-1.5 overflow-hidden md:gap-2.5" style={{ gridAutoRows: "1fr" }}>
+        <Card className="flex min-h-0 flex-col justify-center p-2 md:p-3">
+          <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
             {translate("Forefoot midsole tech")}
           </p>
-          {shoe.spec.forefoot_midsole_tech ? (
-            <p data-field-key="forefoot_midsole_tech" className="mt-1 text-sm font-medium md:mt-2 md:text-base">
-              {shoe.spec.forefoot_midsole_tech}
-            </p>
-          ) : (
-            <p data-field-key="forefoot_midsole_tech" className="mt-1 text-sm font-medium md:mt-2 md:text-base">
-              {translate("Not yet added")}
-            </p>
-          )}
+          <p
+            data-field-key="forefoot_midsole_tech"
+            className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
+          >
+            {shoe.spec.forefoot_midsole_tech ?? translate("Not yet added")}
+          </p>
         </Card>
 
-        <Card className="flex min-h-0 flex-1 flex-col justify-center p-2.5 md:p-4">
-          <p className="text-[0.6rem] uppercase tracking-wide soft-text md:text-xs">
+        <Card className="flex min-h-0 flex-col justify-center p-2 md:p-3">
+          <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
             {translate("Heel midsole tech")}
           </p>
-          {shoe.spec.heel_midsole_tech ? (
-            <p data-field-key="heel_midsole_tech" className="mt-1 text-sm font-medium md:mt-2 md:text-base">
-              {shoe.spec.heel_midsole_tech}
-            </p>
-          ) : (
-            <p data-field-key="heel_midsole_tech" className="mt-1 text-sm font-medium md:mt-2 md:text-base">
-              {translate("Not yet added")}
-            </p>
-          )}
+          <p
+            data-field-key="heel_midsole_tech"
+            className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
+          >
+            {shoe.spec.heel_midsole_tech ?? translate("Not yet added")}
+          </p>
         </Card>
 
         {Object.entries(extraTechCards).map(([k, data]) => (
-          <Card key={k} className="flex min-h-0 flex-1 flex-col justify-center p-2.5 md:p-4">
-            <p className="text-[0.6rem] uppercase tracking-wide soft-text md:text-xs">{translate(k)}</p>
+          <Card key={k} className="flex min-h-0 flex-col justify-center p-2 md:p-3">
+            <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
+              {translate(k)}
+            </p>
             {data.value ? (
               <DynamicTranslatedText
                 as="p"
-                className="mt-1 text-sm font-medium md:mt-2 md:text-base"
+                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
                 text={data.value}
                 contentType="technology"
               />
             ) : (
-              <p data-field-key={data.field} className="mt-1 text-sm font-medium md:mt-2 md:text-base">
+              <p
+                data-field-key={data.field}
+                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
+              >
+                {translate("Not yet added")}
+              </p>
+            )}
+          </Card>
+        ))}
+
+        {dimensionCards.map((dim) => (
+          <Card key={dim.field} className="flex min-h-0 flex-col justify-center p-2 md:p-3">
+            <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
+              {translate(dim.label)}
+            </p>
+            {dim.value ? (
+              <DynamicTranslatedText
+                as="p"
+                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
+                text={dim.value}
+                contentType="descriptive"
+              />
+            ) : (
+              <p
+                data-field-key={dim.field}
+                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
+              >
                 {translate("Not yet added")}
               </p>
             )}
