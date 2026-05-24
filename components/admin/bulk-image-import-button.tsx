@@ -95,10 +95,10 @@ export function BulkImageImportButton() {
     const response = await fetch("/api/admin/shoes/images/bulk/tick", { method: "POST" });
     const json = await response.json();
     if (!response.ok || !json?.ok) throw new Error(json?.error ?? "Failed to update bulk image progress");
-    setStats(json?.stats ?? stats);
+    setStats((prev) => json?.stats ?? prev);
     setActiveJob(json?.job?.status === "running" || json?.job?.status === "cancel_requested" ? json.job : null);
-    setLatestJob(json?.job ?? latestJob);
-  }, [latestJob, stats]);
+    setLatestJob((prev) => json?.job ?? prev);
+  }, []);
 
   const isRunning = activeJob?.status === "running";
   const isStopping = activeJob?.status === "cancel_requested" || stopping;
