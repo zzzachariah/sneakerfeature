@@ -13,6 +13,7 @@ import {
   describePackyError
 } from "@/lib/ai/packy-client";
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
+import { isBochaConfigured } from "@/lib/ai/web-search";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw } from "@/lib/ai/types";
 import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/lib/star-rating";
@@ -178,6 +179,18 @@ export async function POST(request: Request) {
   if (charge === 0) {
     const r = result.recommendations.length;
     replyText += `（检索了 ${shoes.length} 双库内鞋款；AI 返回 ${r} 条建议${r > 0 ? "，但都没匹配到库内鞋款（名称对不上或型号未收录）" : ""}）`;
+    // Surface Bocha / search diagnostics into the reply itself — Vercel's
+    // function logs sometimes drop console.warn output, and zero-match cases
+    // are exactly when the operator needs to see what happened upstream.
+    const stats = result.searchStats;
+    const searchInfo = stats
+      ? `搜索 ${stats.attempts} 次（成功 ${stats.succeeded}）${
+          stats.failures.length
+            ? ` · 失败种类: ${Array.from(new Set(stats.failures.map((f) => f.kind))).join("/")}`
+            : ""
+        }`
+      : `tool loop 未触发（模型未调用任何工具）`;
+    replyText += `\n🔧 诊断: Bocha=${isBochaConfigured() ? "已配置" : "未配置"} · ${searchInfo}`;
     if (result.raw) replyText += `\nAI原文片段：${result.raw.slice(0, 300)}`;
   }
   if (usingDemo) {
