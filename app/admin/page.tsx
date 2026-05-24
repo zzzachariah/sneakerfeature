@@ -3,10 +3,11 @@ import Link from "next/link";
 import { LayoutDashboard, Settings2, Inbox, BookOpen } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { requireAdminPageContext } from "@/lib/admin/auth";
-import { isSmartPickerPublicEnabled } from "@/lib/admin/settings";
+import { getDailyCheckinCredits, isSmartPickerPublicEnabled, MAX_DAILY_CHECKIN_CREDITS } from "@/lib/admin/settings";
 import { Card } from "@/components/ui/card";
 import { BulkImageImportButton } from "@/components/admin/bulk-image-import-button";
 import { SmartPickerToggle } from "@/components/admin/smart-picker-toggle";
+import { DailyCheckinCreditsField } from "@/components/admin/daily-checkin-credits-field";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 export default async function AdminPage() {
@@ -20,7 +21,10 @@ export default async function AdminPage() {
       </>
     );
   }
-  const smartPickerPublic = await isSmartPickerPublicEnabled();
+  const [smartPickerPublic, dailyCheckinCredits] = await Promise.all([
+    isSmartPickerPublicEnabled(),
+    getDailyCheckinCredits()
+  ]);
 
   const [pending, publishedCount, recentSubmissions, recentPublished] = await Promise.all([
     supabase.from("user_submissions").select("id", { count: "exact", head: true }).in("status", ["pending", "normalized", "draft"]),
@@ -111,14 +115,20 @@ export default async function AdminPage() {
           <h2 className="text-base font-semibold">Site settings</h2>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.55)] p-3">
-            <p className="text-sm font-medium">Smart Picker access</p>
-            <p className="mt-1 text-xs soft-text">
-              Decide whether the AI Smart Picker (chat, recharge, payment flow) is visible to regular users.
-            </p>
-            <div className="mt-3">
-              <SmartPickerToggle initialEnabled={smartPickerPublic} />
+          <div className="space-y-3 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.55)] p-3">
+            <div>
+              <p className="text-sm font-medium">Smart Picker access</p>
+              <p className="mt-1 text-xs soft-text">
+                Decide whether the AI Smart Picker (chat, recharge, payment flow) is visible to regular users.
+              </p>
+              <div className="mt-3">
+                <SmartPickerToggle initialEnabled={smartPickerPublic} />
+              </div>
             </div>
+            <DailyCheckinCreditsField
+              initialCredits={dailyCheckinCredits}
+              maxCredits={MAX_DAILY_CHECKIN_CREDITS}
+            />
           </div>
 
           <div className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.55)] p-3">

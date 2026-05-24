@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getDailyCheckinCredits } from "@/lib/admin/settings";
 
-export const DAILY_CHECKIN_CREDITS = 3;
 export const DAILY_CHECKIN_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 export type CheckinStatus = {
@@ -10,8 +10,9 @@ export type CheckinStatus = {
 };
 
 export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
+  const dailyAmount = await getDailyCheckinCredits();
   const admin = createAdminClient();
-  if (!admin) return { canClaim: false, nextClaimAt: null, dailyAmount: DAILY_CHECKIN_CREDITS };
+  if (!admin) return { canClaim: false, nextClaimAt: null, dailyAmount };
 
   const { data } = await admin
     .from("ai_credits")
@@ -21,13 +22,13 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
 
   const lastClaim = data?.last_checkin_at ? new Date(data.last_checkin_at) : null;
   if (!lastClaim) {
-    return { canClaim: true, nextClaimAt: null, dailyAmount: DAILY_CHECKIN_CREDITS };
+    return { canClaim: true, nextClaimAt: null, dailyAmount };
   }
   const nextClaim = new Date(lastClaim.getTime() + DAILY_CHECKIN_INTERVAL_MS);
   if (nextClaim.getTime() <= Date.now()) {
-    return { canClaim: true, nextClaimAt: null, dailyAmount: DAILY_CHECKIN_CREDITS };
+    return { canClaim: true, nextClaimAt: null, dailyAmount };
   }
-  return { canClaim: false, nextClaimAt: nextClaim.toISOString(), dailyAmount: DAILY_CHECKIN_CREDITS };
+  return { canClaim: false, nextClaimAt: nextClaim.toISOString(), dailyAmount };
 }
 
 // Claim the daily bonus. Uses an optimistic-concurrency UPDATE so two
@@ -38,6 +39,8 @@ export async function claimDailyCheckin(
 ): Promise<{ ok: true; balance: number; credits: number } | { ok: false; nextClaimAt: string }> {
   const admin = createAdminClient();
   if (!admin) throw new Error("Service-role client unavailable");
+
+  const dailyAmount = await getDailyCheckinCredits();
 
   const { data: row } = await admin
     .from("ai_credits")
@@ -54,7 +57,16 @@ export async function claimDailyCheckin(
     };
   }
 
-  const newBalance = (row?.balance ?? 0) + DAILY_CHECKIN_CREDITS;
+  if (dailyAmount <= 0) {
+    // Daily check-in disabled by admin: treat as already-claimed for the full
+    // interval so the UI stays disabled until the admin re-enables it.
+    return {
+      ok: false,
+      nextClaimAt: new Date(now.getTime() + DAILY_CHECKIN_INTERVAL_MS).toISOString()
+    };
+  }
+
+  const newBalance = (row?.balance ?? 0) + dailyAmount;
   const nowIso = now.toISOString();
 
   if (row) {
@@ -90,11 +102,11 @@ export async function claimDailyCheckin(
 
   const { error: txError } = await admin
     .from("ai_credit_transactions")
-    .insert({ user_id: userId, delta: DAILY_CHECKIN_CREDITS, reason: "daily_checkin" });
+    .insert({ user_id: userId, delta: dailyAmount, reason: "daily_checkin" });
   if (txError) {
     console.error("[checkin] transaction log failed", txError);
     // Credit was granted; surface the success anyway.
   }
 
-  return { ok: true, balance: newBalance, credits: DAILY_CHECKIN_CREDITS };
+  return { ok: true, balance: newBalance, credits: dailyAmount };
 }
