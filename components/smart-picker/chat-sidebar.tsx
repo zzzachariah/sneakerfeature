@@ -124,6 +124,8 @@ export function ChatSidebar({
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
                         onKeyDown={(e) => {
+                          // Skip while a CJK IME is composing — Enter confirms the candidate, not the rename.
+                          if (e.nativeEvent.isComposing || e.keyCode === 229) return;
                           if (e.key === "Enter") commitRename(chat.id);
                           if (e.key === "Escape") setRenamingId(null);
                         }}

@@ -163,7 +163,15 @@ export async function POST(request: Request) {
     usingDemo,
     hasPersona: persona !== null,
     aiReturned: result.recommendations.length,
-    matched: charge
+    matched: charge,
+    search: result.searchStats
+      ? {
+          attempts: result.searchStats.attempts,
+          succeeded: result.searchStats.succeeded,
+          failed: result.searchStats.failures.length,
+          kinds: Array.from(new Set(result.searchStats.failures.map((f) => f.kind)))
+        }
+      : undefined
   });
 
   let replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
