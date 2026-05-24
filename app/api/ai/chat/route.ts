@@ -103,11 +103,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Failed to save message." }, { status: 500 });
   }
 
-  // Title the chat from the first user message.
-  if (!chat.title) {
-    await admin.from("ai_chats").update({ title: message.slice(0, 30), updated_at: new Date().toISOString() }).eq("id", chatId);
-  }
-
   let result;
   try {
     result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona });
@@ -203,7 +198,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Failed to save reply." }, { status: 500 });
   }
 
-  await admin.from("ai_chats").update({ updated_at: new Date().toISOString() }).eq("id", chatId);
+  // Title the chat on the first turn — prefer the AI-summarized title (returned
+  // alongside recommendations in the same call), fall back to a slice of the
+  // user message if the model omitted it.
+  const chatUpdate: Record<string, string> = { updated_at: new Date().toISOString() };
+  if (!chat.title) {
+    const aiTitle = result.title?.trim();
+    chatUpdate.title = (aiTitle && aiTitle.length > 0 ? aiTitle : message.trim()).slice(0, 30);
+  }
+  await admin.from("ai_chats").update(chatUpdate).eq("id", chatId);
 
   return NextResponse.json({
     ok: true,
