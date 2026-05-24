@@ -138,10 +138,14 @@ export async function POST(request: Request) {
       stars: blendedRecommendationStars(rec.stars, shoe.spec, focus),
       reason: rec.reason,
       pros: rec.pros,
-      cons: rec.cons
+      cons: rec.cons,
+      ...(rec.references && rec.references.length > 0 ? { references: rec.references } : {})
     });
   }
   matched.sort((a, b) => b.stars - a.stars);
+  // Hard-cap at `count` (the UI-selected number, single source of truth) — the
+  // AI is instructed to honor it but slice defensively so a misbehaving model
+  // can never bill the user for more than they asked.
   const validRaw: RecommendationRaw[] = matched.slice(0, count);
   const charge = validRaw.length;
 
