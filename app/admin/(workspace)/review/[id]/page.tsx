@@ -229,18 +229,6 @@ export default function AdminSubmissionDetailPage() {
             </>
           )}
         </div>
-        <div className="mt-2 text-xs soft-text">
-          Type: {submissionType === "correction" ? "Correction submission" : "New shoe submission"}
-          {submissionType === "correction" && (
-            <> • Target: {targetShoe?.brand} {targetShoe?.shoe_name} ({targetShoe?.id}) • Approval updates the existing published record.</>
-          )}
-        </div>
-        <div className="mt-2 text-xs soft-text">
-          Type: {submissionType === "correction" ? "Correction submission" : "New shoe submission"}
-          {submissionType === "correction" && (
-            <> • Target: {targetShoe?.brand} {targetShoe?.shoe_name} ({targetShoe?.id}) • Approval updates the existing published record.</>
-          )}
-        </div>
       </Card>
 
       {submissionType === "correction" && targetSnapshot && (

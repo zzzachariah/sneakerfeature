@@ -20,7 +20,12 @@ export async function GET(request: NextRequest) {
   if (brand !== "all") query = query.eq("brand", brand);
   if (state === "published") query = query.eq("is_published", true);
   if (state === "unpublished") query = query.eq("is_published", false);
-  if (q) query = query.or(`shoe_name.ilike.%${q}%,brand.ilike.%${q}%`);
+  if (q) {
+    // PostgREST .or() parses commas/parens/colons/asterisks as structural tokens,
+    // so strip them from user input before interpolating into the filter string.
+    const safe = q.replace(/[,()*:]/g, " ").trim();
+    if (safe) query = query.or(`shoe_name.ilike.%${safe}%,brand.ilike.%${safe}%`);
+  }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
