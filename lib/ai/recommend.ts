@@ -70,11 +70,23 @@ export type WebSearchStats = {
   failures: { kind: BochaErrorKind; detail: string; query: string }[];
 };
 
+// Why the tool loop exited without producing a usable RecommendResult.
+// Surfaced to route.ts so operators can tell "model never called a tool" from
+// "search worked but max iterations hit" etc.
+export type LoopExitReason =
+  | "success"
+  | "prose_no_tools"      // model returned content with no tool_calls
+  | "max_iterations"      // hit MAX_TOOL_ITERATIONS without finishing
+  | "no_search_no_recs"   // model called only recommend_shoes with bad args
+  | "no_choice_message"   // upstream returned no message at all
+  | "api_error";          // client.create threw
+
 export type RecommendResult = {
   reply: string;
   recommendations: ParsedRec[];
   raw?: string;
   searchStats?: WebSearchStats;
+  loopExitReason?: LoopExitReason;
 };
 
 const SYSTEM_PROMPT = `你是 SNKR Feature 的专业篮球鞋推荐顾问。你只能从下方「鞋款目录」(JSON 数组) 中挑选球鞋，绝不能编造目录里没有的鞋，也不要使用目录之外的网络知识。
@@ -96,10 +108,10 @@ const SYSTEM_PROMPT = `你是 SNKR Feature 的专业篮球鞋推荐顾问。你�
 
 【宁缺勿编】如果某项信息目录条目里没有，就用通用、模糊的描述（如"前掌缓震到位"、"抓地表现不错"、"鞋面包裹稳定"）代替，或者干脆不提；绝不要凭空给出一个具体的科技名称来填补空白。优点与缺点都必须基于目录里该鞋的真实数据。
 
-5. 【两步走的推荐流程 — 候选优先】
-   (a) 先从目录里挑出最多 N 双初步符合用户「本次要求」的候选鞋（N = 用户在界面上单独设定的数量，见规则 9）。
-   (b) 用 web_search 查这几双候选鞋的口碑、实测、用户穿着反馈、评测对比（每次对话最多调用 3 次，每次 query 应明确包含某一双或多双候选鞋的型号名）。根据网络反馈在这几双之间做差异化判断，并据此调整每双鞋的 stars。
-   (c) 最终输出 N 双；stars 必须反映你做过的网络调研——某双鞋如果网评一致差评则下调，一致好评且贴合用户需求则上调。
+5. 【推荐流程 — 候选优先 + 立即行动】
+   **你必须立即调用 web_search 或 recommend_shoes 工具，绝对不要在 reply/content 里先用自然语言描述你的计划、步骤、或"让我先做 X"。** 计划用工具调用来体现，不用文字。
+   - 还没做过 web_search 调研时：先调 web_search，query 必须包含 1-2 双你心中候选鞋的**具体型号名**，用于了解这些鞋的口碑/实测。
+   - 拿到足够的网络反馈（最多 3 次 web_search）后：调用 recommend_shoes 给出最终 N 双；stars 必须反映网络口碑（差评下调、好评上调）。
    注意：web_search **不是** 用来"补"目录里某双鞋的科技参数（目录是球鞋事实的唯一来源）；web_search **是** 用来查目录里没有的主观信息——口碑、实战感受、特定场景表现等。
 
 6. 【信息优先级】当网络结果与目录条目存在冲突时，永远以目录为准；网络内容仅用于补充背景常识与口碑。绝不能用网络上看到的科技名/数值去替换或"修正"目录里某双鞋的字段——这同样违反【严格的事实要求】。
@@ -348,47 +360,56 @@ const WEB_SEARCH_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
 const MAX_TOOL_ITERATIONS = 3;
 const MAX_SEARCH_RESULTS = 3;
 
+// What the loop returns to the caller — always includes stats and an exit
+// reason so the caller can attach them to whatever final RecommendResult comes
+// out (whether the loop produced it or a downstream fallback did).
+export type LoopOutcome = {
+  result: RecommendResult | null;
+  stats: WebSearchStats;
+  exitReason: LoopExitReason;
+};
+
 // Multi-turn tool loop: gives the model both `web_search` and `recommend_shoes`
-// and lets it decide. Returns null on any non-success path so the caller can
-// fall through to the existing prefill / plain-call strategies. The returned
-// RecommendResult carries a `searchStats` so route.ts can log how many web
-// searches were attempted and how many failed (with categorized error kinds).
+// and lets it decide. Iteration 0 uses `tool_choice: "required"` to prevent
+// the model from going into "narrate plan in prose" mode (a real failure case
+// we hit with Claude Haiku via PACKY relay); subsequent iterations use "auto"
+// so the model can either call web_search again or commit to recommend_shoes.
 async function tryToolLoopWithSearch(
   client: OpenAI,
   initialMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   base: { model: string; temperature: number; max_tokens: number }
-): Promise<RecommendResult | null> {
+): Promise<LoopOutcome> {
   const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [...initialMessages];
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
 
-  const finalize = (r: RecommendResult): RecommendResult => {
+  const finalize = (r: RecommendResult): LoopOutcome => {
     if (stats.attempts > 0) {
-      // Always log a one-line summary per request so operators can spot a bad
-      // key / outage trend in Vercel logs.
       console.warn("[web-search] summary", {
         attempts: stats.attempts,
         succeeded: stats.succeeded,
         failures: stats.failures.map((f) => ({ kind: f.kind, query: f.query.slice(0, 60) }))
       });
-      if (stats.attempts > 0 && stats.succeeded === 0) {
+      if (stats.succeeded === 0) {
         console.warn("[web-search] all attempts failed", {
-          // De-dup failure kinds for an at-a-glance signal of "key broken" vs "all timeout".
           kinds: Array.from(new Set(stats.failures.map((f) => f.kind))),
           firstDetail: stats.failures[0]?.detail.slice(0, 200)
         });
       }
     }
-    return { ...r, searchStats: stats };
+    return { result: { ...r, searchStats: stats, loopExitReason: "success" }, stats, exitReason: "success" };
   };
-  const finalizeNull = (): null => {
+  const bail = (exitReason: LoopExitReason): LoopOutcome => {
     if (stats.attempts > 0) {
       console.warn("[web-search] loop bailed out", {
         attempts: stats.attempts,
         succeeded: stats.succeeded,
-        failures: stats.failures.map((f) => f.kind)
+        failures: stats.failures.map((f) => f.kind),
+        exitReason
       });
+    } else {
+      console.warn("[web-search] loop bailed out", { attempts: 0, exitReason });
     }
-    return null;
+    return { result: null, stats, exitReason };
   };
 
   const okIfRecs = (text: string): RecommendResult | null => {
@@ -397,14 +418,20 @@ async function tryToolLoopWithSearch(
   };
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+    // First call must pick a tool — prevents the "I'll just narrate my plan"
+    // failure mode. Subsequent calls go back to "auto" so the model can stop
+    // searching and call recommend_shoes when it has enough info.
+    const toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
+      i === 0 ? "required" : "auto";
+
     const c = await client.chat.completions.create({
       ...base,
       messages: convo,
       tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL],
-      tool_choice: "auto"
+      tool_choice: toolChoice
     });
     const msg = c.choices?.[0]?.message;
-    if (!msg) return finalizeNull();
+    if (!msg) return bail("no_choice_message");
 
     const toolCalls = msg.tool_calls ?? [];
 
@@ -415,14 +442,14 @@ async function tryToolLoopWithSearch(
       if (r) return finalize(r);
     }
 
-    // No tool calls at all → model produced prose. Try to parse JSON from it; if
-    // that fails, bail so the caller's later strategies can run.
+    // No tool calls at all → model produced prose. Try to parse JSON from it;
+    // if that fails, bail so the caller's later strategies can run.
     if (toolCalls.length === 0) {
       if (typeof msg.content === "string") {
         const r = okIfRecs(msg.content);
         if (r) return finalize(r);
       }
-      return finalizeNull();
+      return bail("prose_no_tools");
     }
 
     // Service every web_search call; append the assistant turn (with tool_calls)
@@ -431,7 +458,6 @@ async function tryToolLoopWithSearch(
     let didSearch = false;
     for (const call of toolCalls) {
       if (call.function?.name === "recommend_shoes") {
-        // Already tried to parse above; if it failed, tell the model so.
         convo.push({
           role: "tool",
           tool_call_id: call.id,
@@ -461,8 +487,6 @@ async function tryToolLoopWithSearch(
       } else {
         stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
       }
-      // Pass a tagged error kind + human description to the model so it can
-      // adapt (e.g., "搜索超时了，按现有目录回答即可") instead of guessing.
       const payload = sr.ok
         ? { query: sr.query, results: sr.results }
         : { query: sr.query, error: sr.error, message: describeBochaError(sr.error, sr.detail), results: [] };
@@ -471,10 +495,9 @@ async function tryToolLoopWithSearch(
 
     // If the model only called recommend_shoes (bad args, no search) and we
     // haven't returned, give up so the caller falls through.
-    if (!didSearch && !recCall) return finalizeNull();
+    if (!didSearch && !recCall) return bail("no_search_no_recs");
   }
-  // Iteration cap exhausted.
-  return finalizeNull();
+  return bail("max_iterations");
 }
 
 // packyapi's relay behavior (tools / response_format support) is unknown, so we
@@ -494,6 +517,17 @@ async function getRecommendations(
   };
   // Prose seen from attempts that produced no JSON — salvaged at the end.
   const prose: string[] = [];
+  // Captures what happened in Strategy 2 even when it bails — we attach this
+  // to the final RecommendResult so route.ts can surface it as a diagnostic.
+  let loopStats: WebSearchStats | undefined;
+  let loopExitReason: LoopExitReason | undefined;
+  // Helper: every "return" below attaches loop metadata so the diagnostic
+  // information survives downstream fallbacks.
+  const withLoop = (r: RecommendResult): RecommendResult => ({
+    ...r,
+    searchStats: r.searchStats ?? loopStats,
+    loopExitReason: r.loopExitReason ?? loopExitReason
+  });
 
   // 1) JSON mode — the most widely supported OpenAI-compatible structured-output
   //    primitive; the prompt contains the word "JSON" + an example as required.
@@ -506,7 +540,7 @@ async function getRecommendations(
     const content = c.choices?.[0]?.message?.content;
     if (typeof content === "string") {
       const r = ok(content);
-      if (r) return r;
+      if (r) return withLoop(r);
       prose.push(content);
     }
   } catch {
@@ -520,8 +554,10 @@ async function getRecommendations(
   //    (identical to the legacy single-call behavior).
   try {
     if (isBochaConfigured()) {
-      const looped = await tryToolLoopWithSearch(client, messages, base);
-      if (looped) return looped;
+      const outcome = await tryToolLoopWithSearch(client, messages, base);
+      loopStats = outcome.stats;
+      loopExitReason = outcome.exitReason;
+      if (outcome.result) return outcome.result;
     } else {
       const c = await client.chat.completions.create({
         ...base,
@@ -540,7 +576,11 @@ async function getRecommendations(
         if (r) return r;
       }
     }
-  } catch {
+  } catch (err) {
+    if (isBochaConfigured()) {
+      loopExitReason = loopExitReason ?? "api_error";
+      console.warn("[ai/chat] tool loop threw", { msg: err instanceof Error ? err.message.slice(0, 200) : "unknown" });
+    }
     /* tools unsupported — try the next strategy */
   }
 
@@ -554,7 +594,7 @@ async function getRecommendations(
     const out = c.choices?.[0]?.message?.content;
     if (typeof out === "string") {
       const r = ok(prefill + out) ?? ok(out);
-      if (r) return r;
+      if (r) return withLoop(r);
     }
   } catch {
     /* prefill not accepted — try the next strategy */
@@ -570,17 +610,17 @@ async function getRecommendations(
     );
   }
   const parsed = parseResult(content);
-  if (parsed.recommendations.length) return { ...parsed, raw: content.slice(0, 600) };
+  if (parsed.recommendations.length) return withLoop({ ...parsed, raw: content.slice(0, 600) });
 
   // Salvage: the model answered in prose but may have named real catalog shoes.
   // Prefer the plain answer, then any prose seen from earlier strategies.
   for (const text of [content, ...prose]) {
     const recs = salvageFromProse(text, shoes);
     if (recs.length) {
-      return { reply: text.trim().slice(0, 500), recommendations: recs, raw: text.slice(0, 600) };
+      return withLoop({ reply: text.trim().slice(0, 500), recommendations: recs, raw: text.slice(0, 600) });
     }
   }
-  return { ...parsed, raw: content.slice(0, 600) };
+  return withLoop({ ...parsed, raw: content.slice(0, 600) });
 }
 
 export async function recommendShoes(
@@ -608,6 +648,7 @@ export async function recommendShoes(
       `【数量锁定】本次 N = ${opts.count}。必须严格推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 里也只能提 ${opts.count}。` +
       `按推荐指数从高到低排序。（唯一例外：目录里匹配良好的鞋款不足 ${opts.count} 双时可以少返回。）\n\n` +
       `推荐流程：(1) 从目录里挑出 ${opts.count} 双初步候选；(2) 用 web_search 查这些候选的口碑/实测（每次对话最多 3 次）；(3) 根据网络反馈给 stars 做差异化打分；(4) 把每双鞋引用过的网页 title/url 填到该鞋的 references 数组里。\n\n` +
+      `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 含具体鞋款名）。如果已经搜过：直接发 recommend_shoes。\n\n` +
       `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
       `{"reply":"…","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2"],"cons":["缺点1"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。`
   });

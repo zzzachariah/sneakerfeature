@@ -187,14 +187,26 @@ export async function POST(request: Request) {
     // function logs sometimes drop console.warn output, and zero-match cases
     // are exactly when the operator needs to see what happened upstream.
     const stats = result.searchStats;
-    const searchInfo = stats
-      ? `搜索 ${stats.attempts} 次（成功 ${stats.succeeded}）${
-          stats.failures.length
-            ? ` · 失败种类: ${Array.from(new Set(stats.failures.map((f) => f.kind))).join("/")}`
-            : ""
-        }`
-      : `tool loop 未触发（模型未调用任何工具）`;
-    replyText += `\n🔧 诊断: Bocha=${isBochaConfigured() ? "已配置" : "未配置"} · ${searchInfo}`;
+    const reasonZh: Record<string, string> = {
+      success: "工具调用成功但鞋名都没匹配上目录",
+      prose_no_tools: "模型只输出 prose，没调用任何工具（PACKY 转换问题或 prompt 没约束住）",
+      max_iterations: "搜索 3 次后仍未调用 recommend_shoes",
+      no_search_no_recs: "模型只调了 recommend_shoes 但参数无效",
+      no_choice_message: "上游响应里没有 message 字段（PACKY/Base URL 配错）",
+      api_error: "client.create 抛错（PACKY 拒绝了 tool_choice required 等）"
+    };
+    let searchInfo: string;
+    if (!isBochaConfigured()) {
+      searchInfo = "Bocha 未配置（BOCHA_API_KEY 缺失或未 redeploy）";
+    } else if (stats && stats.attempts > 0) {
+      searchInfo = `搜索 ${stats.attempts} 次（成功 ${stats.succeeded}）${
+        stats.failures.length ? ` · 失败: ${Array.from(new Set(stats.failures.map((f) => f.kind))).join("/")}` : ""
+      }`;
+    } else {
+      const reason = result.loopExitReason ?? "unknown";
+      searchInfo = `tool loop 退出: ${reason}${reasonZh[reason] ? `（${reasonZh[reason]}）` : ""}`;
+    }
+    replyText += `\n🔧 诊断: ${searchInfo}`;
     if (result.raw) replyText += `\nAI原文片段：${result.raw.slice(0, 300)}`;
   }
   if (usingDemo) {
