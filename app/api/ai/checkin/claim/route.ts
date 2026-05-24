@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSmartPickerContext } from "@/lib/ai/access";
 import { claimDailyCheckin, getCheckinStatus } from "@/lib/ai/checkin";
+import { getDailyCheckinCredits } from "@/lib/admin/settings";
 
 export async function POST() {
   const ctx = await getSmartPickerContext();
@@ -8,11 +9,12 @@ export async function POST() {
 
   const result = await claimDailyCheckin(ctx.userId);
   if (!result.ok) {
+    const dailyAmount = await getDailyCheckinCredits();
     return NextResponse.json(
       {
         ok: false,
         message: "Daily bonus already claimed.",
-        checkin: { canClaim: false, nextClaimAt: result.nextClaimAt, dailyAmount: 3 }
+        checkin: { canClaim: false, nextClaimAt: result.nextClaimAt, dailyAmount }
       },
       { status: 409 }
     );
