@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Route } from "next";
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -12,7 +13,7 @@ import {
 } from "lucide-react";
 
 type NavItem = {
-  href: string;
+  href: Route;
   label: string;
   icon: LucideIcon;
   match: (pathname: string) => boolean;
