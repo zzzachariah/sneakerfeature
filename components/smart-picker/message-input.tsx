@@ -33,6 +33,10 @@ export function MessageInput({ balance, sending, onSend, onOpenRecharge }: Props
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // While a CJK IME is composing a character, Enter confirms the candidate —
+    // it must NOT submit. `isComposing` covers modern browsers; keyCode 229 is
+    // the legacy WebKit/IE signal for the same state.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       submit();
