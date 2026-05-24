@@ -16,6 +16,7 @@ type Props = {
   sending: boolean;
   balance: number;
   checkin: CheckinStatus;
+  activeTitle: string | null;
   onClaimCheckin: () => Promise<void>;
   onSend: (message: string, count: number) => void;
   onOpenRecharge: () => void;
@@ -28,6 +29,7 @@ export function ChatConversation({
   sending,
   balance,
   checkin,
+  activeTitle,
   onClaimCheckin,
   onSend,
   onOpenRecharge,
@@ -43,6 +45,7 @@ export function ChatConversation({
   }, [messages, sending]);
 
   const isEmpty = !loadingMessages && messages.length === 0;
+  const headerTitle = activeTitle?.trim() || translate("Smart Picker");
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -52,14 +55,15 @@ export function ChatConversation({
           type="button"
           onClick={onOpenSidebar}
           aria-label={translate("Conversations")}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-[rgb(var(--text)/0.08)]"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-[rgb(var(--text)/0.08)]"
         >
           <Menu className="h-5 w-5" />
         </button>
+        <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
         <button
           type="button"
           onClick={onOpenRecharge}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium"
         >
           <Wallet className="h-3.5 w-3.5" />
           {balance} {translate("credits")}
@@ -69,13 +73,13 @@ export function ChatConversation({
 
       {/* Desktop header */}
       <div className="hidden items-center justify-between gap-3 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-6 py-3 md:flex">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)]">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)]">
             <Sparkles className="h-4 w-4 text-[rgb(var(--subtext))]" />
           </span>
-          <div className="leading-tight">
-            <h1 className="text-sm font-semibold tracking-[-0.01em]">{translate("Smart Picker")}</h1>
-            <p className="text-[0.7rem] soft-text">{translate("AI shoe recommendations from our database")}</p>
+          <div className="min-w-0 leading-tight">
+            <h1 className="truncate text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
+            <p className="truncate text-[0.7rem] soft-text">{translate("AI shoe recommendations from our database")}</p>
           </div>
         </div>
         <button

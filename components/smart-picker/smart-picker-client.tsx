@@ -225,6 +225,7 @@ export function SmartPickerClient() {
         sending={sending}
         balance={balance}
         checkin={checkin}
+        activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
         onClaimCheckin={handleClaimCheckin}
         onSend={handleSend}
         onOpenRecharge={() => setRechargeOpen(true)}
