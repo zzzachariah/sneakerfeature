@@ -20,12 +20,62 @@ export type WebSearchHit = {
   datePublished: string | null;
 };
 
+// Tagged error categories so callers/operators can tell "wrong key" from "no
+// results" from "timeout" at a glance. `detail` holds the upstream `msg` /
+// status / error string for diagnostics.
+export type BochaErrorKind =
+  | "missing_api_key"
+  | "empty_query"
+  | "auth"          // HTTP 401 / 403 — bad or revoked key
+  | "rate_limited"  // HTTP 429
+  | "upstream"      // HTTP 5xx / non-200 `code`
+  | "network"       // fetch threw (DNS, refused, etc.)
+  | "timeout"
+  | "parse"
+  | "no_results"
+  | "unknown";
+
 export type WebSearchResult =
   | { ok: true; query: string; results: WebSearchHit[] }
-  | { ok: false; query: string; error: string };
+  | { ok: false; query: string; error: BochaErrorKind; detail: string };
 
 export function isBochaConfigured(): boolean {
   return Boolean(process.env[BOCHA_API_KEY_NAME]?.trim());
+}
+
+// Human-readable Chinese explanation for a Bocha error — used in server logs
+// and admin-facing diagnostic strings. Mirrors describePackyError shape.
+export function describeBochaError(kind: BochaErrorKind, detail?: string): string {
+  const tail = detail ? `（${detail}）` : "";
+  switch (kind) {
+    case "missing_api_key":
+      return `Bocha 未配置：环境变量 ${BOCHA_API_KEY_NAME} 缺失或为空${tail}`;
+    case "empty_query":
+      return `Bocha 调用时 query 为空${tail}`;
+    case "auth":
+      return `Bocha 鉴权失败，请检查 ${BOCHA_API_KEY_NAME} 是否正确、是否已激活${tail}`;
+    case "rate_limited":
+      return `Bocha 触发限流，稍后重试${tail}`;
+    case "upstream":
+      return `Bocha 服务端错误${tail}`;
+    case "network":
+      return `Bocha 网络异常${tail}`;
+    case "timeout":
+      return `Bocha 请求超时${tail}`;
+    case "parse":
+      return `Bocha 返回内容解析失败${tail}`;
+    case "no_results":
+      return `Bocha 未返回任何结果${tail}`;
+    default:
+      return `Bocha 未知错误${tail}`;
+  }
+}
+
+function categorizeHttpStatus(status: number): BochaErrorKind {
+  if (status === 401 || status === 403) return "auth";
+  if (status === 429) return "rate_limited";
+  if (status >= 500) return "upstream";
+  return "upstream"; // 4xx other than auth/429 — still an upstream protocol error
 }
 
 function trimSnippet(text: unknown): string {
@@ -53,10 +103,13 @@ export async function bochaWebSearch(
   opts?: { count?: number; freshness?: string; timeoutMs?: number; signal?: AbortSignal }
 ): Promise<WebSearchResult> {
   const apiKey = process.env[BOCHA_API_KEY_NAME]?.trim();
-  if (!apiKey) return { ok: false, query, error: "missing_api_key" };
+  if (!apiKey) {
+    console.warn("[web-search] missing_api_key", { hint: `set env ${BOCHA_API_KEY_NAME}` });
+    return { ok: false, query, error: "missing_api_key", detail: BOCHA_API_KEY_NAME };
+  }
 
   const q = (query ?? "").trim();
-  if (!q) return { ok: false, query: q, error: "empty_query" };
+  if (!q) return { ok: false, query: q, error: "empty_query", detail: "" };
 
   const count = Math.max(1, Math.min(3, opts?.count ?? 3));
   const freshness = opts?.freshness ?? "noLimit";
@@ -79,20 +132,43 @@ export async function bochaWebSearch(
     });
 
     if (!res.ok) {
-      console.warn("[web-search] http error", { query: q, status: res.status });
-      return { ok: false, query: q, error: `HTTP ${res.status}` };
+      // Best-effort read upstream body for the operator log — Bocha returns
+      // `{ code, msg }` shape on errors too. Truncate so a giant HTML error
+      // page can't blow up logs.
+      const rawMsg = (await res.text().catch(() => "")).slice(0, 300);
+      const kind = categorizeHttpStatus(res.status);
+      const detail = `HTTP ${res.status}${rawMsg ? ` — ${rawMsg}` : ""}`;
+      console.warn("[web-search] http error", { query: q, status: res.status, kind, msg: rawMsg.slice(0, 120) });
+      return { ok: false, query: q, error: kind, detail };
     }
 
-    const body = (await res.json()) as { code?: number; msg?: string; data?: { webPages?: { value?: BochaItem[] } } };
+    let body: { code?: number; msg?: string; data?: { webPages?: { value?: BochaItem[] } } };
+    try {
+      body = await res.json();
+    } catch (parseErr) {
+      const detail = parseErr instanceof Error ? parseErr.message.slice(0, 200) : "non-JSON response";
+      console.warn("[web-search] parse error", { query: q, detail });
+      return { ok: false, query: q, error: "parse", detail };
+    }
 
     if (typeof body.code === "number" && body.code !== 200) {
-      console.warn("[web-search] api error", { query: q, code: body.code });
-      return { ok: false, query: q, error: `code ${body.code}` };
+      const upstreamMsg = (body.msg ?? "").slice(0, 300);
+      // Bocha sometimes signals auth via `code` instead of HTTP status.
+      const kind: BochaErrorKind =
+        body.code === 401 || body.code === 403
+          ? "auth"
+          : body.code === 429
+            ? "rate_limited"
+            : "upstream";
+      const detail = `code ${body.code}${upstreamMsg ? ` — ${upstreamMsg}` : ""}`;
+      console.warn("[web-search] api error", { query: q, code: body.code, kind, msg: upstreamMsg.slice(0, 120) });
+      return { ok: false, query: q, error: kind, detail };
     }
 
     const items = body.data?.webPages?.value ?? [];
     if (!Array.isArray(items) || items.length === 0) {
-      return { ok: false, query: q, error: "no_results" };
+      console.warn("[web-search] no_results", { query: q });
+      return { ok: false, query: q, error: "no_results", detail: "" };
     }
 
     const results: WebSearchHit[] = items.slice(0, count).map((item) => ({
@@ -105,9 +181,11 @@ export async function bochaWebSearch(
 
     return { ok: true, query: q, results };
   } catch (error) {
-    const reason = error instanceof Error ? (error.name === "AbortError" ? "timeout" : error.message.slice(0, 200)) : "unknown";
-    console.warn("[web-search] failed", { query: q, reason });
-    return { ok: false, query: q, error: reason };
+    const isAbort = error instanceof Error && error.name === "AbortError";
+    const kind: BochaErrorKind = isAbort ? "timeout" : "network";
+    const detail = error instanceof Error ? error.message.slice(0, 200) : "unknown";
+    console.warn("[web-search] failed", { query: q, kind, detail });
+    return { ok: false, query: q, error: kind, detail };
   } finally {
     clearTimeout(timeoutId);
     if (opts?.signal) opts.signal.removeEventListener("abort", onCallerAbort);

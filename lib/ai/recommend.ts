@@ -7,7 +7,7 @@ import { dimScores } from "@/lib/star-rating";
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
 import { normalizeSearchText, normalizeCompactText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { PACKY_MODEL } from "@/lib/ai/packy-client";
-import { bochaWebSearch, isBochaConfigured } from "@/lib/ai/web-search";
+import { bochaWebSearch, describeBochaError, isBochaConfigured, type BochaErrorKind } from "@/lib/ai/web-search";
 
 // Six performance axes for a shoe, mirroring the detail page's radar.
 function buildRadarAxes(spec: ShoeSpec): RecRadarAxis[] {
@@ -36,10 +36,17 @@ function coerceStringArray(value: unknown, max: number): string[] {
     .slice(0, max);
 }
 
+export type WebSearchStats = {
+  attempts: number;
+  succeeded: number;
+  failures: { kind: BochaErrorKind; detail: string; query: string }[];
+};
+
 export type RecommendResult = {
   reply: string;
   recommendations: ParsedRec[];
   raw?: string;
+  searchStats?: WebSearchStats;
 };
 
 const SYSTEM_PROMPT = `你是 SNKR Feature 的专业篮球鞋推荐顾问。你只能从下方「鞋款目录」(JSON 数组) 中挑选球鞋，绝不能编造目录里没有的鞋，也不要使用目录之外的网络知识。
@@ -291,13 +298,47 @@ const MAX_SEARCH_RESULTS = 3;
 
 // Multi-turn tool loop: gives the model both `web_search` and `recommend_shoes`
 // and lets it decide. Returns null on any non-success path so the caller can
-// fall through to the existing prefill / plain-call strategies.
+// fall through to the existing prefill / plain-call strategies. The returned
+// RecommendResult carries a `searchStats` so route.ts can log how many web
+// searches were attempted and how many failed (with categorized error kinds).
 async function tryToolLoopWithSearch(
   client: OpenAI,
   initialMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   base: { model: string; temperature: number; max_tokens: number }
 ): Promise<RecommendResult | null> {
   const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [...initialMessages];
+  const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
+
+  const finalize = (r: RecommendResult): RecommendResult => {
+    if (stats.attempts > 0) {
+      // Always log a one-line summary per request so operators can spot a bad
+      // key / outage trend in Vercel logs.
+      console.warn("[web-search] summary", {
+        attempts: stats.attempts,
+        succeeded: stats.succeeded,
+        failures: stats.failures.map((f) => ({ kind: f.kind, query: f.query.slice(0, 60) }))
+      });
+      if (stats.attempts > 0 && stats.succeeded === 0) {
+        console.warn("[web-search] all attempts failed", {
+          // De-dup failure kinds for an at-a-glance signal of "key broken" vs "all timeout".
+          kinds: Array.from(new Set(stats.failures.map((f) => f.kind))),
+          firstDetail: stats.failures[0]?.detail.slice(0, 200)
+        });
+      }
+    }
+    return { ...r, searchStats: stats };
+  };
+  const finalizeNull = (): null => {
+    if (stats.attempts > 0) {
+      console.warn("[web-search] loop bailed out", {
+        attempts: stats.attempts,
+        succeeded: stats.succeeded,
+        failures: stats.failures.map((f) => f.kind)
+      });
+    }
+    return null;
+  };
+
   const okIfRecs = (text: string): RecommendResult | null => {
     const r = parseResult(text);
     return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
@@ -311,7 +352,7 @@ async function tryToolLoopWithSearch(
       tool_choice: "auto"
     });
     const msg = c.choices?.[0]?.message;
-    if (!msg) return null;
+    if (!msg) return finalizeNull();
 
     const toolCalls = msg.tool_calls ?? [];
 
@@ -319,7 +360,7 @@ async function tryToolLoopWithSearch(
     const recCall = toolCalls.find((t) => t.function?.name === "recommend_shoes");
     if (recCall?.function?.arguments) {
       const r = okIfRecs(recCall.function.arguments);
-      if (r) return r;
+      if (r) return finalize(r);
     }
 
     // No tool calls at all → model produced prose. Try to parse JSON from it; if
@@ -327,9 +368,9 @@ async function tryToolLoopWithSearch(
     if (toolCalls.length === 0) {
       if (typeof msg.content === "string") {
         const r = okIfRecs(msg.content);
-        if (r) return r;
+        if (r) return finalize(r);
       }
-      return null;
+      return finalizeNull();
     }
 
     // Service every web_search call; append the assistant turn (with tool_calls)
@@ -362,18 +403,26 @@ async function tryToolLoopWithSearch(
       }
       const sr = await bochaWebSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
       didSearch = true;
+      stats.attempts += 1;
+      if (sr.ok) {
+        stats.succeeded += 1;
+      } else {
+        stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
+      }
+      // Pass a tagged error kind + human description to the model so it can
+      // adapt (e.g., "搜索超时了，按现有目录回答即可") instead of guessing.
       const payload = sr.ok
         ? { query: sr.query, results: sr.results }
-        : { query: sr.query, error: sr.error, results: [] };
+        : { query: sr.query, error: sr.error, message: describeBochaError(sr.error, sr.detail), results: [] };
       convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(payload) });
     }
 
     // If the model only called recommend_shoes (bad args, no search) and we
     // haven't returned, give up so the caller falls through.
-    if (!didSearch && !recCall) return null;
+    if (!didSearch && !recCall) return finalizeNull();
   }
   // Iteration cap exhausted.
-  return null;
+  return finalizeNull();
 }
 
 // packyapi's relay behavior (tools / response_format support) is unknown, so we
