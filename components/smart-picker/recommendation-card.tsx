@@ -85,7 +85,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: 
 
           <div className="mt-1.5 flex items-center gap-1.5">
             <span className="text-[0.7rem] uppercase tracking-[0.12em] soft-text">{translate("Recommendation")}</span>
-            <StarRating value={rec.stars} size="sm" showNumber />
+            <StarRating value={rec.stars} size="sm" />
           </div>
 
           {rec.reason && <p className="mt-2 text-[0.82rem] leading-snug">{rec.reason}</p>}
