@@ -99,6 +99,30 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: 
         </div>
       )}
 
+      {rec.references && rec.references.length > 0 && (
+        <div className="mt-2.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-2.5">
+          <p className="mb-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] soft-text">
+            {translate("References")}
+          </p>
+          <ul className="space-y-1">
+            {rec.references.map((ref, i) => (
+              <li key={i} className="flex gap-1.5 text-[0.74rem] leading-snug">
+                <span className="shrink-0 soft-text">[{i + 1}]</span>
+                <a
+                  href={ref.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 truncate text-[rgb(var(--text))] underline-offset-2 hover:underline"
+                  title={ref.url}
+                >
+                  {ref.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {rec.radar.length > 0 && (
         <div className="mt-2.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 pb-3 pt-2.5">
           <p className="mb-1 text-center text-[0.62rem] font-semibold uppercase tracking-[0.18em] soft-text">
