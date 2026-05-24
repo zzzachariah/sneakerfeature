@@ -298,6 +298,19 @@ export function RecommendationReportCard({
                     )}
                   </div>
                 )}
+                {rec.references && rec.references.length > 0 && (
+                  <div style={{ marginTop: 5, fontSize: 12, lineHeight: 1.4 }}>
+                    <span style={{ fontWeight: 700, color: "rgb(var(--subtext))" }}>{translate("References")}: </span>
+                    <span style={{ color: "rgb(var(--text))" }}>
+                      {rec.references.map((ref, ri) => (
+                        <span key={ri}>
+                          {ri > 0 && " · "}
+                          [{ri + 1}] {ref.title}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ))}

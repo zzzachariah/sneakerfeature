@@ -669,6 +669,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "download report": "下载报告",
   "pros": "优点",
   "cons": "缺点",
+  "references": "参考资料",
   "recommendation": "推荐指数",
   "request": "本次需求",
   "recommendation report": "智能选鞋推荐报告",

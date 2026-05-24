@@ -5,12 +5,20 @@ export type AiChatSummary = {
   updated_at: string;
 };
 
+export type WebReference = {
+  title: string;
+  url: string;
+};
+
 export type RecommendationRaw = {
   shoe_id: string;
   stars: number;
   reason: string;
   pros: string[];
   cons: string[];
+  // Web pages the AI consulted for this specific shoe (via web_search). Empty
+  // or absent when no web research was done.
+  references?: WebReference[];
 };
 
 // Six-dimension radar point. Structurally compatible with the detail
