@@ -1,10 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
+import { ClipboardCheck } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 export default async function AdminReviewPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdminPageContext();
@@ -49,9 +51,14 @@ export default async function AdminReviewPage({ searchParams }: { searchParams: 
 
   return (
     <div className="space-y-4">
+      <AdminPageHeader
+        title="Submission review"
+        description="Triage user submissions by status, brand, submitter, and date range."
+        icon={ClipboardCheck}
+      />
+
       <Card className="p-4">
-        <h2 className="text-base font-semibold">Submission list</h2>
-        <p className="mt-1 text-sm soft-text">Filter by status, brand, submitter, and date range to triage moderation quickly.</p>
+        <h2 className="text-base font-semibold">Filters</h2>
         <form className="mt-4 grid gap-2 md:grid-cols-6" method="GET">
           <Input name="q" placeholder="Search shoe name" defaultValue={q} className="md:col-span-2" />
           <select name="status" defaultValue={status} className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm">
