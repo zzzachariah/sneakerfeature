@@ -15,11 +15,11 @@ type Props = {
   loadingMessages: boolean;
   sending: boolean;
   balance: number;
+  unlimited: boolean;
   checkin: CheckinStatus;
   activeTitle: string | null;
   onClaimCheckin: () => Promise<void>;
   onSend: (message: string, count: number) => void;
-  onOpenRecharge: () => void;
   onOpenSidebar: () => void;
 };
 
@@ -28,11 +28,11 @@ export function ChatConversation({
   loadingMessages,
   sending,
   balance,
+  unlimited,
   checkin,
   activeTitle,
   onClaimCheckin,
   onSend,
-  onOpenRecharge,
   onOpenSidebar
 }: Props) {
   const { translate } = useLocale();
@@ -60,15 +60,11 @@ export function ChatConversation({
           <Menu className="h-5 w-5" />
         </button>
         <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
-        <button
-          type="button"
-          onClick={onOpenRecharge}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium"
-        >
+        <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
           <Wallet className="h-3.5 w-3.5" />
-          {balance} {translate("credits")}
+          {unlimited ? "∞" : balance} {translate("credits")}
           <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
-        </button>
+        </div>
       </div>
 
       {/* Desktop header */}
@@ -82,15 +78,11 @@ export function ChatConversation({
             <p className="truncate text-[0.7rem] soft-text">{translate("AI shoe recommendations from our database")}</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={onOpenRecharge}
-          className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)]"
-        >
+        <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
           <Wallet className="h-3.5 w-3.5" />
-          {balance} {translate("credits")}
+          {unlimited ? "∞" : balance} {translate("credits")}
           <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
-        </button>
+        </div>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 md:px-6">
@@ -158,7 +150,7 @@ export function ChatConversation({
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
-        <MessageInput balance={balance} sending={sending} onSend={onSend} onOpenRecharge={onOpenRecharge} />
+        <MessageInput balance={balance} unlimited={unlimited} sending={sending} onSend={onSend} />
       </div>
 
       <CardPreviewModal

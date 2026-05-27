@@ -44,7 +44,7 @@ export function SmartPickerToggle({ initialEnabled }: Props) {
         <div>
           <p className="text-sm font-semibold">Smart Picker — public access</p>
           <p className="mt-1 text-xs soft-text">
-            When ON, every logged-in user can open the Smart Picker, recharge, and chat with the AI.
+            When ON, every logged-in user can open the Smart Picker and chat with the AI.
             When OFF, only admins can use it (regular users see the &ldquo;Under development&rdquo; placeholder).
           </p>
           <p className="mt-2 text-xs">

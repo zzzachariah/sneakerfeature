@@ -53,8 +53,9 @@ export async function POST(request: Request) {
 
   // Balance pre-check: refuse before spending anything if it can't cover the
   // requested count (count is chosen up front, so this is deterministic).
+  // Admins have unlimited credits — never pre-checked and never charged below.
   const balance = await getBalance(ctx.userId);
-  if (balance < count) {
+  if (!ctx.isAdmin && balance < count) {
     return NextResponse.json({ ok: true, insufficient: true, balance, needed: count });
   }
 
@@ -122,6 +123,13 @@ export async function POST(request: Request) {
   // Resolve each AI-provided name to a catalog shoe; de-duplicate. Recompute the
   // star as a strict 1-5 blend of the AI's star and a preference-weighted spec
   // score, then sort by that blended star and cap at the paid count.
+  // Only surface references backed by a real, successful web search in the SAME
+  // turn that produced this answer. The loop stamps loopExitReason "success"
+  // only when it produced the result with live search results in context; any
+  // other path (bailed loop → JSON-mode fallback, no search, or failed search)
+  // means the model invented the URLs from memory, so drop them.
+  const refsTrustworthy =
+    result.loopExitReason === "success" && (result.searchStats?.succeeded ?? 0) > 0;
   const seen = new Set<string>();
   const matched: RecommendationRaw[] = [];
   for (const rec of result.recommendations) {
@@ -134,7 +142,7 @@ export async function POST(request: Request) {
       reason: rec.reason,
       pros: rec.pros,
       cons: rec.cons,
-      ...(rec.references && rec.references.length > 0 ? { references: rec.references } : {})
+      ...(refsTrustworthy && rec.references && rec.references.length > 0 ? { references: rec.references } : {})
     });
   }
   matched.sort((a, b) => b.stars - a.stars);
@@ -144,9 +152,9 @@ export async function POST(request: Request) {
   const validRaw: RecommendationRaw[] = matched.slice(0, count);
   const charge = validRaw.length;
 
-  // Charge only for shoes actually recommended.
+  // Charge only for shoes actually recommended. Admins are never charged.
   let newBalance = balance;
-  if (charge > 0) {
+  if (!ctx.isAdmin && charge > 0) {
     try {
       newBalance = await deductCredits(ctx.userId, charge);
     } catch (error) {
@@ -188,7 +196,7 @@ export async function POST(request: Request) {
       max_iterations: "搜索 3 次后仍未调用 recommend_shoes",
       no_search_no_recs: "模型只调了 recommend_shoes 但参数无效",
       no_choice_message: "上游响应里没有 message 字段（PACKY/Base URL 配错）",
-      api_error: "client.create 抛错（PACKY 拒绝了 tool_choice required 等）"
+      api_error: "client.create 抛错（PACKY 拒绝了 tool_choice/web_search 等）"
     };
     let searchInfo: string;
     if (!isBochaConfigured()) {
@@ -215,7 +223,7 @@ export async function POST(request: Request) {
       role: "assistant",
       content: replyText,
       recommendations: validRaw.length ? validRaw : null,
-      credits_charged: charge
+      credits_charged: ctx.isAdmin ? 0 : charge
     })
     .select("id, role, content, recommendations, credits_charged, created_at")
     .single();
@@ -245,6 +253,7 @@ export async function POST(request: Request) {
       recommendations: enrichRecommendations(validRaw, byId)
     },
     balance: newBalance,
+    unlimited: ctx.isAdmin,
     charge
   });
 }

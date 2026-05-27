@@ -17,9 +17,8 @@ export function CheckinBadge({ canClaim, dailyAmount, onClaim, size = "sm" }: Pr
 
   const handleClick = useCallback(
     async (e: React.MouseEvent) => {
-      // The badge is often rendered inside a button (e.g., the "Open recharge"
-      // wallet button) — stop propagation so the click doesn't also trigger
-      // that outer action.
+      // The badge sits inside the balance display; stop propagation so a click
+      // on the coin can't bubble to any surrounding interactive element.
       e.stopPropagation();
       e.preventDefault();
       if (busy) return;
