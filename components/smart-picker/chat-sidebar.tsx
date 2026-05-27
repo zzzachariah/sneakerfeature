@@ -15,9 +15,9 @@ type Props = {
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
   balance: number;
+  unlimited: boolean;
   checkin: CheckinStatus;
   onClaimCheckin: () => Promise<void>;
-  onOpenRecharge: () => void;
   onClose?: () => void;
 };
 
@@ -45,9 +45,9 @@ export function ChatSidebar({
   onRename,
   onDelete,
   balance,
+  unlimited,
   checkin,
   onClaimCheckin,
-  onOpenRecharge,
   onClose
 }: Props) {
   const { translate } = useLocale();
@@ -198,20 +198,16 @@ export function ChatSidebar({
       </div>
 
       <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.4)] p-3">
-        <button
-          type="button"
-          onClick={onOpenRecharge}
-          className="flex w-full items-center justify-between rounded-xl bg-[rgb(var(--text)/0.05)] px-3 py-2.5 transition hover:bg-[rgb(var(--text)/0.09)]"
-        >
+        <div className="flex w-full items-center justify-between rounded-xl bg-[rgb(var(--text)/0.05)] px-3 py-2.5">
           <span className="inline-flex items-center gap-1.5 text-sm soft-text">
             <Wallet className="h-4 w-4" />
             {translate("Balance")}
           </span>
           <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
-            {balance} {translate("credits")}
+            {unlimited ? "∞" : balance} {translate("credits")}
             <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
           </span>
-        </button>
+        </div>
       </div>
     </div>
   );

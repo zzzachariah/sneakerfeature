@@ -8,5 +8,5 @@ export async function GET() {
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
   const [balance, checkin] = await Promise.all([getBalance(ctx.userId), getCheckinStatus(ctx.userId)]);
-  return NextResponse.json({ ok: true, balance, checkin });
+  return NextResponse.json({ ok: true, balance, unlimited: ctx.isAdmin, checkin });
 }

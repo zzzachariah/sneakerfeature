@@ -119,7 +119,7 @@ export default async function AdminPage() {
             <div>
               <p className="text-sm font-medium">Smart Picker access</p>
               <p className="mt-1 text-xs soft-text">
-                Decide whether the AI Smart Picker (chat, recharge, payment flow) is visible to regular users.
+                Decide whether the AI Smart Picker (chat) is visible to regular users.
               </p>
               <div className="mt-3">
                 <SmartPickerToggle initialEnabled={smartPickerPublic} />

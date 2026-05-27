@@ -53,8 +53,9 @@ export async function POST(request: Request) {
 
   // Balance pre-check: refuse before spending anything if it can't cover the
   // requested count (count is chosen up front, so this is deterministic).
+  // Admins have unlimited credits — never pre-checked and never charged below.
   const balance = await getBalance(ctx.userId);
-  if (balance < count) {
+  if (!ctx.isAdmin && balance < count) {
     return NextResponse.json({ ok: true, insufficient: true, balance, needed: count });
   }
 
@@ -151,9 +152,9 @@ export async function POST(request: Request) {
   const validRaw: RecommendationRaw[] = matched.slice(0, count);
   const charge = validRaw.length;
 
-  // Charge only for shoes actually recommended.
+  // Charge only for shoes actually recommended. Admins are never charged.
   let newBalance = balance;
-  if (charge > 0) {
+  if (!ctx.isAdmin && charge > 0) {
     try {
       newBalance = await deductCredits(ctx.userId, charge);
     } catch (error) {
@@ -222,7 +223,7 @@ export async function POST(request: Request) {
       role: "assistant",
       content: replyText,
       recommendations: validRaw.length ? validRaw : null,
-      credits_charged: charge
+      credits_charged: ctx.isAdmin ? 0 : charge
     })
     .select("id, role, content, recommendations, credits_charged, created_at")
     .single();
@@ -252,6 +253,7 @@ export async function POST(request: Request) {
       recommendations: enrichRecommendations(validRaw, byId)
     },
     balance: newBalance,
+    unlimited: ctx.isAdmin,
     charge
   });
 }

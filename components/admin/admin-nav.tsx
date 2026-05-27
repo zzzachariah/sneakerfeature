@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   ClipboardCheck,
   Library,
-  Receipt,
   Wallet,
   type LucideIcon
 } from "lucide-react";
@@ -56,12 +55,6 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Operations",
     items: [
-      {
-        href: "/admin/payments",
-        label: "Payment orders",
-        icon: Receipt,
-        match: (p) => p.startsWith("/admin/payments")
-      },
       {
         href: "/admin/credits",
         label: "Credits & balances",

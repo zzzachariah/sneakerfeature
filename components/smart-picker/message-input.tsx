@@ -7,27 +7,24 @@ import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
 
 type Props = {
   balance: number;
+  unlimited: boolean;
   sending: boolean;
   onSend: (message: string, count: number) => void;
-  onOpenRecharge: () => void;
 };
 
-export function MessageInput({ balance, sending, onSend, onOpenRecharge }: Props) {
+export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
   const [count, setCount] = useState(1);
 
-  const insufficient = balance < count;
+  const insufficient = !unlimited && balance < count;
   const canSend = text.trim().length > 0 && !sending;
 
   const adjust = (delta: number) => setCount((c) => Math.min(MAX_RECOMMENDATIONS, Math.max(1, c + delta)));
 
   const submit = () => {
     if (!canSend) return;
-    if (insufficient) {
-      onOpenRecharge();
-      return;
-    }
+    if (insufficient) return;
     onSend(text.trim(), count);
     setText("");
   };
@@ -97,14 +94,11 @@ export function MessageInput({ balance, sending, onSend, onOpenRecharge }: Props
       <div className="mt-1.5 px-1 text-[0.72rem] soft-text">
         {insufficient ? (
           <span className="text-[rgb(var(--error))]">
-            {translate("Insufficient balance")} ({translate("Balance")} {balance} {translate("credits")}).{" "}
-            <button type="button" onClick={onOpenRecharge} className="font-semibold underline">
-              {translate("Go recharge")}
-            </button>
+            {translate("Insufficient balance")} ({translate("Balance")} {balance} {translate("credits")}).
           </span>
         ) : (
           <span>
-            {translate("This will use")} {count} {translate("credits")} · {translate("Balance")} {balance} {translate("credits")}
+            {translate("This will use")} {count} {translate("credits")} · {translate("Balance")} {unlimited ? "∞" : balance} {translate("credits")}
           </span>
         )}
       </div>

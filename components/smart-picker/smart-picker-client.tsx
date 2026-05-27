@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
-import { RechargeModal } from "@/components/smart-picker/recharge-modal";
 import type { AiChatMessage, AiChatSummary } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 
@@ -26,7 +25,7 @@ export function SmartPickerClient() {
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
-  const [rechargeOpen, setRechargeOpen] = useState(false);
+  const [unlimited, setUnlimited] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Initial load: chats + balance.
@@ -39,6 +38,7 @@ export function SmartPickerClient() {
       }
       if (creditsRes?.ok) {
         setBalance(creditsRes.balance);
+        setUnlimited(Boolean(creditsRes.unlimited));
         if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
       }
     })();
@@ -102,8 +102,6 @@ export function SmartPickerClient() {
     });
   }, []);
 
-  const handleBalance = useCallback((next: number) => setBalance(next), []);
-
   const handleClaimCheckin = useCallback(async () => {
     const res = await getJson("/api/ai/checkin/claim", { method: "POST" });
     if (res?.ok) {
@@ -150,9 +148,18 @@ export function SmartPickerClient() {
       setSending(false);
 
       if (res?.ok && res.insufficient) {
-        setMessages((prev) => prev.filter((m) => m.id !== tempUser.id));
         setBalance(res.balance);
-        setRechargeOpen(true);
+        setMessages((prev) => [
+          ...prev.filter((m) => m.id !== tempUser.id),
+          {
+            id: `err-${Date.now()}`,
+            role: "assistant",
+            content: `积分不足（当前余额 ${res.balance}）。每日签到可领取免费积分。`,
+            recommendations: null,
+            credits_charged: 0,
+            created_at: new Date().toISOString()
+          }
+        ]);
         return;
       }
       if (res?.ok && res.assistantMessage) {
@@ -189,9 +196,9 @@ export function SmartPickerClient() {
           onRename={handleRename}
           onDelete={handleDelete}
           balance={balance}
+          unlimited={unlimited}
           checkin={checkin}
           onClaimCheckin={handleClaimCheckin}
-          onOpenRecharge={() => setRechargeOpen(true)}
         />
       </aside>
 
@@ -207,12 +214,9 @@ export function SmartPickerClient() {
               onRename={handleRename}
               onDelete={handleDelete}
               balance={balance}
+              unlimited={unlimited}
               checkin={checkin}
               onClaimCheckin={handleClaimCheckin}
-              onOpenRecharge={() => {
-                setSidebarOpen(false);
-                setRechargeOpen(true);
-              }}
               onClose={() => setSidebarOpen(false)}
             />
           </div>
@@ -224,21 +228,12 @@ export function SmartPickerClient() {
         loadingMessages={loadingMessages}
         sending={sending}
         balance={balance}
+        unlimited={unlimited}
         checkin={checkin}
         activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
         onClaimCheckin={handleClaimCheckin}
         onSend={handleSend}
-        onOpenRecharge={() => setRechargeOpen(true)}
         onOpenSidebar={() => setSidebarOpen(true)}
-      />
-
-      <RechargeModal
-        open={rechargeOpen}
-        onClose={() => setRechargeOpen(false)}
-        balance={balance}
-        onBalance={handleBalance}
-        checkin={checkin}
-        onClaimCheckin={handleClaimCheckin}
       />
     </div>
   );
