@@ -122,6 +122,13 @@ export async function POST(request: Request) {
   // Resolve each AI-provided name to a catalog shoe; de-duplicate. Recompute the
   // star as a strict 1-5 blend of the AI's star and a preference-weighted spec
   // score, then sort by that blended star and cap at the paid count.
+  // Only surface references backed by a real, successful web search in the SAME
+  // turn that produced this answer. The loop stamps loopExitReason "success"
+  // only when it produced the result with live search results in context; any
+  // other path (bailed loop → JSON-mode fallback, no search, or failed search)
+  // means the model invented the URLs from memory, so drop them.
+  const refsTrustworthy =
+    result.loopExitReason === "success" && (result.searchStats?.succeeded ?? 0) > 0;
   const seen = new Set<string>();
   const matched: RecommendationRaw[] = [];
   for (const rec of result.recommendations) {
@@ -134,7 +141,7 @@ export async function POST(request: Request) {
       reason: rec.reason,
       pros: rec.pros,
       cons: rec.cons,
-      ...(rec.references && rec.references.length > 0 ? { references: rec.references } : {})
+      ...(refsTrustworthy && rec.references && rec.references.length > 0 ? { references: rec.references } : {})
     });
   }
   matched.sort((a, b) => b.stars - a.stars);
@@ -188,7 +195,7 @@ export async function POST(request: Request) {
       max_iterations: "搜索 3 次后仍未调用 recommend_shoes",
       no_search_no_recs: "模型只调了 recommend_shoes 但参数无效",
       no_choice_message: "上游响应里没有 message 字段（PACKY/Base URL 配错）",
-      api_error: "client.create 抛错（PACKY 拒绝了 tool_choice required 等）"
+      api_error: "client.create 抛错（PACKY 拒绝了 tool_choice/web_search 等）"
     };
     let searchInfo: string;
     if (!isBochaConfigured()) {
