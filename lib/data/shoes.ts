@@ -1,7 +1,9 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { getCurrentProfile } from "@/lib/data/auth";
 import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
@@ -19,7 +21,14 @@ import {
 
 type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
 type ShoeStory = NonNullable<Shoe["story"]>;
-type ShoeStoryRow = ShoeStory & { shoe_id: string };
+type ShoeStoryRow = {
+  shoe_id: string;
+  title?: string | null;
+  content?: string | null;
+  source_label?: string | null;
+  source_url?: string | null;
+  created_at?: string | null;
+};
 type ShoeQueryRow = ShoeRow & { story: ShoeStory | null };
 export type ShoeImageState = {
   approved: ShoeImageRecord | null;
@@ -67,6 +76,38 @@ function resolveApprovedImage(images?: ShoeImageRecord[] | null) {
     .sort((a, b) => new Date(b.approved_at ?? b.created_at).getTime() - new Date(a.approved_at ?? a.created_at).getTime())[0] ?? null;
 }
 
+function normalizeStory(row: ShoeStoryRow): ShoeStory {
+  return {
+    title: row.title ?? null,
+    content: row.content ?? null,
+    source_label: row.source_label ?? null,
+    source_url: row.source_url ?? null
+  };
+}
+
+// Use select("*") instead of naming columns: a deployed shoe_stories table
+// that is missing the optional source_label/source_url columns would make a
+// column-named select fail the whole query (so title/content never load and
+// the detail page falls back to "No editorial story yet"). Ordering is done
+// in JS so the query has no dependency on a created_at column either.
+async function fetchStoryRows(client: SupabaseClient) {
+  return client.from("shoe_stories").select("*");
+}
+
+function buildStoryMap(rows: ShoeStoryRow[]): Map<string, ShoeStory> {
+  const sorted = [...rows].sort((a, b) => {
+    const at = a.created_at ? Date.parse(a.created_at) : 0;
+    const bt = b.created_at ? Date.parse(b.created_at) : 0;
+    return bt - at;
+  });
+  const storyByShoeId = new Map<string, ShoeStory>();
+  for (const row of sorted) {
+    if (!row.shoe_id || storyByShoeId.has(row.shoe_id)) continue;
+    storyByShoeId.set(row.shoe_id, normalizeStory(row));
+  }
+  return storyByShoeId;
+}
+
 async function loadShoesBase(): Promise<ShoesBase | null> {
   const supabase = createPublicClient();
   if (!supabase) {
@@ -85,10 +126,7 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
     supabase
       .from("shoe_ratings")
       .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit"),
-    supabase
-      .from("shoe_stories")
-      .select("shoe_id, title, content, source_label, source_url")
-      .order("created_at", { ascending: false })
+    fetchStoryRows(supabase)
   ]);
 
   if (shoesRes.error) {
@@ -96,16 +134,29 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
     return null;
   }
   if (!shoesRes.data?.length) return null;
+
+  let storyRows = (storiesRes.data ?? null) as ShoeStoryRow[] | null;
   if (storiesRes.error) {
     console.error("[getShoesBase] shoe_stories fetch failed", storiesRes.error);
   }
 
-  const storyByShoeId = new Map<string, ShoeStory>();
-  for (const row of (storiesRes.data ?? []) as ShoeStoryRow[]) {
-    if (storyByShoeId.has(row.shoe_id)) continue;
-    const { shoe_id, ...story } = row;
-    storyByShoeId.set(shoe_id, story);
+  // shoe_stories is public data, but the anon read can come back empty when a
+  // restrictive RLS policy hides the table. Retry server-side with the
+  // service-role client before giving up so manually inserted stories surface.
+  if (!storyRows?.length) {
+    const adminClient = createAdminClient();
+    if (adminClient) {
+      const retry = await fetchStoryRows(adminClient);
+      if (retry.error) {
+        console.error("[getShoesBase] shoe_stories service-role retry failed", retry.error);
+      } else if (retry.data?.length) {
+        console.warn("[getShoesBase] shoe_stories empty via public client; used service-role fallback");
+        storyRows = retry.data as ShoeStoryRow[];
+      }
+    }
   }
+
+  const storyByShoeId = buildStoryMap(storyRows ?? []);
 
   const rows: ShoeQueryRow[] = (shoesRes.data as Array<ShoeRow & { id: string }>).map((row) => ({
     ...row,
@@ -126,7 +177,7 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v2"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v3"], {
   tags: ["shoes"],
   revalidate: 300
 });
