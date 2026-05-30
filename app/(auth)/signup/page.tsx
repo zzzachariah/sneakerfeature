@@ -98,6 +98,7 @@ export default function SignupPage() {
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [gateOpen, setGateOpen] = useState(true);
+  const [agreed, setAgreed] = useState(false);
   const tilt = useTiltHandlers();
   const router = useRouter();
   const pathname = usePathname();
@@ -136,6 +137,12 @@ export default function SignupPage() {
       if (!turnstileToken) {
         setError(true);
         setMessage("Please complete verification before signing up.");
+        return;
+      }
+
+      if (!agreed) {
+        setError(true);
+        setMessage("Please agree to the Terms of Use and Privacy Policy.");
         return;
       }
 
@@ -254,7 +261,7 @@ export default function SignupPage() {
 
           <motion.div variants={fadeUp}>
             <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: 0.18, ease }}>
-              <Button type="submit" className="shimmer-on-hover group h-11 w-full text-[0.95rem]" disabled={submitting}>
+              <Button type="submit" className="shimmer-on-hover group h-11 w-full text-[0.95rem]" disabled={submitting || !agreed}>
                 <span className="relative z-10 inline-flex items-center gap-2">
                   {submitting ? translate("Creating account...") : translate("Create account")}
                   {!submitting && (
@@ -290,33 +297,42 @@ export default function SignupPage() {
             )}
           </AnimatePresence>
 
-          <motion.p variants={fadeUp} className="text-xs leading-relaxed soft-text">
-            {locale === "zh" ? (
-              <>
-                注册即表示你已阅读并同意我们的{" "}
-                <Link href="/terms" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
-                  服务条款
-                </Link>{" "}
-                和{" "}
-                <Link href="/privacy" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
-                  隐私政策
-                </Link>
-                。
-              </>
-            ) : (
-              <>
-                By creating an account, you agree to our{" "}
-                <Link href="/terms" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
-                  Terms of Use
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
-                  Privacy Policy
-                </Link>
-                .
-              </>
-            )}
-          </motion.p>
+          <motion.div variants={fadeUp}>
+            <label className="flex items-start gap-2.5 text-xs leading-relaxed soft-text">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[rgb(var(--accent))]"
+                aria-label={translate("I have read and agree to the Terms of Use and Privacy Policy")}
+              />
+              <span>
+                {locale === "zh" ? (
+                  <>
+                    我已阅读并同意{" "}
+                    <Link href="/terms" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                      服务条款
+                    </Link>{" "}
+                    和{" "}
+                    <Link href="/privacy" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                      隐私政策
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    I have read and agree to the{" "}
+                    <Link href="/terms" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                      Terms of Use
+                    </Link>{" "}
+                    and{" "}
+                    <Link href="/privacy" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                      Privacy Policy
+                    </Link>
+                  </>
+                )}
+              </span>
+            </label>
+          </motion.div>
 
           <motion.p variants={fadeUp} className="pt-1 text-xs soft-text">
             {translate("Already have an account?")}{" "}

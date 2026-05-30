@@ -13,7 +13,7 @@ import type { Locale } from "@/components/i18n/locale-provider";
  *
  * NOTE: These are plain-language templates that reflect how the app actually works.
  * They are not legal advice; have them reviewed by a lawyer before relying on them.
- * Placeholders to replace before launch: [Jurisdiction].
+ * Governing-law jurisdiction is set to the People's Republic of China.
  */
 
 export type LegalSection = {
@@ -160,7 +160,7 @@ export const TERMS: BilingualLegalDoc = {
         heading: "14. Changes & Governing Law",
         paragraphs: [
           `We may update these Terms from time to time. We will reflect changes by updating the "Last updated" date, and your continued use of the Service after changes take effect means you accept them.`,
-          `These Terms are governed by the laws of [Jurisdiction], without regard to conflict-of-laws rules. If any provision is found unenforceable, the remaining provisions stay in effect.`,
+          `These Terms are governed by the laws of the People's Republic of China, without regard to conflict-of-laws rules. If any provision is found unenforceable, the remaining provisions stay in effect.`,
         ],
       },
     ],
@@ -285,7 +285,7 @@ export const TERMS: BilingualLegalDoc = {
         heading: "14. 条款变更与适用法律",
         paragraphs: [
           `我们可不时更新本条款。变更将通过更新"最后更新"日期体现；在变更生效后你继续使用本服务，即表示接受变更。`,
-          `本条款受 [Jurisdiction] 法律管辖，不考虑其法律冲突规则。若任何条款被认定为不可执行，其余条款仍然有效。`,
+          `本条款受中华人民共和国法律管辖，不考虑其法律冲突规则。若任何条款被认定为不可执行，其余条款仍然有效。`,
         ],
       },
     ],
@@ -343,7 +343,7 @@ export const PRIVACY: BilingualLegalDoc = {
         id: "cookies",
         heading: "4. Cookies & Sessions",
         paragraphs: [
-          `We use cookies and similar technologies that are necessary to keep you signed in (authentication session cookies from our auth provider) and, where enabled, analytics cookies. Your language preference is stored locally in your browser. You can control cookies through your browser settings, but some features may not work without essential cookies.`,
+          `We use cookies and similar technologies that are necessary to keep you signed in (authentication session cookies from our auth provider) and, where enabled, analytics cookies. Your language preference is stored locally in your browser. You can control cookies through your browser settings, but some features may not work without essential cookies. For non-essential analytics cookies (such as Google Analytics), we ask for your consent first via a cookie banner, and you can change your choice using the "Cookie settings" link in the footer.`,
         ],
       },
       {
@@ -474,7 +474,7 @@ export const PRIVACY: BilingualLegalDoc = {
         id: "cookies",
         heading: "4. Cookie 与会话",
         paragraphs: [
-          `我们使用为保持登录所必需的 Cookie 及类似技术（来自身份验证服务商的会话 Cookie），并在启用时使用分析类 Cookie。你的语言偏好保存在你浏览器的本地存储中。你可以通过浏览器设置管理 Cookie，但若禁用必要 Cookie，部分功能可能无法正常使用。`,
+          `我们使用为保持登录所必需的 Cookie 及类似技术（来自身份验证服务商的会话 Cookie），并在启用时使用分析类 Cookie。你的语言偏好保存在你浏览器的本地存储中。你可以通过浏览器设置管理 Cookie，但若禁用必要 Cookie，部分功能可能无法正常使用。对于非必要的分析类 Cookie（如 Google Analytics），我们会先通过 Cookie 横幅征得你的同意；你也可以通过页脚的"Cookie 设置"链接随时更改选择。`,
         ],
       },
       {

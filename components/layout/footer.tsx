@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useCookieConsent } from "@/components/consent/cookie-consent";
 import { CONTACT_EMAIL } from "@/lib/legal/content";
 
 /**
@@ -16,6 +17,7 @@ import { CONTACT_EMAIL } from "@/lib/legal/content";
  */
 export function Footer() {
   const { locale } = useLocale();
+  const { reopen } = useCookieConsent();
   const zh = locale === "zh";
 
   const links = [
@@ -52,6 +54,9 @@ export function Footer() {
           <a href={`mailto:${CONTACT_EMAIL}`} className={linkClass}>
             {zh ? "联系" : "Contact"}
           </a>
+          <button type="button" onClick={reopen} className={`${linkClass} cursor-pointer`}>
+            {zh ? "Cookie 设置" : "Cookie settings"}
+          </button>
         </nav>
       </div>
     </footer>
