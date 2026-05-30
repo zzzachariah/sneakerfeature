@@ -6,6 +6,6 @@ export function createPublicClient() {
   if (!url || !key) return null;
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { headers: { "x-snkr-source": "public-cache" } }
+    global: { headers: { "x-sneaker-source": "public-cache" } }
   });
 }

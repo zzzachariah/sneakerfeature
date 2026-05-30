@@ -5,7 +5,7 @@ import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
 const MAX_SHOES = 5;
 
-const title = "Compare basketball shoes | SNKR Feature";
+const title = "Compare basketball shoes | Sneaker Feature";
 const description = "Data-driven basketball shoe specs & comparisons.";
 
 export const metadata: Metadata = {

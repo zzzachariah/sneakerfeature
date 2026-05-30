@@ -31,7 +31,7 @@ type CachedRole = { username: string | null; isAdmin: boolean };
 function readCachedRole(userId: string): CachedRole | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(`snkr-role:${userId}`);
+    const raw = window.sessionStorage.getItem(`sneaker-role:${userId}`);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedRole;
     if (typeof parsed?.isAdmin !== "boolean") return null;
@@ -44,7 +44,7 @@ function readCachedRole(userId: string): CachedRole | null {
 function writeCachedRole(userId: string, role: CachedRole) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(`snkr-role:${userId}`, JSON.stringify(role));
+    window.sessionStorage.setItem(`sneaker-role:${userId}`, JSON.stringify(role));
   } catch {
     /* ignore */
   }

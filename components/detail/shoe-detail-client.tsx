@@ -231,7 +231,7 @@ export function ShoeDetailClient({
       {!isLoggedIn ? (
         <div className="pointer-events-none fixed right-5 top-[84px] z-30 max-w-[min(22rem,calc(100vw-40px))]">
           <div className="pointer-events-auto rounded-2xl border border-red-500/50 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-200 shadow-[0_10px_32px_rgb(var(--shadow)/0.25)] backdrop-blur-[10px]">
-            {translate("Log in or sign up for the full SNKR Feature experience.")}
+            {translate("Log in or sign up for the full Sneaker Feature experience.")}
           </div>
         </div>
       ) : null}
