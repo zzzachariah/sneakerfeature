@@ -21,7 +21,7 @@ export type TutorialStep = {
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
-    title: "Welcome to snkrfeature",
+    title: "Welcome to sneakerfeature",
     body: "Personalized basketball sneaker recommendations. Let me show you around in under a minute.",
     placement: "center"
   },
@@ -148,7 +148,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "trigger",
     selector: "[data-tutorial='nav-tutorial']",
     title: "Want a refresher?",
-    body: "Re-open this tour anytime from this icon in the navbar. Enjoy snkrfeature.",
+    body: "Re-open this tour anytime from this icon in the navbar. Enjoy sneakerfeature.",
     placement: "bottom",
     shape: "circle",
     padding: 6

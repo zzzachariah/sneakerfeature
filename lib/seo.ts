@@ -1,4 +1,4 @@
-export const SITE_URL = "https://snkrfeature.com";
+export const SITE_URL = "https://sneakerfeature.com";
 export const DEFAULT_OG_IMAGE_URL = `${SITE_URL}/icon.ico`;
 export const SITE_NAME = "SNKR Feature";
 

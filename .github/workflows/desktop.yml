@@ -32,7 +32,7 @@ jobs:
         run: npx electron-builder --publish=never
       - uses: actions/upload-artifact@v4
         with:
-          name: snkrfeature-${{ matrix.os }}
+          name: sneakerfeature-${{ matrix.os }}
           path: |
             electron/dist/*.dmg
             electron/dist/*.exe

@@ -70,7 +70,7 @@ export function Navbar() {
           href="/"
           className="max-w-[6.5rem] truncate text-[0.88rem] font-bold tracking-[-0.02em] sm:max-w-[9.5rem] sm:text-[0.9rem] md:max-w-none"
         >
-          snkrfeature
+          sneakerfeature
         </Link>
 
         <nav

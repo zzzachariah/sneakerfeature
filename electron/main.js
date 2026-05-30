@@ -1,7 +1,7 @@
 const { app, BrowserWindow, shell, Menu } = require("electron");
 const path = require("path");
 
-const SITE_URL = process.env.SNKRFEATURE_URL || "https://snkrfeature.com";
+const SITE_URL = process.env.SNEAKERFEATURE_URL || "https://sneakerfeature.com";
 const SITE_ORIGIN = new URL(SITE_URL).origin;
 const IS_DEV = process.env.ELECTRON_DEV === "1";
 
@@ -12,7 +12,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     backgroundColor: "#0a0a0a",
-    title: "snkrfeature",
+    title: "sneakerfeature",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -29,7 +29,7 @@ function createWindow() {
     .getUserAgent()
     .replace(/\sElectron\/\S+/i, "")
     .replace(new RegExp(`\\s${app.getName()}\\/\\S+`, "i"), "");
-  win.webContents.setUserAgent(`${baseUa} snkrfeature-desktop/${app.getVersion()}`);
+  win.webContents.setUserAgent(`${baseUa} sneakerfeature-desktop/${app.getVersion()}`);
 
   win.webContents.setWindowOpenHandler(({ url }) => {
     try {

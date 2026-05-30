@@ -1,4 +1,4 @@
--- snkrfeature initial schema
+-- sneakerfeature initial schema
 create extension if not exists pgcrypto;
 
 create table if not exists profiles (

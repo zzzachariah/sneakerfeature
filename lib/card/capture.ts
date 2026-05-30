@@ -79,6 +79,6 @@ export function safeFilename(parts: Array<string | null | undefined>, ext = "png
     .filter(Boolean)
     .map((p) => p.replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, ""))
     .filter(Boolean);
-  const base = cleaned.length > 0 ? cleaned.join("-") : "snkrfeature-card";
+  const base = cleaned.length > 0 ? cleaned.join("-") : "sneakerfeature-card";
   return `${base}.${ext}`;
 }

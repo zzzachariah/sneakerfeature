@@ -73,10 +73,10 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
   }, [open]);
 
   const filename = useMemo(() => {
-    if (!mode) return "snkrfeature-card.png";
-    if (mode.kind === "single") return safeFilename(["snkrfeature", mode.shoe.slug]);
-    if (mode.kind === "report") return safeFilename(["snkrfeature", "picks", ...mode.recommendations.slice(0, 5).map((r) => r.slug)]);
-    return safeFilename(["snkrfeature", "compare", ...mode.shoes.map((s) => s.slug)]);
+    if (!mode) return "sneakerfeature-card.png";
+    if (mode.kind === "single") return safeFilename(["sneakerfeature", mode.shoe.slug]);
+    if (mode.kind === "report") return safeFilename(["sneakerfeature", "picks", ...mode.recommendations.slice(0, 5).map((r) => r.slug)]);
+    return safeFilename(["sneakerfeature", "compare", ...mode.shoes.map((s) => s.slug)]);
   }, [mode]);
 
   async function handleDownload() {

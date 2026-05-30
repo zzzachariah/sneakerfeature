@@ -142,7 +142,7 @@ function CardHeader({ variant }: { variant: "single" | "compare" }) {
             color: "rgb(var(--text))",
           }}
         >
-          snkrfeature
+          sneakerfeature
         </span>
       </div>
       <span
@@ -188,7 +188,7 @@ function CardFooter() {
               color: "rgb(var(--subtext))",
             }}
           >
-            snkrfeature.com
+            sneakerfeature.com
           </span>
           <span
             style={{
