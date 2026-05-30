@@ -7,6 +7,9 @@ function isPublicPath(pathname: string) {
     pathname === "/robots.txt" ||
     pathname === "/compare" ||
     pathname === "/search/advanced" ||
+    pathname === "/terms" ||
+    pathname === "/privacy" ||
+    pathname === "/disclaimer" ||
     pathname.startsWith("/shoes/")
   );
 }
