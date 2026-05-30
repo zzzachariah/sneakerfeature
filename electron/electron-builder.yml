@@ -1,6 +1,6 @@
-appId: com.snkrfeature.desktop
-productName: snkrfeature
-copyright: Copyright (c) 2026 snkrfeature
+appId: com.sneakerfeature.desktop
+productName: sneakerfeature
+copyright: Copyright (c) 2026 sneakerfeature
 directories:
   output: dist
   buildResources: build

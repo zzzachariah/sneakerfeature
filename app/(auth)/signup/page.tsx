@@ -195,8 +195,8 @@ export default function SignupPage() {
 
       <AuthShell
         eyebrow="new account"
-        heading="Build your shelf on snkrfeature."
-        accentWord="snkrfeature"
+        heading="Build your shelf on sneakerfeature."
+        accentWord="sneakerfeature"
         subheading="Create an account to submit shoe data, keep your saved compares, and join on-court discussions."
       >
         <motion.form

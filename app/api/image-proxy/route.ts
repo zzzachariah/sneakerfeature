@@ -12,8 +12,8 @@ function allowlistedHosts(): Set<string> {
       // ignore malformed env
     }
   }
-  hosts.add("snkrfeature.com");
-  hosts.add("www.snkrfeature.com");
+  hosts.add("sneakerfeature.com");
+  hosts.add("www.sneakerfeature.com");
   return hosts;
 }
 

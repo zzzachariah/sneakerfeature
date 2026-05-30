@@ -25,7 +25,7 @@ export function RequiredReadingGate({ onContinue }: { onContinue: () => void }) 
           <div className="surface-card premium-border w-full max-w-2xl rounded-3xl p-5 shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)] md:p-6">
             <div className="border-b border-[rgb(var(--muted)/0.35)] pb-4">
               <h2 className="text-2xl font-semibold tracking-[0.015em] md:text-3xl">{translate("Welcome!")}</h2>
-              <p className="mt-1 text-sm soft-text">{translate("Story behind snkrfeature")}</p>
+              <p className="mt-1 text-sm soft-text">{translate("Story behind sneakerfeature")}</p>
               <p className="mt-2 text-xs soft-text">By zzz</p>
             </div>
 
@@ -34,7 +34,7 @@ export function RequiredReadingGate({ onContinue }: { onContinue: () => void }) 
                 The idea of a platform with information on sneakers has been with me for a year. Back then, AI coding was not yet a well-developed field. Therefore, since I know absolutely nothing about coding (a bit now, I suppose), I quit. The development of technology enabled me to turn the initial idea into reality.
               </p>
               <p>
-                I always spend tons of time choosing which sneaker to purchase. YouTube channels and blogs tend to have biased opinions on a shoe. Moreover, the technologies each brand presents vary in their names, function, and appeal to players. snkrfeature is designed to show unbiased information in the hope of saving you some time when deciding which shoe to purchase, and to make a purchase that fits best with your preference and taste.
+                I always spend tons of time choosing which sneaker to purchase. YouTube channels and blogs tend to have biased opinions on a shoe. Moreover, the technologies each brand presents vary in their names, function, and appeal to players. sneakerfeature is designed to show unbiased information in the hope of saving you some time when deciding which shoe to purchase, and to make a purchase that fits best with your preference and taste.
               </p>
               <p>
                 As a high school student, I am new to both building a website from scratch and maintaining a community. If you have any advice or would like to join as an admin (review shoe uploads) or developer, please feel free to go to the bottom of any page and press &quot;contact&quot;. At the same time, please do not attack or post offensive comments that attack others(you can say a sneaker is shit, though)

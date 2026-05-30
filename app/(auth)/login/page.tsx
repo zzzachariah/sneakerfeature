@@ -185,8 +185,8 @@ export default function LoginPage() {
   return (
     <AuthShell
       eyebrow="account"
-      heading="Welcome back to snkrfeature."
-      accentWord="snkrfeature"
+      heading="Welcome back to sneakerfeature."
+      accentWord="sneakerfeature"
       subheading="Sign in to write reviews, save compares, and keep your index synced across devices."
     >
       <motion.form

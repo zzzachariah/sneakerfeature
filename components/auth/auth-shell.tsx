@@ -57,7 +57,7 @@ export function AuthShell({
 
           <div className="mt-4 flex items-center gap-5">
             <div className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.55)] p-5 backdrop-blur-md">
-              <SneakerLoader label="snkrfeature" />
+              <SneakerLoader label="sneakerfeature" />
             </div>
             <div className="space-y-1">
               <p className="auth-eyebrow">{translate("live")}</p>

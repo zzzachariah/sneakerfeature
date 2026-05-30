@@ -1,14 +1,14 @@
-# 👟 snkrfeature
+# 👟 sneakerfeature
 
 > A better way to explore, compare, and understand basketball shoes.
 
 ---
 
-## 🧠 What Is snkrfeature?
+## 🧠 What Is sneakerfeature?
 
-**snkrfeature** is a basketball sneaker information platform designed to **collect, organize, and present detailed sneaker data in one place**.
+**sneakerfeature** is a basketball sneaker information platform designed to **collect, organize, and present detailed sneaker data in one place**.
 
-Instead of jumping across YouTube reviews, blogs, and brand pages, snkrfeature provides a **clear, structured, and unbiased view** of each shoe — helping you make smarter decisions faster.
+Instead of jumping across YouTube reviews, blogs, and brand pages, sneakerfeature provides a **clear, structured, and unbiased view** of each shoe — helping you make smarter decisions faster.
 
 ---
 
@@ -21,7 +21,7 @@ Yet:
 - Tech names vary across brands and are **hard to compare**
 - Information is **fragmented across platforms**
 
-So I built **snkrfeature** — a platform where you can find **everything about one shoe, in one place**.
+So I built **sneakerfeature** — a platform where you can find **everything about one shoe, in one place**.
 
 ---
 
@@ -54,7 +54,7 @@ Compare across eras, brands, and design philosophies — all in one place.
 
 ## 🎯 Clean Design, Powerful Features
 
-snkrfeature focuses on both **aesthetic clarity** and **functional depth**:
+sneakerfeature focuses on both **aesthetic clarity** and **functional depth**:
 
 - 🧼 Clean, premium UI  
 - 🌙 Light & Dark mode  
@@ -69,7 +69,7 @@ snkrfeature focuses on both **aesthetic clarity** and **functional depth**:
 
 ## 👥 Community-Oriented
 
-snkrfeature is not just a database — it's a **community platform**.
+sneakerfeature is not just a database — it's a **community platform**.
 
 You can:
 - 💬 Comment on any shoe  
@@ -133,7 +133,7 @@ If the platform grows:
 
 Thanks for being here.
 
-snkrfeature is still early, but the mission is simple:
+sneakerfeature is still early, but the mission is simple:
 
 > Make basketball shoe information  
 > **easier to access, compare, and discuss.**
@@ -142,21 +142,21 @@ snkrfeature is still early, but the mission is simple:
 
 ---
 
-🌐 **Visit:** https://snkrfeature.com
+🌐 **Visit:** https://sneakerfeature.com
 
 ---
 
 ## 💻 Desktop App
 
-snkrfeature also ships as a desktop application for macOS and Windows. The
-desktop app mirrors the website experience and stays in sync with snkrfeature.com
+sneakerfeature also ships as a desktop application for macOS and Windows. The
+desktop app mirrors the website experience and stays in sync with sneakerfeature.com
 automatically.
 
 ### Download
 
-Grab the latest installer from the [Releases page](https://github.com/zzzachariah/snkrfeature/releases).
+Grab the latest installer from the [Releases page](https://github.com/zzzachariah/sneakerfeature/releases).
 
-- **macOS** — download the `.dmg`, drag snkrfeature into Applications. On first
+- **macOS** — download the `.dmg`, drag sneakerfeature into Applications. On first
   launch, right-click the app → **Open** to bypass the "unidentified developer"
   prompt (the build is currently unsigned; signing is planned).
 - **Windows** — download the `.exe` installer. SmartScreen may show a warning
@@ -172,7 +172,7 @@ npm install
 npm start          # launch the app pointing at production
 ```
 
-Set `ELECTRON_DEV=1` to open DevTools, or `SNKRFEATURE_URL=http://localhost:3000`
+Set `ELECTRON_DEV=1` to open DevTools, or `SNEAKERFEATURE_URL=http://localhost:3000`
 to point the app at your local Next.js dev server.
 
 ### Release a new desktop version

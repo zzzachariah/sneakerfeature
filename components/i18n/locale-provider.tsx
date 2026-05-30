@@ -32,7 +32,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "submit a shoe": "上传球鞋",
   "pick up to 5 shoes to compare.": "选至多五双鞋对比",
   "add shoe": "添加球鞋",
-  "compare, discuss, and choose your ideal basketball sneaker on snkrfeature": "在 SNKRFEATURE 比较、讨论并选择你理想的篮球鞋",
+  "compare, discuss, and choose your ideal basketball sneaker on sneakerfeature": "在 SNEAKERFEATURE 比较、讨论并选择你理想的篮球鞋",
   "if you want to contribute to our community, please submit corrections, upload a new shoe, and discuss!":
     "如果你想为社区做贡献，欢迎提交更正、上传新鞋并参与讨论！",
   "submit new shoe info": "提交新鞋信息",
@@ -202,7 +202,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "not yet added": "尚未添加",
   "no shoes selected. add ids via the url query string.": "未选择球鞋。请通过 URL 查询参数添加 ID。",
   "welcome!": "欢迎！",
-  "story behind snkrfeature": "snkrfeature 背后的故事",
+  "story behind sneakerfeature": "sneakerfeature 背后的故事",
   "completed reading": "我已阅读完毕",
   "continue to sign up": "继续注册",
   "turnstile is not configured. demo verification mode is active.": "Turnstile 未配置，当前为演示验证模式。",
@@ -344,8 +344,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
     "最多添加五双鞋，并排查看雷达图、差异分析和完整规格。",
   "your submissions and saved comparisons.": "你的投稿和已保存的对比。",
   "your comments and reactions, newest first.": "你的评论和点赞 / 点踩记录，最新在前。",
-  "create your snkrfeature account. public identity is username-based.":
-    "创建你的 snkrfeature 账号，公开身份基于用户名。",
+  "create your sneakerfeature account. public identity is username-based.":
+    "创建你的 sneakerfeature 账号，公开身份基于用户名。",
   "create your account to submit sneaker data and join discussions.":
     "创建账号以提交球鞋数据并参与讨论。",
   "a living index of every pair worth playing in.": "每一双值得上脚的球鞋的实时索引。",
@@ -458,7 +458,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "finish": "完成",
   "this part lives on the homepage.": "这部分内容在首页。",
   "return home": "返回首页",
-  "welcome to snkrfeature": "欢迎来到 snkrfeature",
+  "welcome to sneakerfeature": "欢迎来到 sneakerfeature",
   "a living index of basketball sneakers. let me show you around in under a minute.":
     "一份持续更新的篮球鞋索引，让我用不到一分钟带你看一遍。",
   "primary navigation": "主导航",
@@ -483,7 +483,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "type a model, player, or tech keyword. filter by brand on the left.":
     "输入型号、球员或科技关键词，左侧可按品牌筛选。",
   "want a refresher?": "想再看一遍？",
-  "re-open this tour anytime from this icon in the navbar. enjoy snkrfeature.":
+  "re-open this tour anytime from this icon in the navbar. enjoy sneakerfeature.":
     "随时通过导航栏的这个图标重新打开导览。祝你使用愉快。",
 
   // Persona / personalized recommendations
@@ -775,7 +775,7 @@ const PROTECTED_NO_TRANSLATE_KEYS = new Set<string>([]);
 function shouldSkipDynamicTranslation(text: string) {
   const trimmed = text.trim();
   if (!trimmed) return true;
-  if (normalizeKey(trimmed) === "snkrfeature") return true;
+  if (normalizeKey(trimmed) === "sneakerfeature") return true;
   if (PROTECTED_NO_TRANSLATE_KEYS.has(normalizeKey(trimmed))) return true;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return true;
   return false;
@@ -798,7 +798,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
       const normalized = normalizeKey(text);
 
-      if (normalizeKey(text) === "snkrfeature") return "snkrfeature";
+      if (normalizeKey(text) === "sneakerfeature") return "sneakerfeature";
       if (PROTECTED_NO_TRANSLATE_KEYS.has(normalized)) return text;
 
       if (MANUAL_TRANSLATIONS[normalized]) return MANUAL_TRANSLATIONS[normalized];
