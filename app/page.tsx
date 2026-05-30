@@ -39,7 +39,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           __html: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "WebSite",
-            name: "Sneaker Feature",
+            name: "sneakerfeature",
             url: absoluteUrl("/"),
             potentialAction: {
               "@type": "SearchAction",

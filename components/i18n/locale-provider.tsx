@@ -19,7 +19,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "translating...": "翻译中…",
   "machine translation may contain some inaccuracies. thank you for your understanding. loading may also take a little time.":
     "机器翻译可能出现一些问题，敬请谅解。另外，加载可能会花一点时间。",
-  "integrated basketball sneaker feature platform": "综合篮球鞋性能平台",
+  "integrated basketball sneakerfeature platform": "综合篮球鞋性能平台",
   "basketball sneaker database": "球鞋配置信息库",
   "the decision layer for basketball sneakers": "篮球鞋决策中枢",
   "a living index": "实时更新的",
@@ -127,7 +127,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "already have an account?": "已有账号？",
   "email or username": "邮箱或用户名",
   "sign in with email or username.": "使用邮箱或用户名登录。",
-  "log in or sign up for the full sneaker feature experience.": "登录或注册以获得完整的 Sneaker Feature 体验。",
+  "log in or sign up for the full sneakerfeature experience.": "登录或注册以获得完整的 sneakerfeature 体验。",
   "view shoe": "查看球鞋",
   "overview": "概览",
   "loading account...": "正在加载账号…",
