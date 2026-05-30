@@ -51,7 +51,7 @@ export default function RegisterPage() {
       <form onSubmit={onSubmit} className={`surface-card premium-border mx-auto max-w-md space-y-4 rounded-3xl p-7 ${gateOpen ? "pointer-events-none select-none" : ""}`}>
         <h1 className="text-2xl font-semibold tracking-[0.02em]">{translate("Register")}</h1>
         <p className="text-sm soft-text">{translate("Create your sneakerfeature account. Public identity is username-based.")}</p>
-        <div><label className="mb-1 block text-xs soft-text">{translate("Username")}</label><Input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder={translate("snkrfan23")} required /></div>
+        <div><label className="mb-1 block text-xs soft-text">{translate("Username")}</label><Input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder={translate("sneakerfan23")} required /></div>
         <div><label className="mb-1 block text-xs soft-text">{translate("Email")}</label><Input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder={translate("you@domain.com")} type="email" required /></div>
         <div><label className="mb-1 block text-xs soft-text">{translate("Password")}</label><Input value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={translate("At least 8 characters")} type="password" required /></div>
         <TurnstileWidget onToken={setTurnstileToken} />

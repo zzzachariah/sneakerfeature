@@ -10,14 +10,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const shoe = await getShoeBySlug(slug);
   if (!shoe) {
     return {
-      title: "Shoe not found | SNKR Feature",
-      description: "Shoe not found on SNKR Feature.",
+      title: "Shoe not found | Sneaker Feature",
+      description: "Shoe not found on Sneaker Feature.",
       robots: { index: false, follow: false },
     };
   }
 
-  const title = `${shoe.shoe_name} | SNKR Feature`;
-  const description = `${shoe.shoe_name} on SNKR Feature. EVERYTHING u need to know for sneakers.`;
+  const title = `${shoe.shoe_name} | Sneaker Feature`;
+  const description = `${shoe.shoe_name} on Sneaker Feature. EVERYTHING u need to know for sneakers.`;
   const url = absoluteUrl(`/shoes/${shoe.slug}`);
   const image = shoe.image_url || DEFAULT_OG_IMAGE_URL;
 
@@ -62,7 +62,7 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     name: shoe.shoe_name,
     brand: shoe.brand ? { "@type": "Brand", name: shoe.brand } : undefined,
     image: shoe.image_url || undefined,
-    description: shoe.spec.playstyle_summary || `${shoe.shoe_name} on SNKR Feature. EVERYTHING u need to know for sneakers.`,
+    description: shoe.spec.playstyle_summary || `${shoe.shoe_name} on Sneaker Feature. EVERYTHING u need to know for sneakers.`,
     category: shoe.category || "Basketball Shoes",
     releaseDate: shoe.release_year ? `${shoe.release_year}-01-01` : undefined,
     sku: shoe.id,

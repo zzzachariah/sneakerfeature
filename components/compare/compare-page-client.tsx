@@ -17,7 +17,7 @@ import { FeedbackMessage } from "@/components/ui/feedback-message";
 
 const MAX_SHOES = 5;
 const MAX_CARD_SHOES = 4;
-const COMPARE_STORAGE_KEY = "snkr:compare:ids";
+const COMPARE_STORAGE_KEY = "sneaker:compare:ids";
 
 type Props = {
   selected: Shoe[];

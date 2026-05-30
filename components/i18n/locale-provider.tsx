@@ -127,7 +127,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "already have an account?": "已有账号？",
   "email or username": "邮箱或用户名",
   "sign in with email or username.": "使用邮箱或用户名登录。",
-  "log in or sign up for the full snkr feature experience.": "登录或注册以获得完整的 SNKR Feature 体验。",
+  "log in or sign up for the full sneaker feature experience.": "登录或注册以获得完整的 Sneaker Feature 体验。",
   "view shoe": "查看球鞋",
   "overview": "概览",
   "loading account...": "正在加载账号…",

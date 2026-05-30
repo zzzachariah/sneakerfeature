@@ -10,7 +10,7 @@ import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
 import type { Metadata } from "next";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
-const title = "Advanced sneaker search | SNKR Feature";
+const title = "Advanced sneaker search | Sneaker Feature";
 const description = "Search basketball shoe specs, tags, tech, and player data.";
 
 export const metadata: Metadata = {

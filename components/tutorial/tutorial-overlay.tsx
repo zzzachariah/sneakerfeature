@@ -348,7 +348,7 @@ export function TutorialOverlay() {
         aria-hidden
       >
         <defs>
-          <mask id="snkrf-tutorial-mask">
+          <mask id="sneaker-tutorial-mask">
             <rect x="0" y="0" width="100%" height="100%" fill="white" />
             {showSpotlight && hole && (
               <rect
@@ -370,7 +370,7 @@ export function TutorialOverlay() {
           height="100%"
           fill="rgb(8,8,10)"
           fillOpacity={missingTarget ? 0.78 : 0.62}
-          mask="url(#snkrf-tutorial-mask)"
+          mask="url(#sneaker-tutorial-mask)"
           style={{ transition: "fill-opacity 280ms cubic-bezier(0.22,1,0.36,1)" }}
         />
         {showSpotlight && hole && (

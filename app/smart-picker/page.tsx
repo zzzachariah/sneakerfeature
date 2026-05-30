@@ -4,7 +4,7 @@ import { SmartPickerClient } from "@/components/smart-picker/smart-picker-client
 import { UnderDevelopment } from "@/components/smart-picker/under-development";
 
 export const metadata: Metadata = {
-  title: "Smart Picker | SNKR Feature",
+  title: "Smart Picker | Sneaker Feature",
   robots: { index: false, follow: false }
 };
 
