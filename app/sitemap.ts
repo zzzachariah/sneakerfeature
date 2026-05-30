@@ -10,6 +10,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${SITE_URL}/`, lastModified: now },
     { url: `${SITE_URL}/compare`, lastModified: now },
     { url: `${SITE_URL}/search/advanced`, lastModified: now },
+    { url: `${SITE_URL}/terms`, lastModified: now },
+    { url: `${SITE_URL}/privacy`, lastModified: now },
+    { url: `${SITE_URL}/disclaimer`, lastModified: now },
   ];
 
   const shoePages: MetadataRoute.Sitemap = shoes.map((shoe) => ({

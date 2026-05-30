@@ -91,7 +91,7 @@ function useTiltHandlers() {
 }
 
 export default function SignupPage() {
-  const { translate } = useLocale();
+  const { locale, translate } = useLocale();
   const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [turnstileToken, setTurnstileToken] = useState("");
   const [message, setMessage] = useState("");
@@ -289,6 +289,34 @@ export default function SignupPage() {
               </motion.div>
             )}
           </AnimatePresence>
+
+          <motion.p variants={fadeUp} className="text-xs leading-relaxed soft-text">
+            {locale === "zh" ? (
+              <>
+                注册即表示你已阅读并同意我们的{" "}
+                <Link href="/terms" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                  服务条款
+                </Link>{" "}
+                和{" "}
+                <Link href="/privacy" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                  隐私政策
+                </Link>
+                。
+              </>
+            ) : (
+              <>
+                By creating an account, you agree to our{" "}
+                <Link href="/terms" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                  Terms of Use
+                </Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
+                  Privacy Policy
+                </Link>
+                .
+              </>
+            )}
+          </motion.p>
 
           <motion.p variants={fadeUp} className="pt-1 text-xs soft-text">
             {translate("Already have an account?")}{" "}
