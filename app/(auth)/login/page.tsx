@@ -223,6 +223,14 @@ export default function LoginPage() {
             autoComplete="current-password"
             required
           />
+          <div className="mt-2 flex justify-end">
+            <Link
+              href="/forgot-password"
+              className="text-xs text-[rgb(var(--subtext))] underline-offset-4 transition hover:text-[rgb(var(--text))] hover:underline"
+            >
+              {translate("Forgot password?")}
+            </Link>
+          </div>
         </motion.div>
 
         <motion.div variants={fadeUp}>

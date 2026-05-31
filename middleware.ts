@@ -10,6 +10,8 @@ function isPublicPath(pathname: string) {
     pathname === "/terms" ||
     pathname === "/privacy" ||
     pathname === "/disclaimer" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password" ||
     pathname.startsWith("/shoes/")
   );
 }

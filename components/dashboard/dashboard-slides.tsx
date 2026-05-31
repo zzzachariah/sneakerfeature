@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -58,22 +57,28 @@ type Props = {
   savedCompares: DashboardSavedCompare[];
   deletingCompareId: string | null;
   onDeleteCompare: (id: string) => void;
-  // Settings
+  // Settings — profile (username)
   onUsernameChange: (value: string) => void;
-  onSaveSettings: () => void;
-  settingsMessage: string;
-  settingsError: boolean;
+  onSaveUsername: () => void;
+  savingProfile: boolean;
+  profileMessage: string;
+  profileError: boolean;
+  // Settings — password
   currentPassword: string;
-  showCurrentPassword: boolean;
   newPassword: string;
   confirmPassword: string;
+  showCurrentPassword: boolean;
+  showNewPassword: boolean;
+  showConfirmPassword: boolean;
   onCurrentPasswordChange: (v: string) => void;
-  onToggleShowCurrentPassword: () => void;
   onNewPasswordChange: (v: string) => void;
   onConfirmPasswordChange: (v: string) => void;
-  changePasswordOpen: boolean;
-  onOpenChangePassword: () => void;
-  onCloseChangePassword: () => void;
+  onToggleShowCurrentPassword: () => void;
+  onToggleShowNewPassword: () => void;
+  onToggleShowConfirmPassword: () => void;
+  changingPassword: boolean;
+  passwordMessage: string;
+  passwordError: boolean;
   onChangePassword: () => void;
 };
 
@@ -130,10 +135,9 @@ export function DashboardSlides(props: Props) {
     return () => window.removeEventListener("wheel", onWheel);
   }, [goTo]);
 
-  // Keyboard — skip when typing in form fields or modal open
+  // Keyboard — skip when typing in form fields
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (props.changePasswordOpen) return;
       const target = e.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -151,7 +155,7 @@ export function DashboardSlides(props: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [goTo, props.changePasswordOpen]);
+  }, [goTo]);
 
   // Touch
   useEffect(() => {
@@ -390,57 +394,99 @@ export function DashboardSlides(props: Props) {
                   <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
                 ) : (
                   <>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
-                          {translate("Username")}
-                        </label>
-                        <Input
-                          value={props.username}
-                          onChange={(e) => props.onUsernameChange(e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
-                          {translate("Email (read-only)")}
-                        </label>
-                        <Input value={props.email} disabled />
-                      </div>
-                      <div>
-                        <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
-                          {translate("Current password")}
-                        </label>
-                        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+                    {/* Profile */}
+                    <section className="rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-5 backdrop-blur-md">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] soft-text">
+                        {translate("Account details")}
+                      </h3>
+                      <div className="mt-4 grid gap-4 md:grid-cols-2">
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
+                            {translate("Username")}
+                          </label>
                           <Input
-                            value={props.currentPassword}
-                            onChange={(e) => props.onCurrentPasswordChange(e.target.value)}
-                            type={props.showCurrentPassword ? "text" : "password"}
-                            placeholder={translate("Enter current password")}
+                            value={props.username}
+                            onChange={(e) => props.onUsernameChange(e.target.value)}
+                            autoComplete="username"
+                            maxLength={20}
                           />
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="w-full sm:w-auto"
-                            onClick={props.onToggleShowCurrentPassword}
-                          >
-                            {props.showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
+                          <p className="mt-1.5 text-xs soft-text">{translate("3-20 characters")}</p>
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
+                            {translate("Email (read-only)")}
+                          </label>
+                          <Input value={props.email} disabled />
                         </div>
                       </div>
-                      <div className="flex items-end">
-                        <Button type="button" onClick={props.onOpenChangePassword}>
-                          {translate("Change password")}
+                      <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                        <Button
+                          type="button"
+                          className="w-full sm:w-auto"
+                          onClick={props.onSaveUsername}
+                          disabled={props.savingProfile}
+                        >
+                          {props.savingProfile ? translate("Saving...") : translate("Save profile")}
                         </Button>
+                        {props.profileMessage && (
+                          <FeedbackMessage message={props.profileMessage} isError={props.profileError} />
+                        )}
                       </div>
-                    </div>
-                    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-                      <Button type="button" className="w-full sm:w-auto" onClick={props.onSaveSettings}>
-                        {translate("Save profile")}
-                      </Button>
-                      {props.settingsMessage && (
-                        <FeedbackMessage message={props.settingsMessage} isError={props.settingsError} />
-                      )}
-                    </div>
+                    </section>
+
+                    {/* Security */}
+                    <section className="rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-5 backdrop-blur-md">
+                      <h3 className="text-sm font-semibold uppercase tracking-[0.18em] soft-text">
+                        {translate("Password")}
+                      </h3>
+                      <div className="mt-4 space-y-4">
+                        <PasswordField
+                          label="Current password"
+                          value={props.currentPassword}
+                          onChange={props.onCurrentPasswordChange}
+                          show={props.showCurrentPassword}
+                          onToggleShow={props.onToggleShowCurrentPassword}
+                          placeholder="Enter current password"
+                          autoComplete="current-password"
+                          translate={translate}
+                        />
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <PasswordField
+                            label="New password"
+                            value={props.newPassword}
+                            onChange={props.onNewPasswordChange}
+                            show={props.showNewPassword}
+                            onToggleShow={props.onToggleShowNewPassword}
+                            placeholder="At least 8 characters"
+                            autoComplete="new-password"
+                            translate={translate}
+                          />
+                          <PasswordField
+                            label="Confirm new password"
+                            value={props.confirmPassword}
+                            onChange={props.onConfirmPasswordChange}
+                            show={props.showConfirmPassword}
+                            onToggleShow={props.onToggleShowConfirmPassword}
+                            placeholder="Re-enter new password"
+                            autoComplete="new-password"
+                            translate={translate}
+                          />
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                        <Button
+                          type="button"
+                          className="w-full sm:w-auto"
+                          onClick={props.onChangePassword}
+                          disabled={props.changingPassword}
+                        >
+                          {props.changingPassword ? translate("Updating...") : translate("Update password")}
+                        </Button>
+                        {props.passwordMessage && (
+                          <FeedbackMessage message={props.passwordMessage} isError={props.passwordError} />
+                        )}
+                      </div>
+                    </section>
                   </>
                 )}
               </div>
@@ -526,47 +572,58 @@ export function DashboardSlides(props: Props) {
         />
       </button>
 
-      <Modal
-        open={props.changePasswordOpen}
-        onClose={props.onCloseChangePassword}
-        title="Change password"
-      >
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs soft-text">{translate("New password")}</label>
-            <Input
-              value={props.newPassword}
-              onChange={(e) => props.onNewPasswordChange(e.target.value)}
-              type="password"
-              placeholder={translate("At least 8 characters")}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs soft-text">{translate("Confirm new password")}</label>
-            <Input
-              value={props.confirmPassword}
-              onChange={(e) => props.onConfirmPasswordChange(e.target.value)}
-              type="password"
-              placeholder={translate("Re-enter new password")}
-            />
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={props.onCloseChangePassword}>
-              {translate("Cancel")}
-            </Button>
-            <Button type="button" onClick={props.onChangePassword}>
-              {translate("Update password")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       <style>{`
         @keyframes scrollHintDashboard {
           0%, 100% { transform: translateY(0); opacity: 0.7; }
           50% { transform: translateY(3px); opacity: 1; }
         }
       `}</style>
+    </div>
+  );
+}
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  show,
+  onToggleShow,
+  placeholder,
+  autoComplete,
+  translate
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggleShow: () => void;
+  placeholder?: string;
+  autoComplete?: string;
+  translate: (s: string) => string;
+}) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
+        {translate(label)}
+      </label>
+      <div className="relative">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          type={show ? "text" : "password"}
+          placeholder={placeholder ? translate(placeholder) : undefined}
+          autoComplete={autoComplete}
+          className="pr-10"
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          aria-label={show ? translate("Hide password") : translate("Show password")}
+          className="absolute inset-y-0 right-0 flex items-center px-3 text-[rgb(var(--subtext))] transition hover:text-[rgb(var(--text))]"
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </div>
     </div>
   );
 }

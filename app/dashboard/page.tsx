@@ -35,13 +35,19 @@ export default function DashboardPage() {
   const [submissions, setSubmissions] = useState<DashboardSubmission[]>([]);
   const [savedCompares, setSavedCompares] = useState<DashboardSavedCompare[]>([]);
   const [deletingCompareId, setDeletingCompareId] = useState<string | null>(null);
-  const [settingsMessage, setSettingsMessage] = useState("");
-  const [settingsError, setSettingsError] = useState(false);
-  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [initialUsername, setInitialUsername] = useState<string>("");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileError, setProfileError] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -87,7 +93,9 @@ export default function DashboardPage() {
           sb.from("comment_votes").select("comment_id, vote_type").eq("user_id", session.user.id)
         ]);
 
-        setUsername(profileRes.data?.username ?? "");
+        const loadedUsername = profileRes.data?.username ?? "";
+        setUsername(loadedUsername);
+        setInitialUsername(loadedUsername);
         setRole(profileRes.data?.role === "admin" ? "admin" : "user");
 
         const myComments = (commentsRes.data ?? []) as CommentWithShoeRow[];
@@ -187,28 +195,61 @@ export default function DashboardPage() {
     load();
   }, []);
 
-  async function saveSettings() {
-    const supabase = createClient();
-    if (!supabase || !userId) return;
+  async function saveUsername() {
+    if (savingProfile) return;
 
-    setSettingsError(false);
-    setSettingsMessage("");
+    setProfileError(false);
+    setProfileMessage("");
 
-    if (!username.trim()) {
-      setSettingsError(true);
-      return setSettingsMessage("Username cannot be empty.");
+    const trimmed = username.trim();
+    if (trimmed.length < 3) {
+      setProfileError(true);
+      return setProfileMessage("Username must be at least 3 characters.");
+    }
+    if (trimmed.length > 20) {
+      setProfileError(true);
+      return setProfileMessage("Username must be 20 characters or fewer.");
+    }
+    if (trimmed === initialUsername) {
+      setProfileError(false);
+      return setProfileMessage("Your username is unchanged.");
     }
 
-    const { error: usernameError } = await supabase
-      .from("profiles")
-      .update({ username: username.trim() })
-      .eq("id", userId);
-    if (usernameError) {
-      setSettingsError(true);
-      return setSettingsMessage(`Failed to update username: ${usernameError.message}`);
-    }
+    setSavingProfile(true);
+    try {
+      const response = await fetch("/api/auth/update-username", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: trimmed })
+      });
+      const data = await response.json().catch(() => ({ ok: false }));
 
-    setSettingsMessage("Profile settings saved successfully.");
+      setProfileError(!data.ok);
+      setProfileMessage(
+        data.message ?? (data.ok ? "Username updated successfully." : "Failed to update username.")
+      );
+
+      if (data.ok) {
+        const nextUsername = (data.username as string) ?? trimmed;
+        setUsername(nextUsername);
+        setInitialUsername(nextUsername);
+        if (userId) {
+          try {
+            window.sessionStorage.setItem(
+              `sneaker-role:${userId}`,
+              JSON.stringify({ username: nextUsername, isAdmin: role === "admin" })
+            );
+          } catch {
+            /* ignore cache write failures */
+          }
+        }
+      }
+    } catch {
+      setProfileError(true);
+      setProfileMessage("Network error. Please try again.");
+    } finally {
+      setSavingProfile(false);
+    }
   }
 
   async function deleteSavedCompare(id: string) {
@@ -230,35 +271,55 @@ export default function DashboardPage() {
   }
 
   async function changePassword() {
-    setSettingsError(false);
-    setSettingsMessage("");
+    if (changingPassword) return;
 
+    setPasswordError(false);
+    setPasswordMessage("");
+
+    if (!currentPassword) {
+      setPasswordError(true);
+      return setPasswordMessage("Enter your current password.");
+    }
     if (newPassword.length < 8) {
-      setSettingsError(true);
-      return setSettingsMessage("New password must be at least 8 characters.");
+      setPasswordError(true);
+      return setPasswordMessage("New password must be at least 8 characters.");
     }
-
     if (newPassword !== confirmPassword) {
-      setSettingsError(true);
-      return setSettingsMessage("The two password entries do not match.");
+      setPasswordError(true);
+      return setPasswordMessage("The two password entries do not match.");
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError(true);
+      return setPasswordMessage("New password must be different from your current password.");
     }
 
-    const response = await fetch("/api/auth/update-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
-    });
+    setChangingPassword(true);
+    try {
+      const response = await fetch("/api/auth/update-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+      });
+      const data = await response.json().catch(() => ({ ok: false }));
 
-    const data = await response.json();
-    setSettingsError(!data.ok);
-    setSettingsMessage(data.message ?? (data.ok ? "Password updated." : "Failed to update password."));
+      setPasswordError(!data.ok);
+      setPasswordMessage(
+        data.message ?? (data.ok ? "Password updated successfully." : "Failed to update password.")
+      );
 
-    if (data.ok) {
-      setChangePasswordOpen(false);
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowCurrentPassword(false);
+      if (data.ok) {
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setShowCurrentPassword(false);
+        setShowNewPassword(false);
+        setShowConfirmPassword(false);
+      }
+    } catch {
+      setPasswordError(true);
+      setPasswordMessage("Network error. Please try again.");
+    } finally {
+      setChangingPassword(false);
     }
   }
 
@@ -277,20 +338,25 @@ export default function DashboardPage() {
       deletingCompareId={deletingCompareId}
       onDeleteCompare={deleteSavedCompare}
       onUsernameChange={setUsername}
-      onSaveSettings={saveSettings}
-      settingsMessage={settingsMessage}
-      settingsError={settingsError}
+      onSaveUsername={saveUsername}
+      savingProfile={savingProfile}
+      profileMessage={profileMessage}
+      profileError={profileError}
       currentPassword={currentPassword}
-      showCurrentPassword={showCurrentPassword}
       newPassword={newPassword}
       confirmPassword={confirmPassword}
+      showCurrentPassword={showCurrentPassword}
+      showNewPassword={showNewPassword}
+      showConfirmPassword={showConfirmPassword}
       onCurrentPasswordChange={setCurrentPassword}
-      onToggleShowCurrentPassword={() => setShowCurrentPassword((v) => !v)}
       onNewPasswordChange={setNewPassword}
       onConfirmPasswordChange={setConfirmPassword}
-      changePasswordOpen={changePasswordOpen}
-      onOpenChangePassword={() => setChangePasswordOpen(true)}
-      onCloseChangePassword={() => setChangePasswordOpen(false)}
+      onToggleShowCurrentPassword={() => setShowCurrentPassword((v) => !v)}
+      onToggleShowNewPassword={() => setShowNewPassword((v) => !v)}
+      onToggleShowConfirmPassword={() => setShowConfirmPassword((v) => !v)}
+      changingPassword={changingPassword}
+      passwordMessage={passwordMessage}
+      passwordError={passwordError}
       onChangePassword={changePassword}
     />
   );
