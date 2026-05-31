@@ -75,18 +75,20 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      // Turnstile passed server-side; send the recovery email from this browser so the
-      // PKCE code-verifier is stored here and the link can be completed in this browser.
-      const supabase = createClient();
-      if (supabase) {
-        await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`
-        });
-      }
-
+      // Turnstile passed. We always show the same generic result (anti-enumeration),
+      // so don't block the UI on the (synchronous, ~2.5s) SMTP send: show success now
+      // and fire the recovery email in the background. Sending from this browser also
+      // keeps the PKCE code-verifier here so the link completes in this browser.
       setError(false);
       setSent(true);
       setMessage("If an account exists for that email, a reset link has been sent.");
+
+      const supabase = createClient();
+      if (supabase) {
+        void supabase.auth
+          .resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/reset-password` })
+          .catch(() => {});
+      }
     } catch {
       setError(true);
       setMessage("Request timed out or failed. Please try again.");
