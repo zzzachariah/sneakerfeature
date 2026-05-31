@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
 
 function useCountUp(target: number, duration: number, trigger: boolean) {
@@ -43,6 +44,7 @@ export function HomeHero({
 }) {
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
+  const { openAuthPrompt } = useAuthPrompt();
   const [up, setUp] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -72,7 +74,7 @@ export function HomeHero({
 
   function handleAvatarClick() {
     if (!isLoggedIn) {
-      window.location.href = "/login";
+      openAuthPrompt();
       return;
     }
     openModal();

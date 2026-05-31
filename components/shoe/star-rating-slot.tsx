@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { Sliders } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { StarRating } from "@/components/shoe/star-rating";
 
 type Size = "sm" | "md" | "lg";
@@ -39,6 +39,7 @@ export function StarRatingSlot({
 }: StarRatingSlotProps) {
   const { translate } = useLocale();
   const { isLoggedIn, openModal } = useRatingFocus();
+  const { openAuthPrompt } = useAuthPrompt();
 
   if (typeof value === "number") {
     return (
@@ -61,10 +62,15 @@ export function StarRatingSlot({
 
   if (!isLoggedIn) {
     return (
-      <Link href="/login" className={className} aria-label={translate("Sign in to pick playstyle")}>
+      <button
+        type="button"
+        onClick={() => openAuthPrompt()}
+        className={className}
+        aria-label={translate("Sign in to pick playstyle")}
+      >
         <Sliders className="h-3 w-3" />
         {translate("Sign in to pick playstyle")}
-      </Link>
+      </button>
     );
   }
 

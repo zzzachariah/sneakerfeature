@@ -10,6 +10,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeCard } from "@/components/home/shoe-card";
 import { usePersona } from "@/components/preferences/persona-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
 
@@ -26,6 +27,7 @@ export function HomeFeed({
 }) {
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
+  const { openAuthPrompt } = useAuthPrompt();
   const { mode, setMode } = useHomeMode();
   const [searchDraft, setSearchDraft] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
@@ -141,13 +143,16 @@ export function HomeFeed({
             <button
               type="button"
               onClick={() => {
+                if (!isLoggedIn) {
+                  openAuthPrompt();
+                  return;
+                }
                 if (personalizedDisabled) {
-                  if (isLoggedIn) openModal();
+                  openModal();
                   return;
                 }
                 setMode("personalized");
               }}
-              disabled={personalizedDisabled && !isLoggedIn}
               className="border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1.5 text-[0.78rem] font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 background: mode === "personalized" ? "rgb(var(--text)/0.92)" : "transparent",

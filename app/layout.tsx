@@ -13,6 +13,7 @@ import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
+import { AuthPromptProvider } from "@/components/auth/auth-prompt-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
 import { Analytics } from "@vercel/analytics/next";
@@ -49,20 +50,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LocaleProvider>
           <CookieConsentProvider>
             <AuthStateProvider>
-              <RatingFocusProvider>
-                <PersonaProvider>
-                  <TutorialProvider>
-                    <div className="relative flex min-h-[100dvh] flex-col">
-                      <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
-                      <Navbar />
-                      <div className="flex-1">{children}</div>
-                      <Footer />
-                      <MobileBottomNav />
-                    </div>
-                    <TutorialOverlay />
-                  </TutorialProvider>
-                </PersonaProvider>
-              </RatingFocusProvider>
+              <AuthPromptProvider>
+                <RatingFocusProvider>
+                  <PersonaProvider>
+                    <TutorialProvider>
+                      <div className="relative flex min-h-[100dvh] flex-col">
+                        <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
+                        <Navbar />
+                        <div className="flex-1">{children}</div>
+                        <Footer />
+                        <MobileBottomNav />
+                      </div>
+                      <TutorialOverlay />
+                    </TutorialProvider>
+                  </PersonaProvider>
+                </RatingFocusProvider>
+              </AuthPromptProvider>
             </AuthStateProvider>
             <CookieBanner />
             <AnalyticsGate />

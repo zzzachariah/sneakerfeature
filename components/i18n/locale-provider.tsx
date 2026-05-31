@@ -104,6 +104,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "log in": "登录",
   "sign up": "注册",
   "log out": "登出",
+  "sign in to continue": "登录后继续",
+  "log in or create an account to use this feature.": "登录或注册即可使用此功能。",
   "compare": "对比",
   "submit": "提交",
   "loading comparison matrix": "正在加载对比矩阵",

@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { CompareSlides } from "@/components/compare/compare-slides";
 import { AddShoeDialog } from "@/components/compare/add-shoe-dialog";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
@@ -32,6 +33,7 @@ function defaultSaveTitle(shoes: Shoe[]) {
 
 export function ComparePageClient({ selected, allShoes }: Props) {
   const { translate } = useLocale();
+  const { openAuthPrompt } = useAuthPrompt();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -172,7 +174,8 @@ export function ComparePageClient({ selected, allShoes }: Props) {
       if (response.status === 401) {
         const ids = localShoes.map((s) => s.id).join(",");
         const next = ids ? `/compare?ids=${ids}` : "/compare";
-        router.push(`/login?next=${encodeURIComponent(next)}` as Route);
+        setSaveOpen(false);
+        openAuthPrompt({ next });
         return;
       }
 

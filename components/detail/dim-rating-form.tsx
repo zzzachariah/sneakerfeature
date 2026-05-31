@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { StarRating } from "@/components/shoe/star-rating";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { DIM_KEYS, DIM_LABELS, type DimKey } from "@/lib/star-rating";
 
 type Picks = Partial<Record<DimKey, number>>;
@@ -21,6 +22,7 @@ export function DimRatingForm({
   isLoggedIn: boolean;
 }) {
   const { translate } = useLocale();
+  const { openAuthPrompt } = useAuthPrompt();
   const router = useRouter();
   const [picks, setPicks] = useState<Picks>(initialMyRatings ?? {});
   const [posting, setPosting] = useState(false);
@@ -142,7 +144,13 @@ export function DimRatingForm({
       </div>
 
       {!isLoggedIn && (
-        <p className="mt-3 text-xs soft-text">{translate("Sign in to rate")}</p>
+        <button
+          type="button"
+          onClick={() => openAuthPrompt()}
+          className="mt-3 text-xs underline-offset-4 soft-text transition hover:underline"
+        >
+          {translate("Sign in to rate")}
+        </button>
       )}
       {message && (
         <div className="mt-3">

@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import type { Route } from "next";
 import { Star, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { clampUserStars, STAR_MAX } from "@/lib/star-rating";
 
 type Size = "sm" | "md" | "lg";
@@ -20,7 +19,6 @@ type StarRatingProps = {
   userRating?: number | null;
   interactive?: boolean;
   isLoggedIn?: boolean;
-  loginHref?: string;
   onSubmit?: (rating: number) => void | Promise<void>;
   onClear?: () => void | Promise<void>;
   size?: Size;
@@ -34,7 +32,6 @@ export function StarRating({
   userRating = null,
   interactive = false,
   isLoggedIn = true,
-  loginHref = "/login",
   onSubmit,
   onClear,
   size = "md",
@@ -42,8 +39,8 @@ export function StarRating({
   count,
   busy = false
 }: StarRatingProps) {
-  const router = useRouter();
   const { translate } = useLocale();
+  const { openAuthPrompt } = useAuthPrompt();
   const [hover, setHover] = useState<number | null>(null);
   const sizes = SIZE_MAP[size];
 
@@ -54,7 +51,7 @@ export function StarRating({
   async function handleClick(starIndex: number, half: 0.5 | 1) {
     if (!interactive || busy) return;
     if (!isLoggedIn) {
-      router.push(loginHref as Route);
+      openAuthPrompt();
       return;
     }
     await onSubmit?.(clampUserStars(starIndex + half));

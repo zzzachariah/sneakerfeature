@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { TurnstileWidget } from "@/components/ui/turnstile";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import type { DimKey } from "@/lib/star-rating";
 
 type CommentItem = {
@@ -36,6 +36,7 @@ export function CommentSection({
   isLoggedIn
 }: CommentSectionProps) {
   const { translate } = useLocale();
+  const { openAuthPrompt } = useAuthPrompt();
   const [content, setContent] = useState("");
   const [token, setToken] = useState("");
   const [message, setMessage] = useState("");
@@ -92,6 +93,10 @@ export function CommentSection({
   }
 
   async function submitVote(commentId: string, voteType: "like" | "dislike") {
+    if (!userId) {
+      openAuthPrompt();
+      return;
+    }
     const response = await fetch("/api/comments/vote", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -137,9 +142,13 @@ export function CommentSection({
         {!userId && (
           <div className="mt-4 rounded-2xl border border-[rgb(var(--muted)/0.65)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
             <p className="text-sm soft-text">{translate("You need to be logged in to post a comment.")}</p>
-            <Link href="/login" className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:border-[rgb(var(--ring)/0.45)]">
+            <button
+              type="button"
+              onClick={() => openAuthPrompt()}
+              className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:border-[rgb(var(--ring)/0.45)]"
+            >
               <LogIn className="h-4 w-4" /> {translate("Log in")}
-            </Link>
+            </button>
           </div>
         )}
 

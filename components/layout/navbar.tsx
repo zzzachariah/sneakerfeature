@@ -11,6 +11,7 @@ import { TutorialTrigger } from "@/components/tutorial/tutorial-trigger";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { useAuthPrompt } from "@/components/auth/auth-prompt-provider";
 import { NAV_ORDER } from "@/lib/nav-order";
 
 type NavHref = "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
@@ -29,6 +30,7 @@ export function Navbar() {
   const { locale, requestLocaleChange, translate } = useLocale();
   const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
   const { isAdmin } = useAuthState();
+  const { openAuthPrompt } = useAuthPrompt();
   const [langOpen, setLangOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -161,7 +163,7 @@ export function Navbar() {
             type="button"
             onClick={() => {
               if (!personaLoggedIn) {
-                window.location.href = "/login";
+                openAuthPrompt();
                 return;
               }
               openPersonaModal();
