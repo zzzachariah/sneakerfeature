@@ -34,7 +34,7 @@ export function Tooltip({
           "nav-dropdown-panel opacity-0 scale-95",
           "transition-[opacity,transform] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
           "group-hover/nav-tip:translate-x-0 group-hover/nav-tip:scale-100 group-hover/nav-tip:opacity-100",
-          "group-focus-within/nav-tip:translate-x-0 group-focus-within/nav-tip:scale-100 group-focus-within/nav-tip:opacity-100",
+          "group-[:has(:focus-visible)]/nav-tip:translate-x-0 group-[:has(:focus-visible)]/nav-tip:scale-100 group-[:has(:focus-visible)]/nav-tip:opacity-100",
           side === "left"
             ? "right-[calc(100%+0.4rem)] origin-right translate-x-1.5"
             : "left-[calc(100%+0.4rem)] origin-left -translate-x-1.5"
