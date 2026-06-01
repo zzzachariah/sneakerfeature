@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
 import { TutorialTrigger } from "@/components/tutorial/tutorial-trigger";
+import { Tooltip } from "@/components/ui/tooltip";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
@@ -106,29 +107,31 @@ export function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
-          <Link
-            href="/search/advanced"
-            className={iconBtn}
-            aria-label={translate("Advanced Search")}
-            title={translate("Advanced Search")}
-            data-tutorial="nav-search"
-          >
-            <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
-          </Link>
+          <Tooltip label={translate("Advanced Search")}>
+            <Link
+              href="/search/advanced"
+              className={iconBtn}
+              aria-label={translate("Advanced Search")}
+              data-tutorial="nav-search"
+            >
+              <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
+            </Link>
+          </Tooltip>
 
           <div className="relative" onClick={(e) => e.stopPropagation()} data-tutorial="nav-language">
-            <button
-              type="button"
-              onClick={() => setLangOpen((prev) => !prev)}
-              className={iconBtn}
-              aria-haspopup="menu"
-              aria-expanded={langOpen}
-              aria-label={translate("Language")}
-              title={locale === "en" ? "English" : "中文"}
-              data-translation-lock="true"
-            >
-              <Languages className="h-[18px] w-[18px] md:h-4 md:w-4" />
-            </button>
+            <Tooltip label={locale === "en" ? "English" : "中文"}>
+              <button
+                type="button"
+                onClick={() => setLangOpen((prev) => !prev)}
+                className={iconBtn}
+                aria-haspopup="menu"
+                aria-expanded={langOpen}
+                aria-label={translate("Language")}
+                data-translation-lock="true"
+              >
+                <Languages className="h-[18px] w-[18px] md:h-4 md:w-4" />
+              </button>
+            </Tooltip>
             {langOpen && (
               <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[9rem] rounded-xl p-1">
                 <button
@@ -157,35 +160,37 @@ export function Navbar() {
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (!personaLoggedIn) {
-                window.location.href = "/login";
-                return;
-              }
-              openPersonaModal();
-            }}
-            className={iconBtn}
-            aria-label={translate("Player profile")}
-            title={translate("Player profile")}
-            data-tutorial="nav-persona"
-          >
-            <User className="h-[18px] w-[18px] md:h-4 md:w-4" />
-          </button>
+          <Tooltip label={translate("Player profile")}>
+            <button
+              type="button"
+              onClick={() => {
+                if (!personaLoggedIn) {
+                  window.location.href = "/login";
+                  return;
+                }
+                openPersonaModal();
+              }}
+              className={iconBtn}
+              aria-label={translate("Player profile")}
+              data-tutorial="nav-persona"
+            >
+              <User className="h-[18px] w-[18px] md:h-4 md:w-4" />
+            </button>
+          </Tooltip>
 
           <span className="inline-flex" data-tutorial="nav-theme">
             <ThemeToggle />
           </span>
-          <button
-            type="button"
-            onClick={() => setAboutOpen(true)}
-            className={`${iconBtn} hidden md:inline-flex`}
-            aria-label={translate("About")}
-            title={translate("About")}
-          >
-            <Sparkles className="h-4 w-4" />
-          </button>
+          <Tooltip label={translate("About")} className="hidden md:inline-flex">
+            <button
+              type="button"
+              onClick={() => setAboutOpen(true)}
+              className={iconBtn}
+              aria-label={translate("About")}
+            >
+              <Sparkles className="h-4 w-4" />
+            </button>
+          </Tooltip>
           <TutorialTrigger className={iconBtn} />
           <span className="inline-flex" data-tutorial="nav-account">
             <AccountMenu />
