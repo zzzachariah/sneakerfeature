@@ -1,6 +1,6 @@
 import type OpenAI from "openai";
 import type { Shoe, ShoeSpec } from "@/lib/types";
-import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference } from "@/lib/ai/types";
+import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference, OnProgress } from "@/lib/ai/types";
 import type { Persona } from "@/lib/persona/types";
 import { computeMatchScore } from "@/lib/match/score";
 import { dimScores } from "@/lib/star-rating";
@@ -371,8 +371,14 @@ const WEB_SEARCH_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   }
 };
 
-const MAX_TOOL_ITERATIONS = 3;
+// Higher cap than before: we now nudge the model to "finish" instead of bailing
+// on the first prose turn, so the loop needs more headroom. Cost isn't a concern
+// (the deterministic fallback guarantees a result regardless of how this ends).
+const MAX_TOOL_ITERATIONS = 6;
 const MAX_SEARCH_RESULTS = 3;
+// Force recommend_shoes once the model has searched this many times, so it
+// commits to an answer instead of searching forever.
+const MAX_SEARCHES = 3;
 
 // What the loop returns to the caller — always includes stats and an exit
 // reason so the caller can attach them to whatever final RecommendResult comes
@@ -393,7 +399,8 @@ async function tryToolLoopWithSearch(
   client: OpenAI,
   initialMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   base: { model: string; temperature: number; max_tokens: number },
-  currentInput: string
+  currentInput: string,
+  onProgress?: OnProgress
 ): Promise<LoopOutcome> {
   const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [...initialMessages];
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
@@ -433,12 +440,25 @@ async function tryToolLoopWithSearch(
     return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
   };
 
+  // Counts consecutive prose-only turns (model talked but called no tool). After
+  // a couple of these we stop nudging and FORCE recommend_shoes so it commits
+  // instead of rambling forever.
+  let proseNudges = 0;
+
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-    // First call is forced to web_search so every request makes at least one
-    // real Bocha call (grounding `references` in live results). Later calls go
-    // back to "auto" so the model can search again or commit to recommend_shoes.
+    // Iteration 0 forces web_search so every request makes at least one real
+    // Bocha call (grounding `references`). After that we let the model choose
+    // ("auto") UNTIL we decide to force a commit: once it has rambled twice,
+    // once it has searched enough, or on the final iteration. Forcing
+    // recommend_shoes is how we make the model actually produce an answer.
+    const forceRecommend =
+      i > 0 && (proseNudges >= 2 || stats.attempts >= MAX_SEARCHES || i === MAX_TOOL_ITERATIONS - 1);
     const toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
-      i === 0 ? { type: "function", function: { name: "web_search" } } : "auto";
+      i === 0
+        ? { type: "function", function: { name: "web_search" } }
+        : forceRecommend
+          ? { type: "function", function: { name: "recommend_shoes" } }
+          : "auto";
 
     const c = await client.chat.completions.create({
       ...base,
@@ -449,6 +469,12 @@ async function tryToolLoopWithSearch(
     const msg = c.choices?.[0]?.message;
     if (!msg) return bail("no_choice_message");
 
+    // Stream whatever the model said this turn (a preamble, or full prose) so the
+    // user sees "what it's doing" live — even when it's about to call a tool.
+    if (typeof msg.content === "string" && msg.content.trim()) {
+      onProgress?.({ type: "text", delta: msg.content });
+    }
+
     const toolCalls = msg.tool_calls ?? [];
 
     // Terminal: model called recommend_shoes → parse and return.
@@ -458,20 +484,28 @@ async function tryToolLoopWithSearch(
       if (r) return finalize(r);
     }
 
-    // No tool calls at all → model produced prose. Try to parse JSON from it;
-    // if that fails, bail so the caller's later strategies can run.
+    // No tool calls → model produced prose. If it happens to contain valid JSON,
+    // finalize. Otherwise DON'T give up (the old behavior): feed the prose back,
+    // nudge it to actually call a tool, and continue. The forced-commit step
+    // above will eventually make it commit; the route's deterministic fallback
+    // guarantees a non-empty result even if the relay never honors tools.
     if (toolCalls.length === 0) {
       if (typeof msg.content === "string") {
         const r = okIfRecs(msg.content);
         if (r) return finalize(r);
       }
-      return bail("prose_no_tools");
+      proseNudges += 1;
+      convo.push({ role: "assistant", content: msg.content ?? "" });
+      convo.push({
+        role: "user",
+        content: "请继续：直接调用 web_search 或 recommend_shoes 工具，不要再用文字描述计划。"
+      });
+      continue;
     }
 
     // Service every web_search call; append the assistant turn (with tool_calls)
     // and one `tool` message per call. Required by OpenAI tool protocol.
     convo.push({ role: "assistant", content: msg.content ?? "", tool_calls: toolCalls });
-    let didSearch = false;
     for (const call of toolCalls) {
       if (call.function?.name === "recommend_shoes") {
         convo.push({
@@ -498,23 +532,23 @@ async function tryToolLoopWithSearch(
         convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ error: "empty_query" }) });
         continue;
       }
+      onProgress?.({ type: "search", query: q, state: "start" });
       const sr = await bochaWebSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
-      didSearch = true;
       stats.attempts += 1;
       if (sr.ok) {
         stats.succeeded += 1;
+        onProgress?.({ type: "search", query: q, state: "ok", resultCount: sr.results.length });
       } else {
         stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
+        onProgress?.({ type: "search", query: q, state: "fail", kind: sr.error });
       }
       const payload = sr.ok
         ? { query: sr.query, results: sr.results }
         : { query: sr.query, error: sr.error, message: describeBochaError(sr.error, sr.detail), results: [] };
       convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(payload) });
     }
-
-    // If the model only called recommend_shoes (bad args, no search) and we
-    // haven't returned, give up so the caller falls through.
-    if (!didSearch && !recCall) return bail("no_search_no_recs");
+    // Tool turn handled (search or bad-args recommend_shoes). Loop again — the
+    // forced-commit step will make it produce a structured answer next.
   }
   return bail("max_iterations");
 }
@@ -530,8 +564,10 @@ async function getRecommendations(
   client: OpenAI,
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   shoes: Shoe[],
-  currentInput: string
+  currentInput: string,
+  onProgress?: OnProgress
 ): Promise<RecommendResult> {
+  onProgress?.({ type: "status", phase: "thinking", message: "正在分析你的需求…" });
   const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 3000 };
   const ok = (text: string): RecommendResult | null => {
     const r = parseResult(text);
@@ -558,7 +594,7 @@ async function getRecommendations(
   //    we fall through to JSON mode → prefill → plain, carrying loop diagnostics.
   if (isBochaConfigured()) {
     try {
-      const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput);
+      const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput, onProgress);
       loopStats = outcome.stats;
       loopExitReason = outcome.exitReason;
       if (outcome.result) return outcome.result;
@@ -655,7 +691,8 @@ async function getRecommendations(
 
 export async function recommendShoes(
   client: OpenAI,
-  opts: { shoes: Shoe[]; history: ChatTurn[]; currentInput: string; count: number; persona?: Persona | null }
+  opts: { shoes: Shoe[]; history: ChatTurn[]; currentInput: string; count: number; persona?: Persona | null },
+  onProgress?: OnProgress
 ): Promise<RecommendResult> {
   const catalog = buildCompactCatalog(opts.shoes, opts.persona);
 
@@ -683,7 +720,7 @@ export async function recommendShoes(
       `{"reply":"…","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2"],"cons":["缺点1"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。`
   });
 
-  return getRecommendations(client, messages, opts.shoes, opts.currentInput);
+  return getRecommendations(client, messages, opts.shoes, opts.currentInput, onProgress);
 }
 
 export function enrichRecommendations(
