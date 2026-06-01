@@ -50,6 +50,27 @@ export type RecommendationItem = RecommendationRaw & {
   playstyle: string | null;
 };
 
+// Live progress emitted by the recommend loop (server-side). Each variant maps
+// 1:1 onto an SSE event whose name is `type` and whose payload is the object.
+export type RecommendProgress =
+  | { type: "status"; phase: "start" | "thinking" | "searching" | "finalizing"; message: string }
+  | { type: "search"; query: string; state: "start" | "ok" | "fail"; resultCount?: number; kind?: string }
+  | { type: "text"; delta: string };
+
+export type OnProgress = (event: RecommendProgress) => void;
+
+// SSE event names streamed from POST /api/ai/chat. `status`/`search`/`text`
+// mirror RecommendProgress; `recommendations`/`done`/`error` are emitted by the
+// route itself.
+export type ChatSseEvent = RecommendProgress["type"] | "recommendations" | "done" | "error";
+
+// A single rendered step in the live (streaming) assistant turn. EPHEMERAL —
+// kept only in client state during streaming; never persisted to the DB and
+// never returned by the messages GET route (reloaded turns show content + cards).
+export type ChatStep =
+  | { kind: "prose"; text: string }
+  | { kind: "activity"; text: string; state?: "start" | "ok" | "fail" };
+
 export type AiChatMessage = {
   id: string;
   role: "user" | "assistant";
@@ -57,6 +78,8 @@ export type AiChatMessage = {
   recommendations: RecommendationItem[] | null;
   credits_charged: number;
   created_at: string;
+  // Live-only timeline of what the AI said / did while streaming this turn.
+  steps?: ChatStep[];
 };
 
 export const MAX_RECOMMENDATIONS = 10;

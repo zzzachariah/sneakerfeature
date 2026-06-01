@@ -47,6 +47,15 @@ export function ChatConversation({
   const isEmpty = !loadingMessages && messages.length === 0;
   const headerTitle = activeTitle?.trim() || translate("Smart Picker");
 
+  // Once the streaming assistant bubble has something to show (a step, prose, or
+  // cards), drop the global "thinking…" dots so we don't double up indicators.
+  const lastMessage = messages[messages.length - 1];
+  const streamingVisible =
+    lastMessage?.role === "assistant" &&
+    ((lastMessage.steps?.length ?? 0) > 0 ||
+      Boolean(lastMessage.content) ||
+      Boolean(lastMessage.recommendations?.length));
+
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
       {/* Mobile header */}
@@ -111,11 +120,34 @@ export function ChatConversation({
               </div>
             ) : (
               <div key={message.id} className="flex flex-col gap-2.5">
-                {message.content && (
-                  <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm">
-                    {message.content}
-                  </div>
-                )}
+                {/* While streaming, show the live timeline (the AI's words +
+                    "🔍 searching…" activity). Reloaded turns have no steps, so
+                    fall back to the persisted content. */}
+                {message.steps && message.steps.length > 0
+                  ? message.steps.map((step, sIdx) =>
+                      step.kind === "prose" ? (
+                        <div
+                          key={sIdx}
+                          className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm"
+                        >
+                          {step.text}
+                        </div>
+                      ) : (
+                        <div
+                          key={sIdx}
+                          className={`inline-flex w-fit items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1 text-[0.78rem] soft-text ${
+                            step.state === "start" ? "animate-pulse" : "opacity-60"
+                          }`}
+                        >
+                          {step.text}
+                        </div>
+                      )
+                    )
+                  : message.content && (
+                      <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm">
+                        {message.content}
+                      </div>
+                    )}
                 {message.recommendations && message.recommendations.length > 0 && (
                   <>
                     <RecommendationGroup recommendations={message.recommendations} />
@@ -138,7 +170,7 @@ export function ChatConversation({
             )
           )}
 
-          {sending && (
+          {sending && !streamingVisible && (
             <div className="flex items-center gap-1.5 px-1 text-sm soft-text">
               <span className="h-2 w-2 animate-bounce rounded-full bg-[rgb(var(--subtext))] [animation-delay:-0.2s]" />
               <span className="h-2 w-2 animate-bounce rounded-full bg-[rgb(var(--subtext))] [animation-delay:-0.1s]" />

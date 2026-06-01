@@ -13,10 +13,15 @@ import {
   describePackyError
 } from "@/lib/ai/packy-client";
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
-import { isBochaConfigured } from "@/lib/ai/web-search";
+import { pickFallbackShoes } from "@/lib/ai/fallback";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
-import { MAX_RECOMMENDATIONS, type RecommendationRaw } from "@/lib/ai/types";
+import { MAX_RECOMMENDATIONS, type RecommendationRaw, type OnProgress } from "@/lib/ai/types";
 import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/lib/star-rating";
+
+// Node runtime (Supabase admin + OpenAI SDK); never cache — per-user, streamed,
+// side-effecting.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const schema = z.object({
   chatId: z.string().uuid(),
@@ -105,155 +110,197 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Failed to save message." }, { status: 500 });
   }
 
-  let result;
-  try {
-    result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona });
-  } catch (error) {
-    console.error("[ai/chat] recommend failed", error);
-    const target = getPackyTarget();
-    return NextResponse.json(
-      {
-        ok: false,
-        message: `AI 调用失败：${describePackyError(error)}。请求目标 Base URL：${target.baseURL ?? "(未设置)"}，模型：${target.model}。`
-      },
-      { status: 502 }
-    );
-  }
+  // From here on we stream Server-Sent Events: the AI's prose and search
+  // activity are pushed live, then the final cards. Pre-flight failures above
+  // stayed JSON; the client branches on Content-Type.
+  const encoder = new TextEncoder();
+  let aborted = false;
 
-  // Resolve each AI-provided name to a catalog shoe; de-duplicate. Recompute the
-  // star as a strict 1-5 blend of the AI's star and a preference-weighted spec
-  // score, then sort by that blended star and cap at the paid count.
-  // Only surface references backed by a real, successful web search in the SAME
-  // turn that produced this answer. The loop stamps loopExitReason "success"
-  // only when it produced the result with live search results in context; any
-  // other path (bailed loop → JSON-mode fallback, no search, or failed search)
-  // means the model invented the URLs from memory, so drop them.
-  const refsTrustworthy =
-    result.loopExitReason === "success" && (result.searchStats?.succeeded ?? 0) > 0;
-  const seen = new Set<string>();
-  const matched: RecommendationRaw[] = [];
-  for (const rec of result.recommendations) {
-    const shoe = matchShoeByName(rec.name, shoes);
-    if (!shoe || seen.has(shoe.id)) continue;
-    seen.add(shoe.id);
-    matched.push({
-      shoe_id: shoe.id,
-      stars: blendedRecommendationStars(rec.stars, shoe.spec, focus),
-      reason: rec.reason,
-      pros: rec.pros,
-      cons: rec.cons,
-      ...(refsTrustworthy && rec.references && rec.references.length > 0 ? { references: rec.references } : {})
-    });
-  }
-  matched.sort((a, b) => b.stars - a.stars);
-  // Hard-cap at `count` (the UI-selected number, single source of truth) — the
-  // AI is instructed to honor it but slice defensively so a misbehaving model
-  // can never bill the user for more than they asked.
-  const validRaw: RecommendationRaw[] = matched.slice(0, count);
-  const charge = validRaw.length;
-
-  // Charge only for shoes actually recommended. Admins are never charged.
-  let newBalance = balance;
-  if (!ctx.isAdmin && charge > 0) {
-    try {
-      newBalance = await deductCredits(ctx.userId, charge);
-    } catch (error) {
-      if (error instanceof InsufficientCreditsError) {
-        return NextResponse.json({ ok: true, insufficient: true, balance: error.balance, needed: charge });
-      }
-      console.error("[ai/chat] deduct failed", error);
-      return NextResponse.json({ ok: false, message: "扣费失败，请重试。" }, { status: 500 });
-    }
-  }
-
-  console.warn("[ai/chat] catalog", {
-    size: shoes.length,
-    usingDemo,
-    hasPersona: persona !== null,
-    aiReturned: result.recommendations.length,
-    matched: charge,
-    search: result.searchStats
-      ? {
-          attempts: result.searchStats.attempts,
-          succeeded: result.searchStats.succeeded,
-          failed: result.searchStats.failures.length,
-          kinds: Array.from(new Set(result.searchStats.failures.map((f) => f.kind)))
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        if (aborted) return;
+        try {
+          controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          aborted = true; // controller closed (client gone) — stop emitting
         }
-      : undefined
+      };
+
+      // Flush headers / open the pipe immediately so proxies don't buffer.
+      send("status", { phase: "start", message: "开始为你挑选…" });
+
+      try {
+        const onProgress: OnProgress = (ev) => send(ev.type, ev);
+
+        let result: Awaited<ReturnType<typeof recommendShoes>>;
+        try {
+          result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona }, onProgress);
+        } catch (error) {
+          console.error("[ai/chat] recommend failed", error);
+          const target = getPackyTarget();
+          send("error", {
+            message: `AI 调用失败：${describePackyError(error)}。请求目标 Base URL：${target.baseURL ?? "(未设置)"}，模型：${target.model}。`
+          });
+          return;
+        }
+
+        // Client left during the (slow) model phase → don't charge or persist.
+        if (aborted) return;
+        send("status", { phase: "finalizing", message: "整理推荐中…" });
+
+        // Resolve each AI-provided name to a catalog shoe; de-duplicate. Recompute
+        // the star as a strict 1-5 blend of the AI's star and a preference-weighted
+        // spec score, then sort by that blended star. Only surface references
+        // backed by a real, successful web search in the SAME turn (loopExitReason
+        // "success"); any other path means the model invented the URLs, so drop them.
+        const refsTrustworthy =
+          result.loopExitReason === "success" && (result.searchStats?.succeeded ?? 0) > 0;
+        const seen = new Set<string>();
+        const matched: RecommendationRaw[] = [];
+        for (const rec of result.recommendations) {
+          const shoe = matchShoeByName(rec.name, shoes);
+          if (!shoe || seen.has(shoe.id)) continue;
+          seen.add(shoe.id);
+          matched.push({
+            shoe_id: shoe.id,
+            stars: blendedRecommendationStars(rec.stars, shoe.spec, focus),
+            reason: rec.reason,
+            pros: rec.pros,
+            cons: rec.cons,
+            ...(refsTrustworthy && rec.references && rec.references.length > 0 ? { references: rec.references } : {})
+          });
+        }
+        matched.sort((a, b) => b.stars - a.stars);
+        // Hard-cap at `count` (the UI-selected number) so a misbehaving model can
+        // never bill for more than the user asked.
+        let validRaw: RecommendationRaw[] = matched.slice(0, count);
+
+        // GUARANTEE: never return empty. When the AI produced nothing matchable
+        // (e.g. the relay never honored tools), deterministically pick the top-N
+        // most suitable shoes straight from the catalog so the user always gets
+        // cards. Only a truly empty catalog yields zero.
+        const fallbackUsed = validRaw.length === 0;
+        if (fallbackUsed) {
+          validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count });
+        }
+        const charge = validRaw.length;
+
+        // Diagnostics → server logs only (no longer shown to users). Captures the
+        // old 🔧 诊断 info so operators can still debug zero-match / prose cases.
+        const sstats = result.searchStats;
+        console.warn("[ai/chat] catalog", {
+          size: shoes.length,
+          usingDemo,
+          hasPersona: persona !== null,
+          aiReturned: result.recommendations.length,
+          matched: matched.length,
+          fallbackUsed,
+          charge,
+          loopExitReason: result.loopExitReason ?? null,
+          raw: result.raw ? result.raw.slice(0, 300) : null,
+          search: sstats
+            ? {
+                attempts: sstats.attempts,
+                succeeded: sstats.succeeded,
+                failed: sstats.failures.length,
+                kinds: Array.from(new Set(sstats.failures.map((f) => f.kind)))
+              }
+            : undefined
+        });
+
+        // Charge once (admins never charged). Past this point we're committed.
+        let newBalance = balance;
+        if (!ctx.isAdmin && charge > 0) {
+          try {
+            newBalance = await deductCredits(ctx.userId, charge);
+          } catch (error) {
+            if (error instanceof InsufficientCreditsError) {
+              send("error", { message: `积分不足（当前余额 ${error.balance}）。每日签到可领取免费积分。` });
+              return;
+            }
+            console.error("[ai/chat] deduct failed", error);
+            send("error", { message: "扣费失败，请重试。" });
+            return;
+          }
+        }
+
+        // User-facing reply text — no diagnostics. The deterministic fallback gets
+        // a gentle note instead of the old "暂时没有找到匹配的鞋款" error.
+        let replyText: string;
+        if (fallbackUsed && charge > 0) {
+          replyText = "根据你的描述，这几双可能比较合适（综合场上定位、脚型与性能匹配挑选）：";
+        } else {
+          replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
+        }
+        if (usingDemo) {
+          replyText = `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。\n${replyText}`;
+        }
+
+        const { data: assistantRow, error: assistantErr } = await admin
+          .from("ai_messages")
+          .insert({
+            chat_id: chatId,
+            role: "assistant",
+            content: replyText,
+            recommendations: validRaw.length ? validRaw : null,
+            credits_charged: ctx.isAdmin ? 0 : charge
+          })
+          .select("id, role, content, recommendations, credits_charged, created_at")
+          .single();
+        if (assistantErr || !assistantRow) {
+          send("error", { message: "Failed to save reply." });
+          return;
+        }
+
+        // Title the chat on the first turn — prefer the AI-summarized title, fall
+        // back to a slice of the user message.
+        const chatUpdate: Record<string, string> = { updated_at: new Date().toISOString() };
+        if (!chat.title) {
+          const aiTitle = result.title?.trim();
+          chatUpdate.title = (aiTitle && aiTitle.length > 0 ? aiTitle : message.trim()).slice(0, 30);
+        }
+        await admin.from("ai_chats").update(chatUpdate).eq("id", chatId);
+
+        // Final summary prose, then the cards, then done.
+        send("text", { delta: replyText });
+        send("recommendations", { items: enrichRecommendations(validRaw, byId) });
+        send("done", {
+          assistantMessageId: assistantRow.id,
+          userMessageId: userMessage.id,
+          content: replyText,
+          createdAt: assistantRow.created_at,
+          creditsCharged: assistantRow.credits_charged,
+          balance: newBalance,
+          unlimited: ctx.isAdmin,
+          charge,
+          title: chatUpdate.title ?? null,
+          fallbackUsed
+        });
+      } catch (error) {
+        console.error("[ai/chat] stream failed", error);
+        send("error", { message: "请求失败，请稍后重试。" });
+      } finally {
+        if (!aborted) {
+          try {
+            controller.close();
+          } catch {
+            /* already closed */
+          }
+        }
+      }
+    },
+    cancel() {
+      aborted = true;
+    }
   });
 
-  let replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
-  if (charge === 0) {
-    const r = result.recommendations.length;
-    replyText += `（检索了 ${shoes.length} 双库内鞋款；AI 返回 ${r} 条建议${r > 0 ? "，但都没匹配到库内鞋款（名称对不上或型号未收录）" : ""}）`;
-    // Surface Bocha / search diagnostics into the reply itself — Vercel's
-    // function logs sometimes drop console.warn output, and zero-match cases
-    // are exactly when the operator needs to see what happened upstream.
-    const stats = result.searchStats;
-    const reasonZh: Record<string, string> = {
-      success: "工具调用成功但鞋名都没匹配上目录",
-      prose_no_tools: "模型只输出 prose，没调用任何工具（PACKY 转换问题或 prompt 没约束住）",
-      max_iterations: "搜索 3 次后仍未调用 recommend_shoes",
-      no_search_no_recs: "模型只调了 recommend_shoes 但参数无效",
-      no_choice_message: "上游响应里没有 message 字段（PACKY/Base URL 配错）",
-      api_error: "client.create 抛错（PACKY 拒绝了 tool_choice/web_search 等）"
-    };
-    let searchInfo: string;
-    if (!isBochaConfigured()) {
-      searchInfo = "Bocha 未配置（BOCHA_API_KEY 缺失或未 redeploy）";
-    } else if (stats && stats.attempts > 0) {
-      searchInfo = `搜索 ${stats.attempts} 次（成功 ${stats.succeeded}）${
-        stats.failures.length ? ` · 失败: ${Array.from(new Set(stats.failures.map((f) => f.kind))).join("/")}` : ""
-      }`;
-    } else {
-      const reason = result.loopExitReason ?? "unknown";
-      searchInfo = `tool loop 退出: ${reason}${reasonZh[reason] ? `（${reasonZh[reason]}）` : ""}`;
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no"
     }
-    replyText += `\n🔧 诊断: ${searchInfo}`;
-    if (result.raw) replyText += `\nAI原文片段：${result.raw.slice(0, 300)}`;
-  }
-  if (usingDemo) {
-    replyText = `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。\n${replyText}`;
-  }
-
-  const { data: assistantRow, error: assistantErr } = await admin
-    .from("ai_messages")
-    .insert({
-      chat_id: chatId,
-      role: "assistant",
-      content: replyText,
-      recommendations: validRaw.length ? validRaw : null,
-      credits_charged: ctx.isAdmin ? 0 : charge
-    })
-    .select("id, role, content, recommendations, credits_charged, created_at")
-    .single();
-  if (assistantErr || !assistantRow) {
-    return NextResponse.json({ ok: false, message: "Failed to save reply." }, { status: 500 });
-  }
-
-  // Title the chat on the first turn — prefer the AI-summarized title (returned
-  // alongside recommendations in the same call), fall back to a slice of the
-  // user message if the model omitted it.
-  const chatUpdate: Record<string, string> = { updated_at: new Date().toISOString() };
-  if (!chat.title) {
-    const aiTitle = result.title?.trim();
-    chatUpdate.title = (aiTitle && aiTitle.length > 0 ? aiTitle : message.trim()).slice(0, 30);
-  }
-  await admin.from("ai_chats").update(chatUpdate).eq("id", chatId);
-
-  return NextResponse.json({
-    ok: true,
-    userMessage,
-    assistantMessage: {
-      id: assistantRow.id,
-      role: assistantRow.role,
-      content: assistantRow.content,
-      credits_charged: assistantRow.credits_charged,
-      created_at: assistantRow.created_at,
-      recommendations: enrichRecommendations(validRaw, byId)
-    },
-    balance: newBalance,
-    unlimited: ctx.isAdmin,
-    charge
   });
 }
