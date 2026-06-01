@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Moon, Sun, Laptop } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { Tooltip } from "@/components/ui/tooltip";
 
 type Theme = "light" | "dark" | "system";
 
@@ -49,18 +50,19 @@ export function ThemeToggle({ className }: { className?: string }) {
   const translatedTheme = translate(theme);
 
   return (
-    <button
-      type="button"
-      onClick={cycleTheme}
-      className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
-        className
-      )}
-      aria-label={`${translate("Theme")}: ${translatedTheme}. ${translate("Click to cycle theme.")}`}
-      title={`${translate("Theme")}: ${translatedTheme}`}
-    >
-      {icon}
-    </button>
+    <Tooltip label={`${translate("Theme")}: ${translatedTheme}`}>
+      <button
+        type="button"
+        onClick={cycleTheme}
+        className={cn(
+          "inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
+          className
+        )}
+        aria-label={`${translate("Theme")}: ${translatedTheme}. ${translate("Click to cycle theme.")}`}
+      >
+        {icon}
+      </button>
+    </Tooltip>
   );
 }
 

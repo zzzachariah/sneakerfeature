@@ -7,11 +7,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
   const { translate } = useLocale();
-  const { signedIn, isAdmin, username, email } = useAuthState();
+  const { signedIn, isAdmin, username, email, loaded } = useAuthState();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -45,27 +46,45 @@ export function AccountMenu({ className }: { className?: string }) {
 
   return (
     <div ref={wrapperRef} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={label}
-        title={label}
-        className={cn(
-          "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
-          className
-        )}
-      >
-        <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" />
-        <span className="sr-only" data-user-identity="true">{label}</span>
-        {signedIn ? (
-          <span
-            aria-hidden
-            className="absolute bottom-[4px] right-[4px] h-1.5 w-1.5 rounded-full bg-[rgb(var(--text))] ring-2 ring-[rgb(var(--bg))]"
-          />
-        ) : null}
-      </button>
+      {loaded && !signedIn ? (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={translate("Log in")}
+          className={cn(
+            "inline-flex h-9 items-center gap-1.5 rounded-full bg-[rgb(var(--text)/0.06)] px-3 text-sm font-medium text-[rgb(var(--text))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8",
+            className
+          )}
+        >
+          <LogIn className="h-4 w-4" />
+          {translate("Log in")}
+        </button>
+      ) : (
+        <Tooltip label={label}>
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-haspopup="menu"
+            aria-expanded={open}
+            aria-label={label}
+            className={cn(
+              "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
+              className
+            )}
+          >
+            <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" />
+            <span className="sr-only" data-user-identity="true">{label}</span>
+            {signedIn ? (
+              <span
+                aria-hidden
+                className="absolute bottom-[4px] right-[4px] h-1.5 w-1.5 rounded-full bg-[rgb(var(--text))] ring-2 ring-[rgb(var(--bg))]"
+              />
+            ) : null}
+          </button>
+        </Tooltip>
+      )}
 
       <AnimatePresence>
         {open && (
