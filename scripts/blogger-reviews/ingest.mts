@@ -58,7 +58,7 @@ const COOKIE_ARGS: string[] = (() => {
 })();
 
 type Platform = "youtube" | "bilibili";
-type Candidate = { platform: Platform; url: string };
+type Candidate = { platform: Platform; url: string; uploader: string | null };
 
 // Only accept real single-video pages; drop blogs, channel roots, shorts, brand
 // pages, search pages, etc.
@@ -174,14 +174,25 @@ function findCandidates(brand: string, name: string): Candidate[] {
   const seen = new Set<string>();
   const out: Candidate[] = [];
   for (const { platform, query } of searches) {
-    const raw = run("yt-dlp", [...COOKIE_ARGS, "--flat-playlist", "--no-warnings", "--print", "%(url)s", query]);
+    // Grab the uploader alongside the URL so we can keep one video per blogger.
+    const raw = run("yt-dlp", [
+      ...COOKIE_ARGS,
+      "--flat-playlist",
+      "--no-warnings",
+      "--print",
+      "%(url)s\t%(uploader,channel)s",
+      query
+    ]);
     if (!raw) continue;
     for (const line of raw.split("\n").map((s) => s.trim()).filter(Boolean)) {
-      if (classify(line) !== platform) continue;
-      const id = videoId(line);
+      const tab = line.indexOf("\t");
+      const url = tab >= 0 ? line.slice(0, tab) : line;
+      const up = tab >= 0 ? line.slice(tab + 1).trim() : "";
+      if (classify(url) !== platform) continue;
+      const id = videoId(url);
       if (seen.has(id)) continue;
       seen.add(id);
-      out.push({ platform, url: line });
+      out.push({ platform, url, uploader: up && up !== "NA" ? up : null });
     }
   }
   return out;
@@ -207,18 +218,27 @@ async function main() {
       console.log("    no videos found in search");
       continue;
     }
-    // Keep up to MAX_PER_PLATFORM videos *per platform* (so the UI can offer a
-    // YouTube/Bilibili toggle with up to 3 cards each).
+    // Keep up to MAX_PER_PLATFORM videos *per platform*, and at most one per
+    // blogger, so each tab shows up to 3 DIFFERENT reviewers (a prolific channel
+    // like WearTesters won't fill all three slots).
     const kept: Record<Platform, number> = { youtube: 0, bilibili: 0 };
+    const keptBloggers = new Set<string>(); // `${platform}::${name}`
     for (const c of candidates) {
       if (kept.youtube >= MAX_PER_PLATFORM && kept.bilibili >= MAX_PER_PLATFORM) break;
       if (kept[c.platform] >= MAX_PER_PLATFORM) continue;
+      // Resolve the blogger first (cheap if search gave it) so we can dedupe
+      // BEFORE downloading the subtitle.
+      const blogger = (c.uploader ?? uploaderViaYtDlp(c.url)) ?? (c.platform === "youtube" ? "YouTube 博主" : "B站 UP主");
+      const dupKey = `${c.platform}::${blogger.toLowerCase()}`;
+      if (keptBloggers.has(dupKey)) {
+        console.log(`    ↩ same blogger, skip: ${blogger}`);
+        continue;
+      }
       const transcript = downloadSubtitles(c.url, c.platform);
       if (!transcript) {
         console.log(`    ✗ no subtitle, skip: ${c.url}`);
         continue;
       }
-      const blogger = uploaderViaYtDlp(c.url) ?? (c.platform === "youtube" ? "YouTube 博主" : "B站 UP主");
       const { error: upErr } = await sb.from("blogger_reviews").upsert(
         {
           shoe_id: shoe.id,
@@ -237,6 +257,7 @@ async function main() {
       } else {
         console.log(`    ✓ ${c.platform} "${blogger}" — ${transcript.length} chars`);
         kept[c.platform] += 1;
+        keptBloggers.add(dupKey);
         upserted += 1;
       }
     }
