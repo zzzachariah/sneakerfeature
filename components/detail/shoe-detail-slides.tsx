@@ -15,7 +15,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
-import type { Shoe, ShoeImageRecord } from "@/lib/types";
+import type { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 const DEFAULT_TRANSITION_MS = 720;
@@ -71,6 +71,7 @@ type Props = {
   storySourceUrl: string | undefined;
   specStars: number | null;
   finalStars: number | null;
+  bloggerReviews: BloggerReview[];
 };
 
 const HASH_TO_INDEX: Record<string, number> = {
@@ -728,7 +729,7 @@ function StorySlide({
   );
 }
 
-function CommentsSlide({ shoe, specStars, isLoggedIn, active }: Props & { active: boolean }) {
+function CommentsSlide({ shoe, specStars, isLoggedIn, active, bloggerReviews }: Props & { active: boolean }) {
   return (
     <div className={`flex h-full flex-col py-8 ${slideEntranceClass(active)}`}>
       <div data-detail-scroll-container className="h-full overflow-y-auto pr-2">
@@ -737,6 +738,7 @@ function CommentsSlide({ shoe, specStars, isLoggedIn, active }: Props & { active
           specStars={specStars}
           initialMyDimRatings={shoe.myDimRatings ?? null}
           isLoggedIn={isLoggedIn}
+          bloggerReviews={bloggerReviews}
         />
       </div>
     </div>

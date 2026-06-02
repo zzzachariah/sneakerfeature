@@ -74,3 +74,31 @@ export interface ShoeImageRecord {
   rejection_reason?: string | null;
   generation_error?: string | null;
 }
+
+// A sneaker-blogger video review shown as a "博主点评" card on the detail page's
+// comments slide. Content (pros/cons/summary) is AI-paraphrased from the video
+// transcript and stored in Chinese; the UI translates it at render time.
+// The public band only ever reads blogger_name/platform/video_url/pros/cons/
+// summary/source_label — transcript/status/error_detail are admin-only fields.
+export interface BloggerReview {
+  id: string;
+  shoe_id: string;
+  blogger_name: string;
+  platform: "youtube" | "bilibili";
+  video_url: string;
+  pros: string[];
+  cons: string[];
+  summary: string | null;
+  // English versions (populated at summarize time) so the English UI never has
+  // to translate Chinese at render — it just reads these instead.
+  pros_en?: string[];
+  cons_en?: string[];
+  summary_en?: string | null;
+  source_label?: string | null;
+  status?: "pending" | "ready" | "error";
+  error_detail?: string | null;
+  is_published?: boolean;
+  transcript?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}

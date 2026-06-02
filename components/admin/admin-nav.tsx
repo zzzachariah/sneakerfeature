@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   ClipboardCheck,
   Library,
+  Megaphone,
   Wallet,
   type LucideIcon
 } from "lucide-react";
@@ -49,6 +50,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Published records",
         icon: Library,
         match: (p) => p.startsWith("/admin/published")
+      },
+      {
+        href: "/admin/blogger-reviews",
+        label: "Blogger reviews",
+        icon: Megaphone,
+        match: (p) => p.startsWith("/admin/blogger-reviews")
       }
     ]
   },

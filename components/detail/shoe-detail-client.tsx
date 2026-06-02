@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ShoeDetailSlides } from "@/components/detail/shoe-detail-slides";
 import { type RadarAxis } from "@/components/detail/performance-radar";
-import { Shoe, ShoeImageRecord } from "@/lib/types";
+import { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
 import {
   getBounceScore,
   getCourtFeelScore,
@@ -32,13 +32,15 @@ export function ShoeDetailClient({
   related,
   isAdmin,
   isLoggedIn,
-  imageState
+  imageState,
+  bloggerReviews
 }: {
   shoe: Shoe;
   related: Shoe[];
   isAdmin: boolean;
   isLoggedIn: boolean;
   imageState: ShoeDetailImageState;
+  bloggerReviews: BloggerReview[];
 }) {
   const { translate } = useLocale();
   const router = useRouter();
@@ -242,6 +244,7 @@ export function ShoeDetailClient({
         isAdmin={isAdmin}
         isLoggedIn={isLoggedIn}
         imageState={imageState}
+        bloggerReviews={bloggerReviews}
         reviewImage={reviewImage}
         hasPendingImage={hasPendingImage}
         imageActionLoading={imageActionLoading}
