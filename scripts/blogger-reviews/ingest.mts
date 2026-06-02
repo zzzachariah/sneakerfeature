@@ -131,16 +131,27 @@ function downloadSubtitles(url: string, platform: Platform): string | null {
       url
     ]);
   } else {
-    // BBDown writes subtitle .srt into the work dir; many Bilibili videos have
-    // no CC, in which case nothing is written and we return null.
-    run("BBDown", [url, "--sub-only", "--work-dir", work]);
+    // Bilibili subtitles are almost always AI-generated, and BBDown skips those
+    // by default (--skip-ai defaults ON), so pass `--skip-ai false` explicitly.
+    // If the video genuinely has no subtitles, nothing is written → null.
+    run("BBDown", [url, "--sub-only", "--skip-ai", "false", "--work-dir", work]);
   }
 
-  const files = existsSync(work) ? readdirSync(work).filter((f) => /\.(srt|vtt)$/i.test(f)) : [];
+  // Collect subtitle files recursively (BBDown may nest them in a per-video
+  // subfolder); keep the largest = most complete track.
+  const subPaths: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(srt|vtt)$/i.test(entry.name)) subPaths.push(full);
+    }
+  };
+  if (existsSync(work)) walk(work);
   let best = "";
-  for (const f of files) {
-    const text = subToText(readFileSync(join(work, f), "utf8"));
-    if (text.length > best.length) best = text; // largest = most complete track
+  for (const p of subPaths) {
+    const text = subToText(readFileSync(p, "utf8"));
+    if (text.length > best.length) best = text;
   }
   rmSync(work, { recursive: true, force: true });
   return best || null;
