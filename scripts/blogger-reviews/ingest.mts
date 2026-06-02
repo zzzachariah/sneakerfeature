@@ -1,7 +1,8 @@
 // Phase 1 of the local blogger-review pipeline.
 //
-//   find 3 review video links per shoe (Bocha) → download subtitles
-//   (yt-dlp for YouTube, BBDown for Bilibili) → upsert pending rows to Supabase.
+//   for each shoe: search Bilibili + YouTube via yt-dlp's built-in search
+//   (bilisearch/ytsearch) → download subtitles (yt-dlp for YouTube, BBDown for
+//   Bilibili) → upsert the ones that actually have a transcript to Supabase.
 //
 // Run from the repo root (so .env.local + node_modules resolve):
 //   npx tsx scripts/blogger-reviews/ingest.mts            # every published shoe
@@ -9,14 +10,13 @@
 //
 // Then run summarize.mts to fill pros/cons/summary via packyapi ("自动总结").
 //
-// Prereqs: yt-dlp + BBDown on PATH; .env.local with NEXT_PUBLIC_SUPABASE_URL,
-// SUPABASE_SERVICE_ROLE_KEY, BOCHA_API_KEY. The service-role client bypasses RLS.
+// Prereqs: yt-dlp + BBDown on PATH; .env.local with NEXT_PUBLIC_SUPABASE_URL and
+// SUPABASE_SERVICE_ROLE_KEY. The service-role client bypasses RLS.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { bochaWebSearch, type WebSearchHit } from "../../lib/ai/web-search";
 
 // --- env + clients (standalone tsx does NOT auto-load .env like Next) ---------
 const loadEnvFile = (process as unknown as { loadEnvFile?: (path?: string) => void }).loadEnvFile;
@@ -40,11 +40,12 @@ const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 const TMP_DIR = process.env.BLOGGER_REVIEWS_TMP_DIR || "/tmp/bloggerrev";
-const MAX_PER_SHOE = 3;
+const MAX_PER_SHOE = 3; // at most 3 review cards per shoe
+const SEARCH_N = 6; // search hits to fetch per platform; we keep the first MAX that have a transcript
 const CMD_TIMEOUT_MS = 180000;
 
 type Platform = "youtube" | "bilibili";
-type Candidate = { platform: Platform; url: string; hit: WebSearchHit };
+type Candidate = { platform: Platform; url: string };
 
 // Only accept real single-video pages; drop blogs, channel roots, shorts, brand
 // pages, search pages, etc.
@@ -81,15 +82,6 @@ function uploaderViaYtDlp(url: string): string | null {
   const out = run("yt-dlp", ["--skip-download", "--no-warnings", "--print", "%(uploader)s", url]);
   const name = out?.split("\n").map((s) => s.trim()).filter(Boolean)[0];
   return name && name !== "NA" ? name.slice(0, 80) : null;
-}
-
-// Last-resort blogger name from the Bocha hit when yt-dlp metadata isn't available.
-function bloggerFromHit(hit: WebSearchHit, platform: Platform): string {
-  if (hit.siteName && !/bilibili|哔哩哔哩|youtube/i.test(hit.siteName)) return hit.siteName.trim().slice(0, 80);
-  const parts = hit.title.split(/[|｜\-–—_·]/).map((s) => s.trim()).filter(Boolean);
-  const candidate = parts.find((s) => !/youtube|bilibili|哔哩哔哩|b站|官网/i.test(s) && s.length <= 40);
-  if (candidate) return candidate.slice(0, 80);
-  return platform === "youtube" ? "YouTube 博主" : "B站 UP主";
 }
 
 // SRT/VTT → one clean line of text.
@@ -157,28 +149,25 @@ function downloadSubtitles(url: string, platform: Platform): string | null {
   return best || null;
 }
 
-async function findCandidates(brand: string, name: string): Promise<Candidate[]> {
-  const queries = [
-    `${brand} ${name} 篮球鞋 实战测评`,
-    `${brand} ${name} 测评 bilibili`,
-    `${brand} ${name} basketball review youtube`
+// Find candidate review videos via yt-dlp's built-in search extractors
+// (bilisearch / ytsearch) — purpose-built for finding videos, unlike a general
+// web search. Bilibili first (primary source for a Chinese audience).
+function findCandidates(brand: string, name: string): Candidate[] {
+  const searches: { platform: Platform; query: string }[] = [
+    { platform: "bilibili", query: `bilisearch${SEARCH_N}:${brand} ${name} 篮球鞋 测评` },
+    { platform: "youtube", query: `ytsearch${SEARCH_N}:${brand} ${name} basketball review` }
   ];
   const seen = new Set<string>();
   const out: Candidate[] = [];
-  for (const q of queries) {
-    const res = await bochaWebSearch(q, { count: 3, timeoutMs: 8000 });
-    if (!res.ok) {
-      console.warn(`    bocha "${q}" → ${res.error}`);
-      continue;
-    }
-    for (const hit of res.results) {
-      const platform = classify(hit.url);
-      if (!platform) continue;
-      const id = videoId(hit.url);
+  for (const { platform, query } of searches) {
+    const raw = run("yt-dlp", ["--flat-playlist", "--no-warnings", "--print", "%(url)s", query]);
+    if (!raw) continue;
+    for (const line of raw.split("\n").map((s) => s.trim()).filter(Boolean)) {
+      if (classify(line) !== platform) continue;
+      const id = videoId(line);
       if (seen.has(id)) continue;
       seen.add(id);
-      out.push({ platform, url: hit.url, hit });
-      if (out.length >= MAX_PER_SHOE) return out;
+      out.push({ platform, url: line });
     }
   }
   return out;
@@ -199,16 +188,20 @@ async function main() {
   let upserted = 0;
   for (const shoe of shoes) {
     console.log(`\n● ${shoe.brand} ${shoe.shoe_name} (${shoe.slug})`);
-    const candidates = await findCandidates(shoe.brand, shoe.shoe_name);
+    const candidates = findCandidates(shoe.brand, shoe.shoe_name);
     if (!candidates.length) {
-      console.log("    no video links found");
+      console.log("    no videos found in search");
       continue;
     }
+    let kept = 0;
     for (const c of candidates) {
-      console.log(`    ${c.platform}: ${c.url}`);
-      const blogger = uploaderViaYtDlp(c.url) ?? bloggerFromHit(c.hit, c.platform);
+      if (kept >= MAX_PER_SHOE) break;
       const transcript = downloadSubtitles(c.url, c.platform);
-      console.log(`      blogger="${blogger}" transcript=${transcript ? `${transcript.length} chars` : "none"}`);
+      if (!transcript) {
+        console.log(`    ✗ no subtitle, skip: ${c.url}`);
+        continue;
+      }
+      const blogger = uploaderViaYtDlp(c.url) ?? (c.platform === "youtube" ? "YouTube 博主" : "B站 UP主");
       const { error: upErr } = await sb.from("blogger_reviews").upsert(
         {
           shoe_id: shoe.id,
@@ -222,9 +215,15 @@ async function main() {
         },
         { onConflict: "shoe_id,video_url", ignoreDuplicates: true }
       );
-      if (upErr) console.warn(`      upsert failed: ${upErr.message}`);
-      else upserted += 1;
+      if (upErr) {
+        console.warn(`    upsert failed: ${upErr.message}`);
+      } else {
+        console.log(`    ✓ ${c.platform} "${blogger}" — ${transcript.length} chars`);
+        kept += 1;
+        upserted += 1;
+      }
     }
+    if (kept === 0) console.log("    (no videos had subtitles — nothing kept)");
   }
   console.log(
     `\nDone. Upserted ${upserted} row(s) as status=pending.\n` +
