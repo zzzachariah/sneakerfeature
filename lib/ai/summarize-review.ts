@@ -8,10 +8,10 @@ import { PACKY_MODEL } from "./packy-client";
 // OpenAI SDK client the caller provides (createPackyClient()), same channel as
 // shoe recommendation.
 //
-// packyapi + haiku reliably IGNORES "output JSON" and answers in chatty markdown
-// prose, so instead of fighting for JSON we ask for a fixed 10-line
-// "LABEL: value" template and parse those labels out of whatever (often
-// preamble-prefixed) text comes back.
+// packyapi + haiku will NOT reliably emit JSON or follow a text template (it
+// invents its own "标签:" tag-lists), so the primary path is a forced tool call
+// — the relay enforces the function schema, the same mechanism recommend.ts
+// uses. Text parsers (labeled lines / JSON) remain as fallbacks.
 
 export type ReviewSummary = {
   // Chinese (authored language).
@@ -26,27 +26,75 @@ export type ReviewSummary = {
 
 const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段博主对某双球鞋的视频字幕。
 请用你自己的话概括博主的观点（转述，不要逐字摘抄字幕，也不要编造视频里没提到的内容），
-提炼出这双鞋的 2 个优点(PRO) 和 2 个缺点(CON)，再写一句整体总评(SUM)。
+提炼出这双鞋的 2 个优点 和 2 个缺点，再写一句整体总评，并给出对应的英文版。
+请调用 submit_review_summary 函数提交结果。`;
 
-然后严格按下面这 10 行输出。每行开头那个英文前缀（PRO1_ZH、PRO2_ZH 等）必须原样保留、
-不要翻译、不要改成别的词；在冒号后面写你的答案，替换掉括号里的提示文字。
-只输出这 10 行，不要任何前言、解释、编号或 markdown：
-
-PRO1_ZH:（第1个优点，中文，约10个汉字的短语，例如 前掌缓震很到位）
-PRO2_ZH:（第2个优点，中文短语）
-CON1_ZH:（第1个缺点或不足，中文短语）
-CON2_ZH:（第2个缺点，中文短语）
-SUM_ZH:（一句话中文总评，约20-30个汉字）
-PRO1_EN:（把 PRO1_ZH 翻成自然地道的英文）
-PRO2_EN:（把 PRO2_ZH 翻成英文）
-CON1_EN:（把 CON1_ZH 翻成英文）
-CON2_EN:（把 CON2_ZH 翻成英文）
-SUM_EN:（把 SUM_ZH 翻成英文）`;
+// Forced-tool schema — the reliable structured-output path.
+const SUMMARY_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "submit_review_summary",
+    description: "提交这双球鞋的转述式测评要点（中英双语）",
+    parameters: {
+      type: "object",
+      properties: {
+        pros: {
+          type: "array",
+          items: { type: "string" },
+          description: "正好 2 条中文优点，每条约 10 个汉字的短语，例如 前掌缓震很到位"
+        },
+        cons: {
+          type: "array",
+          items: { type: "string" },
+          description: "正好 2 条中文缺点/不足，每条约 10 个汉字的短语"
+        },
+        summary: { type: "string", description: "一句话中文总评，约 20-30 个汉字" },
+        pros_en: { type: "array", items: { type: "string" }, description: "pros 的英文版，正好 2 条，自然地道" },
+        cons_en: { type: "array", items: { type: "string" }, description: "cons 的英文版，正好 2 条" },
+        summary_en: { type: "string", description: "summary 的英文版" }
+      },
+      required: ["pros", "cons", "summary", "pros_en", "cons_en", "summary_en"]
+    }
+  }
+};
 
 // Cap so a long transcript can never blow the context window.
 const MAX_TRANSCRIPT = 12000;
 
-// Strip markdown / quote noise off a captured value.
+function coerce2(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean).slice(0, 2);
+}
+
+// Build a ReviewSummary from a parsed object (tool args or JSON). English trio
+// falls back to the Chinese values so the EN columns are never empty.
+function fromObject(p: Record<string, unknown>): ReviewSummary | null {
+  const pros = coerce2(p.pros);
+  const cons = coerce2(p.cons);
+  const summary = typeof p.summary === "string" ? p.summary.trim() : "";
+  if (!(pros.length === 2 && cons.length === 2 && summary)) return null;
+  const prosEn = coerce2(p.pros_en);
+  const consEn = coerce2(p.cons_en);
+  const summaryEn = typeof p.summary_en === "string" ? p.summary_en.trim() : "";
+  return {
+    pros,
+    cons,
+    summary,
+    pros_en: prosEn.length === 2 ? prosEn : pros,
+    cons_en: consEn.length === 2 ? consEn : cons,
+    summary_en: summaryEn || summary
+  };
+}
+
+function parseArgs(raw: string): ReviewSummary | null {
+  try {
+    return fromObject(JSON.parse(raw) as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
+// Strip markdown / quote / paren noise off a captured value.
 function clean(s: string): string {
   return s
     .replace(/\*+/g, "")
@@ -55,25 +103,15 @@ function clean(s: string): string {
     .trim();
 }
 
-// Pull one "LABEL: value" line out of the text — tolerant of markdown bold and
-// any preamble the chatty model prepends before the template.
 function lineValue(text: string, label: string): string {
   const m = text.match(new RegExp(`${label}\\s*\\**\\s*[:：]\\s*\\**\\s*(.+)`, "i"));
   return m ? clean(m[1]) : "";
 }
 
-function coerce2(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean).slice(0, 2);
-}
-
-// Primary: the 10-line LABEL: value template. Fallback: a JSON object (in case a
-// future model/relay does honor JSON). The English trio falls back to the
-// Chinese values so the EN columns are never empty.
+// Fallback text parser: 10-line LABEL: value template, then a JSON object.
 function parse(text: string): ReviewSummary | null {
   if (!text) return null;
 
-  // 1) Labeled-line template.
   const prosZh = [lineValue(text, "PRO1_ZH"), lineValue(text, "PRO2_ZH")].filter(Boolean);
   const consZh = [lineValue(text, "CON1_ZH"), lineValue(text, "CON2_ZH")].filter(Boolean);
   const sumZh = lineValue(text, "SUM_ZH");
@@ -91,46 +129,23 @@ function parse(text: string): ReviewSummary | null {
     };
   }
 
-  // 2) JSON fallback (strip fences → JSON.parse → regex {…} salvage).
-  const tryJson = (raw: string): ReviewSummary | null => {
-    try {
-      const p = JSON.parse(raw) as Record<string, unknown>;
-      const pros = coerce2(p.pros);
-      const cons = coerce2(p.cons);
-      const summary = typeof p.summary === "string" ? p.summary.trim() : "";
-      if (!(pros.length === 2 && cons.length === 2 && summary)) return null;
-      const prosEn = coerce2(p.pros_en);
-      const consEn = coerce2(p.cons_en);
-      const summaryEn = typeof p.summary_en === "string" ? p.summary_en.trim() : "";
-      return {
-        pros,
-        cons,
-        summary,
-        pros_en: prosEn.length === 2 ? prosEn : pros,
-        cons_en: consEn.length === 2 ? consEn : cons,
-        summary_en: summaryEn || summary
-      };
-    } catch {
-      return null;
-    }
-  };
   const fenced = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
-  const direct = tryJson(fenced);
+  const direct = parseArgs(fenced);
   if (direct) return direct;
   const m = text.match(/\{[\s\S]*\}/);
-  return m ? tryJson(m[0]) : null;
+  return m ? parseArgs(m[0]) : null;
 }
 
-// One chat call → message content, retrying transient upstream errors
-// (403/408/429/5xx) with backoff. packyapi occasionally 403s under load.
-async function createContent(
+// One chat call → message, retrying transient upstream errors (403/408/429/5xx)
+// with backoff. packyapi occasionally 403s under load.
+async function createMessage(
   client: OpenAI,
   params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
-): Promise<string | null> {
+): Promise<OpenAI.Chat.Completions.ChatCompletionMessage | null> {
   for (let attempt = 0; ; attempt++) {
     try {
       const c = await client.chat.completions.create(params);
-      return c.choices?.[0]?.message?.content ?? null;
+      return c.choices?.[0]?.message ?? null;
     } catch (e) {
       const status = (e as { status?: number })?.status;
       const transient =
@@ -162,27 +177,47 @@ export async function summarizeBloggerReview(
   ];
   const base = { model: PACKY_MODEL, temperature: 0.3, max_tokens: 2000 };
 
-  // Attempt 1: plain call. The parser tolerates any preamble the model adds.
-  let out = await createContent(client, { ...base, messages });
-  let r = out ? parse(out) : null;
+  // 1) Forced tool call — the relay enforces the schema (most reliable).
+  try {
+    const msg = await createMessage(client, {
+      ...base,
+      messages,
+      tools: [SUMMARY_TOOL],
+      tool_choice: { type: "function", function: { name: "submit_review_summary" } }
+    });
+    const args = msg?.tool_calls?.[0]?.function?.arguments;
+    if (typeof args === "string") {
+      const r = parseArgs(args);
+      if (r) return r;
+    }
+    if (typeof msg?.content === "string") {
+      const r = parse(msg.content);
+      if (r) return r;
+    }
+  } catch {
+    /* tools unsupported by the relay — fall back to text parsing */
+  }
+
+  // 2) Plain call → text parser (labeled lines / JSON).
+  let msg = await createMessage(client, { ...base, messages });
+  let r = msg?.content ? parse(msg.content) : null;
   if (r) return r;
 
-  // Attempt 2: corrective nudge (the model tends to add prose / markdown).
-  out = await createContent(client, {
+  // 3) Corrective nudge.
+  msg = await createMessage(client, {
     ...base,
     messages: [
       ...messages,
       {
         role: "user",
         content:
-          "请严格只输出那 10 行「标签: 内容」，第一行必须以 PRO1_ZH: 开头，" +
-          "不要任何前言、解释、编号或 markdown 符号。"
+          "请用以下 10 行格式作答，每行保留开头的英文前缀原样，冒号后写答案，不要任何其它文字：\n" +
+          "PRO1_ZH:\nPRO2_ZH:\nCON1_ZH:\nCON2_ZH:\nSUM_ZH:\nPRO1_EN:\nPRO2_EN:\nCON1_EN:\nCON2_EN:\nSUM_EN:"
       }
     ]
   });
-  r = out ? parse(out) : null;
+  r = msg?.content ? parse(msg.content) : null;
   if (r) return r;
 
-  // Surface the raw output so a remaining failure is diagnosable from error_detail.
-  throw new Error(`summarize_failed: unparseable output — ${(out ?? "(empty)").slice(0, 300)}`);
+  throw new Error(`summarize_failed: unparseable output — ${(msg?.content ?? "(empty)").slice(0, 300)}`);
 }
