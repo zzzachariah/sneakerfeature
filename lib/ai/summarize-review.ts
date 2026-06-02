@@ -2,10 +2,16 @@ import type OpenAI from "openai";
 import { PACKY_MODEL } from "./packy-client";
 
 // Summarizes a sneaker-reviewer's video transcript into a "two good, two bad"
-// paraphrase ("转述式署名") plus a one-line overall take. Stays framework-free
-// (no next/* imports) so BOTH the standalone ingestion script and the admin
-// re-summarize route can import it. Reuses packyapi via the OpenAI SDK client
-// the caller provides (createPackyClient()), same channel as shoe recommendation.
+// paraphrase ("转述式署名") plus a one-line overall take, in Chinese AND English.
+// Stays framework-free (no next/* imports) so BOTH the standalone ingestion
+// script and the admin re-summarize route can import it. Reuses packyapi via the
+// OpenAI SDK client the caller provides (createPackyClient()), same channel as
+// shoe recommendation.
+//
+// packyapi + haiku reliably IGNORES "output JSON" and answers in chatty markdown
+// prose, so instead of fighting for JSON we ask for a fixed 10-line
+// "LABEL: value" template and parse those labels out of whatever (often
+// preamble-prefixed) text comes back.
 
 export type ReviewSummary = {
   // Chinese (authored language).
@@ -19,53 +25,77 @@ export type ReviewSummary = {
 };
 
 const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段某位博主对某双球鞋的视频字幕文本。
-请你把这段视频的核心观点，用「转述式署名」的方式重新表达——也就是用你自己的话概括博主的意思，
-绝对不要逐字摘抄字幕原文（出于版权考虑），也不要编造视频里没有提到的内容。
+请把这段视频的核心观点，用「转述式署名」的方式重新表达——用你自己的话概括博主的意思，
+不要逐字摘抄字幕原文（版权考虑），也不要编造视频里没提到的内容。
 
-请输出 JSON，包含六个字段（中文一套 + 对应的英文一套）：
-1. pros：数组，正好 2 条中文优点，每条是视频里最突出的优点，用约 10 个汉字的简短短语转述（例如"前掌缓震很到位"）。
-2. cons：数组，正好 2 条中文缺点/不足，同样约 10 个汉字的短语。
-3. summary：一句话中文总体评价，约 20-30 个汉字，转述博主对这双鞋的整体看法。
-4. pros_en：上面 2 条优点的英文版（自然、地道的英文，可意译，不必逐字直译）。
-5. cons_en：上面 2 条缺点的英文版。
-6. summary_en：summary 的英文版。
+请严格按下面的模板逐行输出，正好 10 行，每行格式为「标签: 内容」。
+不要输出任何模板以外的文字（不要前言、不要解释、不要 markdown 符号、不要编号）：
 
-严格要求：
-- 必须是这段视频里实际、最主要的观点；视频没强调的不要写。
-- 不要逐字复制字幕里的句子；要改写、概括成你自己的话。
-- 不要出现"博主说""视频里提到"这类前缀，直接写观点本身。
-- 中文字段用简体中文，英文字段用英文；两套内容必须一一对应、含义一致。
-- 只输出 JSON，不要 markdown、不要多余文字。格式：
-  {"pros":["优点1","优点2"],"cons":["缺点1","缺点2"],"summary":"一句话总评","pros_en":["pro1","pro2"],"cons_en":["con1","con2"],"summary_en":"one-line verdict"}`;
+PRO1_ZH: 第一条中文优点，约10个汉字的短语（例如：前掌缓震很到位）
+PRO2_ZH: 第二条中文优点
+CON1_ZH: 第一条中文缺点/不足
+CON2_ZH: 第二条中文缺点
+SUM_ZH: 一句话中文总评，约20-30个汉字
+PRO1_EN: PRO1_ZH 的英文版（自然、地道，可意译）
+PRO2_EN: PRO2_ZH 的英文版
+CON1_EN: CON1_ZH 的英文版
+CON2_EN: CON2_ZH 的英文版
+SUM_EN: SUM_ZH 的英文版
 
-// Cap so a long transcript can never blow the (haiku) context window.
+要求：只写视频里实际、最主要的观点；标签后只写内容本身，不要加引号、不要"博主说""视频提到"之类前缀。`;
+
+// Cap so a long transcript can never blow the context window.
 const MAX_TRANSCRIPT = 12000;
 
-function stripFences(text: string): string {
-  return text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+// Strip markdown / quote noise off a captured value.
+function clean(s: string): string {
+  return s
+    .replace(/\*+/g, "")
+    .replace(/^[-•\s"'「『]+/, "")
+    .replace(/["'」』]+$/, "")
+    .trim();
 }
 
-// Coerce to exactly-2 clean, non-empty short strings.
+// Pull one "LABEL: value" line out of the text — tolerant of markdown bold and
+// any preamble the chatty model prepends before the template.
+function lineValue(text: string, label: string): string {
+  const m = text.match(new RegExp(`${label}\\s*\\**\\s*[:：]\\s*\\**\\s*(.+)`, "i"));
+  return m ? clean(m[1]) : "";
+}
+
 function coerce2(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
-  return value
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter(Boolean)
-    .slice(0, 2);
+  return value.map((v) => (typeof v === "string" ? v.trim() : "")).filter(Boolean).slice(0, 2);
 }
 
-// Reuses recommend.ts's parse approach: strip fences → JSON.parse → regex {…}
-// salvage. Requires a complete Chinese {pros[2], cons[2], summary}; the English
-// trio falls back to the Chinese values if the model omitted it, so the EN
-// columns are never empty (admin can re-summarize/edit to improve them).
+// Primary: the 10-line LABEL: value template. Fallback: a JSON object (in case a
+// future model/relay does honor JSON). The English trio falls back to the
+// Chinese values so the EN columns are never empty.
 function parse(text: string): ReviewSummary | null {
   if (!text) return null;
-  const tryOne = (raw: string): ReviewSummary | null => {
+
+  // 1) Labeled-line template.
+  const prosZh = [lineValue(text, "PRO1_ZH"), lineValue(text, "PRO2_ZH")].filter(Boolean);
+  const consZh = [lineValue(text, "CON1_ZH"), lineValue(text, "CON2_ZH")].filter(Boolean);
+  const sumZh = lineValue(text, "SUM_ZH");
+  if (prosZh.length === 2 && consZh.length === 2 && sumZh) {
+    const prosEn = [lineValue(text, "PRO1_EN"), lineValue(text, "PRO2_EN")].filter(Boolean);
+    const consEn = [lineValue(text, "CON1_EN"), lineValue(text, "CON2_EN")].filter(Boolean);
+    const sumEn = lineValue(text, "SUM_EN");
+    return {
+      pros: prosZh,
+      cons: consZh,
+      summary: sumZh,
+      pros_en: prosEn.length === 2 ? prosEn : prosZh,
+      cons_en: consEn.length === 2 ? consEn : consZh,
+      summary_en: sumEn || sumZh
+    };
+  }
+
+  // 2) JSON fallback (strip fences → JSON.parse → regex {…} salvage).
+  const tryJson = (raw: string): ReviewSummary | null => {
     try {
-      const p = JSON.parse(raw) as {
-        pros?: unknown; cons?: unknown; summary?: unknown;
-        pros_en?: unknown; cons_en?: unknown; summary_en?: unknown;
-      };
+      const p = JSON.parse(raw) as Record<string, unknown>;
       const pros = coerce2(p.pros);
       const cons = coerce2(p.cons);
       const summary = typeof p.summary === "string" ? p.summary.trim() : "";
@@ -85,11 +115,11 @@ function parse(text: string): ReviewSummary | null {
       return null;
     }
   };
-  const direct = tryOne(stripFences(text));
+  const fenced = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const direct = tryJson(fenced);
   if (direct) return direct;
-  const match = text.match(/\{[\s\S]*\}/);
-  if (match) return tryOne(match[0]);
-  return null;
+  const m = text.match(/\{[\s\S]*\}/);
+  return m ? tryJson(m[0]) : null;
 }
 
 // One chat call → message content, retrying transient upstream errors
@@ -131,36 +161,29 @@ export async function summarizeBloggerReview(
         `以下是视频字幕文本（可能含时间戳/噪音，请忽略无意义片段）：\n${transcript}`
     }
   ];
-  // Bilingual (6-field) output needs real headroom — 600 truncated the JSON
-  // mid-object, which is why parsing failed.
   const base = { model: PACKY_MODEL, temperature: 0.3, max_tokens: 2000 };
 
-  // packyapi's relay support is unknown, so try structured-output mechanisms in
-  // order and use the first that yields a parseable result.
-
-  // 1) JSON mode — most widely supported OpenAI-compatible structured output.
-  try {
-    const out = await createContent(client, { ...base, messages, response_format: { type: "json_object" } });
-    const r = out ? parse(out) : null;
-    if (r) return r;
-  } catch {
-    /* response_format unsupported — try the next strategy */
-  }
-
-  // 2) Assistant prefill — Claude continues the JSON object we started.
-  try {
-    const prefill = '{"pros":';
-    const out = await createContent(client, { ...base, messages: [...messages, { role: "assistant", content: prefill }] });
-    const r = out ? (parse(prefill + out) ?? parse(out)) : null;
-    if (r) return r;
-  } catch {
-    /* prefill not accepted — try the next strategy */
-  }
-
-  // 3) Plain call — last resort; let a hard upstream error propagate, and on a
-  // parse miss surface the raw output so the failure is diagnosable.
-  const out = await createContent(client, { ...base, messages });
-  const r = out ? parse(out) : null;
+  // Attempt 1: plain call. The parser tolerates any preamble the model adds.
+  let out = await createContent(client, { ...base, messages });
+  let r = out ? parse(out) : null;
   if (r) return r;
+
+  // Attempt 2: corrective nudge (the model tends to add prose / markdown).
+  out = await createContent(client, {
+    ...base,
+    messages: [
+      ...messages,
+      {
+        role: "user",
+        content:
+          "请严格只输出那 10 行「标签: 内容」，第一行必须以 PRO1_ZH: 开头，" +
+          "不要任何前言、解释、编号或 markdown 符号。"
+      }
+    ]
+  });
+  r = out ? parse(out) : null;
+  if (r) return r;
+
+  // Surface the raw output so a remaining failure is diagnosable from error_detail.
   throw new Error(`summarize_failed: unparseable output — ${(out ?? "(empty)").slice(0, 300)}`);
 }
