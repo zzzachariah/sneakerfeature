@@ -14,6 +14,9 @@ import { PACKY_MODEL } from "./packy-client";
 // uses. Text parsers (labeled lines / JSON) remain as fallbacks.
 
 export type ReviewSummary = {
+  // Whether the transcript is actually a review of the target shoe (AI-judged).
+  // false → the caller should not publish it.
+  relevant: boolean;
   // Chinese (authored language).
   pros: string[];
   cons: string[];
@@ -24,9 +27,11 @@ export type ReviewSummary = {
   summary_en: string;
 };
 
-const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段博主对某双球鞋的视频字幕。
-请用你自己的话概括博主的观点（转述，不要逐字摘抄字幕，也不要编造视频里没提到的内容），
-提炼出这双鞋的 2 个优点 和 2 个缺点，再写一句整体总评，并给出对应的英文版。
+const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段博主视频的字幕，以及本次要点评的目标球鞋名。
+首先判断：这段字幕是否确实在测评 / 重点讨论这双目标球鞋？
+- 如果讲的是别的鞋、只是顺带提一句、或与这双鞋无关：把 relevant 设为 false（优缺点可留空，不要硬凑）。
+- 如果确实在讲这双鞋：把 relevant 设为 true，再用你自己的话（转述，不逐字摘抄、不编造）提炼这双鞋的
+  2 个优点、2 个缺点和一句整体总评，并给出对应的英文版。
 请调用 submit_review_summary 函数提交结果。`;
 
 // Forced-tool schema — the reliable structured-output path.
@@ -38,6 +43,11 @@ const SUMMARY_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
     parameters: {
       type: "object",
       properties: {
+        relevant: {
+          type: "boolean",
+          description:
+            "这段字幕是否确实在测评或重点讨论本次给定的这双球鞋。讲别的鞋、只是顺带提及、或与该鞋无关都填 false；确实在讲这双鞋填 true。"
+        },
         pros: {
           type: "array",
           items: { type: "string" },
@@ -53,7 +63,7 @@ const SUMMARY_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
         cons_en: { type: "array", items: { type: "string" }, description: "cons 的英文版，正好 2 条" },
         summary_en: { type: "string", description: "summary 的英文版" }
       },
-      required: ["pros", "cons", "summary", "pros_en", "cons_en", "summary_en"]
+      required: ["relevant", "pros", "cons", "summary", "pros_en", "cons_en", "summary_en"]
     }
   }
 };
@@ -69,6 +79,10 @@ function coerce2(value: unknown): string[] {
 // Build a ReviewSummary from a parsed object (tool args or JSON). English trio
 // falls back to the Chinese values so the EN columns are never empty.
 function fromObject(p: Record<string, unknown>): ReviewSummary | null {
+  // Irrelevant videos: accept without requiring pros/cons (caller won't publish).
+  if (p.relevant === false) {
+    return { relevant: false, pros: [], cons: [], summary: "", pros_en: [], cons_en: [], summary_en: "" };
+  }
   const pros = coerce2(p.pros);
   const cons = coerce2(p.cons);
   const summary = typeof p.summary === "string" ? p.summary.trim() : "";
@@ -77,6 +91,7 @@ function fromObject(p: Record<string, unknown>): ReviewSummary | null {
   const consEn = coerce2(p.cons_en);
   const summaryEn = typeof p.summary_en === "string" ? p.summary_en.trim() : "";
   return {
+    relevant: true,
     pros,
     cons,
     summary,
@@ -120,6 +135,7 @@ function parse(text: string): ReviewSummary | null {
     const consEn = [lineValue(text, "CON1_EN"), lineValue(text, "CON2_EN")].filter(Boolean);
     const sumEn = lineValue(text, "SUM_EN");
     return {
+      relevant: true,
       pros: prosZh,
       cons: consZh,
       summary: sumZh,

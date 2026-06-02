@@ -40,9 +40,22 @@ const sb = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 const TMP_DIR = process.env.BLOGGER_REVIEWS_TMP_DIR || "/tmp/bloggerrev";
-const MAX_PER_SHOE = 3; // at most 3 review cards per shoe
-const SEARCH_N = 6; // search hits to fetch per platform; we keep the first MAX that have a transcript
+const MAX_PER_PLATFORM = 3; // keep up to 3 review cards per platform per shoe
+const SEARCH_N = 6; // search hits to fetch per platform; we keep the first MAX_PER_PLATFORM that have a transcript
 const CMD_TIMEOUT_MS = 180000;
+
+// YouTube blocks unauthenticated yt-dlp ("confirm you're not a bot"); pass
+// browser cookies to authenticate. Set ONE of these in .env.local (Bilibili via
+// BBDown is unaffected):
+//   YTDLP_COOKIES_FROM_BROWSER=firefox   (or chrome/safari/edge/brave)
+//   YTDLP_COOKIES_FILE=/absolute/path/to/cookies.txt
+const COOKIE_ARGS: string[] = (() => {
+  const browser = process.env.YTDLP_COOKIES_FROM_BROWSER?.trim();
+  if (browser) return ["--cookies-from-browser", browser];
+  const file = process.env.YTDLP_COOKIES_FILE?.trim();
+  if (file) return ["--cookies", file];
+  return [];
+})();
 
 type Platform = "youtube" | "bilibili";
 type Candidate = { platform: Platform; url: string };
@@ -79,7 +92,7 @@ function run(cmd: string, args: string[]): string | null {
 // yt-dlp resolves the uploader/channel for both YouTube AND Bilibili — the most
 // reliable blogger-name source (search-result titles are noisy).
 function uploaderViaYtDlp(url: string): string | null {
-  const out = run("yt-dlp", ["--skip-download", "--no-warnings", "--print", "%(uploader)s", url]);
+  const out = run("yt-dlp", [...COOKIE_ARGS, "--skip-download", "--no-warnings", "--print", "%(uploader)s", url]);
   const name = out?.split("\n").map((s) => s.trim()).filter(Boolean)[0];
   return name && name !== "NA" ? name.slice(0, 80) : null;
 }
@@ -108,6 +121,7 @@ function downloadSubtitles(url: string, platform: Platform): string | null {
 
   if (platform === "youtube") {
     run("yt-dlp", [
+      ...COOKIE_ARGS,
       "--skip-download",
       "--no-warnings",
       "--write-subs",
@@ -160,7 +174,7 @@ function findCandidates(brand: string, name: string): Candidate[] {
   const seen = new Set<string>();
   const out: Candidate[] = [];
   for (const { platform, query } of searches) {
-    const raw = run("yt-dlp", ["--flat-playlist", "--no-warnings", "--print", "%(url)s", query]);
+    const raw = run("yt-dlp", [...COOKIE_ARGS, "--flat-playlist", "--no-warnings", "--print", "%(url)s", query]);
     if (!raw) continue;
     for (const line of raw.split("\n").map((s) => s.trim()).filter(Boolean)) {
       if (classify(line) !== platform) continue;
@@ -193,9 +207,12 @@ async function main() {
       console.log("    no videos found in search");
       continue;
     }
-    let kept = 0;
+    // Keep up to MAX_PER_PLATFORM videos *per platform* (so the UI can offer a
+    // YouTube/Bilibili toggle with up to 3 cards each).
+    const kept: Record<Platform, number> = { youtube: 0, bilibili: 0 };
     for (const c of candidates) {
-      if (kept >= MAX_PER_SHOE) break;
+      if (kept.youtube >= MAX_PER_PLATFORM && kept.bilibili >= MAX_PER_PLATFORM) break;
+      if (kept[c.platform] >= MAX_PER_PLATFORM) continue;
       const transcript = downloadSubtitles(c.url, c.platform);
       if (!transcript) {
         console.log(`    ✗ no subtitle, skip: ${c.url}`);
@@ -219,11 +236,11 @@ async function main() {
         console.warn(`    upsert failed: ${upErr.message}`);
       } else {
         console.log(`    ✓ ${c.platform} "${blogger}" — ${transcript.length} chars`);
-        kept += 1;
+        kept[c.platform] += 1;
         upserted += 1;
       }
     }
-    if (kept === 0) console.log("    (no videos had subtitles — nothing kept)");
+    if (kept.youtube + kept.bilibili === 0) console.log("    (no videos had subtitles — nothing kept)");
   }
   console.log(
     `\nDone. Upserted ${upserted} row(s) as status=pending.\n` +

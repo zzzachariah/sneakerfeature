@@ -59,6 +59,7 @@ async function main() {
   console.log(`Summarizing ${rows.length} row(s)…`);
   const shoeNames = new Map<string, string>();
   let ready = 0;
+  let skipped = 0;
   let errored = 0;
 
   for (const row of rows) {
@@ -75,6 +76,21 @@ async function main() {
         bloggerName: row.blogger_name,
         transcript: row.transcript as string
       });
+      // AI relevance gate: don't publish videos that aren't about this shoe.
+      if (!s.relevant) {
+        await sb
+          .from("blogger_reviews")
+          .update({
+            status: "ready",
+            is_published: false,
+            error_detail: "low_relevance: AI 判定该视频与本鞋关联度低，已自动跳过、未发布",
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", row.id);
+        console.log(`  ⊘ ${shoeName} — ${row.blogger_name}: 判定不相关，未发布`);
+        skipped += 1;
+        continue;
+      }
       const { error: upErr } = await sb
         .from("blogger_reviews")
         .update({
@@ -108,7 +124,10 @@ async function main() {
     }
   }
 
-  console.log(`\nDone. ${ready} ready (published), ${errored} errored. Open a shoe page to see the 博主点评 band.`);
+  console.log(
+    `\nDone. ${ready} ready (published), ${skipped} skipped (irrelevant), ${errored} errored. ` +
+      `Open a shoe page to see the 博主点评 band.`
+  );
 }
 
 main().catch((err) => {

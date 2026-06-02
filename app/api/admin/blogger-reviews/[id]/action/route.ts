@@ -64,6 +64,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       bloggerName: row.blogger_name,
       transcript: row.transcript
     });
+    // AI relevance gate: if this isn't a review of the shoe, unpublish + flag.
+    if (!s.relevant) {
+      const { error: upErr } = await supabase
+        .from("blogger_reviews")
+        .update({
+          status: "ready",
+          is_published: false,
+          error_detail: "low_relevance: AI 判定该视频与本鞋关联度低，已设为不发布",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id);
+      if (upErr) return badRequest(upErr.message);
+      revalidateTag("blogger_reviews");
+      return NextResponse.json({ ok: true, message: "AI 判定与该鞋关联度低，已设为不发布。" });
+    }
     const { error: upErr } = await supabase
       .from("blogger_reviews")
       .update({
