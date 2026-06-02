@@ -24,25 +24,24 @@ export type ReviewSummary = {
   summary_en: string;
 };
 
-const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段某位博主对某双球鞋的视频字幕文本。
-请把这段视频的核心观点，用「转述式署名」的方式重新表达——用你自己的话概括博主的意思，
-不要逐字摘抄字幕原文（版权考虑），也不要编造视频里没提到的内容。
+const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段博主对某双球鞋的视频字幕。
+请用你自己的话概括博主的观点（转述，不要逐字摘抄字幕，也不要编造视频里没提到的内容），
+提炼出这双鞋的 2 个优点(PRO) 和 2 个缺点(CON)，再写一句整体总评(SUM)。
 
-请严格按下面的模板逐行输出，正好 10 行，每行格式为「标签: 内容」。
-不要输出任何模板以外的文字（不要前言、不要解释、不要 markdown 符号、不要编号）：
+然后严格按下面这 10 行输出。每行开头那个英文前缀（PRO1_ZH、PRO2_ZH 等）必须原样保留、
+不要翻译、不要改成别的词；在冒号后面写你的答案，替换掉括号里的提示文字。
+只输出这 10 行，不要任何前言、解释、编号或 markdown：
 
-PRO1_ZH: 第一条中文优点，约10个汉字的短语（例如：前掌缓震很到位）
-PRO2_ZH: 第二条中文优点
-CON1_ZH: 第一条中文缺点/不足
-CON2_ZH: 第二条中文缺点
-SUM_ZH: 一句话中文总评，约20-30个汉字
-PRO1_EN: PRO1_ZH 的英文版（自然、地道，可意译）
-PRO2_EN: PRO2_ZH 的英文版
-CON1_EN: CON1_ZH 的英文版
-CON2_EN: CON2_ZH 的英文版
-SUM_EN: SUM_ZH 的英文版
-
-要求：只写视频里实际、最主要的观点；标签后只写内容本身，不要加引号、不要"博主说""视频提到"之类前缀。`;
+PRO1_ZH:（第1个优点，中文，约10个汉字的短语，例如 前掌缓震很到位）
+PRO2_ZH:（第2个优点，中文短语）
+CON1_ZH:（第1个缺点或不足，中文短语）
+CON2_ZH:（第2个缺点，中文短语）
+SUM_ZH:（一句话中文总评，约20-30个汉字）
+PRO1_EN:（把 PRO1_ZH 翻成自然地道的英文）
+PRO2_EN:（把 PRO2_ZH 翻成英文）
+CON1_EN:（把 CON1_ZH 翻成英文）
+CON2_EN:（把 CON2_ZH 翻成英文）
+SUM_EN:（把 SUM_ZH 翻成英文）`;
 
 // Cap so a long transcript can never blow the context window.
 const MAX_TRANSCRIPT = 12000;
@@ -51,8 +50,8 @@ const MAX_TRANSCRIPT = 12000;
 function clean(s: string): string {
   return s
     .replace(/\*+/g, "")
-    .replace(/^[-•\s"'「『]+/, "")
-    .replace(/["'」』]+$/, "")
+    .replace(/^[-•\s"'「『（(]+/, "")
+    .replace(/["'」』）)]+$/, "")
     .trim();
 }
 
@@ -136,8 +135,8 @@ async function createContent(
       const status = (e as { status?: number })?.status;
       const transient =
         status === 403 || status === 408 || status === 429 || (typeof status === "number" && status >= 500);
-      if (transient && attempt < 2) {
-        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+      if (transient && attempt < 3) {
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt)); // 1s, 2s, 4s
         continue;
       }
       throw e;
