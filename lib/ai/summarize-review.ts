@@ -92,6 +92,29 @@ function parse(text: string): ReviewSummary | null {
   return null;
 }
 
+// One chat call → message content, retrying transient upstream errors
+// (403/408/429/5xx) with backoff. packyapi occasionally 403s under load.
+async function createContent(
+  client: OpenAI,
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming
+): Promise<string | null> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const c = await client.chat.completions.create(params);
+      return c.choices?.[0]?.message?.content ?? null;
+    } catch (e) {
+      const status = (e as { status?: number })?.status;
+      const transient =
+        status === 403 || status === 408 || status === 429 || (typeof status === "number" && status >= 500);
+      if (transient && attempt < 2) {
+        await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        continue;
+      }
+      throw e;
+    }
+  }
+}
+
 export async function summarizeBloggerReview(
   client: OpenAI,
   opts: { shoeName: string; bloggerName: string; transcript: string }
@@ -108,19 +131,18 @@ export async function summarizeBloggerReview(
         `以下是视频字幕文本（可能含时间戳/噪音，请忽略无意义片段）：\n${transcript}`
     }
   ];
-  const base = { model: PACKY_MODEL, temperature: 0.3, max_tokens: 600 };
+  // Bilingual (6-field) output needs real headroom — 600 truncated the JSON
+  // mid-object, which is why parsing failed.
+  const base = { model: PACKY_MODEL, temperature: 0.3, max_tokens: 2000 };
 
   // packyapi's relay support is unknown, so try structured-output mechanisms in
-  // order and use the first that yields a parseable {pros,cons,summary}.
+  // order and use the first that yields a parseable result.
 
   // 1) JSON mode — most widely supported OpenAI-compatible structured output.
   try {
-    const c = await client.chat.completions.create({ ...base, messages, response_format: { type: "json_object" } });
-    const out = c.choices?.[0]?.message?.content;
-    if (typeof out === "string") {
-      const r = parse(out);
-      if (r) return r;
-    }
+    const out = await createContent(client, { ...base, messages, response_format: { type: "json_object" } });
+    const r = out ? parse(out) : null;
+    if (r) return r;
   } catch {
     /* response_format unsupported — try the next strategy */
   }
@@ -128,25 +150,17 @@ export async function summarizeBloggerReview(
   // 2) Assistant prefill — Claude continues the JSON object we started.
   try {
     const prefill = '{"pros":';
-    const c = await client.chat.completions.create({
-      ...base,
-      messages: [...messages, { role: "assistant", content: prefill }]
-    });
-    const out = c.choices?.[0]?.message?.content;
-    if (typeof out === "string") {
-      const r = parse(prefill + out) ?? parse(out);
-      if (r) return r;
-    }
+    const out = await createContent(client, { ...base, messages: [...messages, { role: "assistant", content: prefill }] });
+    const r = out ? (parse(prefill + out) ?? parse(out)) : null;
+    if (r) return r;
   } catch {
     /* prefill not accepted — try the next strategy */
   }
 
-  // 3) Plain call — last resort; parse whatever comes back.
-  const c = await client.chat.completions.create({ ...base, messages });
-  const out = c.choices?.[0]?.message?.content;
-  if (typeof out === "string") {
-    const r = parse(out);
-    if (r) return r;
-  }
-  throw new Error("summarize_failed: model did not return parseable {pros,cons,summary}");
+  // 3) Plain call — last resort; let a hard upstream error propagate, and on a
+  // parse miss surface the raw output so the failure is diagnosable.
+  const out = await createContent(client, { ...base, messages });
+  const r = out ? parse(out) : null;
+  if (r) return r;
+  throw new Error(`summarize_failed: unparseable output — ${(out ?? "(empty)").slice(0, 300)}`);
 }
