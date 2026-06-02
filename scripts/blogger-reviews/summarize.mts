@@ -43,14 +43,16 @@ if (!packy) {
 }
 
 async function main() {
+  // Process not-yet-summarized rows AND previously errored ones, so re-running
+  // this script simply retries failures (no manual status reset needed).
   const { data: rows, error } = await sb
     .from("blogger_reviews")
     .select("id, shoe_id, blogger_name, transcript")
-    .eq("status", "pending")
+    .in("status", ["pending", "error"])
     .not("transcript", "is", null);
   if (error) throw error;
   if (!rows?.length) {
-    console.log("No pending rows with a transcript. (Run ingest.mts first.)");
+    console.log("No pending/errored rows with a transcript. (Run ingest.mts first.)");
     return;
   }
 
