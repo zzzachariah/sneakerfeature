@@ -80,13 +80,19 @@ async function loadAll(): Promise<Record<string, BloggerReview[]>> {
 
   const byShoe: Record<string, BloggerReview[]> = {};
   const counts: Record<string, { youtube: number; bilibili: number }> = {};
+  const seenBloggers: Record<string, Set<string>> = {};
   for (const row of rows) {
     const r = normalize(row);
     const arr = (byShoe[r.shoe_id] ??= []);
     const c = (counts[r.shoe_id] ??= { youtube: 0, bilibili: 0 });
-    if (c[r.platform] < MAX_PER_PLATFORM) {
+    const seen = (seenBloggers[r.shoe_id] ??= new Set());
+    // One card per blogger per platform (drops duplicate uploaders, e.g. a
+    // channel that posted multiple videos for the same shoe).
+    const key = `${r.platform}::${r.blogger_name.trim().toLowerCase()}`;
+    if (c[r.platform] < MAX_PER_PLATFORM && !seen.has(key)) {
       arr.push(r);
       c[r.platform] += 1;
+      seen.add(key);
     }
   }
   return byShoe;
