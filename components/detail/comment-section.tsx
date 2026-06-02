@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
+import { BloggerReviewsBand } from "@/components/detail/blogger-reviews-band";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { DimKey } from "@/lib/star-rating";
+import type { BloggerReview } from "@/lib/types";
 
 type CommentItem = {
   id: string;
@@ -27,13 +29,15 @@ type CommentSectionProps = {
   specStars?: number | null;
   initialMyDimRatings?: Partial<Record<DimKey, number>> | null;
   isLoggedIn?: boolean;
+  bloggerReviews?: BloggerReview[];
 };
 
 export function CommentSection({
   shoeId,
   specStars,
   initialMyDimRatings = null,
-  isLoggedIn
+  isLoggedIn,
+  bloggerReviews = []
 }: CommentSectionProps) {
   const { translate } = useLocale();
   const [content, setContent] = useState("");
@@ -119,6 +123,7 @@ export function CommentSection({
 
   return (
     <section className="space-y-4">
+    {bloggerReviews.length > 0 ? <BloggerReviewsBand reviews={bloggerReviews} /> : null}
     {focusReady ? (
       <DimRatingForm
         shoeId={shoeId}

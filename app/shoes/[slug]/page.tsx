@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShoeDetailClient } from "@/components/detail/shoe-detail-client";
 import { getShoeBySlug, getShoeImageState, getShoes } from "@/lib/data/shoes";
+import { getBloggerReviewsForShoe } from "@/lib/data/blogger-reviews";
 import { getCurrentProfile } from "@/lib/data/auth";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
@@ -52,7 +53,10 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
 
   const isAdmin = profile?.role === "admin";
   const isLoggedIn = Boolean(profile);
-  const imageState = await getShoeImageState(shoe.id, isAdmin);
+  const [imageState, bloggerReviews] = await Promise.all([
+    getShoeImageState(shoe.id, isAdmin),
+    getBloggerReviewsForShoe(shoe.id)
+  ]);
 
   const related = allShoes.filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
 
@@ -81,7 +85,7 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
-      <ShoeDetailClient shoe={shoe} related={related} isAdmin={isAdmin} isLoggedIn={isLoggedIn} imageState={imageState} />
+      <ShoeDetailClient shoe={shoe} related={related} isAdmin={isAdmin} isLoggedIn={isLoggedIn} imageState={imageState} bloggerReviews={bloggerReviews} />
     </>
   );
 }

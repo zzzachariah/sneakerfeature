@@ -192,6 +192,12 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "be the first to share how this shoe performs on court.": "来当第一个分享这双鞋实战表现的人吧。",
   "delete my comment": "删除我的评论",
   "delete": "删除",
+
+  // Blogger reviews band (博主点评)
+  "pro reviews": "博主点评",
+  "paraphrased highlights from sneaker reviewers — not verbatim quotes.": "转述博主观点，非逐字引用",
+  "watch review": "观看视频",
+
   "highlight differences": "高亮差异",
   "field": "字段",
   "release year": "发售年份",
