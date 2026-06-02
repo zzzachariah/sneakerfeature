@@ -7,8 +7,9 @@ import type { BloggerReview } from "@/lib/types";
 const PUBLIC_COLUMNS =
   "id, shoe_id, blogger_name, platform, video_url, pros, cons, summary, pros_en, cons_en, summary_en, source_label, created_at";
 
-// At most 3 published reviews per shoe, oldest first (stable order).
-const MAX_PER_SHOE = 3;
+// At most 3 published reviews per platform per shoe, oldest first (stable order)
+// — the detail UI toggles between YouTube and Bilibili, up to 3 cards each.
+const MAX_PER_PLATFORM = 3;
 
 type ReviewRow = {
   id: string;
@@ -78,9 +79,15 @@ async function loadAll(): Promise<Record<string, BloggerReview[]>> {
   }
 
   const byShoe: Record<string, BloggerReview[]> = {};
+  const counts: Record<string, { youtube: number; bilibili: number }> = {};
   for (const row of rows) {
-    const arr = (byShoe[row.shoe_id] ??= []);
-    if (arr.length < MAX_PER_SHOE) arr.push(normalize(row));
+    const r = normalize(row);
+    const arr = (byShoe[r.shoe_id] ??= []);
+    const c = (counts[r.shoe_id] ??= { youtube: 0, bilibili: 0 });
+    if (c[r.platform] < MAX_PER_PLATFORM) {
+      arr.push(r);
+      c[r.platform] += 1;
+    }
   }
   return byShoe;
 }
