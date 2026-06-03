@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Youtube, PlayCircle, RefreshCw, Trash2, Save, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
+import { Youtube, PlayCircle, RefreshCw, Trash2, Save, Eye, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -71,91 +71,33 @@ function toDraft(r: AdminReview): Draft {
   };
 }
 
-function Pager({
-  page,
-  totalPages,
-  loading,
-  onChange
-}: {
-  page: number;
-  totalPages: number;
-  loading: boolean;
-  onChange: (next: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-center gap-3">
-      <button
-        onClick={() => onChange(Math.max(1, page - 1))}
-        disabled={page <= 1 || loading}
-        className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs transition hover:bg-[rgb(var(--muted)/0.25)] disabled:opacity-40"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-        Prev
-      </button>
-      <span className="text-xs soft-text tabular-nums">
-        Page {page} of {totalPages}
-      </span>
-      <button
-        onClick={() => onChange(Math.min(totalPages, page + 1))}
-        disabled={page >= totalPages || loading}
-        className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs transition hover:bg-[rgb(var(--muted)/0.25)] disabled:opacity-40"
-      >
-        Next
-        <ChevronRight className="h-3.5 w-3.5" />
-      </button>
-    </div>
-  );
-}
-
-export function BloggerReviewsAdminClient() {
+export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState("");
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [pageSize, setPageSize] = useState(50);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async (p: number, q: string) => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const url = `/api/admin/blogger-reviews?page=${p}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
-      const res = await fetch(url);
+      const res = await fetch(`/api/admin/blogger-reviews?shoeId=${encodeURIComponent(shoeId)}`);
       const json = await res.json();
       if (json?.ok) {
         const rows = json.reviews as AdminReview[];
         setReviews(rows);
         setDrafts(Object.fromEntries(rows.map((r) => [r.id, toDraft(r)])));
-        setTotal(json.total ?? rows.length);
-        setPageSize(json.pageSize ?? 50);
-        // The server clamps the page to the valid range; sync back if it differs
-        // (e.g. after deleting the last rows on the final page).
-        const serverPage: number = json.page ?? p;
-        if (serverPage !== p) setPage(serverPage);
       } else {
         setMessage(json?.message ?? "Failed to load.");
       }
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  // Debounce the search box; any change resets to the first page.
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      const next = searchInput.trim();
-      setQuery((prev) => (prev === next ? prev : next));
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(handle);
-  }, [searchInput]);
+  }, [shoeId]);
 
   useEffect(() => {
-    void load(page, query);
-  }, [page, query, load]);
+    void load();
+  }, [load]);
 
   const setField = (id: string, key: keyof Draft, value: string) =>
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
@@ -184,12 +126,12 @@ export function BloggerReviewsAdminClient() {
         });
         const json = await res.json();
         setMessage(json?.message ?? (json?.ok ? "Saved." : "Failed."));
-        if (json?.ok) await load(page, query);
+        if (json?.ok) await load();
       } finally {
         setBusyId(null);
       }
     },
-    [drafts, load, page, query]
+    [drafts, load]
   );
 
   const action = useCallback(
@@ -204,12 +146,12 @@ export function BloggerReviewsAdminClient() {
         });
         const json = await res.json();
         setMessage(json?.message ?? (json?.ok ? "Done." : "Failed."));
-        if (json?.ok) await load(page, query);
+        if (json?.ok) await load();
       } finally {
         setBusyId(null);
       }
     },
-    [load, page, query]
+    [load]
   );
 
   const remove = useCallback(
@@ -221,50 +163,36 @@ export function BloggerReviewsAdminClient() {
         const res = await fetch(`/api/admin/blogger-reviews/${id}`, { method: "DELETE" });
         const json = await res.json();
         setMessage(json?.message ?? (json?.ok ? "Deleted." : "Failed."));
-        if (json?.ok) await load(page, query);
+        if (json?.ok) await load();
       } finally {
         setBusyId(null);
       }
     },
-    [load, page, query]
+    [load]
   );
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeEnd = (page - 1) * pageSize + reviews.length;
 
   return (
     <div className="space-y-4">
-      <Card className="space-y-3 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-sm soft-text">
-            {total} review(s){query ? ` matching “${query}”` : ""}
-            {total > 0 ? ` · showing ${rangeStart}–${rangeEnd}` : ""}. Content is stored in Chinese + English; the public band
-            shows ready + published only.
-          </p>
-          <input
-            className="ml-auto rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1 text-sm"
-            placeholder="Search by shoe, brand, or blogger…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-          />
-          <button
-            onClick={() => load(page, query)}
-            className="rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]"
-          >
-            Refresh
-          </button>
-        </div>
-        {message && <p className="text-sm">{message}</p>}
-        <Pager page={page} totalPages={totalPages} loading={loading} onChange={setPage} />
+      <Card className="flex flex-wrap items-center gap-2 p-4">
+        <p className="text-sm soft-text">
+          {reviews.length} review(s) for this shoe. Content is stored in Chinese + English; the public band shows ready +
+          published only.
+        </p>
+        <button
+          onClick={() => load()}
+          className="ml-auto rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]"
+        >
+          Refresh
+        </button>
+        {message && <p className="w-full text-sm">{message}</p>}
       </Card>
 
       {loading ? (
         <p className="text-sm soft-text">Loading…</p>
       ) : reviews.length === 0 ? (
-        <p className="text-sm soft-text">
-          No blogger reviews{query ? " match this search" : " yet"}. Run the local ingest + summarize scripts to populate.
-        </p>
+        <Card className="p-6 text-center text-sm soft-text">
+          No blogger reviews for this shoe yet. Run the local ingest + summarize scripts to populate.
+        </Card>
       ) : (
         reviews.map((r) => {
           const d = drafts[r.id];
@@ -278,7 +206,7 @@ export function BloggerReviewsAdminClient() {
                 ) : (
                   <PlayCircle className="h-4 w-4 text-sky-400" />
                 )}
-                <span className="font-medium">{r.shoes?.shoe_name ?? r.shoe_id}</span>
+                <span className="font-medium">{r.blogger_name || "Untitled review"}</span>
                 <span className={`text-xs ${STATUS_STYLES[r.status] ?? ""}`}>● {r.status}</span>
                 <span className="text-xs soft-text">{r.is_published ? "published" : "hidden"}</span>
                 {!r.transcript && <span className="text-xs text-amber-400">no transcript</span>}
@@ -355,12 +283,6 @@ export function BloggerReviewsAdminClient() {
             </Card>
           );
         })
-      )}
-
-      {!loading && reviews.length > 0 && (
-        <Card className="p-3">
-          <Pager page={page} totalPages={totalPages} loading={loading} onChange={setPage} />
-        </Card>
       )}
     </div>
   );
