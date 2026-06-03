@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Route } from "next";
 import {
-  LayoutDashboard,
+  Home,
   ClipboardCheck,
   Library,
   Megaphone,
   Wallet,
+  Settings2,
   type LucideIcon
 } from "lucide-react";
 
@@ -30,8 +31,8 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       {
         href: "/admin",
-        label: "Overview",
-        icon: LayoutDashboard,
+        label: "Home",
+        icon: Home,
         match: (p) => p === "/admin"
       }
     ]
@@ -67,6 +68,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Credits & balances",
         icon: Wallet,
         match: (p) => p.startsWith("/admin/credits")
+      },
+      {
+        href: "/admin/settings",
+        label: "Site settings",
+        icon: Settings2,
+        match: (p) => p.startsWith("/admin/settings")
       }
     ]
   }
