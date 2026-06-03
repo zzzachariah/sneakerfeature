@@ -176,6 +176,25 @@ function stripFences(text: string): string {
   return text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
 }
 
+// Decide whether a model `content` string is human-readable preamble worth
+// streaming as live "what it's doing" text, or machine output (the JSON answer /
+// tool args this relay sometimes puts in `content` instead of a tool_call) that
+// must NOT be shown verbatim. Returns the prose to stream, or null to skip.
+function streamablePreamble(content: string): string | null {
+  const t = content.trim();
+  if (!t) return null;
+  // Begins like a JSON object/array or a fenced code block → machine output.
+  if (t.startsWith("{") || t.startsWith("[") || t.startsWith("```")) return null;
+  // Keep only the natural-language part before any embedded JSON object (a stray
+  // "{" never appears in the recommendation prose we expect).
+  const brace = t.indexOf("{");
+  const prose = (brace > 0 ? t.slice(0, brace) : t).trim();
+  if (!prose) return null;
+  // Residual structured-output keys (JSON that didn't start with "{") → skip.
+  if (/"(?:recommendations|reply|stars|references)"\s*:/.test(prose)) return null;
+  return prose;
+}
+
 function coerceStars(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return 3;
@@ -469,10 +488,14 @@ async function tryToolLoopWithSearch(
     const msg = c.choices?.[0]?.message;
     if (!msg) return bail("no_choice_message");
 
-    // Stream whatever the model said this turn (a preamble, or full prose) so the
-    // user sees "what it's doing" live — even when it's about to call a tool.
-    if (typeof msg.content === "string" && msg.content.trim()) {
-      onProgress?.({ type: "text", delta: msg.content });
+    // Stream the model's natural-language preamble so the user sees "what it's
+    // doing" live — but never machine output. This relay frequently returns the
+    // JSON answer (or tool args) in `content` instead of as a tool_call; sending
+    // that verbatim showed users raw `{"recommendations":…}` text. Keep only
+    // genuine prose — the cards + final reply carry the structured result.
+    if (typeof msg.content === "string") {
+      const preamble = streamablePreamble(msg.content);
+      if (preamble) onProgress?.({ type: "text", delta: preamble });
     }
 
     const toolCalls = msg.tool_calls ?? [];
@@ -696,17 +719,24 @@ export async function recommendShoes(
 ): Promise<RecommendResult> {
   const catalog = buildCompactCatalog(opts.shoes, opts.persona);
 
+  // The relay (packyapi) does NOT lift an OpenAI `system` turn into Anthropic's
+  // top-level `system`; it forwards the message as-is and Claude rejects a
+  // `system` role — HTTP 400 'messages[0].role must be "user" or "assistant"'.
+  // So we deliver the prompt + catalog as the opening USER turn and prime a
+  // one-line assistant ack, keeping strict user/assistant alternation on every
+  // relay. The model reads it the same as a system preamble.
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\n鞋款目录(JSON):\n${JSON.stringify(catalog)}` }
+    { role: "user", content: `${SYSTEM_PROMPT}\n\n鞋款目录(JSON):\n${JSON.stringify(catalog)}` },
+    { role: "assistant", content: "明白，我已读取鞋款目录，请告诉我你的需求。" }
   ];
   for (const turn of opts.history) {
     if (turn.role === "user") messages.push({ role: "user", content: turn.content });
     else messages.push({ role: "assistant", content: turn.content });
   }
   const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
-  // The strict output contract lives in the final user turn (not a trailing
-  // system message): Claude-style relays merge system messages to the top, which
-  // would bury this "last word" and let the model answer the casual query in prose.
+  // The strict output contract lives here in the final user turn — the model's
+  // "last word" — so it isn't buried under the long prompt + catalog above and
+  // can't be answered as casual prose.
   messages.push({
     role: "user",
     content:
