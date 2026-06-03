@@ -762,6 +762,48 @@ body {
   }
 }
 
+/* Smart Picker — AI "thinking" indicator (reasoning-timeline header + dots).
+   Used by components/smart-picker/thinking-panel.tsx. */
+@keyframes thinkingGlow {
+  0%, 100% { opacity: 0.55; transform: scale(0.9); }
+  50%      { opacity: 1;    transform: scale(1.08); }
+}
+.thinking-glow {
+  animation: thinkingGlow 1.5s var(--ease) infinite;
+}
+
+@keyframes thinkingSweep {
+  0%   { background-position: 180% 50%; }
+  100% { background-position: -160% 50%; }
+}
+.thinking-shimmer {
+  background: linear-gradient(110deg, rgb(var(--text) / 0.35), rgb(var(--text)) 50%, rgb(var(--text) / 0.35));
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: thinkingSweep 2s linear infinite;
+}
+
+@keyframes thinkingDot {
+  0%, 80%, 100% { transform: translateY(0);    opacity: 0.35; }
+  40%           { transform: translateY(-3px); opacity: 1; }
+}
+.thinking-dot {
+  animation: thinkingDot 1.1s var(--ease) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-glow,
+  .thinking-dot {
+    animation: none;
+  }
+  .thinking-shimmer {
+    animation: none;
+    color: rgb(var(--text));
+  }
+}
+
 /* Smart Picker — printable recommendation report (print → Save as PDF).
    Hidden on screen; on print, only this report is shown. */
 .print-report {
