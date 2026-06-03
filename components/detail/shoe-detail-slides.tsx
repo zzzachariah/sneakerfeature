@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronDown, Share2 } from "lucide-react";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { CommentSection } from "@/components/detail/comment-section";
+import { BloggerReviewsSlideBody } from "@/components/detail/blogger-reviews-slide";
 import { PerformanceRadar, type RadarAxis } from "@/components/detail/performance-radar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,7 +24,7 @@ const NAV_HEIGHT = 76;
 const SLIDE_VIEWPORT_H = `calc(100dvh - ${NAV_HEIGHT}px - var(--mobile-nav-h, 0px))`;
 const SCROLL_DELTA_THRESHOLD = 14;
 const TOUCH_DELTA_THRESHOLD = 48;
-const TOTAL = 5;
+const TOTAL = 6;
 
 type ImageAction = "find" | "approve" | "reject";
 type ImageActionLoading = ImageAction | "preview_url" | "confirm_url";
@@ -77,9 +78,10 @@ type Props = {
 const HASH_TO_INDEX: Record<string, number> = {
   "#overview": 0,
   "#performance": 1,
-  "#story": 2,
-  "#comments": 3,
-  "#related": 4
+  "#reviews": 2,
+  "#story": 3,
+  "#comments": 4,
+  "#related": 5
 };
 
 export function ShoeDetailSlides(props: Props) {
@@ -199,6 +201,7 @@ export function ShoeDetailSlides(props: Props) {
   const labels = [
     translate("Overview"),
     translate("Performance"),
+    translate("Pro reviews"),
     translate("Story"),
     translate("Comments"),
     translate("Related")
@@ -226,20 +229,23 @@ export function ShoeDetailSlides(props: Props) {
             {...props}
             active={slide === 0}
             onShareCard={() => setShareOpen(true)}
-            onJumpToComments={() => goTo(3)}
+            onJumpToComments={() => goTo(4)}
           />
         </SlideFrame>
         <SlideFrame height={viewportHeight}>
           <PerformanceSlide {...props} active={slide === 1} />
         </SlideFrame>
         <SlideFrame height={viewportHeight}>
-          <StorySlide {...props} active={slide === 2} />
+          <ReviewsSlide {...props} active={slide === 2} />
         </SlideFrame>
         <SlideFrame height={viewportHeight}>
-          <CommentsSlide {...props} active={slide === 3} />
+          <StorySlide {...props} active={slide === 3} />
         </SlideFrame>
         <SlideFrame height={viewportHeight}>
-          <RelatedSlide {...props} active={slide === 4} />
+          <CommentsSlide {...props} active={slide === 4} />
+        </SlideFrame>
+        <SlideFrame height={viewportHeight}>
+          <RelatedSlide {...props} active={slide === 5} />
         </SlideFrame>
       </div>
 
@@ -729,7 +735,17 @@ function StorySlide({
   );
 }
 
-function CommentsSlide({ shoe, specStars, isLoggedIn, active, bloggerReviews }: Props & { active: boolean }) {
+function ReviewsSlide({ bloggerReviews, active }: Props & { active: boolean }) {
+  return (
+    <div className={`flex h-full flex-col py-8 ${slideEntranceClass(active)}`}>
+      <div data-detail-scroll-container className="h-full overflow-y-auto px-1">
+        <BloggerReviewsSlideBody reviews={bloggerReviews} />
+      </div>
+    </div>
+  );
+}
+
+function CommentsSlide({ shoe, specStars, isLoggedIn, active }: Props & { active: boolean }) {
   return (
     <div className={`flex h-full flex-col py-8 ${slideEntranceClass(active)}`}>
       <div data-detail-scroll-container className="h-full overflow-y-auto pr-2">
@@ -738,7 +754,6 @@ function CommentsSlide({ shoe, specStars, isLoggedIn, active, bloggerReviews }: 
           specStars={specStars}
           initialMyDimRatings={shoe.myDimRatings ?? null}
           isLoggedIn={isLoggedIn}
-          bloggerReviews={bloggerReviews}
         />
       </div>
     </div>
