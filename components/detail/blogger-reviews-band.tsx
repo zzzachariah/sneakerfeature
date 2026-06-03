@@ -82,7 +82,11 @@ export function BloggerReviewsBand({ reviews }: { reviews: BloggerReview[] }) {
                     ) : (
                       <PlayCircle className="h-4 w-4 shrink-0 text-sky-400" />
                     )}
-                    <p className="truncate text-sm font-medium" title={review.blogger_name}>
+                    <p
+                      className="notranslate truncate text-sm font-medium"
+                      title={review.blogger_name}
+                      translate="no"
+                    >
                       {review.blogger_name}
                     </p>
                   </div>
