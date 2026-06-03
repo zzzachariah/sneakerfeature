@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Youtube, PlayCircle, RefreshCw, Trash2, Save, Eye, EyeOff } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Youtube, PlayCircle, RefreshCw, Trash2, Save, Eye, EyeOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -71,23 +71,70 @@ function toDraft(r: AdminReview): Draft {
   };
 }
 
+function Pager({
+  page,
+  totalPages,
+  loading,
+  onChange
+}: {
+  page: number;
+  totalPages: number;
+  loading: boolean;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-3">
+      <button
+        onClick={() => onChange(Math.max(1, page - 1))}
+        disabled={page <= 1 || loading}
+        className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs transition hover:bg-[rgb(var(--muted)/0.25)] disabled:opacity-40"
+      >
+        <ChevronLeft className="h-3.5 w-3.5" />
+        Prev
+      </button>
+      <span className="text-xs soft-text tabular-nums">
+        Page {page} of {totalPages}
+      </span>
+      <button
+        onClick={() => onChange(Math.min(totalPages, page + 1))}
+        disabled={page >= totalPages || loading}
+        className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs transition hover:bg-[rgb(var(--muted)/0.25)] disabled:opacity-40"
+      >
+        Next
+        <ChevronRight className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export function BloggerReviewsAdminClient() {
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(50);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (p: number, q: string) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/blogger-reviews");
+      const url = `/api/admin/blogger-reviews?page=${p}${q ? `&q=${encodeURIComponent(q)}` : ""}`;
+      const res = await fetch(url);
       const json = await res.json();
       if (json?.ok) {
         const rows = json.reviews as AdminReview[];
         setReviews(rows);
         setDrafts(Object.fromEntries(rows.map((r) => [r.id, toDraft(r)])));
+        setTotal(json.total ?? rows.length);
+        setPageSize(json.pageSize ?? 50);
+        // The server clamps the page to the valid range; sync back if it differs
+        // (e.g. after deleting the last rows on the final page).
+        const serverPage: number = json.page ?? p;
+        if (serverPage !== p) setPage(serverPage);
       } else {
         setMessage(json?.message ?? "Failed to load.");
       }
@@ -96,23 +143,22 @@ export function BloggerReviewsAdminClient() {
     }
   }, []);
 
+  // Debounce the search box; any change resets to the first page.
   useEffect(() => {
-    void load();
-  }, [load]);
+    const handle = setTimeout(() => {
+      const next = searchInput.trim();
+      setQuery((prev) => (prev === next ? prev : next));
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchInput]);
+
+  useEffect(() => {
+    void load(page, query);
+  }, [page, query, load]);
 
   const setField = (id: string, key: keyof Draft, value: string) =>
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], [key]: value } }));
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return reviews;
-    return reviews.filter(
-      (r) =>
-        (r.shoes?.shoe_name ?? "").toLowerCase().includes(q) ||
-        (r.shoes?.brand ?? "").toLowerCase().includes(q) ||
-        r.blogger_name.toLowerCase().includes(q)
-    );
-  }, [reviews, search]);
 
   const save = useCallback(
     async (id: string) => {
@@ -138,12 +184,12 @@ export function BloggerReviewsAdminClient() {
         });
         const json = await res.json();
         setMessage(json?.message ?? (json?.ok ? "Saved." : "Failed."));
-        if (json?.ok) await load();
+        if (json?.ok) await load(page, query);
       } finally {
         setBusyId(null);
       }
     },
-    [drafts, load]
+    [drafts, load, page, query]
   );
 
   const action = useCallback(
@@ -158,12 +204,12 @@ export function BloggerReviewsAdminClient() {
         });
         const json = await res.json();
         setMessage(json?.message ?? (json?.ok ? "Done." : "Failed."));
-        if (json?.ok) await load();
+        if (json?.ok) await load(page, query);
       } finally {
         setBusyId(null);
       }
     },
-    [load]
+    [load, page, query]
   );
 
   const remove = useCallback(
@@ -175,45 +221,52 @@ export function BloggerReviewsAdminClient() {
         const res = await fetch(`/api/admin/blogger-reviews/${id}`, { method: "DELETE" });
         const json = await res.json();
         setMessage(json?.message ?? (json?.ok ? "Deleted." : "Failed."));
-        if (json?.ok) await load();
+        if (json?.ok) await load(page, query);
       } finally {
         setBusyId(null);
       }
     },
-    [load]
+    [load, page, query]
   );
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = (page - 1) * pageSize + reviews.length;
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm soft-text">
-            {reviews.length} review(s). Content is stored in Chinese + English; the public band shows ready + published only.
+            {total} review(s){query ? ` matching “${query}”` : ""}
+            {total > 0 ? ` · showing ${rangeStart}–${rangeEnd}` : ""}. Content is stored in Chinese + English; the public band
+            shows ready + published only.
           </p>
           <input
             className="ml-auto rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1 text-sm"
-            placeholder="Filter by shoe / brand / blogger…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by shoe name…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
           <button
-            onClick={() => load()}
+            onClick={() => load(page, query)}
             className="rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]"
           >
             Refresh
           </button>
         </div>
-        {message && <p className="mt-2 text-sm">{message}</p>}
+        {message && <p className="text-sm">{message}</p>}
+        <Pager page={page} totalPages={totalPages} loading={loading} onChange={setPage} />
       </Card>
 
       {loading ? (
         <p className="text-sm soft-text">Loading…</p>
-      ) : filtered.length === 0 ? (
+      ) : reviews.length === 0 ? (
         <p className="text-sm soft-text">
-          No blogger reviews{search ? " match this filter" : " yet"}. Run the local ingest + summarize scripts to populate.
+          No blogger reviews{query ? " match this search" : " yet"}. Run the local ingest + summarize scripts to populate.
         </p>
       ) : (
-        filtered.map((r) => {
+        reviews.map((r) => {
           const d = drafts[r.id];
           if (!d) return null;
           const busy = busyId === r.id;
@@ -302,6 +355,12 @@ export function BloggerReviewsAdminClient() {
             </Card>
           );
         })
+      )}
+
+      {!loading && reviews.length > 0 && (
+        <Card className="p-3">
+          <Pager page={page} totalPages={totalPages} loading={loading} onChange={setPage} />
+        </Card>
       )}
     </div>
   );
