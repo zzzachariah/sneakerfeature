@@ -736,11 +736,11 @@ function StorySlide({
 }
 
 function ReviewsSlide({ bloggerReviews, active }: Props & { active: boolean }) {
+  // No data-detail-scroll-container here: the gallery is fixed-height and fits,
+  // so the deck's wheel/swipe nav stays free to flip past this slide.
   return (
-    <div className={`flex h-full flex-col py-8 ${slideEntranceClass(active)}`}>
-      <div data-detail-scroll-container className="h-full overflow-y-auto px-1">
-        <BloggerReviewsSlideBody reviews={bloggerReviews} />
-      </div>
+    <div className={`h-full ${slideEntranceClass(active)}`}>
+      <BloggerReviewsSlideBody reviews={bloggerReviews} />
     </div>
   );
 }

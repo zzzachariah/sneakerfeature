@@ -102,7 +102,7 @@ export function DimRatingForm({
         {translate("Rate every dimension to save")}
       </p>
 
-      <ul className="mt-4 grid gap-3">
+      <ul className="mt-4 grid gap-3 md:grid-cols-2 md:gap-x-6">
         {DIM_KEYS.map((k) => (
           <li key={k} className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium tracking-[-0.01em]">
