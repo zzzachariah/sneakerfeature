@@ -1,4 +1,4 @@
-import { deriveDetail, detectReplyLang } from "../lib/ai/derive-proscons";
+import { deriveDetail, detectReplyLang, composeStructuredReply, summarizeNeedFromPicks } from "../lib/ai/derive-proscons";
 import type { Shoe, BloggerReview } from "../lib/types";
 
 let pass = 0;
@@ -97,6 +97,54 @@ console.log("Test 5 — detectReplyLang:");
 {
   check("zh detected", detectReplyLang("后卫 想要缓震好的") === "zh");
   check("en detected", detectReplyLang("guard wants good cushioning") === "en");
+}
+
+console.log("Test 6 — composeStructuredReply uses AI analysis when present (zh):");
+{
+  const r = composeStructuredReply({
+    message: "后卫，想要软弹缓震、抓地好的低帮",
+    count: 2,
+    aiAnalysis: "一双低帮轻量、抓地出色、前掌响应的后卫鞋",
+    searched: true,
+    picks: [shoe],
+    lang: "zh"
+  });
+  check("restates need in quotes", r.includes('你的需求是"后卫，想要软弹缓震、抓地好的低帮"'), r);
+  check("includes AI analysis", r.includes("一双低帮轻量、抓地出色、前掌响应的后卫鞋"), r);
+  check("ends with recommend N", r.includes("下面为你推荐 2 双："), r);
+  console.log("    " + r.replace(/\n/g, " ⏎ "));
+}
+
+console.log("Test 7 — composeStructuredReply falls back to spec phrase when no AI analysis (zh):");
+{
+  const r = composeStructuredReply({
+    message: "想要抓地好的",
+    count: 3,
+    aiAnalysis: "",
+    searched: false,
+    picks: [shoe],
+    lang: "zh"
+  });
+  check("restates need", r.includes('你的需求是"想要抓地好的"'), r);
+  check("has deterministic analysis", r.includes("你需要的大致是") && r.includes("球鞋"), r);
+  check("recommend 3", r.includes("下面为你推荐 3 双："), r);
+  console.log("    " + r.replace(/\n/g, " ⏎ "));
+}
+
+console.log("Test 8 — composeStructuredReply English shape:");
+{
+  const r = composeStructuredReply({ message: "guard, grippy low-top", count: 1, aiAnalysis: "", searched: true, picks: [shoe], lang: "en" });
+  check("English need", r.startsWith('Your request: "guard, grippy low-top".'), r);
+  check("singular pick", r.includes("Here is 1 pick:"), r);
+  check("no CJK", !/[㐀-鿿]/.test(r), r);
+  console.log("    " + r.replace(/\n/g, " ⏎ "));
+}
+
+console.log("Test 9 — summarizeNeedFromPicks:");
+{
+  check("zh phrase", summarizeNeedFromPicks([shoe], "zh").includes("球鞋"));
+  check("en phrase", /shoe strong in/.test(summarizeNeedFromPicks([shoe], "en")));
+  check("empty picks safe", summarizeNeedFromPicks([], "zh").length > 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

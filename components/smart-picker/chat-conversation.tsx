@@ -6,6 +6,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
+import { ReferencesList } from "@/components/smart-picker/references-list";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import type { AiChatMessage, RecommendationItem } from "@/lib/ai/types";
@@ -149,6 +150,7 @@ export function ChatConversation({
                       <Download className="h-3.5 w-3.5" />
                       {translate("Download report")}
                     </button>
+                    <ReferencesList recommendations={message.recommendations} />
                   </>
                 )}
               </div>

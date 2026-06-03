@@ -13,7 +13,7 @@ import {
   describePackyError
 } from "@/lib/ai/packy-client";
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
-import { deriveDetail, detectReplyLang } from "@/lib/ai/derive-proscons";
+import { deriveDetail, detectReplyLang, composeStructuredReply } from "@/lib/ai/derive-proscons";
 import { getAllBloggerReviews } from "@/lib/data/blogger-reviews";
 import { pickFallbackShoes } from "@/lib/ai/fallback";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
@@ -247,13 +247,29 @@ export async function POST(request: Request) {
           }
         }
 
-        // User-facing reply text — no diagnostics. The deterministic fallback gets
-        // a gentle note instead of the old "暂时没有找到匹配的鞋款" error.
+        // User-facing reply, in a fixed structure: restate the need → the kind of
+        // shoe that fits (model's one-line analysis, or a deterministic phrase) →
+        // "recommend N". Composed here so the shape holds regardless of what the
+        // (flaky) model returned or whether the deterministic fallback fired.
         let replyText: string;
-        if (fallbackUsed && charge > 0) {
-          replyText = "根据你的描述，这几双可能比较合适（综合场上定位、脚型与性能匹配挑选）：";
+        if (charge === 0) {
+          replyText =
+            replyLang === "zh"
+              ? "暂时没有找到匹配的鞋款，换个描述再试试？"
+              : "I couldn't find a matching shoe — try describing it differently?";
         } else {
-          replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
+          const picks = validRaw.flatMap((r) => {
+            const shoe = byId.get(r.shoe_id);
+            return shoe ? [shoe] : [];
+          });
+          replyText = composeStructuredReply({
+            message,
+            count: charge,
+            aiAnalysis: fallbackUsed ? "" : result.reply.trim(),
+            searched: (result.searchStats?.succeeded ?? 0) > 0,
+            picks,
+            lang: replyLang
+          });
         }
         if (usingDemo) {
           replyText = `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。\n${replyText}`;

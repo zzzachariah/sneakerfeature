@@ -155,3 +155,55 @@ export function deriveDetail(opts: {
 
   return { reason, pros, cons };
 }
+
+// A short, honest "what kind of shoe suits you" phrase, derived from the common
+// spec strengths of the recommended shoes. Fills the analysis line of the reply
+// when the model didn't supply one.
+export function summarizeNeedFromPicks(shoes: Shoe[], lang: ReplyLang): string {
+  if (!shoes.length) return lang === "zh" ? "综合性能均衡的球鞋" : "a balanced all-round shoe";
+  const sum = { cushioning_feel: 0, court_feel: 0, bounce: 0, stability: 0, traction: 0, fit: 0 } as Record<DimKey, number>;
+  for (const s of shoes) {
+    const d = dimScores(s.spec);
+    for (const k of DIM_KEYS) sum[k] += d[k];
+  }
+  const top = [...DIM_KEYS]
+    .sort((a, b) => sum[b] - sum[a])
+    .slice(0, 3)
+    .map((k) => DIM_SHORT[lang][k]);
+  return lang === "zh" ? `在${top.join("、")}方面表现突出的球鞋` : `a shoe strong in ${top.join(", ")}`;
+}
+
+function truncateNeed(s: string, max = 60): string {
+  const t = s.trim().replace(/\s+/g, " ");
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+}
+
+/**
+ * Compose the assistant's spoken answer in a fixed, reliable shape:
+ *   你的需求是"…"。 / <分析：适合的球鞋特征> / 下面为你推荐 N 双：
+ * The middle line is the model's `reply` (a one-line characteristics summary)
+ * when present, else a deterministic phrase from the picks. The need
+ * restatement and the "recommend N" line are always added here, so the
+ * structure holds even when the model misbehaves or the fallback fires.
+ */
+export function composeStructuredReply(opts: {
+  message: string;
+  count: number;
+  aiAnalysis: string;
+  searched: boolean;
+  picks: Shoe[];
+  lang: ReplyLang;
+}): string {
+  const { message, count, aiAnalysis, searched, picks, lang } = opts;
+  const need = truncateNeed(message);
+  if (lang === "zh") {
+    const analysis = aiAnalysis.trim()
+      ? aiAnalysis.trim()
+      : `${searched ? "结合你的需求和我查到的资料" : "结合你的需求"}，你需要的大致是${summarizeNeedFromPicks(picks, lang)}。`;
+    return `你的需求是"${need}"。\n${analysis}\n下面为你推荐 ${count} 双：`;
+  }
+  const analysis = aiAnalysis.trim()
+    ? aiAnalysis.trim()
+    : `${searched ? "Combining your needs with what I found" : "Going by your needs"}, you want ${summarizeNeedFromPicks(picks, lang)}.`;
+  return `Your request: "${need}".\n${analysis}\nHere ${count > 1 ? "are" : "is"} ${count} pick${count > 1 ? "s" : ""}:`;
+}
