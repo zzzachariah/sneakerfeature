@@ -3,6 +3,9 @@ import { PACKY_MODEL } from "./packy-client";
 
 // Summarizes a sneaker-reviewer's video transcript into a "two good, two bad"
 // paraphrase ("转述式署名") plus a one-line overall take, in Chinese AND English.
+// SCOPED TO THE TARGET SHOE: a single video often covers several shoes, brand
+// chatter, hauls or sponsor reads — the prompt extracts ONLY what the reviewer
+// says about THIS shoe, never a summary of the whole video.
 // Stays framework-free (no next/* imports) so BOTH the standalone ingestion
 // script and the admin re-summarize route can import it. Reuses packyapi via the
 // OpenAI SDK client the caller provides (createPackyClient()), same channel as
@@ -28,10 +31,13 @@ export type ReviewSummary = {
 };
 
 const SYSTEM_PROMPT = `你是 sneakerfeature 的球鞋测评转述助手。下面会给你一段博主视频的字幕，以及本次要点评的目标球鞋名。
-首先判断：这段字幕是否确实在测评 / 重点讨论这双目标球鞋？
-- 如果讲的是别的鞋、只是顺带提一句、或与这双鞋无关：把 relevant 设为 false（优缺点可留空，不要硬凑）。
-- 如果确实在讲这双鞋：把 relevant 设为 true，再用你自己的话（转述，不逐字摘抄、不编造）提炼这双鞋的
-  2 个优点、2 个缺点和一句整体总评，并给出对应的英文版。
+你的任务只针对「这双目标球鞋」：只提炼博主对这双鞋的评价，而不是概括整段视频。
+很多视频会同时聊到别的鞋、品牌新闻、开箱闲聊、带货口播、上脚穿搭等——这些与这双鞋无关的内容一律忽略，只保留博主针对这双鞋说的优缺点和使用感受。
+
+首先判断：这段字幕里博主是否确实在测评 / 实质性讨论这双目标球鞋？
+- 如果整段几乎没讲这双鞋、讲的是别的鞋、只是顺带提一句鞋名、或与这双鞋无关：把 relevant 设为 false（优缺点可留空，不要硬凑）。
+- 如果确实讲到了这双鞋：把 relevant 设为 true（视频里同时聊了别的鞋也算），再用你自己的话（转述，不逐字摘抄、不编造），只就这双鞋提炼
+  2 个优点、2 个缺点，以及一句针对「这双鞋」（而非整段视频）的整体总评，并给出对应的英文版。
 请调用 submit_review_summary 函数提交结果。`;
 
 // Forced-tool schema — the reliable structured-output path.
@@ -46,19 +52,19 @@ const SUMMARY_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
         relevant: {
           type: "boolean",
           description:
-            "这段字幕是否确实在测评或重点讨论本次给定的这双球鞋。讲别的鞋、只是顺带提及、或与该鞋无关都填 false；确实在讲这双鞋填 true。"
+            "这段字幕里博主是否确实在测评或实质性讨论本次给定的这双球鞋。整段没讲这双鞋、只讲别的鞋、只是顺带提一句鞋名、或与该鞋无关都填 false；只要确实讲到了这双鞋（即便视频里也聊了别的鞋）就填 true。"
         },
         pros: {
           type: "array",
           items: { type: "string" },
-          description: "正好 2 条中文优点，每条约 10 个汉字的短语，例如 前掌缓震很到位"
+          description: "正好 2 条中文优点，只取博主对「这双鞋」的评价（不要写别的鞋或视频里的无关内容），每条约 10 个汉字的短语，例如 前掌缓震很到位"
         },
         cons: {
           type: "array",
           items: { type: "string" },
-          description: "正好 2 条中文缺点/不足，每条约 10 个汉字的短语"
+          description: "正好 2 条中文缺点/不足，只取博主对「这双鞋」的评价，每条约 10 个汉字的短语"
         },
-        summary: { type: "string", description: "一句话中文总评，约 20-30 个汉字" },
+        summary: { type: "string", description: "一句话中文总评，针对「这双鞋」本身、而非概括整段视频，约 20-30 个汉字" },
         pros_en: { type: "array", items: { type: "string" }, description: "pros 的英文版，正好 2 条，自然地道" },
         cons_en: { type: "array", items: { type: "string" }, description: "cons 的英文版，正好 2 条" },
         summary_en: { type: "string", description: "summary 的英文版" }
@@ -188,7 +194,7 @@ export async function summarizeBloggerReview(
       role: "user",
       content:
         `球鞋：${opts.shoeName}\n博主：${opts.bloggerName}\n\n` +
-        `以下是视频字幕文本（可能含时间戳/噪音，请忽略无意义片段）：\n${transcript}`
+        `以下是视频字幕文本（可能含时间戳/噪音，请忽略无意义片段；若视频还聊到别的鞋或无关话题，只挑出与「${opts.shoeName}」有关的部分）：\n${transcript}`
     }
   ];
   const base = { model: PACKY_MODEL, temperature: 0.3, max_tokens: 2000 };
