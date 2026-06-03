@@ -163,13 +163,67 @@ function downloadSubtitles(url: string, platform: Platform): string | null {
   return best || null;
 }
 
+// --- search-term normalization ------------------------------------------------
+// Reviewers and search indexes use Arabic model numbers far more than the Roman
+// numerals brands print on the shoe (e.g. "Air Jordan XXX" → "Air Jordan 30"),
+// so convert standalone UPPERCASE Roman-numeral tokens before searching. The
+// 1–49 range + canonical round-trip keeps it to real model numbers (Air Jordan
+// I–XXXIX, LeBron/Kobe Roman editions) and leaves ambiguous tokens (LV, MID,
+// lowercase collab "x") untouched.
+const ROMAN_UNITS: readonly [string, number][] = [
+  ["XL", 40], ["X", 10], ["IX", 9], ["V", 5], ["IV", 4], ["I", 1]
+];
+function intToRoman(n: number): string {
+  let out = "";
+  for (const [sym, val] of ROMAN_UNITS) {
+    while (n >= val) {
+      out += sym;
+      n -= val;
+    }
+  }
+  return out;
+}
+function romanToInt(s: string): number {
+  const v: Record<string, number> = { I: 1, V: 5, X: 10, L: 50, C: 100, D: 500, M: 1000 };
+  let n = 0;
+  for (let i = 0; i < s.length; i++) {
+    const cur = v[s[i]];
+    const next = v[s[i + 1]] ?? 0;
+    n += cur < next ? -cur : cur;
+  }
+  return n;
+}
+function arabicizeRomanNumerals(text: string): string {
+  return text.replace(/\b[IVXLCDM]+\b/g, (tok) => {
+    const n = romanToInt(tok);
+    return n >= 1 && n <= 49 && intToRoman(n) === tok ? String(n) : tok;
+  });
+}
+
+// Bilibili's audience searches Chinese brand/line names, so localize the known
+// ones there (YouTube keeps the English). Longest/most specific phrase first;
+// extend as the catalog grows.
+const BILIBILI_NAMES: readonly [RegExp, string][] = [
+  [/\bway of wade\b/gi, "韦德之道"],
+  [/\bli[-\s]?ning\b/gi, "李宁"],
+  [/\banta\b/gi, "安踏"],
+  [/\bpeak\b/gi, "匹克"],
+  [/\bxtep\b/gi, "特步"]
+];
+function localizeForBilibili(text: string): string {
+  return BILIBILI_NAMES.reduce((s, [re, zh]) => s.replace(re, zh), text);
+}
+
 // Find candidate review videos via yt-dlp's built-in search extractors
 // (bilisearch / ytsearch) — purpose-built for finding videos, unlike a general
 // web search. Bilibili first (primary source for a Chinese audience).
 function findCandidates(brand: string, name: string): Candidate[] {
+  // "brand model" terms, with Roman model numbers turned Arabic (Air Jordan XXX → 30).
+  const terms = arabicizeRomanNumerals(`${brand} ${name}`.trim());
   const searches: { platform: Platform; query: string }[] = [
-    { platform: "bilibili", query: `bilisearch${SEARCH_N}:${brand} ${name} 篮球鞋 测评` },
-    { platform: "youtube", query: `ytsearch${SEARCH_N}:${brand} ${name} basketball review` }
+    // Bilibili: also localize known brand names (Way of Wade → 韦德之道).
+    { platform: "bilibili", query: `bilisearch${SEARCH_N}:${localizeForBilibili(terms)} 篮球鞋 测评` },
+    { platform: "youtube", query: `ytsearch${SEARCH_N}:${terms} basketball review` }
   ];
   const seen = new Set<string>();
   const out: Candidate[] = [];
