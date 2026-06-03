@@ -2,7 +2,6 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Navbar } from "@/components/layout/navbar";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
-import { Footer } from "@/components/layout/footer";
 import {
   CookieConsentProvider,
   CookieBanner,
@@ -56,7 +55,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
                       <Navbar />
                       <div className="flex-1">{children}</div>
-                      <Footer />
                       <MobileBottomNav />
                     </div>
                     <TutorialOverlay />

@@ -36,7 +36,7 @@ export function BloggerReviewsSlideBody({ reviews }: { reviews: BloggerReview[] 
   ].filter((p) => p.reviews.length > 0);
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center py-6">
+    <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center px-4 py-6 md:px-6">
       <div className="flex items-center gap-2">
         <Sparkles className="h-5 w-5 shrink-0 text-[rgb(var(--accent))]" />
         <h2 className="text-xl font-semibold tracking-[-0.02em] md:text-2xl">{translate("Pro reviews")}</h2>
@@ -149,7 +149,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
       {/* All cards share ONE grid cell, so the stage is as tall as the TALLEST
           card and never jumps when switching. The active card fades + slides in;
           the others sit transparent, parked left/right. */}
-      <div className="relative grid min-h-[12rem] overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)]">
+      <div className="relative grid flex-1 content-center min-h-[12rem] overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)]">
         {reviews.map((r, idx) => {
           const active = idx === cur;
           const pros = (zh ? r.pros : r.pros_en ?? r.pros) ?? [];
@@ -158,7 +158,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
           return (
             <motion.article
               key={r.id}
-              className="col-start-1 row-start-1 px-10 py-5 md:py-6"
+              className="col-start-1 row-start-1 w-full px-10 py-5 md:py-6"
               initial={false}
               animate={{ opacity: active ? 1 : 0, x: active ? 0 : idx < cur ? -32 : 32 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Languages, Search, Sparkles, User } from "lucide-react";
+import { Check, Gavel, Languages, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
@@ -13,6 +13,8 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { NAV_ORDER } from "@/lib/nav-order";
+import { useCookieConsent } from "@/components/consent/cookie-consent";
+import { CONTACT_EMAIL } from "@/lib/legal/content";
 
 type NavHref = "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
 
@@ -28,9 +30,12 @@ const NAV_LABELS: Record<(typeof NAV_ORDER)[number], string> = {
 export function Navbar() {
   const pathname = usePathname();
   const { locale, requestLocaleChange, translate } = useLocale();
+  const zh = locale === "zh";
+  const { reopen: reopenCookieConsent } = useCookieConsent();
   const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
   const { isAdmin } = useAuthState();
   const [langOpen, setLangOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -46,6 +51,13 @@ export function Navbar() {
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
   }, [langOpen]);
+
+  useEffect(() => {
+    if (!legalOpen) return;
+    const onClick = () => setLegalOpen(false);
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [legalOpen]);
 
   const navItems = useMemo(() => {
     return NAV_ORDER.filter((href) => href !== "/admin" || isAdmin).map((href) => ({
@@ -191,6 +203,55 @@ export function Navbar() {
               <Sparkles className="h-4 w-4" />
             </button>
           </Tooltip>
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <Tooltip label={zh ? "法律信息" : "Legal"}>
+              <button
+                type="button"
+                onClick={() => setLegalOpen((prev) => !prev)}
+                className={iconBtn}
+                aria-haspopup="menu"
+                aria-expanded={legalOpen}
+                aria-label={zh ? "法律信息" : "Legal"}
+              >
+                <Gavel className="h-[18px] w-[18px] md:h-4 md:w-4" />
+              </button>
+            </Tooltip>
+            {legalOpen && (
+              <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[11rem] rounded-xl p-1">
+                {[
+                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use" },
+                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy" },
+                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer" }
+                ].map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setLegalOpen(false)}
+                    className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  onClick={() => setLegalOpen(false)}
+                  className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                >
+                  {zh ? "联系" : "Contact"}
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    reopenCookieConsent();
+                    setLegalOpen(false);
+                  }}
+                  className="block w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                >
+                  {zh ? "Cookie 设置" : "Cookie settings"}
+                </button>
+              </div>
+            )}
+          </div>
           <TutorialTrigger className={iconBtn} />
           <span className="inline-flex" data-tutorial="nav-account">
             <AccountMenu />
