@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Youtube,
   PlayCircle,
@@ -121,132 +121,122 @@ function MobileGalleries({ platforms }: { platforms: PlatformReviews[] }) {
 function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: BloggerReview[] }) {
   const { translate, locale } = useLocale();
   const zh = locale === "zh";
-  const [[index, dir], setState] = useState<[number, number]>([0, 0]);
+  const [index, setIndex] = useState(0);
 
   const len = reviews.length;
+  const cur = len ? Math.min(index, len - 1) : 0;
   const Icon = platform === "youtube" ? Youtube : PlayCircle;
   const accent = platform === "youtube" ? "text-rose-400" : "text-sky-400";
   const label = platform === "youtube" ? "YouTube" : zh ? "B站" : "Bilibili";
-  const current = len ? reviews[Math.min(index, len - 1)] : null;
 
   const go = (delta: number) => {
     if (len < 2) return;
-    setState(([i]) => [(i + delta + len) % len, delta]);
+    setIndex((p) => (p + delta + len) % len);
   };
+
+  if (!len) return null;
 
   return (
     <section className="flex flex-col">
       <div className="mb-2 flex items-center gap-2">
         <Icon className={`h-4 w-4 shrink-0 ${accent}`} />
         <span className="text-sm font-medium">{label}</span>
-        {len > 0 ? (
-          <span className="text-xs soft-text">
-            {index + 1} / {len}
-          </span>
-        ) : null}
+        <span className="text-xs soft-text">
+          {cur + 1} / {len}
+        </span>
       </div>
 
-      <div className="relative min-h-[17rem] overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)]">
-        {!current ? (
-          <div className="flex min-h-[17rem] items-center justify-center p-6 text-center text-sm soft-text">
-            {zh ? "该平台暂无点评" : "No reviews on this platform yet"}
-          </div>
-        ) : (
-          <>
-            <AnimatePresence mode="wait" custom={dir} initial={false}>
-              <motion.article
-                key={current.id}
-                custom={dir}
-                initial={{ opacity: 0, x: dir >= 0 ? 36 : -36 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: dir >= 0 ? -36 : 36 }}
-                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-                className="px-10 py-5 md:py-6"
+      {/* All cards share ONE grid cell, so the stage is as tall as the TALLEST
+          card and never jumps when switching. The active card fades + slides in;
+          the others sit transparent, parked left/right. */}
+      <div className="relative grid min-h-[12rem] overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)]">
+        {reviews.map((r, idx) => {
+          const active = idx === cur;
+          const pros = (zh ? r.pros : r.pros_en ?? r.pros) ?? [];
+          const cons = (zh ? r.cons : r.cons_en ?? r.cons) ?? [];
+          const summary = (zh ? r.summary : r.summary_en ?? r.summary) ?? "";
+          return (
+            <motion.article
+              key={r.id}
+              className="col-start-1 row-start-1 px-10 py-5 md:py-6"
+              initial={false}
+              animate={{ opacity: active ? 1 : 0, x: active ? 0 : idx < cur ? -32 : 32 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              style={{ zIndex: active ? 1 : 0, pointerEvents: active ? "auto" : "none" }}
+              aria-hidden={!active}
+            >
+              <p
+                className="notranslate truncate text-base font-semibold md:text-lg"
+                title={r.blogger_name}
+                translate="no"
               >
-                {(() => {
-                  const pros = (zh ? current.pros : current.pros_en ?? current.pros) ?? [];
-                  const cons = (zh ? current.cons : current.cons_en ?? current.cons) ?? [];
-                  const summary = (zh ? current.summary : current.summary_en ?? current.summary) ?? "";
-                  return (
-                    <>
-                      <p
-                        className="notranslate truncate text-base font-semibold md:text-lg"
-                        title={current.blogger_name}
-                        translate="no"
-                      >
-                        {current.blogger_name}
-                      </p>
-                      {summary ? (
-                        <p className="mt-2 text-sm leading-7 soft-text md:text-base">{summary}</p>
-                      ) : null}
-                      <div className="mt-3 space-y-2">
-                        {pros.map((p, i) => (
-                          <p key={`p${i}`} className="flex items-start gap-2 text-sm md:text-base">
-                            <ThumbsUp className="mt-1 h-4 w-4 shrink-0 text-emerald-400" />
-                            <span>{p}</span>
-                          </p>
-                        ))}
-                        {cons.map((c, i) => (
-                          <p key={`c${i}`} className="flex items-start gap-2 text-sm md:text-base">
-                            <ThumbsDown className="mt-1 h-4 w-4 shrink-0 text-rose-400" />
-                            <span>{c}</span>
-                          </p>
-                        ))}
-                      </div>
-                      <div className="mt-4">
-                        <a
-                          href={current.video_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-2 text-sm transition hover:border-[rgb(var(--ring)/0.45)] active:scale-[0.98]"
-                        >
-                          <ExternalLink className="h-4 w-4 shrink-0" />
-                          {translate("Watch review")}
-                          {current.source_label ? <span className="soft-text">· {current.source_label}</span> : null}
-                        </a>
-                      </div>
-                    </>
-                  );
-                })()}
-              </motion.article>
-            </AnimatePresence>
+                {r.blogger_name}
+              </p>
+              {summary ? <p className="mt-2 text-sm leading-7 soft-text md:text-base">{summary}</p> : null}
+              <div className="mt-3 space-y-2">
+                {pros.map((p, k) => (
+                  <p key={`p${k}`} className="flex items-start gap-2 text-sm md:text-base">
+                    <ThumbsUp className="mt-1 h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>{p}</span>
+                  </p>
+                ))}
+                {cons.map((c, k) => (
+                  <p key={`c${k}`} className="flex items-start gap-2 text-sm md:text-base">
+                    <ThumbsDown className="mt-1 h-4 w-4 shrink-0 text-rose-400" />
+                    <span>{c}</span>
+                  </p>
+                ))}
+              </div>
+              <div className="mt-4">
+                <a
+                  href={r.video_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-2 text-sm transition hover:border-[rgb(var(--ring)/0.45)] active:scale-[0.98]"
+                >
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                  {translate("Watch review")}
+                  {r.source_label ? <span className="soft-text">· {r.source_label}</span> : null}
+                </a>
+              </div>
+            </motion.article>
+          );
+        })}
 
-            {len > 1 ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => go(-1)}
-                  aria-label={zh ? "上一个" : "Previous"}
-                  className="absolute inset-y-0 left-0 z-10 flex w-9 items-center justify-center text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))]"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => go(1)}
-                  aria-label={zh ? "下一个" : "Next"}
-                  className="absolute inset-y-0 right-0 z-10 flex w-9 items-center justify-center text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))]"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </>
-            ) : null}
+        {len > 1 ? (
+          <>
+            <button
+              type="button"
+              onClick={() => go(-1)}
+              aria-label={zh ? "上一个" : "Previous"}
+              className="absolute inset-y-0 left-0 z-10 flex w-9 items-center justify-center text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))]"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => go(1)}
+              aria-label={zh ? "下一个" : "Next"}
+              className="absolute inset-y-0 right-0 z-10 flex w-9 items-center justify-center text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))]"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
           </>
-        )}
+        ) : null}
       </div>
 
       {len > 1 ? (
         <div className="mt-3 flex justify-center gap-1.5">
-          {reviews.map((r, i) => (
+          {reviews.map((r, idx) => (
             <button
               key={r.id}
               type="button"
-              aria-label={`${i + 1}`}
-              onClick={() => setState([i, i >= index ? 1 : -1])}
+              aria-label={`${idx + 1}`}
+              onClick={() => setIndex(idx)}
               className="h-1.5 rounded-full transition-all"
               style={{
-                width: i === index ? 18 : 6,
-                background: i === index ? "rgb(var(--text)/0.75)" : "rgb(var(--muted)/0.6)"
+                width: idx === cur ? 18 : 6,
+                background: idx === cur ? "rgb(var(--text)/0.75)" : "rgb(var(--muted)/0.6)"
               }}
             />
           ))}
