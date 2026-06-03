@@ -99,7 +99,7 @@ async function loadAll(): Promise<Record<string, BloggerReview[]>> {
 }
 
 // Returns a plain Record (not a Map) so unstable_cache can serialize it.
-const getAllBloggerReviews = unstable_cache(loadAll, ["blogger-reviews-v1"], {
+export const getAllBloggerReviews = unstable_cache(loadAll, ["blogger-reviews-v1"], {
   tags: ["blogger_reviews", "shoes"],
   revalidate: 300
 });

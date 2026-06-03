@@ -13,6 +13,8 @@ import {
   describePackyError
 } from "@/lib/ai/packy-client";
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
+import { deriveDetail, detectReplyLang } from "@/lib/ai/derive-proscons";
+import { getAllBloggerReviews } from "@/lib/data/blogger-reviews";
 import { pickFallbackShoes } from "@/lib/ai/fallback";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw, type OnProgress } from "@/lib/ai/types";
@@ -73,14 +75,15 @@ export async function POST(request: Request) {
   }
 
   // Load PRIOR history (before inserting this turn) + catalog + persona in parallel.
-  const [{ data: historyRows }, shoes, { data: profileRow }] = await Promise.all([
+  const [{ data: historyRows }, shoes, { data: profileRow }, reviewsByShoe] = await Promise.all([
     admin
       .from("ai_messages")
       .select("role, content, recommendations")
       .eq("chat_id", chatId)
       .order("created_at", { ascending: true }),
     getShoes(),
-    admin.from("profiles").select("persona, rating_focus").eq("id", ctx.userId).maybeSingle()
+    admin.from("profiles").select("persona, rating_focus").eq("id", ctx.userId).maybeSingle(),
+    getAllBloggerReviews()
   ]);
   const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
   const usingDemo = shoes === demoShoes; // getShoes() returns demoShoes by reference when the DB is empty/unreachable
@@ -135,7 +138,7 @@ export async function POST(request: Request) {
 
         let result: Awaited<ReturnType<typeof recommendShoes>>;
         try {
-          result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona }, onProgress);
+          result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona, reviewsByShoe }, onProgress);
         } catch (error) {
           console.error("[ai/chat] recommend failed", error);
           const target = getPackyTarget();
@@ -184,6 +187,25 @@ export async function POST(request: Request) {
         if (fallbackUsed) {
           validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count });
         }
+
+        // Guarantee every card carries a reason + 3 pros + 3 cons. The AI's own
+        // points come first; gaps (and the deterministic fallback's blanks) are
+        // filled from real blogger-review points and the shoe's spec profile, so
+        // the reason/pros/cons can never come back empty again.
+        const replyLang = detectReplyLang(message);
+        validRaw = validRaw.map((raw) => {
+          const shoe = byId.get(raw.shoe_id);
+          if (!shoe) return raw;
+          const detail = deriveDetail({
+            shoe,
+            reviews: reviewsByShoe[raw.shoe_id] ?? [],
+            focus,
+            lang: replyLang,
+            existing: { reason: raw.reason, pros: raw.pros, cons: raw.cons }
+          });
+          return { ...raw, reason: detail.reason, pros: detail.pros, cons: detail.cons };
+        });
+
         const charge = validRaw.length;
 
         // Diagnostics → server logs only (no longer shown to users). Captures the
