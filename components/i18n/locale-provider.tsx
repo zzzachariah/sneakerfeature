@@ -665,6 +665,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "tell me your playstyle, position, and the feel you want — i'll recommend shoes from our database.":
     "告诉我你的打法、位置和想要的脚感，我会从数据库里为你推荐球鞋。",
   "ai is thinking…": "AI 思考中…",
+  "thought process": "思考过程",
   "new chat": "新建对话",
   "close": "关闭",
   "no conversations yet.": "还没有对话。",

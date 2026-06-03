@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { Minus, Plus, Send } from "lucide-react";
+import { ArrowUp, Loader2, Minus, Plus } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
 
@@ -19,6 +19,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
 
   const insufficient = !unlimited && balance < count;
   const canSend = text.trim().length > 0 && !sending;
+  const isReady = canSend && !insufficient;
 
   const adjust = (delta: number) => setCount((c) => Math.min(MAX_RECOMMENDATIONS, Math.max(1, c + delta)));
 
@@ -82,11 +83,21 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
           <button
             type="button"
             onClick={submit}
-            disabled={!canSend}
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!isReady}
+            aria-label={sending ? translate("AI is thinking…") : translate("Send")}
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform ${
+              sending
+                ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
+                : isReady
+                  ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] shadow-[0_6px_16px_rgb(var(--glass-shadow)/0.22)] hover:scale-105 active:scale-95"
+                  : "cursor-not-allowed bg-[rgb(var(--text)/0.14)] text-[rgb(var(--subtext))]"
+            }`}
           >
-            <Send className="h-3.5 w-3.5" />
-            {translate("Send")}
+            {sending ? (
+              <Loader2 className="h-[1.05rem] w-[1.05rem] animate-spin" />
+            ) : (
+              <ArrowUp className="h-[1.05rem] w-[1.05rem]" strokeWidth={2.4} />
+            )}
           </button>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
+import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import type { AiChatMessage, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
@@ -46,15 +47,7 @@ export function ChatConversation({
 
   const isEmpty = !loadingMessages && messages.length === 0;
   const headerTitle = activeTitle?.trim() || translate("Smart Picker");
-
-  // Once the streaming assistant bubble has something to show (a step, prose, or
-  // cards), drop the global "thinking…" dots so we don't double up indicators.
   const lastMessage = messages[messages.length - 1];
-  const streamingVisible =
-    lastMessage?.role === "assistant" &&
-    ((lastMessage.steps?.length ?? 0) > 0 ||
-      Boolean(lastMessage.content) ||
-      Boolean(lastMessage.recommendations?.length));
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -111,43 +104,35 @@ export function ChatConversation({
             </div>
           )}
 
-          {messages.map((message, idx) =>
-            message.role === "user" ? (
-              <div key={message.id} className="flex justify-end">
-                <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[rgb(var(--text))] px-3.5 py-2 text-sm text-[rgb(var(--bg))]">
-                  {message.content}
+          {messages.map((message, idx) => {
+            if (message.role === "user") {
+              return (
+                <div key={message.id} className="flex justify-end">
+                  <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[rgb(var(--text))] px-3.5 py-2 text-sm text-[rgb(var(--bg))]">
+                    {message.content}
+                  </div>
                 </div>
-              </div>
-            ) : (
+              );
+            }
+
+            // The streaming turn is always the last message while `sending`.
+            const active = sending && idx === messages.length - 1;
+            // Show the reasoning timeline when there are steps, or keep an animated
+            // placeholder alive while this turn is still streaming.
+            const showThinking = (message.steps?.length ?? 0) > 0 || active;
+
+            return (
               <div key={message.id} className="flex flex-col gap-2.5">
-                {/* While streaming, show the live timeline (the AI's words +
-                    "🔍 searching…" activity). Reloaded turns have no steps, so
-                    fall back to the persisted content. */}
-                {message.steps && message.steps.length > 0
-                  ? message.steps.map((step, sIdx) =>
-                      step.kind === "prose" ? (
-                        <div
-                          key={sIdx}
-                          className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm"
-                        >
-                          {step.text}
-                        </div>
-                      ) : (
-                        <div
-                          key={sIdx}
-                          className={`inline-flex w-fit items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1 text-[0.78rem] soft-text ${
-                            step.state === "start" ? "animate-pulse" : "opacity-60"
-                          }`}
-                        >
-                          {step.text}
-                        </div>
-                      )
-                    )
-                  : message.content && (
-                      <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm">
-                        {message.content}
-                      </div>
-                    )}
+                {showThinking && <ThinkingPanel steps={message.steps ?? []} active={active} />}
+
+                {/* The clean answer. Code/JSON the relay sometimes emits is filtered
+                    server-side, so it never reaches this bubble or the timeline. */}
+                {message.content && (
+                  <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm">
+                    {message.content}
+                  </div>
+                )}
+
                 {message.recommendations && message.recommendations.length > 0 && (
                   <>
                     <RecommendationGroup recommendations={message.recommendations} />
@@ -167,17 +152,12 @@ export function ChatConversation({
                   </>
                 )}
               </div>
-            )
-          )}
+            );
+          })}
 
-          {sending && !streamingVisible && (
-            <div className="flex items-center gap-1.5 px-1 text-sm soft-text">
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[rgb(var(--subtext))] [animation-delay:-0.2s]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[rgb(var(--subtext))] [animation-delay:-0.1s]" />
-              <span className="h-2 w-2 animate-bounce rounded-full bg-[rgb(var(--subtext))]" />
-              <span className="ml-1">{translate("AI is thinking…")}</span>
-            </div>
-          )}
+          {/* Sending has begun but the streaming assistant bubble hasn't been
+              inserted yet — keep the thinking animation visible without a gap. */}
+          {sending && lastMessage?.role !== "assistant" && <ThinkingPanel steps={[]} active />}
         </div>
       </div>
 

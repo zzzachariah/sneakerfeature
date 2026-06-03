@@ -262,8 +262,9 @@ export async function POST(request: Request) {
         }
         await admin.from("ai_chats").update(chatUpdate).eq("id", chatId);
 
-        // Final summary prose, then the cards, then done.
-        send("text", { delta: replyText });
+        // Stream the cards, then `done` (which carries the final reply as
+        // `content`). The reply is NOT sent as a `text` step — that would fold it
+        // into the live "thinking" timeline; it belongs in the answer bubble.
         send("recommendations", { items: enrichRecommendations(validRaw, byId) });
         send("done", {
           assistantMessageId: assistantRow.id,

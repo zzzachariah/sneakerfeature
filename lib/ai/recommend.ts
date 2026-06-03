@@ -176,23 +176,34 @@ function stripFences(text: string): string {
   return text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
 }
 
-// Decide whether a model `content` string is human-readable preamble worth
-// streaming as live "what it's doing" text, or machine output (the JSON answer /
-// tool args this relay sometimes puts in `content` instead of a tool_call) that
-// must NOT be shown verbatim. Returns the prose to stream, or null to skip.
-function streamablePreamble(content: string): string | null {
-  const t = content.trim();
-  if (!t) return null;
-  // Begins like a JSON object/array or a fenced code block → machine output.
-  if (t.startsWith("{") || t.startsWith("[") || t.startsWith("```")) return null;
-  // Keep only the natural-language part before any embedded JSON object (a stray
-  // "{" never appears in the recommendation prose we expect).
-  const brace = t.indexOf("{");
-  const prose = (brace > 0 ? t.slice(0, brace) : t).trim();
-  if (!prose) return null;
-  // Residual structured-output keys (JSON that didn't start with "{") → skip.
-  if (/"(?:recommendations|reply|stars|references)"\s*:/.test(prose)) return null;
-  return prose;
+// Turn a model `content` string into clean, human-readable "thinking" text safe
+// to stream into the live timeline — or null when there's nothing worth showing.
+// This relay frequently dumps machine output (the JSON answer, tool args, or a
+// ```json fenced block) into `content` instead of a tool_call; streaming that
+// verbatim leaked raw code into the chat. We strip every such structure and keep
+// only the natural-language sentences.
+function sanitizeThinkingText(content: string): string | null {
+  let t = content;
+  // 1) Drop fenced code blocks entirely — both well-formed (```lang … ```) and an
+  //    unterminated trailing fence the stream may have cut off mid-block.
+  t = t.replace(/```[\s\S]*?```/g, " ").replace(/```[\s\S]*$/g, " ");
+  // 2) Cut the first JSON-ish structure and everything after it. Genuine prose
+  //    never contains a bare "{"; "[{" / "[\"" is the array-of-objects/strings
+  //    shape. Whichever appears first marks where the machine output begins.
+  const objAt = t.indexOf("{");
+  const arrAt = t.match(/\[\s*[{"]/)?.index ?? -1;
+  const cut = objAt >= 0 && arrAt >= 0 ? Math.min(objAt, arrAt) : objAt >= 0 ? objAt : arrAt;
+  if (cut >= 0) t = t.slice(0, cut);
+  // 3) Drop any residual structured-output key lines (JSON that slipped the cut).
+  t = t
+    .split("\n")
+    .filter((line) => !/"(?:recommendations|reply|title|stars|references|name|reason|pros|cons|url)"\s*:/.test(line))
+    .join("\n");
+  // 4) Tidy whitespace; require a couple of real characters, and reject anything
+  //    that is just leftover punctuation/brackets.
+  const cleaned = t.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  if (cleaned.length < 2 || /^[[\]{}"',:]+$/.test(cleaned)) return null;
+  return cleaned;
 }
 
 function coerceStars(value: unknown): number {
@@ -494,7 +505,7 @@ async function tryToolLoopWithSearch(
     // that verbatim showed users raw `{"recommendations":…}` text. Keep only
     // genuine prose — the cards + final reply carry the structured result.
     if (typeof msg.content === "string") {
-      const preamble = streamablePreamble(msg.content);
+      const preamble = sanitizeThinkingText(msg.content);
       if (preamble) onProgress?.({ type: "text", delta: preamble });
     }
 
