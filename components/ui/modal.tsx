@@ -31,6 +31,14 @@ export function Modal({
           onClick={() => {
             if (dismissible) onClose();
           }}
+          // Slide-deck pages (home, shoe detail) attach wheel/swipe/key handlers
+          // to window to flip slides. Stop those events here so scrolling inside
+          // the modal scrolls the modal — not the deck behind it.
+          onWheel={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
             className="surface-card liquid-interactive premium-border flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
