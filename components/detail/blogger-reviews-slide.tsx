@@ -22,11 +22,18 @@ type Platform = "youtube" | "bilibili";
 // right rails flips between that platform's reviewers with a horizontal
 // slide+fade. Content is stored per-locale, so it renders the UI language's copy
 // directly (blogger names are never translated).
+type PlatformReviews = { platform: Platform; reviews: BloggerReview[] };
+
 export function BloggerReviewsSlideBody({ reviews }: { reviews: BloggerReview[] }) {
   const { translate, locale } = useLocale();
   const zh = locale === "zh";
   const bili = reviews.filter((r) => r.platform === "bilibili");
   const yt = reviews.filter((r) => r.platform === "youtube");
+  // Bilibili left, YouTube right — but only platforms that actually have reviews.
+  const platforms: PlatformReviews[] = [
+    { platform: "bilibili" as Platform, reviews: bili },
+    { platform: "youtube" as Platform, reviews: yt }
+  ].filter((p) => p.reviews.length > 0);
 
   return (
     <div className="mx-auto flex h-full w-full max-w-5xl flex-col justify-center py-6">
@@ -38,17 +45,76 @@ export function BloggerReviewsSlideBody({ reviews }: { reviews: BloggerReview[] 
         {translate("Paraphrased highlights from sneaker reviewers — not verbatim quotes.")}
       </p>
 
-      {reviews.length === 0 ? (
+      {platforms.length === 0 ? (
         <p className="mt-10 text-center text-base soft-text">
-          {zh ? "这双鞋还没有博主点评" : "No pro reviews for this shoe yet"}
+          {zh ? "暂无博主点评" : "No pro reviews yet"}
         </p>
       ) : (
-        <div className="mt-5 grid gap-4 md:grid-cols-2 md:gap-6">
-          <ReviewGallery platform="bilibili" reviews={bili} />
-          <ReviewGallery platform="youtube" reviews={yt} />
-        </div>
+        <>
+          {/* Desktop: galleries side by side (only platforms with reviews). */}
+          <div
+            className={`mt-5 hidden gap-6 md:grid ${
+              platforms.length === 1 ? "mx-auto w-full max-w-xl md:grid-cols-1" : "md:grid-cols-2"
+            }`}
+          >
+            {platforms.map((p) => (
+              <ReviewGallery key={p.platform} platform={p.platform} reviews={p.reviews} />
+            ))}
+          </div>
+
+          {/* Mobile: platform-switch tabs + a single gallery. */}
+          <div className="mt-5 md:hidden">
+            <MobileGalleries platforms={platforms} />
+          </div>
+        </>
       )}
     </div>
+  );
+}
+
+// Mobile layout: tabs to switch platform (only shown when both platforms have
+// reviews), then a single gallery for the active platform. Default tab follows
+// the UI language (zh → Bilibili, en → YouTube) when that platform is present.
+function MobileGalleries({ platforms }: { platforms: PlatformReviews[] }) {
+  const { locale } = useLocale();
+  const zh = locale === "zh";
+  const preferred: Platform = zh ? "bilibili" : "youtube";
+  const initial = Math.max(
+    0,
+    platforms.findIndex((p) => p.platform === preferred)
+  );
+  const [tab, setTab] = useState(initial);
+  const idx = Math.min(tab, platforms.length - 1);
+  const active = platforms[idx];
+
+  return (
+    <>
+      {platforms.length > 1 ? (
+        <div className="mb-3 inline-flex rounded-xl border border-[rgb(var(--muted)/0.5)] p-0.5">
+          {platforms.map((p, i) => {
+            const on = i === idx;
+            const Icon = p.platform === "youtube" ? Youtube : PlayCircle;
+            const label = p.platform === "youtube" ? "YouTube" : zh ? "B站" : "Bilibili";
+            return (
+              <button
+                key={p.platform}
+                type="button"
+                onClick={() => setTab(i)}
+                aria-pressed={on}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition ${
+                  on ? "bg-[rgb(var(--accent)/0.15)] font-medium text-[rgb(var(--accent))]" : "soft-text"
+                }`}
+              >
+                <Icon className={`h-4 w-4 shrink-0 ${p.platform === "youtube" ? "text-rose-400" : "text-sky-400"}`} />
+                {label}
+                <span className="opacity-60">{p.reviews.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <ReviewGallery key={active.platform} platform={active.platform} reviews={active.reviews} />
+    </>
   );
 }
 
