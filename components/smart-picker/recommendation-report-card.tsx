@@ -120,11 +120,12 @@ function TechLine({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-// Render the AI's pre-card explanation: turn **…** spans into bold and collapse
-// whitespace so the multi-paragraph reply reads as one tidy blurb on the poster.
+// Render the AI's pre-card explanation: turn **…** spans into bold and keep the
+// paragraph breaks (the container is pre-wrap and the card grows to fit, so the
+// full reply is shown rather than clamped).
 function renderSummary(text: string) {
-  const collapsed = text.trim().replace(/\s*\n+\s*/g, " ");
-  return collapsed.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+  const normalized = text.trim().replace(/\r\n/g, "\n").replace(/\n{3,}/g, "\n\n");
+  return normalized.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
     const bold = /^\*\*([^*]+)\*\*$/.exec(part);
     return bold ? (
       <strong key={i} style={{ fontWeight: 800 }}>
@@ -149,14 +150,11 @@ export function RecommendationReportCard({
 }) {
   const { translate } = useLocale();
   const recs = recommendations.slice(0, MAX_REPORT);
-  // Fewer picks leave more vertical room, so let the summary breathe; with a full
-  // four-pick grid keep it tight so the per-pick detail below never gets clipped.
-  const summaryLines = recs.length <= 2 ? 8 : recs.length === 3 ? 5 : 3;
   const hasSummary = Boolean(summary && summary.trim());
 
   return (
-    <CardFrame variant="compare">
-      <div style={{ display: "flex", flexDirection: "column", height: "100%", paddingTop: 30, paddingBottom: 26, gap: 16, overflow: "hidden" }}>
+    <CardFrame variant="compare" grow>
+      <div style={{ display: "flex", flexDirection: "column", paddingTop: 30, paddingBottom: 26, gap: 16 }}>
         {/* Title + request */}
         <div>
           <span style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.3em", color: "rgb(var(--subtext))" }}>
@@ -187,12 +185,9 @@ export function RecommendationReportCard({
               style={{
                 margin: "8px 0 0",
                 fontSize: 15,
-                lineHeight: 1.45,
+                lineHeight: 1.5,
                 color: "rgb(var(--text))",
-                display: "-webkit-box",
-                WebkitLineClamp: summaryLines,
-                WebkitBoxOrient: "vertical",
-                overflow: "hidden"
+                whiteSpace: "pre-wrap"
               }}
             >
               {renderSummary(summary as string)}
@@ -245,7 +240,7 @@ export function RecommendationReportCard({
         </div>
 
         {/* Per-pick detail: tech + reason */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1, minHeight: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {recs.map((rec, i) => (
             <div
               key={rec.shoe_id}
