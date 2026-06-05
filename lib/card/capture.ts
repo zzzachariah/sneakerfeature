@@ -49,11 +49,15 @@ export async function captureCardToBlob(node: HTMLElement): Promise<Blob> {
   await waitForFonts();
   await waitForImages(node);
   await new Promise((r) => setTimeout(r, 16));
+  // Cards that grow with their content (the recommendation report) render taller
+  // than CARD_HEIGHT, so capture the node's real height rather than cropping to
+  // the canvas floor. Fixed-height cards measure back to exactly CARD_HEIGHT.
+  const height = Math.max(CARD_HEIGHT, Math.ceil(node.getBoundingClientRect().height));
   return withTimeout(
     domToBlob(node, {
       scale: PIXEL_RATIO,
       width: CARD_WIDTH,
-      height: CARD_HEIGHT,
+      height,
       type: "image/png",
       quality: 1,
     }),

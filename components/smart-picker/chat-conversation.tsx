@@ -38,7 +38,7 @@ export function ChatConversation({
 }: Props) {
   const { translate } = useLocale();
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [report, setReport] = useState<{ requestText: string; recs: RecommendationItem[] } | null>(null);
+  const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -141,6 +141,7 @@ export function ChatConversation({
                       onClick={() =>
                         setReport({
                           requestText: idx > 0 && messages[idx - 1].role === "user" ? messages[idx - 1].content : "",
+                          summary: message.content,
                           recs: message.recommendations ?? []
                         })
                       }
@@ -168,7 +169,7 @@ export function ChatConversation({
       <CardPreviewModal
         open={!!report}
         onClose={() => setReport(null)}
-        mode={report ? { kind: "report", requestText: report.requestText, recommendations: report.recs } : null}
+        mode={report ? { kind: "report", requestText: report.requestText, summary: report.summary, recommendations: report.recs } : null}
       />
     </div>
   );

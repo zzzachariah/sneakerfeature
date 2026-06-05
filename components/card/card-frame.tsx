@@ -30,15 +30,19 @@ const LIGHT_TOKENS: CSSProperties = {
 type Props = {
   children: ReactNode;
   variant?: "single" | "compare";
+  // When true, CARD_HEIGHT becomes a floor instead of a fixed height: the card
+  // grows with its content. Used by the recommendation report, whose AI summary
+  // is variable-length, so the poster is never cropped to fit the canvas.
+  grow?: boolean;
 };
 
-export function CardFrame({ children, variant = "single" }: Props) {
+export function CardFrame({ children, variant = "single", grow = false }: Props) {
   return (
     <div
       style={{
         ...LIGHT_TOKENS,
         width: CARD_WIDTH,
-        height: CARD_HEIGHT,
+        ...(grow ? { minHeight: CARD_HEIGHT } : { height: CARD_HEIGHT }),
         position: "relative",
         overflow: "hidden",
         background: "rgb(var(--bg-elev))",
@@ -83,7 +87,9 @@ export function CardFrame({ children, variant = "single" }: Props) {
         style={{
           position: "relative",
           zIndex: 1,
-          flex: 1,
+          // grow: fill the floor when content is short (footer stays pinned to
+          // the bottom) but never shrink below the content when it's tall.
+          flex: grow ? "1 0 auto" : 1,
           minHeight: 0,
           display: "flex",
           flexDirection: "column",

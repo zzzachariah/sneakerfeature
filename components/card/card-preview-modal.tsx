@@ -17,7 +17,7 @@ import type { Shoe } from "@/lib/types";
 type Mode =
   | { kind: "single"; shoe: Shoe; axes: RadarAxis[] }
   | { kind: "compare"; shoes: Shoe[] }
-  | { kind: "report"; requestText: string; recommendations: RecommendationItem[] };
+  | { kind: "report"; requestText: string; summary?: string; recommendations: RecommendationItem[] };
 
 type Props = {
   open: boolean;
@@ -33,6 +33,9 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
   const cardRef = useRef<HTMLDivElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.5);
+  // Report cards grow with their text, so the canvas height isn't fixed — track
+  // the rendered card's real height (fixed cards measure back to CARD_HEIGHT).
+  const [naturalHeight, setNaturalHeight] = useState(CARD_HEIGHT);
 
   useEffect(() => {
     setMounted(true);
@@ -56,7 +59,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
       const availableWidth = Math.max(0, node.clientWidth - padX);
       const availableHeight = Math.max(0, node.clientHeight - padY);
       const sx = availableWidth / CARD_WIDTH;
-      const sy = availableHeight / CARD_HEIGHT;
+      const sy = availableHeight / naturalHeight;
       const next = Math.min(sx, sy, 0.6);
       if (Number.isFinite(next) && next > 0) {
         setScale(Math.max(0.16, next));
@@ -70,7 +73,26 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
       ro.disconnect();
       window.removeEventListener("resize", compute);
     };
-  }, [open]);
+  }, [open, naturalHeight]);
+
+  // Measure the offscreen native-size card so the preview scales to fit and the
+  // captured PNG isn't cropped when the report grows past the canvas floor.
+  useLayoutEffect(() => {
+    if (!open) {
+      setNaturalHeight(CARD_HEIGHT);
+      return;
+    }
+    const node = cardRef.current;
+    if (!node) return;
+    const measure = () => {
+      const h = Math.ceil(node.getBoundingClientRect().height);
+      if (h > 0) setNaturalHeight((prev) => (prev === h ? prev : h));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [open, mode]);
 
   const filename = useMemo(() => {
     if (!mode) return "sneakerfeature-card.png";
@@ -98,7 +120,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
 
   const renderCard = () => {
     if (mode.kind === "single") return <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />;
-    if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} recommendations={mode.recommendations} />;
+    if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} summary={mode.summary} recommendations={mode.recommendations} />;
     return <CompareCard shoes={mode.shoes} />;
   };
 
@@ -145,7 +167,8 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
             </button>
           </div>
 
-          {/* Offscreen native-size card — what we capture */}
+          {/* Offscreen native-size card — what we capture. Height is left to the
+              card itself so a grown report renders (and captures) in full. */}
           <div
             aria-hidden
             style={{
@@ -153,7 +176,6 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
               top: 0,
               left: -99999,
               width: CARD_WIDTH,
-              height: CARD_HEIGHT,
               pointerEvents: "none",
             }}
           >
@@ -169,7 +191,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
             <div
               style={{
                 width: CARD_WIDTH * scale,
-                height: CARD_HEIGHT * scale,
+                height: naturalHeight * scale,
                 position: "relative",
                 borderRadius: 20,
                 overflow: "hidden",
@@ -183,7 +205,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
                   top: 0,
                   left: 0,
                   width: CARD_WIDTH,
-                  height: CARD_HEIGHT,
+                  height: naturalHeight,
                   transform: `scale(${scale})`,
                   transformOrigin: "0 0",
                 }}
