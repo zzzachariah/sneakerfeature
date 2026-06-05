@@ -17,7 +17,7 @@ import type { Shoe } from "@/lib/types";
 type Mode =
   | { kind: "single"; shoe: Shoe; axes: RadarAxis[] }
   | { kind: "compare"; shoes: Shoe[] }
-  | { kind: "report"; requestText: string; recommendations: RecommendationItem[] };
+  | { kind: "report"; requestText: string; summary?: string; recommendations: RecommendationItem[] };
 
 type Props = {
   open: boolean;
@@ -98,7 +98,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
 
   const renderCard = () => {
     if (mode.kind === "single") return <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />;
-    if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} recommendations={mode.recommendations} />;
+    if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} summary={mode.summary} recommendations={mode.recommendations} />;
     return <CompareCard shoes={mode.shoes} />;
   };
 

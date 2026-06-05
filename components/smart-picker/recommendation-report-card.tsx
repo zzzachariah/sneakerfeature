@@ -120,15 +120,39 @@ function TechLine({ label, value }: { label: string; value: string | null }) {
   );
 }
 
+// Render the AI's pre-card explanation: turn **…** spans into bold and collapse
+// whitespace so the multi-paragraph reply reads as one tidy blurb on the poster.
+function renderSummary(text: string) {
+  const collapsed = text.trim().replace(/\s*\n+\s*/g, " ");
+  return collapsed.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+    const bold = /^\*\*([^*]+)\*\*$/.exec(part);
+    return bold ? (
+      <strong key={i} style={{ fontWeight: 800 }}>
+        {bold[1]}
+      </strong>
+    ) : (
+      <span key={i}>{part}</span>
+    );
+  });
+}
+
 export function RecommendationReportCard({
   requestText,
+  summary,
   recommendations
 }: {
   requestText: string;
+  // The AI's natural-language reply shown above the cards in chat — included so
+  // the shared poster carries the same context the user read before the picks.
+  summary?: string;
   recommendations: RecommendationItem[];
 }) {
   const { translate } = useLocale();
   const recs = recommendations.slice(0, MAX_REPORT);
+  // Fewer picks leave more vertical room, so let the summary breathe; with a full
+  // four-pick grid keep it tight so the per-pick detail below never gets clipped.
+  const summaryLines = recs.length <= 2 ? 8 : recs.length === 3 ? 5 : 3;
+  const hasSummary = Boolean(summary && summary.trim());
 
   return (
     <CardFrame variant="compare">
@@ -156,6 +180,22 @@ export function RecommendationReportCard({
             >
               <span style={{ fontWeight: 700 }}>{translate("Request")}: </span>
               {requestText}
+            </p>
+          ) : null}
+          {hasSummary ? (
+            <p
+              style={{
+                margin: "8px 0 0",
+                fontSize: 15,
+                lineHeight: 1.45,
+                color: "rgb(var(--text))",
+                display: "-webkit-box",
+                WebkitLineClamp: summaryLines,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden"
+              }}
+            >
+              {renderSummary(summary as string)}
             </p>
           ) : null}
         </div>
