@@ -2,7 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    typedRoutes: true
+    typedRoutes: true,
+    optimizePackageImports: ["framer-motion", "lucide-react"]
+  },
+  compiler: {
+    removeConsole: { exclude: ["error", "warn"] }
   }
 };
 

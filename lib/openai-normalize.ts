@@ -25,7 +25,16 @@ brand,shoe_name,model_line,version_name,release_year,forefoot_midsole_tech,heel_
   });
 
   const text = completion.choices[0]?.message?.content ?? "{}";
-  const parsed = JSON.parse(text);
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return {
+      normalized: null,
+      confidence_score: 0,
+      processing_notes: "OpenAI returned malformed JSON; saved in fallback mode."
+    };
+  }
 
   return {
     normalized: parsed,
