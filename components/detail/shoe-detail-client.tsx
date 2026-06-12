@@ -15,6 +15,7 @@ import {
   getTractionScore
 } from "@/lib/shoe-scoring";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { pickLocalized } from "@/components/i18n/localized-field";
 
 type TechCardConfig = {
   value: string | null | undefined;
@@ -42,7 +43,7 @@ export function ShoeDetailClient({
   imageState: ShoeDetailImageState;
   bloggerReviews: BloggerReview[];
 }) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
   const router = useRouter();
   const [imageActionLoading, setImageActionLoading] = useState<
     "find" | "approve" | "reject" | "preview_url" | "confirm_url" | null
@@ -54,11 +55,13 @@ export function ShoeDetailClient({
     { storage_path: string; public_url: string } | null
   >(null);
 
-  const rawStoryTitle = shoe.story?.title?.trim();
-  const rawStoryContent = shoe.story?.content?.trim();
-  const specSummary = shoe.spec?.story_summary?.trim();
-  const storyTitle = rawStoryTitle || undefined;
-  const storyContent = rawStoryContent || specSummary || undefined;
+  // Story title/content + the spec story-summary fallback are pre-translated in
+  // Supabase; pick the stored zh (English fallback) per locale.
+  const storyTitleLocalized = pickLocalized(locale, shoe.story?.title, shoe.story?.title_zh)?.trim();
+  const storyContentLocalized = pickLocalized(locale, shoe.story?.content, shoe.story?.content_zh)?.trim();
+  const specSummaryLocalized = pickLocalized(locale, shoe.spec?.story_summary, shoe.spec?.story_summary_zh)?.trim();
+  const storyTitle = storyTitleLocalized || undefined;
+  const storyContent = storyContentLocalized || specSummaryLocalized || undefined;
   const storySourceLabel = shoe.story?.source_label?.trim() || undefined;
   const storySourceUrl = shoe.story?.source_url?.trim() || undefined;
   const hasStory = Boolean(storyTitle || storyContent);
@@ -80,37 +83,37 @@ export function ShoeDetailClient({
   const radarAxes: RadarAxis[] = [
     {
       label: "Cushioning Feel",
-      rawText: shoe.spec.cushioning_feel,
+      rawText: pickLocalized(locale, shoe.spec.cushioning_feel, shoe.spec.cushioning_feel_zh),
       score: cushioningFeelScore,
       tier: getPerformanceLabel(cushioningFeelScore)
     },
     {
       label: "Court Feel",
-      rawText: shoe.spec.court_feel,
+      rawText: pickLocalized(locale, shoe.spec.court_feel, shoe.spec.court_feel_zh),
       score: courtFeelScore,
       tier: getPerformanceLabel(courtFeelScore)
     },
     {
       label: "Bounce",
-      rawText: shoe.spec.bounce,
+      rawText: pickLocalized(locale, shoe.spec.bounce, shoe.spec.bounce_zh),
       score: bounceScore,
       tier: getPerformanceLabel(bounceScore)
     },
     {
       label: "Stability",
-      rawText: shoe.spec.stability,
+      rawText: pickLocalized(locale, shoe.spec.stability, shoe.spec.stability_zh),
       score: stabilityScore,
       tier: getPerformanceLabel(stabilityScore)
     },
     {
       label: "Traction",
-      rawText: shoe.spec.traction,
+      rawText: pickLocalized(locale, shoe.spec.traction, shoe.spec.traction_zh),
       score: tractionScore,
       tier: getPerformanceLabel(tractionScore)
     },
     {
       label: "Fit",
-      rawText: shoe.spec.fit,
+      rawText: pickLocalized(locale, shoe.spec.fit, shoe.spec.fit_zh),
       score: fitScore,
       tier: getPerformanceLabel(fitScore)
     }
@@ -118,11 +121,11 @@ export function ShoeDetailClient({
 
   const extraTechCards: Record<string, TechCardConfig> = {
     "Outsole tech": {
-      value: shoe.spec.outsole_tech,
+      value: pickLocalized(locale, shoe.spec.outsole_tech, shoe.spec.outsole_tech_zh),
       field: "outsole_tech",
     },
     "Upper tech": {
-      value: shoe.spec.upper_tech,
+      value: pickLocalized(locale, shoe.spec.upper_tech, shoe.spec.upper_tech_zh),
       field: "upper_tech",
     },
   };

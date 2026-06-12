@@ -17,6 +17,24 @@ export interface ShoeSpec {
   playstyle_summary?: string | null;
   story_summary?: string | null;
   tags?: string[];
+  // AI-translated Simplified-Chinese counterparts (migration 026). Populated by
+  // the bulk translation job / write-path hook; the zh UI reads these directly
+  // and falls back to the English column above when null/empty.
+  forefoot_midsole_tech_zh?: string | null;
+  heel_midsole_tech_zh?: string | null;
+  outsole_tech_zh?: string | null;
+  upper_tech_zh?: string | null;
+  cushioning_feel_zh?: string | null;
+  court_feel_zh?: string | null;
+  bounce_zh?: string | null;
+  stability_zh?: string | null;
+  traction_zh?: string | null;
+  fit_zh?: string | null;
+  containment_zh?: string | null;
+  support_zh?: string | null;
+  torsional_rigidity_zh?: string | null;
+  playstyle_summary_zh?: string | null;
+  story_summary_zh?: string | null;
 }
 
 export interface Shoe {
@@ -38,6 +56,9 @@ export interface Shoe {
     content?: string | null;
     source_label?: string | null;
     source_url?: string | null;
+    // AI-translated Simplified-Chinese counterparts (migration 026).
+    title_zh?: string | null;
+    content_zh?: string | null;
   } | null;
   userRatingCount?: number;
   specStars?: number | null;

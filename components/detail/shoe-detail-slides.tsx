@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
+import { pickLocalized } from "@/components/i18n/localized-field";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
@@ -367,7 +368,8 @@ function OverviewSlide({
   finalStars,
   onJumpToComments
 }: Props & { active: boolean; onShareCard: () => void; onJumpToComments: () => void }) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
+  const playstyleSummary = pickLocalized(locale, shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
   return (
     <div className={`flex h-full flex-col justify-center py-6 md:py-10 ${slideEntranceClass(active)}`}>
       <div className="grid gap-5 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-8">
@@ -383,12 +385,10 @@ function OverviewSlide({
             {shoe.shoe_name}
           </h1>
 
-          {shoe.spec.playstyle_summary ? (
-            <DynamicTranslatedText
-              as="p"
-              className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base"
-              text={shoe.spec.playstyle_summary}
-            />
+          {playstyleSummary ? (
+            <p className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base">
+              {playstyleSummary}
+            </p>
           ) : (
             <p className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base">
               {translate("No playstyle summary available yet.")}
@@ -557,16 +557,20 @@ function PerformanceSlide({
   radarAxes,
   active
 }: Props & { active: boolean }) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
 
+  // Values are pre-translated in Supabase; pick zh (English fallback) per locale.
   const dimensionCards: Array<{ label: string; field: keyof typeof shoe.spec; value: string | null | undefined }> = [
-    { label: "Cushioning feel", field: "cushioning_feel", value: shoe.spec.cushioning_feel },
-    { label: "Court feel", field: "court_feel", value: shoe.spec.court_feel },
-    { label: "Bounce", field: "bounce", value: shoe.spec.bounce },
-    { label: "Stability", field: "stability", value: shoe.spec.stability },
-    { label: "Traction", field: "traction", value: shoe.spec.traction },
-    { label: "Fit", field: "fit", value: shoe.spec.fit }
+    { label: "Cushioning feel", field: "cushioning_feel", value: pickLocalized(locale, shoe.spec.cushioning_feel, shoe.spec.cushioning_feel_zh) },
+    { label: "Court feel", field: "court_feel", value: pickLocalized(locale, shoe.spec.court_feel, shoe.spec.court_feel_zh) },
+    { label: "Bounce", field: "bounce", value: pickLocalized(locale, shoe.spec.bounce, shoe.spec.bounce_zh) },
+    { label: "Stability", field: "stability", value: pickLocalized(locale, shoe.spec.stability, shoe.spec.stability_zh) },
+    { label: "Traction", field: "traction", value: pickLocalized(locale, shoe.spec.traction, shoe.spec.traction_zh) },
+    { label: "Fit", field: "fit", value: pickLocalized(locale, shoe.spec.fit, shoe.spec.fit_zh) }
   ];
+
+  const forefootTech = pickLocalized(locale, shoe.spec.forefoot_midsole_tech, shoe.spec.forefoot_midsole_tech_zh);
+  const heelTech = pickLocalized(locale, shoe.spec.heel_midsole_tech, shoe.spec.heel_midsole_tech_zh);
 
   return (
     <div className={`flex h-full min-h-0 flex-row items-stretch gap-2 py-4 md:gap-4 md:py-6 ${slideEntranceClass(active)}`}>
@@ -579,7 +583,7 @@ function PerformanceSlide({
             data-field-key="forefoot_midsole_tech"
             className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
           >
-            {shoe.spec.forefoot_midsole_tech ?? translate("Not yet added")}
+            {forefootTech ?? translate("Not yet added")}
           </p>
         </Card>
 
@@ -591,7 +595,7 @@ function PerformanceSlide({
             data-field-key="heel_midsole_tech"
             className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
           >
-            {shoe.spec.heel_midsole_tech ?? translate("Not yet added")}
+            {heelTech ?? translate("Not yet added")}
           </p>
         </Card>
 
@@ -601,12 +605,12 @@ function PerformanceSlide({
               {translate(k)}
             </p>
             {data.value ? (
-              <DynamicTranslatedText
-                as="p"
+              <p
+                data-field-key={data.field}
                 className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-                text={data.value}
-                contentType="technology"
-              />
+              >
+                {data.value}
+              </p>
             ) : (
               <p
                 data-field-key={data.field}
@@ -624,12 +628,12 @@ function PerformanceSlide({
               {translate(dim.label)}
             </p>
             {dim.value ? (
-              <DynamicTranslatedText
-                as="p"
+              <p
+                data-field-key={dim.field}
                 className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-                text={dim.value}
-                contentType="descriptive"
-              />
+              >
+                {dim.value}
+              </p>
             ) : (
               <p
                 data-field-key={dim.field}
@@ -677,11 +681,7 @@ function StorySlide({
             className="mt-4 max-h-[55dvh] space-y-3 overflow-y-auto pr-2 md:mt-6 md:max-h-[60vh] md:space-y-4"
           >
             {storyTitle ? (
-              <DynamicTranslatedText
-                as="p"
-                className="text-base font-semibold md:text-lg"
-                text={storyTitle}
-              />
+              <p className="text-base font-semibold md:text-lg">{storyTitle}</p>
             ) : (
               <p data-field-key="shoe_name" className="text-base font-semibold md:text-lg">
                 {`${shoe.brand} ${shoe.shoe_name}`}
@@ -689,11 +689,9 @@ function StorySlide({
             )}
 
             {storyContent ? (
-              <DynamicTranslatedText
-                as="p"
-                className="whitespace-pre-line text-[0.95rem] leading-7 soft-text md:text-base md:leading-8"
-                text={storyContent}
-              />
+              <p className="whitespace-pre-line text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
+                {storyContent}
+              </p>
             ) : (
               <p className="text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
                 {translate("No editorial story content yet.")}

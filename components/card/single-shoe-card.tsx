@@ -4,6 +4,7 @@ import { CardFrame } from "@/components/card/card-frame";
 import { CardStaticRadar } from "@/components/card/card-static-radar";
 import { useTranslatedText } from "@/components/i18n/use-translated-text";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { pickLocalized } from "@/components/i18n/localized-field";
 import type { RadarAxis } from "@/components/detail/performance-radar";
 import { proxiedImageSrc } from "@/lib/card/proxy-image";
 import { storyExcerpt } from "@/lib/card/story-excerpt";
@@ -16,40 +17,17 @@ type Props = {
 
 const TECH_FIELDS: Array<{
   key: keyof Shoe["spec"];
+  // Stored Chinese counterpart column for `key`.
+  zhKey: keyof Shoe["spec"];
   // The label is looked up against translate() — using the underscore form
   // because the space form is on the protected-no-translate list site-wide.
   labelKey: string;
   englishLabel: string;
-  /**
-   * Forefoot/heel midsole tech values stay in their original language per
-   * editorial direction; only the label is translated.
-   */
-  translateValue: boolean;
 }> = [
-  {
-    key: "forefoot_midsole_tech",
-    labelKey: "forefoot_midsole_tech",
-    englishLabel: "Forefoot Midsole",
-    translateValue: false,
-  },
-  {
-    key: "heel_midsole_tech",
-    labelKey: "heel_midsole_tech",
-    englishLabel: "Heel Midsole",
-    translateValue: false,
-  },
-  {
-    key: "outsole_tech",
-    labelKey: "outsole_tech",
-    englishLabel: "Outsole",
-    translateValue: true,
-  },
-  {
-    key: "upper_tech",
-    labelKey: "upper_tech",
-    englishLabel: "Upper",
-    translateValue: true,
-  },
+  { key: "forefoot_midsole_tech", zhKey: "forefoot_midsole_tech_zh", labelKey: "forefoot_midsole_tech", englishLabel: "Forefoot Midsole" },
+  { key: "heel_midsole_tech", zhKey: "heel_midsole_tech_zh", labelKey: "heel_midsole_tech", englishLabel: "Heel Midsole" },
+  { key: "outsole_tech", zhKey: "outsole_tech_zh", labelKey: "outsole_tech", englishLabel: "Outsole" },
+  { key: "upper_tech", zhKey: "upper_tech_zh", labelKey: "upper_tech", englishLabel: "Upper" },
 ];
 
 function nameFontSize(name: string): number {
@@ -60,16 +38,8 @@ function nameFontSize(name: string): number {
   return 56;
 }
 
-function TechValue({ value, translateValue }: { value: string; translateValue: boolean }) {
-  const translated = useTranslatedText(value, {
-    contentType: translateValue ? "technology" : "brand",
-    skipDynamic: !translateValue,
-  });
-  return <>{translateValue ? translated : value}</>;
-}
-
 function PlaystyleSummary({ text }: { text: string }) {
-  const translated = useTranslatedText(text, { contentType: "descriptive" });
+  // `text` is already localized (stored zh / English fallback).
   return (
     <p
       style={{
@@ -81,22 +51,21 @@ function PlaystyleSummary({ text }: { text: string }) {
         maxWidth: 760,
       }}
     >
-      {translated}
+      {text}
     </p>
   );
 }
 
 function StoryBlock({
   storyTitle,
-  rawContent,
+  content,
 }: {
   storyTitle: string;
-  rawContent: string | null | undefined;
+  content: string | null | undefined;
 }) {
   const { translate } = useLocale();
-  const translatedTitle = useTranslatedText(storyTitle, { contentType: "descriptive" });
-  const translatedContent = useTranslatedText(rawContent ?? "", { contentType: "descriptive" });
-  const excerpt = storyExcerpt(translatedContent || rawContent || "");
+  // storyTitle/content are already localized upstream.
+  const excerpt = storyExcerpt(content || "");
   return (
     <div
       style={{
@@ -129,7 +98,7 @@ function StoryBlock({
           color: "rgb(var(--text))",
         }}
       >
-        {translatedTitle}
+        {storyTitle}
       </h3>
       {excerpt ? (
         <p
@@ -162,8 +131,12 @@ function StoryBlock({
 }
 
 export function SingleShoeCard({ shoe, axes }: Props) {
-  const { translate } = useLocale();
-  const storyTitle = shoe.story?.title?.trim() || `${shoe.brand} ${shoe.shoe_name}`;
+  const { translate, locale } = useLocale();
+  const storyTitle =
+    pickLocalized(locale, shoe.story?.title, shoe.story?.title_zh)?.trim() ||
+    `${shoe.brand} ${shoe.shoe_name}`;
+  const storyContent = pickLocalized(locale, shoe.story?.content, shoe.story?.content_zh);
+  const playstyle = pickLocalized(locale, shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
   const fontSize = nameFontSize(shoe.shoe_name);
   const translatedCategory = useTranslatedText(shoe.category ?? "", { contentType: "descriptive" });
   const eyebrowParts = [
@@ -210,9 +183,7 @@ export function SingleShoeCard({ shoe, axes }: Props) {
           >
             {shoe.shoe_name}
           </h1>
-          {shoe.spec.playstyle_summary ? (
-            <PlaystyleSummary text={shoe.spec.playstyle_summary} />
-          ) : null}
+          {playstyle ? <PlaystyleSummary text={playstyle} /> : null}
         </div>
 
         {/* Hairline */}
@@ -299,7 +270,11 @@ export function SingleShoeCard({ shoe, axes }: Props) {
           }}
         >
           {TECH_FIELDS.map((field) => {
-            const value = (shoe.spec[field.key] as string | null | undefined) ?? null;
+            const value = pickLocalized(
+              locale,
+              (shoe.spec[field.key] as string | null | undefined) ?? null,
+              (shoe.spec[field.zhKey] as string | null | undefined) ?? null
+            );
             const translatedLabel = translate(field.labelKey);
             const labelText =
               translatedLabel === field.labelKey ? field.englishLabel : translatedLabel;
@@ -337,11 +312,7 @@ export function SingleShoeCard({ shoe, axes }: Props) {
                     lineHeight: 1.25,
                   }}
                 >
-                  {value ? (
-                    <TechValue value={value} translateValue={field.translateValue} />
-                  ) : (
-                    "—"
-                  )}
+                  {value ? value : "—"}
                 </span>
               </div>
             );
@@ -366,7 +337,7 @@ export function SingleShoeCard({ shoe, axes }: Props) {
           >
             <CardStaticRadar axes={axes} size={340} />
           </div>
-          <StoryBlock storyTitle={storyTitle} rawContent={shoe.story?.content} />
+          <StoryBlock storyTitle={storyTitle} content={storyContent} />
         </div>
       </div>
     </CardFrame>

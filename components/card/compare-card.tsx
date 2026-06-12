@@ -5,6 +5,7 @@ import { CardCompareRadar } from "@/components/card/card-compare-radar";
 import { getLineStyle } from "@/components/compare/compare-metrics";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useTranslatedText } from "@/components/i18n/use-translated-text";
+import { pickLocalized } from "@/components/i18n/localized-field";
 import { proxiedImageSrc } from "@/lib/card/proxy-image";
 import type { Shoe } from "@/lib/types";
 
@@ -50,35 +51,23 @@ function gridForCount(count: number): {
 
 const TECH_ROWS: Array<{
   key: keyof Shoe["spec"];
+  // Stored Chinese counterpart column for `key`.
+  zhKey: keyof Shoe["spec"];
   // Short label key — the compare card's tight cells need a 2-character zh
   // label, so we use the bare body-part word rather than the full
   // "<part> midsole tech" string. Both forms are in the locale dict.
   labelKey: string;
   englishLabel: string;
-  /**
-   * Forefoot/heel midsole values stay in their original language per editorial
-   * direction (often proprietary tech names that travel poorly through MT).
-   * Outsole/upper get the dynamic-translation treatment via useTranslatedText.
-   */
-  translateValue: boolean;
 }> = [
-  { key: "forefoot_midsole_tech", labelKey: "forefoot", englishLabel: "Forefoot", translateValue: false },
-  { key: "heel_midsole_tech", labelKey: "heel", englishLabel: "Heel", translateValue: false },
-  { key: "outsole_tech", labelKey: "outsole", englishLabel: "Outsole", translateValue: true },
-  { key: "upper_tech", labelKey: "upper", englishLabel: "Upper", translateValue: true },
+  { key: "forefoot_midsole_tech", zhKey: "forefoot_midsole_tech_zh", labelKey: "forefoot", englishLabel: "Forefoot" },
+  { key: "heel_midsole_tech", zhKey: "heel_midsole_tech_zh", labelKey: "heel", englishLabel: "Heel" },
+  { key: "outsole_tech", zhKey: "outsole_tech_zh", labelKey: "outsole", englishLabel: "Outsole" },
+  { key: "upper_tech", zhKey: "upper_tech_zh", labelKey: "upper", englishLabel: "Upper" },
 ];
 
 function clampValue(value: string, max: number): string {
   if (value.length <= max) return value;
   return `${value.slice(0, Math.max(0, max - 1))}…`;
-}
-
-function TechValueText({ value, translate }: { value: string; translate: boolean }) {
-  const translated = useTranslatedText(value, {
-    contentType: translate ? "technology" : "brand",
-    skipDynamic: !translate,
-  });
-  return <>{translate ? translated : value}</>;
 }
 
 function ShoeCell({
@@ -100,7 +89,7 @@ function ShoeCell({
   noImageLabel: string;
   valueClamp: number;
 }) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
   const style = getLineStyle(index);
   return (
     <div
@@ -211,7 +200,11 @@ function ShoeCell({
         }}
       >
         {TECH_ROWS.map((row) => {
-          const value = (shoe.spec[row.key] as string | null | undefined) ?? null;
+          const value = pickLocalized(
+            locale,
+            (shoe.spec[row.key] as string | null | undefined) ?? null,
+            (shoe.spec[row.zhKey] as string | null | undefined) ?? null
+          );
           const translatedLabel = translate(row.labelKey);
           const labelText =
             translatedLabel === row.labelKey ? row.englishLabel : translatedLabel;
@@ -243,14 +236,7 @@ function ShoeCell({
                   overflow: "hidden",
                 }}
               >
-                {value ? (
-                  <TechValueText
-                    value={clampValue(value, valueClamp)}
-                    translate={row.translateValue}
-                  />
-                ) : (
-                  "—"
-                )}
+                {value ? clampValue(value, valueClamp) : "—"}
               </span>
             </div>
           );

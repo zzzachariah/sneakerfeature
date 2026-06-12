@@ -25,6 +25,8 @@ type ShoeStoryRow = {
   shoe_id: string;
   title?: string | null;
   content?: string | null;
+  title_zh?: string | null;
+  content_zh?: string | null;
   source_label?: string | null;
   source_url?: string | null;
   created_at?: string | null;
@@ -80,6 +82,8 @@ function normalizeStory(row: ShoeStoryRow): ShoeStory {
   return {
     title: row.title ?? null,
     content: row.content ?? null,
+    title_zh: row.title_zh ?? null,
+    content_zh: row.content_zh ?? null,
     source_label: row.source_label ?? null,
     source_url: row.source_url ?? null
   };
