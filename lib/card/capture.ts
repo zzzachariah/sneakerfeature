@@ -1,4 +1,3 @@
-import { domToBlob } from "modern-screenshot";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/components/card/card-frame";
 
 const PIXEL_RATIO = 3;
@@ -46,6 +45,9 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 }
 
 export async function captureCardToBlob(node: HTMLElement): Promise<Blob> {
+  // Loaded on demand so the ~heavy screenshot lib stays out of the initial
+  // bundle of every page that can open a share modal.
+  const { domToBlob } = await import("modern-screenshot");
   await waitForFonts();
   await waitForImages(node);
   await new Promise((r) => setTimeout(r, 16));

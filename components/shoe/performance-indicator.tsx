@@ -42,7 +42,7 @@ export function PerformanceIndicator({ label, score, tier, rawText }: Performanc
       <div className="flex items-center gap-2">
         <div className="h-2 w-full overflow-hidden rounded-full bg-[rgb(var(--muted)/0.35)]">
           <div
-            className={`h-full rounded-full ${getToneClass(resolvedTier)} transition-all duration-300 ease-out`}
+            className={`h-full rounded-full ${getToneClass(resolvedTier)} transition-[width] duration-500 ease-out`}
             style={{ width: `${clampedScore}%` }}
           />
         </div>
