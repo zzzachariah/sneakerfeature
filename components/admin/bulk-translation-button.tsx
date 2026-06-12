@@ -53,6 +53,7 @@ export function BulkTranslationButton() {
   const [forceRetranslate, setForceRetranslate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [failures, setFailures] = useState<Array<{ label: string; detail: string }>>([]);
 
   const stopRef = useRef(false);
   const runningRef = useRef(false);
@@ -92,6 +93,7 @@ export function BulkTranslationButton() {
       setFailed(0);
       setRemaining(null);
       setCurrentLabel(null);
+      setFailures([]);
 
       const exclude: string[] = [];
       let localSucceeded = 0;
@@ -117,8 +119,16 @@ export function BulkTranslationButton() {
           }
 
           exclude.push(json.processedShoeId);
-          if (json.success) localSucceeded += 1;
-          else localFailed += 1;
+          if (json.success) {
+            localSucceeded += 1;
+          } else {
+            localFailed += 1;
+            const detail = json.detail ?? "unknown error";
+            const label = json.label ?? "(shoe)";
+            if (isMountedRef.current) {
+              setFailures((prev) => [...prev, { label, detail }].slice(-20));
+            }
+          }
 
           if (isMountedRef.current) {
             setProcessed(exclude.length);
@@ -211,6 +221,19 @@ export function BulkTranslationButton() {
               {translate("Current shoe")}: {currentLabel}
             </p>
           ) : null}
+        </div>
+      )}
+
+      {failures.length > 0 && (
+        <div className="space-y-1 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs">
+          <p className="font-medium text-rose-300">
+            {translate("Failed shoes")} ({failures.length}):
+          </p>
+          {failures.map((f, i) => (
+            <p key={`${f.label}-${i}`} className="soft-text">
+              • <span className="font-medium text-[rgb(var(--text)/0.9)]">{f.label}</span> — {f.detail}
+            </p>
+          ))}
         </div>
       )}
     </div>
