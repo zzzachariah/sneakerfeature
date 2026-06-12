@@ -9,6 +9,7 @@ import { CompareCard } from "@/components/card/compare-card";
 import { SingleShoeCard } from "@/components/card/single-shoe-card";
 import { RecommendationReportCard } from "@/components/smart-picker/recommendation-report-card";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import type { RadarAxis } from "@/components/detail/performance-radar";
 import { captureCardToBlob, safeFilename, triggerDownload } from "@/lib/card/capture";
 import type { RecommendationItem } from "@/lib/ai/types";
@@ -27,6 +28,7 @@ type Props = {
 
 export function CardPreviewModal({ open, onClose, mode }: Props) {
   const { translate } = useLocale();
+  useBodyScrollLock(open);
   const [mounted, setMounted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

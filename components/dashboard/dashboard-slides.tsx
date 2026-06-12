@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { ChevronDown, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,14 +186,7 @@ export function DashboardSlides(props: Props) {
     };
   }, [goTo]);
 
-  // Body scroll lock
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useBodyScrollLock();
 
   const labels = [
     translate("Overview"),

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 
 type Props = {
   open: boolean;
@@ -12,24 +13,26 @@ type Props = {
 export function AboutModal({ open, onClose }: Props) {
   const { translate } = useLocale();
 
-  useEffect(() => {
-    if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [open]);
-
-  if (!open) return null;
+  useBodyScrollLock(open);
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[rgb(var(--glass-overlay)/0.72)] p-4 backdrop-blur-sm"
-    >
-      <div
-        className="surface-card premium-border relative w-full max-w-2xl rounded-3xl p-5 shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)] md:p-6"
-      >
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-50 grid place-items-center bg-[rgb(var(--glass-overlay)/0.72)] p-4 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="surface-card premium-border relative w-full max-w-2xl rounded-3xl p-5 shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)] md:p-6"
+            initial={{ y: 18, opacity: 0, scale: 0.985 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 8, opacity: 0, scale: 0.985 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            onClick={(e) => e.stopPropagation()}
+          >
         <button
           type="button"
           aria-label={translate("Close information modal")}
@@ -56,8 +59,10 @@ export function AboutModal({ open, onClose }: Props) {
             By the way, if this turned out to be liked by many, perhaps I will charge a one-time fee of a dollar per account in order to cover the fees of databases and domains, etc. I hate ads myself, so there will maybe be 1 or 2, but definitely not scattered around the page. I&apos;ll decide it later.
           </p>
           <p>{translate("In the meantime, enjoy!")}</p>
-        </div>
-      </div>
-    </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

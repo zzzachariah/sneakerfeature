@@ -111,7 +111,7 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
             {translate("Recommended for you")}
           </p>
           <ul className="space-y-1">
-            {reasons!.map((r) => (
+            {(reasons ?? []).map((r) => (
               <li key={r} className="text-[0.78rem] leading-snug">
                 · {translate(r)}
               </li>

@@ -17,6 +17,7 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { Reveal } from "@/components/motion/reveal";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import type { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -191,13 +192,7 @@ export function ShoeDetailSlides(props: Props) {
     };
   }, [goTo]);
 
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useBodyScrollLock();
 
   const labels = [
     translate("Overview"),

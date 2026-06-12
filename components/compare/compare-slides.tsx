@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { Bookmark, ChevronDown, Plus, Share2 } from "lucide-react";
 import { ComparePlinths } from "@/components/compare/compare-plinths";
 import { CompareRadar } from "@/components/compare/compare-radar";
@@ -122,14 +123,8 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
     };
   }, [goTo]);
 
-  // Lock body scroll while slides are active.
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  // Lock body scroll while the slide deck is mounted.
+  useBodyScrollLock();
 
   const labels = [translate("Lineup"), translate("Profile"), translate("Specs")];
 

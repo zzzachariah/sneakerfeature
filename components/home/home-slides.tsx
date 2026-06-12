@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { HomeHero } from "@/components/home/home-hero";
 import { HomeFeed } from "@/components/home/home-feed";
 import { HomeModeProvider } from "@/components/home/home-mode-context";
@@ -118,14 +119,8 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
     };
   }, [goTo]);
 
-  // Lock body scroll while slides are active
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  // Lock body scroll while the slide deck is mounted.
+  useBodyScrollLock();
 
   // Tutorial integration: external requests to jump to a specific slide.
   useEffect(() => {

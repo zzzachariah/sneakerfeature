@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -167,14 +168,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
     };
   }, [goTo]);
 
-  // Body scroll lock
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useBodyScrollLock();
 
   const labels = [translate("Identity"), translate("Tech"), translate("Feel"), translate("Story")];
   const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
