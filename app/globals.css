@@ -478,9 +478,17 @@ body {
 .img-loading { opacity: 0; }
 .img-loaded { animation: imgFadeIn var(--dur-slow) var(--ease) both; }
 
+/* Popover / small overlay entrance */
+.pop-in { animation: revealPop 180ms var(--ease) both; }
+
+/* Inline form feedback animates in whenever it appears */
+.feedback { animation: revealUp var(--dur-base) var(--ease) both; }
+
 @media (prefers-reduced-motion: reduce) {
   .reveal,
-  .reveal-in {
+  .reveal-in,
+  .pop-in,
+  .feedback {
     opacity: 1 !important;
     transform: none !important;
     animation: none !important;
