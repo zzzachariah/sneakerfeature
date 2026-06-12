@@ -9,6 +9,7 @@ import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
+import { useLocalizedField } from "@/components/i18n/localized-field";
 
 type Props = {
   shoes: Shoe[];
@@ -85,6 +86,8 @@ function ShoePlinth({
   showRatingDetail: boolean;
   translateLabel: (value: string) => string;
 }) {
+  // Pre-translated playstyle summary (stored zh, English fallback).
+  const playstyleSummary = useLocalizedField(shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
   return (
     <motion.div
       layout
@@ -145,13 +148,10 @@ function ShoePlinth({
         </div>
       ) : null}
 
-      {!hideDescriptor && shoe.spec.playstyle_summary ? (
-        <DynamicTranslatedText
-          as="p"
-          className="mb-3 max-w-[340px] text-[0.78rem] leading-[1.45] soft-text sm:mb-4 sm:text-[0.82rem] sm:leading-[1.5]"
-          text={shoe.spec.playstyle_summary}
-          contentType="descriptive"
-        />
+      {!hideDescriptor && playstyleSummary ? (
+        <p className="mb-3 max-w-[340px] text-[0.78rem] leading-[1.45] soft-text sm:mb-4 sm:text-[0.82rem] sm:leading-[1.5]">
+          {playstyleSummary}
+        </p>
       ) : null}
 
       <div className="flex flex-wrap gap-1.5">

@@ -93,27 +93,27 @@ export function getLineStyle(index: number) {
 export const SPEC_ROWS: Array<{
   key: string;
   label: string;
+  // English source value and its stored Chinese (`*_zh`) translation. The table
+  // picks per-locale via pickLocalized and falls back to English when zh is
+  // empty — including for forefoot/heel midsole tech, which now gets a proper
+  // AI translation instead of being left untranslated.
   get: (shoe: Shoe) => string | null;
-  /**
-   * When true the row's value renders untranslated (forefoot/heel midsole
-   * tech names are kept in their original language per editorial direction).
-   */
-  protectValue?: boolean;
+  getZh: (shoe: Shoe) => string | null;
 }> = [
   {
     key: "forefoot",
     label: "Forefoot Midsole",
     get: (shoe) => shoe.spec.forefoot_midsole_tech ?? null,
-    protectValue: true,
+    getZh: (shoe) => shoe.spec.forefoot_midsole_tech_zh ?? null,
   },
   {
     key: "heel",
     label: "Heel Midsole",
     get: (shoe) => shoe.spec.heel_midsole_tech ?? null,
-    protectValue: true,
+    getZh: (shoe) => shoe.spec.heel_midsole_tech_zh ?? null,
   },
-  { key: "outsole", label: "Outsole", get: (shoe) => shoe.spec.outsole_tech ?? null },
-  { key: "upper", label: "Upper", get: (shoe) => shoe.spec.upper_tech ?? null },
-  { key: "traction", label: "Traction", get: (shoe) => shoe.spec.traction ?? null },
-  { key: "fit_profile", label: "Fit Profile", get: (shoe) => shoe.spec.fit ?? null },
+  { key: "outsole", label: "Outsole", get: (shoe) => shoe.spec.outsole_tech ?? null, getZh: (shoe) => shoe.spec.outsole_tech_zh ?? null },
+  { key: "upper", label: "Upper", get: (shoe) => shoe.spec.upper_tech ?? null, getZh: (shoe) => shoe.spec.upper_tech_zh ?? null },
+  { key: "traction", label: "Traction", get: (shoe) => shoe.spec.traction ?? null, getZh: (shoe) => shoe.spec.traction_zh ?? null },
+  { key: "fit_profile", label: "Fit Profile", get: (shoe) => shoe.spec.fit ?? null, getZh: (shoe) => shoe.spec.fit_zh ?? null },
 ];

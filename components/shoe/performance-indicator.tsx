@@ -1,7 +1,6 @@
 "use client";
 
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
-import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type PerformanceIndicatorProps = {
@@ -28,12 +27,8 @@ export function PerformanceIndicator({ label, score, tier, rawText }: Performanc
       <div className="flex items-center justify-between gap-2 text-xs">
         <p className="uppercase tracking-[0.14em] soft-text">{translate(label)}</p>
         {rawText?.trim() ? (
-          <DynamicTranslatedText
-            as="p"
-            className="truncate text-right text-[rgb(var(--text)/0.9)]"
-            text={rawText}
-            contentType="descriptive"
-          />
+          // Pre-translated upstream (stored zh / English fallback).
+          <p className="truncate text-right text-[rgb(var(--text)/0.9)]">{rawText}</p>
         ) : (
           <p className="truncate text-right text-[rgb(var(--text)/0.9)]">{translate("Not yet added")}</p>
         )}
@@ -47,12 +42,7 @@ export function PerformanceIndicator({ label, score, tier, rawText }: Performanc
           />
         </div>
 
-        <DynamicTranslatedText
-          as="span"
-          className="min-w-14 text-right text-xs soft-text"
-          text={resolvedTier}
-          contentType="descriptive"
-        />
+        <span className="min-w-14 text-right text-xs soft-text">{translate(resolvedTier)}</span>
         <span className="min-w-9 text-right text-sm font-semibold text-[rgb(var(--text)/0.94)]">{clampedScore}</span>
       </div>
     </div>

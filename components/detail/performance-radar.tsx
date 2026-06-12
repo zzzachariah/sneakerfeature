@@ -1,6 +1,5 @@
 "use client";
 
-import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 export type RadarAxis = {
@@ -148,12 +147,7 @@ function AxisLabel({
         {translate(axis.label)}
       </p>
       <span className="text-sm font-semibold text-[rgb(var(--text))] md:text-base">{clamped}</span>
-      <DynamicTranslatedText
-        as="span"
-        className="hidden text-[0.65rem] soft-text md:inline"
-        text={axis.tier}
-        contentType="descriptive"
-      />
+      <span className="hidden text-[0.65rem] soft-text md:inline">{translate(axis.tier)}</span>
     </div>
   );
 }

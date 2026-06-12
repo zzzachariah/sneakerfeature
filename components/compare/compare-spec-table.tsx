@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
+import { pickLocalized } from "@/components/i18n/localized-field";
 import { SPEC_ROWS } from "@/components/compare/compare-metrics";
 
 const EMPTY_LABEL = "—";
@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function CompareSpecTable({ shoes, active = true }: Props) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
   const pulsedRef = useRef(false);
   const [pulse, setPulse] = useState(false);
 
@@ -29,9 +29,11 @@ export function CompareSpecTable({ shoes, active = true }: Props) {
   if (!shoes.length) return null;
 
   const rows = SPEC_ROWS.map((row) => {
-    const values = shoes.map((shoe) => row.get(shoe));
+    // Pick the stored Chinese translation (fallback English) per locale — the
+    // spec values are pre-translated in Supabase, no render-time MT.
+    const values = shoes.map((shoe) => pickLocalized(locale, row.get(shoe), row.getZh(shoe)));
     const distinct = new Set(values.map((v) => (v ?? "").trim().toLowerCase()));
-    return { ...row, values, differs: distinct.size > 1, protectValue: row.protectValue ?? false };
+    return { key: row.key, label: row.label, values, differs: distinct.size > 1 };
   });
 
   return (
@@ -51,7 +53,7 @@ function PairedLayout({
   translate,
   pulse
 }: {
-  rows: Array<{ key: string; label: string; values: Array<string | null>; differs: boolean; protectValue: boolean }>;
+  rows: Array<{ key: string; label: string; values: Array<string | null>; differs: boolean }>;
   shoes: Shoe[];
   translate: (value: string) => string;
   pulse: boolean;
@@ -86,17 +88,17 @@ function PairedLayout({
               {translate(row.label)}
             </span>
             <div className="grid grid-cols-2 gap-3">
-              <SpecValue value={row.values[0]} align="left" protectValue={row.protectValue} />
-              <SpecValue value={row.values[1]} align="right" protectValue={row.protectValue} />
+              <SpecValue value={row.values[0]} align="left" />
+              <SpecValue value={row.values[1]} align="right" />
             </div>
           </div>
           {/* Desktop paired layout (md+) */}
           <div className="hidden grid-cols-3 items-center gap-4 px-6 py-3 md:grid">
-            <SpecValue value={row.values[0]} align="left" protectValue={row.protectValue} />
+            <SpecValue value={row.values[0]} align="left" />
             <span className="text-center text-[0.62rem] uppercase tracking-[0.12em] text-[rgb(var(--subtext)/0.8)]">
               {translate(row.label)}
             </span>
-            <SpecValue value={row.values[1]} align="right" protectValue={row.protectValue} />
+            <SpecValue value={row.values[1]} align="right" />
           </div>
         </div>
       ))}
@@ -110,7 +112,7 @@ function ColumnLayout({
   translate,
   pulse
 }: {
-  rows: Array<{ key: string; label: string; values: Array<string | null>; differs: boolean; protectValue: boolean }>;
+  rows: Array<{ key: string; label: string; values: Array<string | null>; differs: boolean }>;
   shoes: Shoe[];
   translate: (value: string) => string;
   pulse: boolean;
@@ -144,12 +146,7 @@ function ColumnLayout({
               {translate(row.label)}
             </span>
             {row.values.map((value, vi) => (
-              <SpecValue
-                key={`${row.key}-${vi}`}
-                value={value}
-                align="left"
-                protectValue={row.protectValue}
-              />
+              <SpecValue key={`${row.key}-${vi}`} value={value} align="left" />
             ))}
           </div>
         ))}
@@ -158,29 +155,11 @@ function ColumnLayout({
   );
 }
 
-function SpecValue({
-  value,
-  align,
-  protectValue,
-}: {
-  value: string | null;
-  align: "left" | "right";
-  protectValue?: boolean;
-}) {
+function SpecValue({ value, align }: { value: string | null; align: "left" | "right" }) {
   const alignClass = align === "right" ? "text-right" : "text-left";
   if (!value) {
     return <span className={`text-[0.8rem] soft-text ${alignClass}`}>{EMPTY_LABEL}</span>;
   }
-  if (protectValue) {
-    // Forefoot/heel midsole tech values stay in their original language.
-    return <span className={`text-[0.8rem] text-[rgb(var(--text)/0.85)] ${alignClass}`}>{value}</span>;
-  }
-  return (
-    <DynamicTranslatedText
-      as="span"
-      className={`text-[0.8rem] text-[rgb(var(--text)/0.85)] ${alignClass}`}
-      text={value}
-      contentType="technology"
-    />
-  );
+  // Values are already localized (pre-translated zh / English fallback).
+  return <span className={`text-[0.8rem] text-[rgb(var(--text)/0.85)] ${alignClass}`}>{value}</span>;
 }
