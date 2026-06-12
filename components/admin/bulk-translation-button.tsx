@@ -7,6 +7,25 @@ import { useLocale } from "@/components/i18n/locale-provider";
 
 type Stats = { totalShoes: number; pendingShoes: number };
 
+// Parse a JSON API response, but if the body isn't JSON (an HTML 404/500 page,
+// a login redirect, an empty body…) surface the HTTP status + a short snippet
+// instead of a cryptic "JSON.parse: unexpected character" from res.json(). A 404
+// here almost always means the deployment handling the request isn't running the
+// latest code (the translation routes don't exist yet).
+async function readJson<T>(res: Response): Promise<T> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    const snippet = text.replace(/\s+/g, " ").trim().slice(0, 140);
+    const reason =
+      res.status === 404
+        ? "endpoint not found — is this deployment running the latest code?"
+        : snippet || "non-JSON response";
+    throw new Error(`HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ""} — ${reason}`);
+  }
+}
+
 type TickResponse = {
   ok: boolean;
   done?: boolean;
@@ -41,8 +60,8 @@ export function BulkTranslationButton() {
 
   const loadStatus = useCallback(async () => {
     const res = await fetch("/api/admin/translations", { method: "GET", cache: "no-store" });
-    const json = (await res.json()) as { ok?: boolean; stats?: Stats; error?: string };
-    if (!res.ok || !json?.ok) throw new Error(json?.error ?? "Failed to load translation status");
+    const json = await readJson<{ ok?: boolean; stats?: Stats; error?: string }>(res);
+    if (!res.ok || !json?.ok) throw new Error(json?.error ?? `Failed to load translation status (HTTP ${res.status})`);
     if (isMountedRef.current && json.stats) setStats(json.stats);
   }, []);
 
@@ -85,8 +104,8 @@ export function BulkTranslationButton() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ excludeIds: exclude, force })
           });
-          const json = (await res.json()) as TickResponse;
-          if (!res.ok || !json.ok) throw new Error(json.error ?? json.detail ?? "Translation failed");
+          const json = await readJson<TickResponse>(res);
+          if (!res.ok || !json.ok) throw new Error(json.error ?? json.detail ?? `Translation failed (HTTP ${res.status})`);
           if (json.stats && isMountedRef.current) setStats(json.stats);
 
           if (json.done || !json.processedShoeId) {
