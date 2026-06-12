@@ -8,6 +8,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { BulkImageImportButton } from "@/components/admin/bulk-image-import-button";
+import { BulkTranslationButton } from "@/components/admin/bulk-translation-button";
 import { SmartPickerToggle } from "@/components/admin/smart-picker-toggle";
 import { DailyCheckinCreditsField } from "@/components/admin/daily-checkin-credits-field";
 
@@ -50,6 +51,17 @@ export default async function AdminSettingsPage() {
           </p>
           <div className="mt-3">
             <BulkImageImportButton />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <p className="text-sm font-medium">AI Chinese translation</p>
+          <p className="mt-1 text-xs soft-text">
+            Pre-translate sneaker tech, feel descriptors and story into Chinese (stored in Supabase)
+            so the zh UI reads them directly instead of machine-translating at render time.
+          </p>
+          <div className="mt-3">
+            <BulkTranslationButton />
           </div>
         </Card>
       </section>
