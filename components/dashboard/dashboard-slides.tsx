@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+import { useSlideSwipe } from "@/components/motion/use-slide-swipe";
 import { ChevronDown, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,7 @@ export function DashboardSlides(props: Props) {
   const [slide, setSlide] = useState(0);
   const slideRef = useRef(0);
   const animatingRef = useRef(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     slideRef.current = slide;
@@ -158,33 +160,19 @@ export function DashboardSlides(props: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [goTo]);
 
-  // Touch
-  useEffect(() => {
-    let startY = 0;
-    let blockNav = false;
-    let scroller: HTMLElement | null = null;
-    const onStart = (e: TouchEvent) => {
-      const target = e.target as HTMLElement | null;
-      blockNav = !!target?.closest("input, textarea, select, button, a");
-      scroller = target?.closest("[data-dashboard-scroll-container]") as HTMLElement | null;
-      startY = e.touches[0]?.clientY ?? 0;
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (blockNav) return;
-      const endY = e.changedTouches[0]?.clientY ?? 0;
-      const dy = startY - endY;
-      if (Math.abs(dy) < TOUCH_DELTA_THRESHOLD) return;
-      if (scroller && trySelfScroll(scroller, dy)) return;
-      if (dy > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchend", onEnd);
-    };
-  }, [goTo]);
+  // Touch: finger-follow swipe; never page from form controls.
+  useSlideSwipe({
+    trackRef,
+    slideRef,
+    animatingRef,
+    total: TOTAL,
+    ease: EASE,
+    durationMs: SLIDE_TRANSITION_MS,
+    scrollSelector: "[data-dashboard-scroll-container]",
+    blockSelector: "input, textarea, select, button, a",
+    threshold: TOUCH_DELTA_THRESHOLD,
+    goTo,
+  });
 
   useBodyScrollLock();
 
@@ -211,9 +199,10 @@ export function DashboardSlides(props: Props) {
   return (
     <div className="relative" style={{ height: slideHeight, overflow: "hidden" }}>
       <div
+        ref={trackRef}
         className="flex flex-col"
         style={{
-          transform: `translate3d(0, calc(${-slide} * ${slideHeight}), 0)`,
+          transform: `translate3d(0, calc(${-slide} * ${slideHeight} + var(--drag-offset, 0px)), 0)`,
           transition: `transform ${SLIDE_TRANSITION_MS}ms ${EASE}`,
           willChange: "transform",
           backfaceVisibility: "hidden"

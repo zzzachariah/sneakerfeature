@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+import { useSlideSwipe } from "@/components/motion/use-slide-swipe";
 import { Bookmark, ChevronDown, Plus, Share2 } from "lucide-react";
 import { ComparePlinths } from "@/components/compare/compare-plinths";
 import { CompareRadar } from "@/components/compare/compare-radar";
@@ -44,6 +45,7 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
   const [showRatingDetail, setShowRatingDetail] = useState(false);
   const slideRef = useRef(0);
   const animatingRef = useRef(false);
+  const trackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     slideRef.current = slide;
@@ -98,30 +100,18 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
     return () => window.removeEventListener("keydown", onKey);
   }, [goTo]);
 
-  // Touch
-  useEffect(() => {
-    let startY = 0;
-    let scroller: HTMLElement | null = null;
-    const onStart = (e: TouchEvent) => {
-      const target = e.target as HTMLElement | null;
-      scroller = target?.closest("[data-compare-scroll-container]") as HTMLElement | null;
-      startY = e.touches[0]?.clientY ?? 0;
-    };
-    const onEnd = (e: TouchEvent) => {
-      const endY = e.changedTouches[0]?.clientY ?? 0;
-      const dy = startY - endY;
-      if (Math.abs(dy) < TOUCH_DELTA_THRESHOLD) return;
-      if (scroller && trySelfScroll(scroller, dy)) return;
-      if (dy > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchend", onEnd);
-    };
-  }, [goTo]);
+  // Touch: finger-follow swipe with rubber-band + snap.
+  useSlideSwipe({
+    trackRef,
+    slideRef,
+    animatingRef,
+    total: TOTAL,
+    ease: EASE,
+    durationMs: SLIDE_TRANSITION_MS,
+    scrollSelector: "[data-compare-scroll-container]",
+    threshold: TOUCH_DELTA_THRESHOLD,
+    goTo,
+  });
 
   // Lock body scroll while the slide deck is mounted.
   useBodyScrollLock();
@@ -134,9 +124,10 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
     <div className="relative" style={{ height: slideHeight, overflow: "hidden" }}>
       {/* Slide track */}
       <div
+        ref={trackRef}
         className="flex flex-col"
         style={{
-          transform: `translate3d(0, calc(${-slide} * ${slideHeight}), 0)`,
+          transform: `translate3d(0, calc(${-slide} * ${slideHeight} + var(--drag-offset, 0px)), 0)`,
           transition: `transform ${SLIDE_TRANSITION_MS}ms ${EASE}`,
           willChange: "transform",
           backfaceVisibility: "hidden"
