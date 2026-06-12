@@ -6,6 +6,7 @@ import { Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { StarRating } from "@/components/shoe/star-rating";
+import { Reveal } from "@/components/motion/reveal";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DIM_KEYS, DIM_LABELS, type DimKey } from "@/lib/star-rating";
 
@@ -103,8 +104,8 @@ export function DimRatingForm({
       </p>
 
       <ul className="mt-4 grid gap-3 md:grid-cols-2 md:gap-x-6">
-        {DIM_KEYS.map((k) => (
-          <li key={k} className="flex flex-wrap items-center justify-between gap-3">
+        {DIM_KEYS.map((k, i) => (
+          <Reveal as="li" key={k} index={i} className="flex flex-wrap items-center justify-between gap-3">
             <span className="text-sm font-medium tracking-[-0.01em]">
               {translate(DIM_LABELS[k])}
             </span>
@@ -118,7 +119,7 @@ export function DimRatingForm({
               showNumber
               busy={busy}
             />
-          </li>
+          </Reveal>
         ))}
       </ul>
 

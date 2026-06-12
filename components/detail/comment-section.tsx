@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
+import { Reveal } from "@/components/motion/reveal";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { DimKey } from "@/lib/star-rating";
@@ -186,10 +187,10 @@ export function CommentSection({
             </div>
           )}
 
-          {comments.map((comment) => {
+          {comments.map((comment, i) => {
             const isOwn = userId === comment.userId;
             return (
-              <article key={comment.id} className="interactive-soft rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
+              <Reveal as="article" key={comment.id} index={Math.min(i, 8)} className="interactive-soft rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium">{comment.username}</p>
@@ -220,7 +221,7 @@ export function CommentSection({
                     <ThumbsDown className="h-3.5 w-3.5" /> {comment.dislikes}
                   </button>
                 </div>
-              </article>
+              </Reveal>
             );
           })}
         </div>
