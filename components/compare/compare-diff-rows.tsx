@@ -1,38 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useInView } from "@/components/motion/use-progress";
 import { METRICS, MetricKey, scoreFor } from "@/components/compare/compare-metrics";
-
-function useInView<T extends Element>(threshold = 0.15) {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          obs.disconnect();
-        }
-      },
-      { threshold }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, inView };
-}
 
 type Props = {
   shoes: Shoe[];
+  /** Slide-active flag — replays the row + bar reveal on each slide entry. */
+  active?: boolean;
 };
 
-export function CompareDiffRows({ shoes }: Props) {
+export function CompareDiffRows({ shoes, active }: Props) {
   const { translate } = useLocale();
   const { ref, inView } = useInView<HTMLDivElement>();
+  const triggered = active ?? inView;
 
   if (!shoes.length) return null;
 
@@ -54,13 +36,13 @@ export function CompareDiffRows({ shoes }: Props) {
             shoes={shoes}
             metricKey={metric.key}
             paired={paired}
-            triggered={inView}
+            triggered={triggered}
             delay={i * 55}
           />
         ))}
       </div>
 
-      <Verdict shoes={shoes} triggered={inView} />
+      <Verdict shoes={shoes} triggered={triggered} />
     </div>
   );
 }

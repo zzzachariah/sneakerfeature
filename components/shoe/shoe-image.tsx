@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 type ShoeImageProps = {
   src?: string | null;
@@ -26,7 +27,19 @@ const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
 
 export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "" }: ShoeImageProps) {
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const hasImage = Boolean(src) && !failed;
+
+  // Reset the load state whenever the source changes so the new image fades in.
+  useEffect(() => {
+    setLoaded(false);
+  }, [src]);
+
+  // Cached images can finish loading before React attaches onLoad; catch that
+  // via the `complete` flag so the image never stays stuck at opacity 0.
+  const handleImgRef = useCallback((node: HTMLImageElement | null) => {
+    if (node && node.complete && node.naturalWidth > 0) setLoaded(true);
+  }, []);
 
   return (
     <div
@@ -34,11 +47,13 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
     >
       {hasImage ? (
         <img
+          ref={handleImgRef}
           src={src ?? ""}
           alt={alt}
           loading="lazy"
+          onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
-          className="h-full w-full object-contain object-center transition"
+          className={cn("h-full w-full object-contain object-center", loaded ? "img-loaded" : "img-loading")}
           style={{
             backgroundColor: "#fff",
             transform: `scale(${VARIANT_SCALE[variant]})`

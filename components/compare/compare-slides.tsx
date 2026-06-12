@@ -189,8 +189,8 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
             <div className="flex min-h-full flex-col justify-center">
               <p className="t-eyebrow mb-6 text-center">{translate("Performance Profile")}</p>
               <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-                <CompareRadar shoes={shoes} />
-                <CompareDiffRows shoes={shoes} />
+                <CompareRadar shoes={shoes} active={slide === 1} />
+                <CompareDiffRows shoes={shoes} active={slide === 1} />
               </div>
             </div>
           </div>

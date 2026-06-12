@@ -455,6 +455,40 @@ body {
   }
 }
 
+/* ── Entrance primitives (see components/motion/reveal.tsx) ── */
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(var(--reveal-y, 8px)); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes revealPop {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes imgFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.reveal { opacity: 0; }
+.reveal-in {
+  animation: revealUp var(--dur-slow) var(--ease) var(--reveal-delay, 0ms) both;
+}
+
+/* Image load fade-in (components/shoe/shoe-image.tsx) */
+.img-loading { opacity: 0; }
+.img-loaded { animation: imgFadeIn var(--dur-slow) var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .reveal-in {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .img-loading { opacity: 1; }
+  .img-loaded { animation: none; opacity: 1; }
+}
+
 /* Premium auth + dashboard utilities */
 @keyframes meshDrift {
   0%   { transform: translate3d(-4%, -2%, 0) rotate(0deg);   }
