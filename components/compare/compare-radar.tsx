@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useInView, useProgress } from "@/components/motion/use-progress";
 import { METRICS, getLineStyle, scoreFor } from "@/components/compare/compare-metrics";
 
 const SIZE = 360;
@@ -11,59 +12,16 @@ const CY = SIZE / 2;
 const R = 128;
 const GRID_RINGS = [0.2, 0.4, 0.6, 0.8, 1];
 
-function useInView<T extends Element>(threshold = 0.15) {
-  const ref = useRef<T | null>(null);
-  const [inView, setInView] = useState(false);
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setInView(true);
-          obs.disconnect();
-        }
-      },
-      { threshold }
-    );
-    obs.observe(node);
-    return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, inView };
-}
-
-function useProgress(trigger: boolean, duration = 720) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!trigger) return;
-    let raf = 0;
-    let start: number | null = null;
-    const tick = (now: number) => {
-      if (start === null) start = now;
-      const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 2.2);
-      setValue(eased);
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    const timeout = setTimeout(() => {
-      raf = requestAnimationFrame(tick);
-    }, 220);
-    return () => {
-      clearTimeout(timeout);
-      cancelAnimationFrame(raf);
-    };
-  }, [trigger, duration]);
-  return value;
-}
-
 type Props = {
   shoes: Shoe[];
+  /** Slide-active flag — replays the draw-in each time the radar slide opens. */
+  active?: boolean;
 };
 
-export function CompareRadar({ shoes }: Props) {
+export function CompareRadar({ shoes, active }: Props) {
   const { translate } = useLocale();
   const { ref, inView } = useInView<HTMLDivElement>();
-  const progress = useProgress(inView);
+  const progress = useProgress(active ?? inView);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const n = METRICS.length;
   const angles = METRICS.map((_, i) => ((-90 + i * (360 / n)) * Math.PI) / 180);

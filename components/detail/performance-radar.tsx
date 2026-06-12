@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useInView, useProgress } from "@/components/motion/use-progress";
 
 export type RadarAxis = {
   label: string;
@@ -11,6 +12,11 @@ export type RadarAxis = {
 
 type Props = {
   axes: RadarAxis[];
+  /**
+   * When provided (slide decks), the chart grows from the center and REPLAYS
+   * each time the slide becomes active. When omitted, it plays once on scroll.
+   */
+  active?: boolean;
 };
 
 const VIEW = 320;
@@ -33,23 +39,28 @@ function ringPath(radius: number, count: number) {
   return `M${pts.join(" L")} Z`;
 }
 
-export function PerformanceRadar({ axes }: Props) {
+export function PerformanceRadar({ axes, active }: Props) {
   const count = axes.length;
+  const { ref, inView } = useInView<HTMLDivElement>();
+  // Slide decks pass `active` (replays on re-entry); elsewhere fall back to a
+  // one-shot reveal when the chart scrolls into view.
+  const progress = useProgress(active ?? inView);
 
   const polygonPoints = axes
     .map((axis, i) => {
       const theta = (i / count) * Math.PI * 2;
       const clamped = Math.max(0, Math.min(100, axis.score));
-      const r = (clamped / 100) * MAX_RADIUS;
+      const r = (clamped / 100) * MAX_RADIUS * progress;
       const { x, y } = polar(r, theta);
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(" ");
 
   const rings = [0.25, 0.5, 0.75, 1];
+  const labelsVisible = progress > 0.82;
 
   return (
-    <div className="relative mx-auto w-full max-w-md">
+    <div ref={ref} className="relative mx-auto w-full max-w-md">
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
         className="block h-auto w-full overflow-visible"
@@ -88,13 +99,12 @@ export function PerformanceRadar({ axes }: Props) {
           stroke="rgb(var(--text) / 0.85)"
           strokeWidth={1.75}
           strokeLinejoin="round"
-          style={{ transition: "all 400ms cubic-bezier(0.22,1,0.36,1)" }}
         />
 
         {axes.map((axis, i) => {
           const theta = (i / count) * Math.PI * 2;
           const clamped = Math.max(0, Math.min(100, axis.score));
-          const r = (clamped / 100) * MAX_RADIUS;
+          const r = (clamped / 100) * MAX_RADIUS * progress;
           const { x, y } = polar(r, theta);
           return (
             <circle
@@ -111,7 +121,9 @@ export function PerformanceRadar({ axes }: Props) {
       </svg>
 
       <div className="pointer-events-none absolute inset-0">
-        {axes.map((axis, i) => <AxisLabel key={axis.label} axis={axis} index={i} count={count} />)}
+        {axes.map((axis, i) => (
+          <AxisLabel key={axis.label} axis={axis} index={i} count={count} visible={labelsVisible} />
+        ))}
       </div>
     </div>
   );
@@ -120,11 +132,13 @@ export function PerformanceRadar({ axes }: Props) {
 function AxisLabel({
   axis,
   index,
-  count
+  count,
+  visible
 }: {
   axis: RadarAxis;
   index: number;
   count: number;
+  visible: boolean;
 }) {
   const { translate } = useLocale();
   const theta = (index / count) * Math.PI * 2;
@@ -139,7 +153,10 @@ function AxisLabel({
       style={{
         left: `${leftPct}%`,
         top: `${topPct}%`,
-        transform: "translate(-50%, -50%)"
+        transform: "translate(-50%, -50%)",
+        opacity: visible ? 1 : 0,
+        transition: "opacity 420ms var(--ease)",
+        transitionDelay: `${index * 40}ms`
       }}
       title={axis.rawText?.trim() ? axis.rawText : undefined}
     >

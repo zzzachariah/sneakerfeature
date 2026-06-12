@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 
 const MAX_RESULTS = 20;
 
@@ -29,6 +31,8 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
   const [category, setCategory] = useState("");
   const [mounted, setMounted] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
     setMounted(true);
@@ -67,7 +71,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
       .map((entry) => entry.shoe);
   }, [shoes, selectedIds, query, normBrand, normCategory]);
 
-  if (!mounted || !open) return null;
+  if (!mounted) return null;
 
   const pendingCount = pendingIds.size;
   const atCap = pendingCount >= remainingSlots;
@@ -90,16 +94,25 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
   }
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.55)] p-4 md:items-center"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal
-        className="surface-card premium-border flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.55)] p-4 md:items-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            role="dialog"
+            aria-modal
+            className="surface-card premium-border flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
+            initial={{ y: 24, opacity: 0, scale: 0.98 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 24, opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-start justify-between gap-3 px-6 pt-6">
               <div>
                 <p className="t-eyebrow">{translate("Add to compare")}</p>
@@ -250,8 +263,10 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
                 </button>
               </div>
             </div>
-      </div>
-    </div>,
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body
   );
 }

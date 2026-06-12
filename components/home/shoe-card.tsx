@@ -104,14 +104,15 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
       {whyOpen && hasReasons && (
         <div
           ref={popoverRef}
-          className="absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.96)] p-3 shadow-lift backdrop-blur-md"
+          className="pop-in absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.96)] p-3 shadow-lift backdrop-blur-md"
+          style={{ transformOrigin: "bottom right" }}
           onClick={(e) => e.preventDefault()}
         >
           <p className="mb-1 text-[0.7rem] font-semibold uppercase tracking-[0.1em] soft-text">
             {translate("Recommended for you")}
           </p>
           <ul className="space-y-1">
-            {reasons!.map((r) => (
+            {(reasons ?? []).map((r) => (
               <li key={r} className="text-[0.78rem] leading-snug">
                 · {translate(r)}
               </li>

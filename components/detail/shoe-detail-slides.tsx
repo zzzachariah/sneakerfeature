@@ -17,6 +17,9 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
+import { Reveal } from "@/components/motion/reveal";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+import { useSlideSwipe } from "@/components/motion/use-slide-swipe";
 import type { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
@@ -92,6 +95,7 @@ export function ShoeDetailSlides(props: Props) {
   const slideRef = useRef(0);
   const animatingRef = useRef(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
 
   const reducedMotion = useMemo(
     () =>
@@ -168,36 +172,21 @@ export function ShoeDetailSlides(props: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [goTo]);
 
-  useEffect(() => {
-    let startY = 0;
-    let startTarget: HTMLElement | null = null;
-    const onStart = (e: TouchEvent) => {
-      startY = e.touches[0]?.clientY ?? 0;
-      startTarget = e.target as HTMLElement | null;
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (startTarget?.closest("[data-detail-scroll-container]")) return;
-      const endY = e.changedTouches[0]?.clientY ?? 0;
-      const dy = startY - endY;
-      if (Math.abs(dy) < TOUCH_DELTA_THRESHOLD) return;
-      if (dy > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchend", onEnd);
-    };
-  }, [goTo]);
+  // Touch: finger-follow swipe; gestures starting in a scroll area scroll, not page.
+  useSlideSwipe({
+    trackRef,
+    slideRef,
+    animatingRef,
+    total: TOTAL,
+    ease: EASE,
+    durationMs: transitionMs,
+    scrollSelector: "[data-detail-scroll-container]",
+    blockSelector: "[data-detail-scroll-container]",
+    threshold: TOUCH_DELTA_THRESHOLD,
+    goTo,
+  });
 
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, []);
+  useBodyScrollLock();
 
   const labels = [
     translate("Overview"),
@@ -218,9 +207,10 @@ export function ShoeDetailSlides(props: Props) {
       style={{ height: viewportHeight, overflow: "hidden" }}
     >
       <div
+        ref={trackRef}
         className="detail-slide-track flex flex-col"
         style={{
-          transform: `translateY(calc(${-slide} * ${SLIDE_VIEWPORT_H}))`,
+          transform: `translateY(calc(${-slide} * ${SLIDE_VIEWPORT_H} + var(--drag-offset, 0px)))`,
           transition: `transform ${transitionMs}ms ${EASE}`,
           willChange: "transform"
         }}
@@ -650,7 +640,7 @@ function PerformanceSlide({
         <p className="t-eyebrow mb-1 text-[0.6rem] md:mb-2 md:text-xs">{translate("Analysis")}</p>
         <h2 className="text-sm font-semibold tracking-[-0.02em] md:text-lg">{translate("Performance profile")}</h2>
         <div className="mt-2 flex min-h-0 flex-1 items-center justify-center md:mt-4">
-          <PerformanceRadar axes={radarAxes} />
+          <PerformanceRadar axes={radarAxes} active={active} />
         </div>
       </Card>
     </div>
@@ -771,15 +761,16 @@ function RelatedSlide({ related, active }: Props & { active: boolean }) {
         </div>
 
         <div className="mt-4 grid gap-2 md:grid-cols-3">
-          {related.map((item) => (
-            <Link
-              key={item.id}
-              href={`/shoes/${item.slug}`}
-              data-field-key="shoe_name"
-              className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
-            >
-              {item.shoe_name}
-            </Link>
+          {related.map((item, i) => (
+            <Reveal key={item.id} active={active} index={i}>
+              <Link
+                href={`/shoes/${item.slug}`}
+                data-field-key="shoe_name"
+                className="block rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
+              >
+                {item.shoe_name}
+              </Link>
+            </Reveal>
           ))}
         </div>
       </Card>

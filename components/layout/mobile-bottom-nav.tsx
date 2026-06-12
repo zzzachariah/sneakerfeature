@@ -124,7 +124,7 @@ export function MobileBottomNav() {
                   ) : null}
                 </span>
                 <span
-                  className={`text-[0.62rem] font-medium leading-none tracking-[0.02em] ${
+                  className={`text-[0.62rem] font-medium leading-none tracking-[0.02em] transition-opacity duration-200 ${
                     active ? "" : "opacity-90"
                   }`}
                 >

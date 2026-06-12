@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
+import { Reveal } from "@/components/motion/reveal";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { DimKey } from "@/lib/star-rating";
@@ -186,10 +187,10 @@ export function CommentSection({
             </div>
           )}
 
-          {comments.map((comment) => {
+          {comments.map((comment, i) => {
             const isOwn = userId === comment.userId;
             return (
-              <article key={comment.id} className="interactive-soft rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
+              <Reveal as="article" key={comment.id} index={Math.min(i, 8)} className="interactive-soft rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium">{comment.username}</p>
@@ -207,20 +208,20 @@ export function CommentSection({
                 <div className="mt-3 flex items-center gap-2 text-xs">
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition ${comment.myVote === "like" ? "border-emerald-400/80 bg-emerald-400/10 text-emerald-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-emerald-300/70"}`}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition active:scale-95 ${comment.myVote === "like" ? "border-emerald-400/80 bg-emerald-400/10 text-emerald-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-emerald-300/70"}`}
                     onClick={() => submitVote(comment.id, "like")}
                   >
                     <ThumbsUp className="h-3.5 w-3.5" /> {comment.likes}
                   </button>
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition ${comment.myVote === "dislike" ? "border-rose-400/80 bg-rose-400/10 text-rose-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-rose-300/70"}`}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition active:scale-95 ${comment.myVote === "dislike" ? "border-rose-400/80 bg-rose-400/10 text-rose-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-rose-300/70"}`}
                     onClick={() => submitVote(comment.id, "dislike")}
                   >
                     <ThumbsDown className="h-3.5 w-3.5" /> {comment.dislikes}
                   </button>
                 </div>
-              </article>
+              </Reveal>
             );
           })}
         </div>

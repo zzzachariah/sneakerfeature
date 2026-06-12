@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 
 export function Modal({
   open,
@@ -19,6 +20,7 @@ export function Modal({
   zIndexClass?: string;
 }) {
   const { translate } = useLocale();
+  useBodyScrollLock(open);
 
   return (
     <AnimatePresence>
