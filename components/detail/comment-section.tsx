@@ -52,10 +52,15 @@ export function CommentSection({
 
   const loadComments = useCallback(async () => {
     setLoading(true);
-    const res = await fetch(`/api/comments?shoeId=${encodeURIComponent(shoeId)}`, { cache: "no-store" });
-    const data = await res.json();
-    setComments(data.comments ?? []);
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/comments?shoeId=${encodeURIComponent(shoeId)}`, { cache: "no-store" });
+      const data = await res.json();
+      setComments(data.comments ?? []);
+    } catch {
+      setComments([]);
+    } finally {
+      setLoading(false);
+    }
   }, [shoeId]);
 
   useEffect(() => {

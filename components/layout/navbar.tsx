@@ -96,7 +96,7 @@ export function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`group relative inline-flex flex-col items-center px-3 py-2 text-[0.825rem] font-medium transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none ${
+                className={`group relative inline-flex flex-col items-center rounded-lg px-3 py-2 text-[0.825rem] font-medium transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
                   active
                     ? "text-[rgb(var(--text))]"
                     : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
