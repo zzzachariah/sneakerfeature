@@ -123,6 +123,69 @@ export async function loadTranslationState(
   return { totalShoes: shoes.length, pendingCount, next };
 }
 
+// Build the work item for a single shoe (used by the write-path auto-translate
+// hook). force → re-translate every field; otherwise only fields missing zh.
+export async function buildWorkForShoe(
+  supabase: SupabaseClient,
+  shoeId: string,
+  opts: { force?: boolean } = {}
+): Promise<ShoeTranslationWork | null> {
+  const force = Boolean(opts.force);
+  const [shoeRes, specRes, storyRes] = await Promise.all([
+    supabase.from("shoes").select("id, brand, shoe_name").eq("id", shoeId).maybeSingle(),
+    supabase
+      .from("shoe_specs")
+      .select(columnList(["id", "shoe_id"], SPEC_TRANSLATABLE_FIELDS))
+      .eq("shoe_id", shoeId)
+      .maybeSingle(),
+    supabase
+      .from("shoe_stories")
+      .select(columnList(["id", "shoe_id", "created_at"], STORY_TRANSLATABLE_FIELDS))
+      .eq("shoe_id", shoeId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  ]);
+
+  const shoe = (shoeRes.data ?? null) as Row | null;
+  if (!shoe) return null;
+  const spec = (specRes.data ?? null) as unknown as Row | null;
+  const story = (storyRes.data ?? null) as unknown as Row | null;
+
+  const fields = [
+    ...pendingFieldsOf(spec, SPEC_TRANSLATABLE_FIELDS, force),
+    ...pendingFieldsOf(story, STORY_TRANSLATABLE_FIELDS, force)
+  ];
+  if (fields.length === 0) return null;
+
+  return {
+    shoeId,
+    label: shoeLabel(shoe),
+    specRowId: (spec?.id as string | undefined) ?? null,
+    storyRowId: (story?.id as string | undefined) ?? null,
+    fields
+  };
+}
+
+// Best-effort write-path hook: translate one shoe right after an admin write so
+// edits stay in sync without waiting for the bulk job. NEVER throws — on any
+// failure (AI/network/not-configured) it logs and leaves zh as-is; the admin can
+// still backfill from the bulk translate panel.
+export async function autoTranslateShoe(
+  supabase: SupabaseClient,
+  packy: OpenAI | null,
+  shoeId: string,
+  opts: { force?: boolean } = {}
+): Promise<void> {
+  try {
+    if (!packy) return;
+    const work = await buildWorkForShoe(supabase, shoeId, { force: opts.force });
+    if (work) await translateAndStore(supabase, packy, work);
+  } catch (e) {
+    console.error("[autoTranslateShoe] failed", e instanceof Error ? e.message : e);
+  }
+}
+
 // Translate one shoe's pending fields and write the `*_zh` columns. Returns the
 // number of fields written (0 → the model produced nothing usable; the caller
 // surfaces that as a soft failure so the shoe is retried on a later run).

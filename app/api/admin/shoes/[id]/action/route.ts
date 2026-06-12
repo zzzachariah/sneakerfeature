@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
+import { createPackyClient } from "@/lib/ai/packy-client";
+import { autoTranslateShoe } from "@/lib/admin/translation-jobs";
 
 const nullableString = z.string().nullable().optional();
 
@@ -146,6 +148,12 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       const { error: storyInsertError } = await supabase.from("shoe_stories").insert({ shoe_id: id, ...parsed.data.story });
       if (storyInsertError) return badRequest(storyInsertError.message);
     }
+  }
+
+  // Re-translate the (now-edited) English content into the *_zh columns so the
+  // Chinese UI stays in sync. Best-effort: never blocks/fails the save.
+  if (parsed.data.spec || parsed.data.story) {
+    await autoTranslateShoe(supabase, createPackyClient(), id, { force: true });
   }
 
   const { error: auditInsertError } = await supabase.from("admin_audit_logs").insert({

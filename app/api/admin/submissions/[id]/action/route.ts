@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createPackyClient } from "@/lib/ai/packy-client";
+import { autoTranslateShoe } from "@/lib/admin/translation-jobs";
 
 const finalSchema = z.object({
   shoe_name: z.string().min(1),
@@ -275,6 +277,12 @@ export async function POST(
       });
 
     if (storyInsertError) return badRequest(storyInsertError.message);
+  }
+
+  // Pre-translate the newly published/updated content into the *_zh columns so
+  // the Chinese UI has it immediately. Best-effort: never blocks/fails publish.
+  if (shoeId) {
+    await autoTranslateShoe(supabase, createPackyClient(), shoeId, { force: true });
   }
 
   if (final.source_links && final.source_links.length > 0) {
