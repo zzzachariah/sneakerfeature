@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ShoeDetailClient } from "@/components/detail/shoe-detail-client";
+import { RecordView } from "@/components/native/record-view";
 import { getShoeBySlug, getShoeImageState, getShoes } from "@/lib/data/shoes";
 import { getBloggerReviewsForShoe } from "@/lib/data/blogger-reviews";
 import { getCurrentProfile } from "@/lib/data/auth";
@@ -86,6 +87,7 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <ShoeDetailClient shoe={shoe} related={related} isAdmin={isAdmin} isLoggedIn={isLoggedIn} imageState={imageState} bloggerReviews={bloggerReviews} />
+      <RecordView shoeId={shoe.id} isLoggedIn={isLoggedIn} />
     </>
   );
 }

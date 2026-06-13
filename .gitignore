@@ -1,6 +1,7 @@
 node_modules/
 .next/
 out/
+*.tsbuildinfo
 .env
 .env.local
 .DS_Store
@@ -8,3 +9,15 @@ out/
 # Electron desktop wrapper
 electron/dist/
 electron/node_modules/
+
+# Capacitor mobile (native build artifacts; source projects ios/ android/ are committed)
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+*.keystore
+*.p12
+*.mobileprovision

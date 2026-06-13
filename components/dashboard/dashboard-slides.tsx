@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 const SLIDE_TRANSITION_MS = 720;
@@ -416,6 +417,9 @@ export function DashboardSlides(props: Props) {
                         )}
                       </div>
                     </section>
+
+                    {/* Notifications */}
+                    <PersonalizedPushToggle />
 
                     {/* Security */}
                     <section className="rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-5 backdrop-blur-md">

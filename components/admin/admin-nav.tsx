@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   Library,
   Megaphone,
+  Flag,
   Wallet,
   Settings2,
   type LucideIcon
@@ -57,6 +58,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Blogger reviews",
         icon: Megaphone,
         match: (p) => p.startsWith("/admin/blogger-reviews")
+      },
+      {
+        href: "/admin/reports",
+        label: "Reported comments",
+        icon: Flag,
+        match: (p) => p.startsWith("/admin/reports")
       }
     ]
   },

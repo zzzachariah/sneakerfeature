@@ -52,7 +52,20 @@ export async function GET(request: Request) {
     profiles: { username: string }[] | { username: string } | null;
   };
 
-  const typedComments = (comments ?? []) as CommentRow[];
+  let typedComments = (comments ?? []) as CommentRow[];
+
+  // Hide comments from users the requester has blocked (App Store Guideline 1.2).
+  if (user?.id) {
+    const { data: blocks } = await supabase
+      .from("user_blocks")
+      .select("blocked_id")
+      .eq("blocker_id", user.id);
+    const blocked = new Set((blocks ?? []).map((b) => b.blocked_id));
+    if (blocked.size > 0) {
+      typedComments = typedComments.filter((c) => !blocked.has(c.user_id));
+    }
+  }
+
   const commentIds = typedComments.map((c) => c.id);
   const votesByComment = new Map<string, { likes: number; dislikes: number }>();
   const myVotes = new Map<string, "like" | "dislike">();

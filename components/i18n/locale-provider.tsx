@@ -769,7 +769,64 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "request a new link": "重新申请链接",
   "reset password": "重置密码",
   "updating your password": "正在更新密码",
-  "password updated. redirecting...": "密码已更新，正在跳转…"
+  "password updated. redirecting...": "密码已更新，正在跳转…",
+
+  // Download / get the app
+  "get the app": "下载 App",
+  "use sneakerfeature on your phone — native app for iOS and android.":
+    "在手机上使用 sneakerfeature —— iOS 与安卓原生 App。",
+  "recommended for your device": "适合你当前设备",
+  "download apk": "下载 APK",
+  "download the android app (apk)": "下载安卓安装包（APK）",
+  "works on mainland china networks — no app store needed.":
+    "大陆网络可直接安装，无需任何应用商店。",
+  "how to install on android": "安卓安装方法",
+  "tap download, then open the apk file.": "点击下载，然后打开 APK 文件。",
+  "if prompted, allow installs from your browser this once.":
+    "若提示，请允许来自浏览器的安装（仅需一次）。",
+  "open it and you're in — it stays in sync with the website.":
+    "打开即可使用 —— 与网站保持同步。",
+  "get it on the app store": "前往 App Store 下载",
+  "coming soon to the app store": "即将上线 App Store",
+  "ios build is on the way. in the meantime, use the web version.":
+    "iOS 版正在路上。在此期间，可使用网页版。",
+  "continue on web": "继续用网页版",
+
+  // Notifications — personalized push opt-out
+  "notifications": "通知",
+  "personalized recommendations": "个性化推荐",
+  "get a weekly push with shoe comparisons and picks based on what you browse.":
+    "每周根据你的浏览推送球鞋对比和精选推荐。",
+
+  // For You — weekly personalized digest page
+  "your weekly picks": "本周为你推荐",
+  "we refresh these every monday based on what you browse.": "每周一根据你的浏览为你刷新。",
+  "a comparison for you": "为你挑的对比",
+  "vs": "vs",
+  "compare these two": "对比这两双",
+  "picked for you": "为你精选",
+  "keep refining in smart picker": "在智能选鞋里继续追问",
+  "sign in to see your weekly picks.": "登录后查看你的每周推荐。",
+  "browse a few shoes and your weekly picks will appear here.": "多浏览几双鞋，你的每周推荐就会出现在这里。",
+  "browse shoes": "去浏览球鞋",
+  "continue browsing": "继续浏览",
+  "popular this week": "本周热门",
+  "sign in and browse a few shoes to unlock personalized weekly picks.":
+    "登录并浏览几双鞋，解锁你的每周个性化推荐。",
+
+  // UGC moderation — report / block (App Store 1.2)
+  "report comment": "举报评论",
+  "block user": "屏蔽用户",
+  "report submitted": "举报已提交",
+  "user blocked": "已屏蔽该用户",
+  "spam": "垃圾信息",
+  "harassment": "骚扰",
+  "inappropriate": "不当内容",
+  "other": "其他",
+  "terms": "条款",
+  "by posting, you agree to our": "发布即表示你同意我们的",
+  ". there is zero tolerance for objectionable content or abusive users; reported content is reviewed within 24 hours.":
+    "。我们对不当内容和滥用行为零容忍；被举报的内容将在 24 小时内审核处理。"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

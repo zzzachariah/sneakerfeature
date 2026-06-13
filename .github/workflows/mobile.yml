@@ -1,0 +1,159 @@
+name: Build Mobile Apps
+
+# Builds the Capacitor apps. Because the app is a thin shell that loads the live
+# site, there is no Next.js build here — only the native shells. See MOBILE.md
+# for the GitHub Secrets each job needs.
+#
+# Trigger by pushing a tag like `mobile-v0.1.0`, or run manually from the
+# Actions tab. The native ios/ and android/ folders are generated on the fly if
+# they are not committed, so this works either way.
+
+on:
+  push:
+    tags:
+      - "mobile-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 0.1.0). Blank = build artifacts only, no GitHub Release."
+        required: false
+        default: ""
+      ios:
+        description: "Build & upload iOS to TestFlight"
+        type: boolean
+        default: true
+      android:
+        description: "Build signed Android APK"
+        type: boolean
+        default: true
+
+jobs:
+  android:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.android }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate Android project + assets
+        run: |
+          [ -d android ] || npx cap add android
+          npx cap sync android
+          npx capacitor-assets generate --android \
+            --iconBackgroundColor '#0a0a0a' --iconBackgroundColorDark '#0a0a0a' \
+            --splashBackgroundColor '#0a0a0a' --splashBackgroundColorDark '#0a0a0a' || true
+      - name: Build release APK (unsigned)
+        working-directory: android
+        run: ./gradlew assembleRelease
+      - name: Sign APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PW: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > keystore.jks
+          BUILD_TOOLS="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          UNSIGNED=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$BUILD_TOOLS/zipalign" -f -v 4 "$UNSIGNED" aligned.apk
+          "$BUILD_TOOLS/apksigner" sign --ks keystore.jks \
+            --ks-pass pass:"$KEYSTORE_PW" --ks-key-alias "$KEY_ALIAS" \
+            --key-pass pass:"${KEY_PW:-$KEYSTORE_PW}" \
+            --out sneakerfeature.apk aligned.apk
+          "$BUILD_TOOLS/apksigner" verify sneakerfeature.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sneakerfeature-android
+          path: sneakerfeature.apk
+          if-no-files-found: error
+
+  ios:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.ios }}
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Generate iOS project + assets
+        run: |
+          [ -d ios ] || npx cap add ios
+          npx cap sync ios
+          npx capacitor-assets generate --ios \
+            --iconBackgroundColor '#0a0a0a' --splashBackgroundColor '#0a0a0a' || true
+      - name: Import signing certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+      - name: Install provisioning profile
+        env:
+          PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          echo "$PROFILE_B64" | base64 -d \
+            > "$HOME/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision"
+      - name: Archive & export IPA
+        env:
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          PROFILE_NAME: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
+        run: |
+          cat > exportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict>
+              <key>com.sneakerfeature.app</key><string>${PROFILE_NAME}</string>
+            </dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
+            -configuration Release -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist exportOptions.plist -exportPath "$RUNNER_TEMP/export"
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v3
+        with:
+          app-path: ${{ runner.temp }}/export/App.ipa
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sneakerfeature-ios
+          path: ${{ runner.temp }}/export/App.ipa
+          if-no-files-found: warn
+
+  # Attaches the signed APK to a GitHub Release for the /download page. iOS is
+  # distributed through TestFlight/App Store, so it is not part of the release.
+  release:
+    needs: [android]
+    if: startsWith(github.ref, 'refs/tags/mobile-v') || (github.event_name == 'workflow_dispatch' && inputs.version != '')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: sneakerfeature-android
+          path: artifacts
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/mobile-v') && github.ref_name || format('mobile-v{0}', inputs.version) }}
+          name: ${{ startsWith(github.ref, 'refs/tags/mobile-v') && github.ref_name || format('mobile-v{0}', inputs.version) }}
+          files: artifacts/*.apk
+          generate_release_notes: true
