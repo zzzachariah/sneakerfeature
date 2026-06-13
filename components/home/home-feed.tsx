@@ -128,7 +128,7 @@ export function HomeFeed({
         <div
           className={`${
             pageScroll ? "sticky top-[var(--top-nav-h)] z-30" : "sticky top-0 z-10"
-          } -mx-3 mb-3 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.66)] px-3 py-2 backdrop-blur-[18px] backdrop-saturate-[180%]`}
+          } -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[18px] md:backdrop-saturate-[180%]`}
           style={revealStyle(0)}
         >
         <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end">
@@ -189,7 +189,7 @@ export function HomeFeed({
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-10 w-full pr-9 md:h-9 md:w-[220px] md:text-[0.77rem]"
+                className="h-10 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[14px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
               />
               {searchDraft.trim().length > 0 && (
                 <button
@@ -205,7 +205,7 @@ export function HomeFeed({
             <Button
               type="submit"
               variant="secondary"
-              className="h-10 px-3 text-sm md:h-9 md:px-3 md:text-[0.77rem]"
+              className="h-10 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[14px] md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] md:shadow-none"
             >
               {translate("Search")}
             </Button>

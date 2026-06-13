@@ -113,28 +113,17 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
     setCanShare(isNativeApp() || canShareFiles([probe]));
   }, [open]);
 
-  // Open the OS share sheet with the rendered card (+ a link to the page) on
+  // Open the OS share sheet with just the rendered card image (no link/text) on
   // native / capable mobile web; fall back to a plain PNG download on desktop.
   async function handleShare() {
     const node = cardRef.current;
-    if (!node || !mode) return;
+    if (!node) return;
     setBusy(true);
     setError(null);
     try {
       const blob = await captureCardToBlob(node);
       const file = new File([blob], filename, { type: "image/png" });
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
-      const url =
-        mode.kind === "single"
-          ? `${origin}/shoes/${mode.shoe.slug}`
-          : mode.kind === "compare"
-            ? `${origin}/compare?ids=${mode.shoes.map((s) => s.id).join(",")}`
-            : origin;
-      const shared = await shareFiles([file], {
-        title: translate("Share card"),
-        text: translate("Everything u need to know for sneakers"),
-        url: url || undefined
-      });
+      const shared = await shareFiles([file], { title: translate("Share card") });
       // Desktop web (no file-share support) — keep the original download flow.
       if (!shared) triggerDownload(blob, filename);
     } catch (err) {
