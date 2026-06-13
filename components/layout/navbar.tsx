@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Gavel, Languages, Search, Sparkles, User } from "lucide-react";
+import { Check, Footprints, Gavel, Languages, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
@@ -76,14 +76,17 @@ export function Navbar() {
           ? "border-b border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg)/0.72)] backdrop-blur-[16px] backdrop-saturate-[180%]"
           : "border-b border-transparent bg-transparent"
       }`}
+      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
       data-no-translate="true"
     >
       <div className="container-shell relative flex h-16 items-center">
         <Link
           href="/"
-          className="max-w-[6.5rem] truncate text-[0.88rem] font-bold tracking-[-0.02em] sm:max-w-[9.5rem] sm:text-[0.9rem] md:max-w-none"
+          aria-label="sneakerfeature — home"
+          className="inline-flex items-center text-[rgb(var(--text))] transition-opacity hover:opacity-80"
         >
-          sneakerfeature
+          {/* Themeable brand mark (uses currentColor → flips with light/dark). Swap for a custom SVG logo anytime. */}
+          <Footprints className="h-6 w-6" />
         </Link>
 
         <nav
@@ -190,7 +193,7 @@ export function Navbar() {
             </button>
           </Tooltip>
 
-          <span className="inline-flex" data-tutorial="nav-theme">
+          <span className="hidden md:inline-flex" data-tutorial="nav-theme">
             <ThemeToggle />
           </span>
           <Tooltip label={translate("About")} className="hidden md:inline-flex">
@@ -203,7 +206,7 @@ export function Navbar() {
               <Sparkles className="h-4 w-4" />
             </button>
           </Tooltip>
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
             <Tooltip label={zh ? "法律信息" : "Legal"}>
               <button
                 type="button"
@@ -252,7 +255,9 @@ export function Navbar() {
               </div>
             )}
           </div>
-          <TutorialTrigger className={iconBtn} />
+          <span className="hidden md:inline-flex">
+            <TutorialTrigger className={iconBtn} />
+          </span>
           <span className="inline-flex" data-tutorial="nav-account">
             <AccountMenu />
           </span>

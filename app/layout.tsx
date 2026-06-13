@@ -47,6 +47,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   viewportFit: "cover",
+  // Stop iOS from auto-zooming when a login/modal input is focused.
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
