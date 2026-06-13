@@ -285,8 +285,10 @@ export function Navbar() {
             <TutorialTrigger className={iconBtn} />
           </span>
 
-          {/* Mobile-only hamburger: collapses the icon cluster into a labeled menu */}
-          <div ref={menuRef} className="relative md:hidden" onClick={(e) => e.stopPropagation()}>
+          {/* Mobile-only hamburger: collapses the icon cluster into a labeled menu.
+              `order-last` keeps it at the far right of the cluster (after the
+              username + account avatar) on phones. */}
+          <div ref={menuRef} className="relative order-last md:hidden" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setMenuOpen((prev) => !prev)}

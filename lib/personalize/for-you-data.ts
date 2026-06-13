@@ -58,7 +58,7 @@ export async function getForYouData(shoesInput?: Shoe[]): Promise<ForYouData> {
       .select("shoe_id, last_viewed_at")
       .eq("user_id", user.id)
       .order("last_viewed_at", { ascending: false })
-      .limit(12)
+      .limit(30)
   ]);
 
   data.username = profile?.username ?? "";

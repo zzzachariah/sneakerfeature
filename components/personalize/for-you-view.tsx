@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { motion, type Variants } from "framer-motion";
@@ -11,7 +12,11 @@ import {
   MessageCircle,
   History,
   Trophy,
-  Crown
+  Crown,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
@@ -212,23 +217,9 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
         </motion.section>
       ) : null}
 
-      {/* 5. Continue browsing */}
+      {/* 5. Continue browsing — most recent 3, with an expandable, paginated history */}
       {recentShoes.length > 0 ? (
-        <motion.section variants={item} className="mt-8">
-          <SectionTitle icon={<History className="h-4 w-4" />} text={translate("Continue browsing")} />
-          <div className="-mx-5 mt-3 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {recentShoes.map((shoe) => (
-              <TapLink
-                key={shoe.id}
-                href={`/shoes/${shoe.slug}`}
-                className="surface-card premium-border block w-32 shrink-0 overflow-hidden rounded-2xl"
-              >
-                <ShoeThumb shoe={shoe} className="h-24 w-full" />
-                <p className="truncate px-3 py-2 text-xs font-medium">{shoe.name}</p>
-              </TapLink>
-            ))}
-          </div>
-        </motion.section>
+        <ContinueBrowsing recentShoes={recentShoes} translate={translate} />
       ) : null}
     </motion.div>
   );
@@ -307,5 +298,119 @@ function PodiumItem({ shoe, rank, rankLabel }: { shoe: ForYouShoe; rank: 1 | 2 |
         <p className="line-clamp-2 text-center text-[11px] font-medium leading-tight">{shoe.name}</p>
       </div>
     </TapLink>
+  );
+}
+
+// "Continue browsing" shows the 3 most recent views by default, then expands
+// into a paginated history (10 per page) so the section stays compact and the
+// blocks above it (e.g. Popular) keep their spot near the top of the feed.
+function ContinueBrowsing({
+  recentShoes,
+  translate
+}: {
+  recentShoes: ForYouShoe[];
+  translate: (s: string) => string;
+}) {
+  const COLLAPSED_COUNT = 3;
+  const PAGE_SIZE = 10;
+  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(0);
+
+  const pageCount = Math.max(1, Math.ceil(recentShoes.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageItems = recentShoes.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
+  const canExpand = recentShoes.length > COLLAPSED_COUNT;
+
+  return (
+    <motion.section variants={item} className="mt-8">
+      <div className="flex items-center justify-between gap-3">
+        <SectionTitle icon={<History className="h-4 w-4" />} text={translate("Continue browsing")} />
+        {canExpand ? (
+          <button
+            type="button"
+            onClick={() => {
+              haptics.tap();
+              setPage(0);
+              setExpanded((v) => !v);
+            }}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[rgb(var(--accent))] transition hover:opacity-80"
+          >
+            {expanded ? (
+              <>
+                {translate("Collapse")}
+                <ChevronUp className="h-3.5 w-3.5" />
+              </>
+            ) : (
+              <>
+                {translate("Show history")}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </>
+            )}
+          </button>
+        ) : null}
+      </div>
+
+      {!expanded ? (
+        <div className="-mx-5 mt-3 flex gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {recentShoes.slice(0, COLLAPSED_COUNT).map((shoe) => (
+            <TapLink
+              key={shoe.id}
+              href={`/shoes/${shoe.slug}`}
+              className="surface-card premium-border block w-32 shrink-0 overflow-hidden rounded-2xl"
+            >
+              <ShoeThumb shoe={shoe} className="h-24 w-full" />
+              <p className="truncate px-3 py-2 text-xs font-medium">{shoe.name}</p>
+            </TapLink>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {pageItems.map((shoe) => (
+              <TapLink
+                key={shoe.id}
+                href={`/shoes/${shoe.slug}`}
+                className="surface-card premium-border block overflow-hidden rounded-2xl"
+              >
+                <ShoeThumb shoe={shoe} fit="contain" className="h-24 w-full" />
+                <p className="truncate px-3 py-2 text-xs font-medium">{shoe.name}</p>
+              </TapLink>
+            ))}
+          </div>
+
+          {pageCount > 1 ? (
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <button
+                type="button"
+                disabled={safePage === 0}
+                onClick={() => {
+                  haptics.tap();
+                  setPage((p) => Math.max(0, p - 1));
+                }}
+                aria-label={translate("Previous page")}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-[3rem] text-center text-xs font-medium soft-text">
+                {safePage + 1} / {pageCount}
+              </span>
+              <button
+                type="button"
+                disabled={safePage >= pageCount - 1}
+                onClick={() => {
+                  haptics.tap();
+                  setPage((p) => Math.min(pageCount - 1, p + 1));
+                }}
+                aria-label={translate("Next page")}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+    </motion.section>
   );
 }
