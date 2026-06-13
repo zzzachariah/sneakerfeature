@@ -179,8 +179,11 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* The brand logo art is black on transparent; it sits on a white chip (see the
-   navbar) so it reads on both themes. */
+/* The brand logo art is black on transparent; invert it on the dark theme so it
+   shows as white on the dark navbar (no background chip). */
+:root:not(.light) .nav-logo {
+  filter: invert(1);
+}
 
 /* Liquid-glass surfaces — translucent + blurred + saturated, with a soft stroke
    and a subtle top highlight. Applied consistently across the app chrome
@@ -224,7 +227,7 @@ body {
 }
 
 .nav-dropdown-panel {
-  background: rgb(var(--bg-elev) / 0.82);
+  background: rgb(var(--bg-elev) / 0.94);
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
   box-shadow:
     0 16px 32px rgb(var(--glass-shadow) / 0.2),
@@ -234,7 +237,7 @@ body {
 }
 
 .dark .nav-dropdown-panel {
-  background: rgb(20 20 23 / 0.8);
+  background: rgb(20 20 23 / 0.92);
 }
 
 .premium-border {

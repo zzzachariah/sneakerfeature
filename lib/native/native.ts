@@ -76,8 +76,7 @@ export async function shareFiles(files: File[], meta?: ShareInput): Promise<bool
     await (navigator as Navigator).share({
       files,
       title: meta?.title,
-      text: meta?.text,
-      url: meta?.url
+      text: meta?.text
     } as ShareData);
     return true;
   } catch {
