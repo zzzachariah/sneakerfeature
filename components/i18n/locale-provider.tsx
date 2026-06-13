@@ -769,7 +769,28 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "request a new link": "重新申请链接",
   "reset password": "重置密码",
   "updating your password": "正在更新密码",
-  "password updated. redirecting...": "密码已更新，正在跳转…"
+  "password updated. redirecting...": "密码已更新，正在跳转…",
+
+  // Download / get the app
+  "get the app": "下载 App",
+  "use sneakerfeature on your phone — native app for iOS and android.":
+    "在手机上使用 sneakerfeature —— iOS 与安卓原生 App。",
+  "recommended for your device": "适合你当前设备",
+  "download apk": "下载 APK",
+  "download the android app (apk)": "下载安卓安装包（APK）",
+  "works on mainland china networks — no app store needed.":
+    "大陆网络可直接安装，无需任何应用商店。",
+  "how to install on android": "安卓安装方法",
+  "tap download, then open the apk file.": "点击下载，然后打开 APK 文件。",
+  "if prompted, allow installs from your browser this once.":
+    "若提示，请允许来自浏览器的安装（仅需一次）。",
+  "open it and you're in — it stays in sync with the website.":
+    "打开即可使用 —— 与网站保持同步。",
+  "get it on the app store": "前往 App Store 下载",
+  "coming soon to the app store": "即将上线 App Store",
+  "ios build is on the way. in the meantime, use the web version.":
+    "iOS 版正在路上。在此期间，可使用网页版。",
+  "continue on web": "继续用网页版"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {
