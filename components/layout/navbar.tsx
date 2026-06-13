@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Footprints, Gavel, Languages, Search, Sparkles, User } from "lucide-react";
+import { Check, Gavel, Languages, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { AboutModal } from "@/components/layout/about-modal";
@@ -83,10 +83,10 @@ export function Navbar() {
         <Link
           href="/"
           aria-label="sneakerfeature — home"
-          className="inline-flex items-center text-[rgb(var(--text))] transition-opacity hover:opacity-80"
+          className="inline-flex items-center transition-opacity hover:opacity-80"
         >
-          {/* Themeable brand mark (uses currentColor → flips with light/dark). Swap for a custom SVG logo anytime. */}
-          <Footprints className="h-6 w-6" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="sneakerfeature" className="h-7 w-7 rounded-md" />
         </Link>
 
         <nav

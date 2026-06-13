@@ -76,7 +76,6 @@ export function MobileBottomNav() {
     <nav
       aria-label="Primary mobile navigation"
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg)/0.86)] backdrop-blur-[18px] backdrop-saturate-[180%]"
-      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       data-no-translate="true"
     >
       <ul
@@ -135,6 +134,15 @@ export function MobileBottomNav() {
           );
         })}
       </ul>
+      {/* Brand wordmark tucked into the home-indicator safe area below the tabs. */}
+      <div
+        className="flex items-center justify-center overflow-hidden"
+        style={{ height: "env(safe-area-inset-bottom, 0px)" }}
+      >
+        <span className="select-none text-[0.5rem] font-semibold uppercase tracking-[0.25em] text-[rgb(var(--subtext)/0.5)]">
+          sneakerfeature
+        </span>
+      </div>
     </nav>
   );
 }

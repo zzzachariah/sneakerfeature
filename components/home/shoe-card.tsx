@@ -94,10 +94,9 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
             setWhyOpen((v) => !v);
           }}
           aria-label={translate("Why?")}
-          className="absolute bottom-3 right-3 inline-flex h-7 items-center gap-1 rounded-full bg-[rgb(var(--bg-elev)/0.92)] px-2.5 text-[0.7rem] font-medium text-[rgb(var(--text))] opacity-100 shadow backdrop-blur-md transition md:opacity-0 md:group-hover:opacity-100"
+          className="absolute bottom-3 right-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgb(var(--bg-elev)/0.92)] text-[rgb(var(--text))] opacity-100 shadow backdrop-blur-md transition md:opacity-0 md:group-hover:opacity-100"
         >
-          <Info className="h-3 w-3" />
-          {translate("Why?")}
+          <Info className="h-3.5 w-3.5" />
         </button>
       )}
 
