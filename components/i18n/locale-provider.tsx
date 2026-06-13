@@ -229,6 +229,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "name, tags, tech, notes...": "名称、标签、科技、备注……",
   "all categories": "全部类别",
   "tech": "科技",
+  "feel": "脚感",
   "e.g. lebron": "例如：LeBron",
   "e.g. zoom, plate": "例如：Zoom、支撑板",
   "reset": "重置",
