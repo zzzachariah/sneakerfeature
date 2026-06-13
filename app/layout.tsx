@@ -1,6 +1,7 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Navbar } from "@/components/layout/navbar";
+import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import {
   CookieConsentProvider,
@@ -40,11 +41,19 @@ export const metadata: Metadata = {
   },
 };
 
+// viewport-fit=cover lets the layout extend under the status bar / home
+// indicator so safe-area-inset-* env() values resolve inside the native app.
+export const viewport: Viewport = {
+  themeColor: "#0a0a0a",
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeInitScript />
+        <CapacitorBridge />
         <LocaleProvider>
           <CookieConsentProvider>
             <AuthStateProvider>
