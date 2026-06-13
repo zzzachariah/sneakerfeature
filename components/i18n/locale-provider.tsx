@@ -109,6 +109,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "submit": "提交",
   "loading comparison matrix": "正在加载对比矩阵",
   "loading dashboard": "正在加载仪表盘",
+  "loading smart picker": "正在加载智能选鞋",
   "loading dashboard data": "正在加载仪表盘数据",
   "loading advanced search": "正在加载高级搜索",
   "loading shoe detail": "正在加载球鞋详情",
