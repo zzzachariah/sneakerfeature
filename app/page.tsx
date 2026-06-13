@@ -1,10 +1,10 @@
 import { HomeSlides } from "@/components/home/home-slides";
-import { ForYouOverlay } from "@/components/home/for-you-overlay";
+import { getForYouData } from "@/lib/personalize/for-you-data";
 import { getShoes } from "@/lib/data/shoes";
 import type { Metadata } from "next";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: HOME_TITLE,
@@ -31,6 +31,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const { q } = await searchParams;
   const shoes = await getShoes();
   const brands = new Set(shoes.map((s) => s.brand)).size;
+  const forYou = await getForYouData(shoes);
 
   return (
     <main>
@@ -55,8 +56,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         shoesCount={shoes.length}
         brandsCount={brands}
         initialQuery={q ?? ""}
+        forYou={forYou}
       />
-      <ForYouOverlay />
     </main>
   );
 }

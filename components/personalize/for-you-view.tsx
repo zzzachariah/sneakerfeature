@@ -14,6 +14,8 @@ import {
   Crown
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePersona } from "@/components/preferences/persona-provider";
+import { PersonaAvatar } from "@/components/home/persona-avatar";
 import { haptics } from "@/lib/native/haptics";
 import type { DigestCompareShoe, DigestRecommendation } from "@/lib/personalize/digest";
 
@@ -50,6 +52,16 @@ const POSITION_EN: Record<string, string> = {
 
 export function ForYouView({ signedIn, username, personaPosition, digest, recentShoes, popular }: Props) {
   const { locale, translate, getRankLabel } = useLocale();
+  const { persona, isLoggedIn, openModal } = usePersona();
+
+  function handleAvatarClick() {
+    haptics.tap();
+    if (!isLoggedIn) {
+      window.location.href = "/login";
+      return;
+    }
+    openModal();
+  }
 
   const compareShoes = (digest?.compare_shoes as DigestCompareShoe[] | null) ?? [];
   const recommendations = (digest?.recommendations as DigestRecommendation[] | null) ?? [];
@@ -91,20 +103,25 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       animate="show"
       className="mx-auto w-full max-w-3xl px-5 py-8 sm:py-12"
     >
-      {/* 1. Greeting */}
-      <motion.header variants={item}>
-        <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
-          <Sparkles className="h-5 w-5" />
-          <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
+      {/* 1. Greeting + player avatar */}
+      <motion.header variants={item} className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
+            <Sparkles className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
+          </div>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            {greetWord}
+            {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
+          </h1>
+          <p className="mt-1 text-sm soft-text">
+            {dateStr}
+            {insight ? ` · ${insight}` : ""}
+          </p>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-          {greetWord}
-          {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
-        </h1>
-        <p className="mt-1 text-sm soft-text">
-          {dateStr}
-          {insight ? ` · ${insight}` : ""}
-        </p>
+        <div className="w-16 shrink-0 sm:w-20">
+          <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" />
+        </div>
       </motion.header>
 
       {/* Signed-out / empty: start-browsing guide (popular still shows below) */}
