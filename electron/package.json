@@ -1,7 +1,7 @@
 {
   "name": "sneakerfeature-desktop",
   "version": "0.1.0",
-  "description": "Desktop wrapper for sneakerfeature.com",
+  "description": "Desktop wrapper for snkrfeature.com",
   "private": true,
   "main": "main.js",
   "author": "sneakerfeature",

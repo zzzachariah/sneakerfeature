@@ -5,7 +5,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // rendered and cannot be statically exported, so instead of bundling web assets
 // we point the WebView at production. Override with SNEAKERFEATURE_URL to test
 // against a local dev server, e.g. SNEAKERFEATURE_URL=http://192.168.1.20:3000.
-const SITE_URL = process.env.SNEAKERFEATURE_URL || "https://sneakerfeature.com";
+const SITE_URL = process.env.SNEAKERFEATURE_URL || "https://snkrfeature.com";
 const isHttp = SITE_URL.startsWith("http://");
 
 // Cloudflare Turnstile (used by comments/submissions) rejects User-Agents it

@@ -1,7 +1,7 @@
 const { app, BrowserWindow, shell, Menu } = require("electron");
 const path = require("path");
 
-const SITE_URL = process.env.SNEAKERFEATURE_URL || "https://sneakerfeature.com";
+const SITE_URL = process.env.SNEAKERFEATURE_URL || "https://snkrfeature.com";
 const SITE_ORIGIN = new URL(SITE_URL).origin;
 const IS_DEV = process.env.ELECTRON_DEV === "1";
 

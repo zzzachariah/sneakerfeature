@@ -194,7 +194,7 @@ function CardFooter() {
               color: "rgb(var(--subtext))",
             }}
           >
-            sneakerfeature.com
+            snkrfeature.com
           </span>
           <span
             style={{
