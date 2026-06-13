@@ -395,11 +395,7 @@ export function Navbar() {
                   {locale === "zh" ? <Check className="h-4 w-4" /> : null}
                 </button>
 
-                {/* Theme — reuse the existing ThemeToggle button (icon shows current state) */}
-                <div className="flex items-center justify-between rounded-lg px-3 py-1.5 text-sm text-[rgb(var(--text))]">
-                  <span>{translate("Theme")}</span>
-                  <ThemeToggle />
-                </div>
+                {/* No theme switch on mobile — the app follows the system theme. */}
 
                 <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
 

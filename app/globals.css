@@ -179,10 +179,18 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* The brand logo art is black on transparent. No background square: on the dark
-   theme invert it to white; on the light theme leave it black. */
-:root:not(.light) .nav-logo {
+/* The brand logo art is black on transparent. No background square: keep it
+   black on light, invert to white on dark. This MUST mirror the theme tokens
+   above — invert when explicitly dark, or when following the system (no class)
+   and the OS is in dark mode. (A plain :not(.light) rule wrongly inverted it in
+   system + light mode.) */
+.dark .nav-logo {
   filter: invert(1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) .nav-logo {
+    filter: invert(1);
+  }
 }
 
 /* Liquid-glass surfaces — translucent + blurred + saturated, with a soft stroke
