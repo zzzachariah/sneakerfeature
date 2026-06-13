@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
+import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import {
   CookieConsentProvider,
@@ -67,6 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <MobileBottomNav />
                     </div>
                     <TutorialOverlay />
+                    <PushRegistration />
                   </TutorialProvider>
                 </PersonaProvider>
               </RatingFocusProvider>

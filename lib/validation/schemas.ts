@@ -26,6 +26,15 @@ export const blockUserSchema = z.object({
   action: z.enum(["block", "unblock"])
 });
 
+export const recordViewSchema = z.object({
+  shoeId: z.string().uuid("Invalid shoe identifier.")
+});
+
+export const pushTokenSchema = z.object({
+  token: z.string().min(1),
+  platform: z.enum(["ios", "android", "web"])
+});
+
 export const saveComparisonSchema = z.object({
   title: z.string().trim().min(1, "Title is required.").max(80, "Title must be 80 characters or fewer."),
   shoeIds: z.array(z.string().uuid("Invalid shoe identifier.")).min(2, "Save at least 2 shoes.").max(5, "Save at most 5 shoes.")
