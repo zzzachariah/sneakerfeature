@@ -798,6 +798,18 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "get a weekly push with shoe comparisons and picks based on what you browse.":
     "每周根据你的浏览推送球鞋对比和精选推荐。",
 
+  // For You — weekly personalized digest page
+  "your weekly picks": "本周为你推荐",
+  "we refresh these every monday based on what you browse.": "每周一根据你的浏览为你刷新。",
+  "a comparison for you": "为你挑的对比",
+  "vs": "vs",
+  "compare these two": "对比这两双",
+  "picked for you": "为你精选",
+  "keep refining in smart picker": "在智能选鞋里继续追问",
+  "sign in to see your weekly picks.": "登录后查看你的每周推荐。",
+  "browse a few shoes and your weekly picks will appear here.": "多浏览几双鞋，你的每周推荐就会出现在这里。",
+  "browse shoes": "去浏览球鞋",
+
   // UGC moderation — report / block (App Store 1.2)
   "report comment": "举报评论",
   "block user": "屏蔽用户",
