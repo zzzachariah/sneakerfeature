@@ -112,10 +112,8 @@ export function Navbar() {
           aria-label="sneakerfeature — home"
           className="inline-flex items-center transition-opacity hover:opacity-80"
         >
-          <span className="nav-logo-chip inline-flex h-7 w-7 items-center justify-center overflow-hidden rounded-md p-0.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="sneakerfeature" className="nav-logo-img h-full w-full object-contain" />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="sneakerfeature" className="nav-logo h-7 w-7" />
         </Link>
 
         <nav
