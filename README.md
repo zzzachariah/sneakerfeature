@@ -142,14 +142,14 @@ sneakerfeature is still early, but the mission is simple:
 
 ---
 
-🌐 **Visit:** https://sneakerfeature.com
+🌐 **Visit:** https://snkrfeature.com
 
 ---
 
 ## 💻 Desktop App
 
 sneakerfeature also ships as a desktop application for macOS and Windows. The
-desktop app mirrors the website experience and stays in sync with sneakerfeature.com
+desktop app mirrors the website experience and stays in sync with snkrfeature.com
 automatically.
 
 ### Download
