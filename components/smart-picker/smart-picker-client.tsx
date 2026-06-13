@@ -22,6 +22,7 @@ export function SmartPickerClient() {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
   const [balance, setBalance] = useState(0);
+  const [creditsLoaded, setCreditsLoaded] = useState(false);
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
@@ -42,6 +43,7 @@ export function SmartPickerClient() {
         setUnlimited(Boolean(creditsRes.unlimited));
         if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
       }
+      setCreditsLoaded(true);
     })();
   }, []);
 
@@ -335,6 +337,7 @@ export function SmartPickerClient() {
         loadingMessages={loadingMessages}
         sending={sending}
         balance={balance}
+        creditsLoaded={creditsLoaded}
         unlimited={unlimited}
         checkin={checkin}
         chats={chats}
