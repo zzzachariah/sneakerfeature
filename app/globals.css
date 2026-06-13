@@ -173,6 +173,18 @@ body {
   height: calc(100dvh - var(--top-nav-h) - var(--mobile-nav-h));
 }
 
+/* Navbar scroll indicator — the active section label crossfades in. */
+@keyframes navIndicatorLabelIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* The brand logo art is black; invert it on the dark theme so it stays
+   visible against the dark navbar. */
+:root:not(.light) .nav-logo {
+  filter: invert(1);
+}
+
 /* Touch-friendly tap target. Use on icon buttons that need ≥40-44px hit area
    without altering visual size — pairs with relative+absolute pseudo. */
 .tap-44::before {

@@ -1,30 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
-import { useSlideSwipe } from "@/components/motion/use-slide-swipe";
-import { Bookmark, ChevronDown, Plus, Share2 } from "lucide-react";
+import { useState } from "react";
+import { Bookmark, Plus, Share2 } from "lucide-react";
 import { ComparePlinths } from "@/components/compare/compare-plinths";
 import { CompareRadar } from "@/components/compare/compare-radar";
 import { CompareDiffRows } from "@/components/compare/compare-diff-rows";
 import { CompareSpecTable } from "@/components/compare/compare-spec-table";
+import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Shoe } from "@/lib/types";
-
-const EASE = "cubic-bezier(0.22,1,0.36,1)";
-const SLIDE_TRANSITION_MS = 720;
-const SCROLL_DELTA_THRESHOLD = 14;
-const TOUCH_DELTA_THRESHOLD = 48;
-
-function trySelfScroll(el: HTMLElement | null, deltaY: number): boolean {
-  if (!el) return false;
-  if (el.scrollHeight <= el.clientHeight) return false;
-  const atTop = el.scrollTop <= 0;
-  const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-  if (deltaY > 0 && !atBottom) return true;
-  if (deltaY < 0 && !atTop) return true;
-  return false;
-}
 
 type Props = {
   shoes: Shoe[];
@@ -38,232 +22,63 @@ type Props = {
   onClear: () => void;
 };
 
+const SECTION_OFFSET = { scrollMarginTop: "var(--top-nav-h)" } as const;
+
+// Continuous-scroll compare (Lineup → Profile → Specs). The navbar shows a
+// 3-stop indicator. The component name is kept for import stability even though
+// it is no longer a slide deck.
 export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave, onShare, onRemove, onClear }: Props) {
   const { translate } = useLocale();
-  const TOTAL = 3;
-  const [slide, setSlide] = useState(0);
   const [showRatingDetail, setShowRatingDetail] = useState(false);
-  const slideRef = useRef(0);
-  const animatingRef = useRef(false);
-  const trackRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    slideRef.current = slide;
-  }, [slide]);
-
-  const goTo = useCallback((next: number) => {
-    if (animatingRef.current) return;
-    if (next < 0 || next >= TOTAL) return;
-    if (next === slideRef.current) return;
-    animatingRef.current = true;
-    setSlide(next);
-    window.setTimeout(() => {
-      animatingRef.current = false;
-    }, SLIDE_TRANSITION_MS);
-  }, []);
-
-  // Wheel navigation — capture at window; let nested scroll containers handle their own scroll.
-  useEffect(() => {
-    let lastFire = 0;
-    const onWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      const sc = target?.closest("[data-compare-scroll-container]") as HTMLElement | null;
-      if (sc && trySelfScroll(sc, e.deltaY)) return;
-      const now = Date.now();
-      if (now - lastFire < 80) return;
-      if (Math.abs(e.deltaY) < SCROLL_DELTA_THRESHOLD) return;
-      e.preventDefault();
-      lastFire = now;
-      if (e.deltaY > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
-  }, [goTo]);
-
-  // Keyboard
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown" || e.key === "PageDown") {
-        e.preventDefault();
-        goTo(slideRef.current + 1);
-      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
-        e.preventDefault();
-        goTo(slideRef.current - 1);
-      } else if (e.key === "Home") {
-        goTo(0);
-      } else if (e.key === "End") {
-        goTo(TOTAL - 1);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [goTo]);
-
-  // Touch: finger-follow swipe with rubber-band + snap.
-  useSlideSwipe({
-    trackRef,
-    slideRef,
-    animatingRef,
-    total: TOTAL,
-    ease: EASE,
-    durationMs: SLIDE_TRANSITION_MS,
-    scrollSelector: "[data-compare-scroll-container]",
-    threshold: TOUCH_DELTA_THRESHOLD,
-    goTo,
-  });
-
-  // Lock body scroll while the slide deck is mounted.
-  useBodyScrollLock();
-
-  const labels = [translate("Lineup"), translate("Profile"), translate("Specs")];
-
-  const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
+  useNavScrollSections([
+    { id: "compare-lineup", label: translate("Lineup") },
+    { id: "compare-profile", label: translate("Profile") },
+    { id: "compare-specs", label: translate("Specs") }
+  ]);
 
   return (
-    <div className="relative" style={{ height: slideHeight, overflow: "hidden" }}>
-      {/* Slide track */}
-      <div
-        ref={trackRef}
-        className="flex flex-col"
-        style={{
-          transform: `translate3d(0, calc(${-slide} * ${slideHeight} + var(--drag-offset, 0px)), 0)`,
-          transition: `transform ${SLIDE_TRANSITION_MS}ms ${EASE}`,
-          willChange: "transform",
-          backfaceVisibility: "hidden"
-        }}
-      >
-        {/* Slide 0: Hero + Plinths */}
-        <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
-          <div
-            className="container-shell h-full overflow-y-auto py-6 md:py-8"
-            data-compare-scroll-container
-          >
-            <div className="flex min-h-full flex-col justify-center">
-              <HeroBlock
-                shoes={shoes}
-                canAdd={canAdd}
-                canSave={canSave}
-                canShare={canShare}
-                onAdd={onAdd}
-                onSave={onSave}
-                onShare={onShare}
-                onClear={onClear}
-                showRatingDetail={showRatingDetail}
-                onToggleRatingDetail={() => setShowRatingDetail((v) => !v)}
-                translate={translate}
-              />
-              <div className="mt-6 md:mt-10">
-                <ComparePlinths
-                  shoes={shoes}
-                  onRemove={onRemove}
-                  onAdd={onAdd}
-                  canAdd={canAdd}
-                  showRatingDetail={showRatingDetail}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Slide 1: Performance Profile */}
-        <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
-          <div
-            className="container-shell h-full overflow-y-auto py-6 md:py-10"
-            data-compare-scroll-container
-          >
-            <div className="flex min-h-full flex-col justify-center">
-              <p className="t-eyebrow mb-6 text-center">{translate("Performance Profile")}</p>
-              <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-                <CompareRadar shoes={shoes} active={slide === 1} />
-                <CompareDiffRows shoes={shoes} active={slide === 1} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Slide 2: Tech Specifications */}
-        <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
-          <div className="container-shell flex h-full flex-col justify-center py-6 md:py-10">
-            <div className="flex min-h-0 flex-col">
-              <p className="t-eyebrow mb-5 shrink-0 text-center">{translate("Tech Specifications")}</p>
-              <div className="min-h-0 flex-1 overflow-y-auto" data-compare-scroll-container>
-                <CompareSpecTable shoes={shoes} active={slide === 2} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Right-side indicator */}
-      <div
-        className="pointer-events-none absolute right-5 top-1/2 z-10 hidden -translate-y-1/2 flex-col items-center gap-2 md:flex"
-        aria-hidden
-      >
-        <span
-          key={slide}
-          className="mb-1 select-none text-[0.55rem] font-medium uppercase tracking-[0.22em]"
-          style={{
-            color: "rgb(var(--subtext)/0.55)",
-            writingMode: "vertical-rl",
-            textOrientation: "mixed",
-            animation: `slideLabelIn 380ms ${EASE}`
-          }}
-        >
-          {labels[slide]}
-        </span>
-        {Array.from({ length: TOTAL }).map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => goTo(i)}
-            aria-label={`Slide ${i + 1}: ${labels[i]}`}
-            className="pointer-events-auto rounded-sm border-none p-0 outline-none"
-            style={{
-              width: 4,
-              height: slide === i ? 22 : 4,
-              background: slide === i ? "rgb(var(--text)/0.8)" : "rgb(var(--muted)/0.55)",
-              boxShadow: slide === i ? "0 0 0 4px rgb(var(--text)/0.08)" : "none",
-              transition: `height 320ms ${EASE},background 220ms ${EASE},box-shadow 320ms ${EASE}`,
-              cursor: "pointer"
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Scroll-down affordance — visible on any slide except the last */}
-      <button
-        type="button"
-        onClick={() => goTo(slide + 1)}
-        aria-label={translate("Scroll to next slide")}
-        className="absolute left-1/2 z-10 -translate-x-1/2 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] text-[rgb(var(--subtext))] shadow-[0_4px_14px_rgb(var(--shadow)/0.18)] backdrop-blur-[12px] transition-[opacity,transform,color] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[rgb(var(--text))]"
-        style={{
-          bottom: 32,
-          width: 36,
-          height: 36,
-          display: slide < TOTAL - 1 ? "inline-flex" : "none",
-          opacity: slide < TOTAL - 1 ? 1 : 0,
-          transform: `translateX(-50%) translateY(${slide < TOTAL - 1 ? "0" : "8px"})`
-        }}
-      >
-        <ChevronDown
-          className="h-4 w-4"
-          style={{
-            animation: "scrollHint 1.8s ease-in-out infinite"
-          }}
+    <div className="has-mobile-nav-pad">
+      {/* Lineup: hero + plinths */}
+      <section id="compare-lineup" style={SECTION_OFFSET} className="container-shell py-8 md:py-12">
+        <HeroBlock
+          shoes={shoes}
+          canAdd={canAdd}
+          canSave={canSave}
+          canShare={canShare}
+          onAdd={onAdd}
+          onSave={onSave}
+          onShare={onShare}
+          onClear={onClear}
+          showRatingDetail={showRatingDetail}
+          onToggleRatingDetail={() => setShowRatingDetail((v) => !v)}
+          translate={translate}
         />
-      </button>
+        <div className="mt-6 md:mt-10">
+          <ComparePlinths
+            shoes={shoes}
+            onRemove={onRemove}
+            onAdd={onAdd}
+            canAdd={canAdd}
+            showRatingDetail={showRatingDetail}
+          />
+        </div>
+      </section>
 
-      <style>{`
-        @keyframes scrollHint {
-          0%, 100% { transform: translateY(0); opacity: 0.7; }
-          50% { transform: translateY(3px); opacity: 1; }
-        }
-        @keyframes slideLabelIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      {/* Profile: radar + diff rows */}
+      <section id="compare-profile" style={SECTION_OFFSET} className="container-shell py-8 md:py-12">
+        <p className="t-eyebrow mb-6 text-center">{translate("Performance Profile")}</p>
+        <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
+          <CompareRadar shoes={shoes} />
+          <CompareDiffRows shoes={shoes} />
+        </div>
+      </section>
+
+      {/* Specs: full tech table */}
+      <section id="compare-specs" style={SECTION_OFFSET} className="container-shell py-8 md:py-12">
+        <p className="t-eyebrow mb-5 text-center">{translate("Tech Specifications")}</p>
+        <CompareSpecTable shoes={shoes} />
+      </section>
     </div>
   );
 }

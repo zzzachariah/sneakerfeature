@@ -229,6 +229,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "name, tags, tech, notes...": "名称、标签、科技、备注……",
   "all categories": "全部类别",
   "tech": "科技",
+  "feel": "脚感",
   "e.g. lebron": "例如：LeBron",
   "e.g. zoom, plate": "例如：Zoom、支撑板",
   "reset": "重置",
@@ -814,6 +815,10 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "browse shoes": "去浏览球鞋",
   "continue browsing": "继续浏览",
   "popular this week": "本周热门",
+  "show history": "查看历史",
+  "collapse": "收起",
+  "previous page": "上一页",
+  "next page": "下一页",
   "sign in and browse a few shoes to unlock personalized weekly picks.":
     "登录并浏览几双鞋，解锁你的每周个性化推荐。",
 

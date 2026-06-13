@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowRight, ChevronDown, Share2 } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { ArrowRight, Share2 } from "lucide-react";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { CommentSection } from "@/components/detail/comment-section";
 import { BloggerReviewsSlideBody } from "@/components/detail/blogger-reviews-slide";
@@ -18,17 +18,9 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { Reveal } from "@/components/motion/reveal";
-import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
-import { useSlideSwipe } from "@/components/motion/use-slide-swipe";
+import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
+import { cn } from "@/lib/utils";
 import type { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
-
-const EASE = "cubic-bezier(0.22,1,0.36,1)";
-const DEFAULT_TRANSITION_MS = 720;
-const NAV_HEIGHT = 76;
-const SLIDE_VIEWPORT_H = `calc(100dvh - ${NAV_HEIGHT}px - var(--mobile-nav-h, 0px))`;
-const SCROLL_DELTA_THRESHOLD = 14;
-const TOUCH_DELTA_THRESHOLD = 48;
-const TOTAL = 6;
 
 type ImageAction = "find" | "approve" | "reject";
 type ImageActionLoading = ImageAction | "preview_url" | "confirm_url";
@@ -79,265 +71,115 @@ type Props = {
   bloggerReviews: BloggerReview[];
 };
 
-const HASH_TO_INDEX: Record<string, number> = {
-  "#overview": 0,
-  "#performance": 1,
-  "#reviews": 2,
-  "#story": 3,
-  "#comments": 4,
-  "#related": 5
+// Legacy in-page hashes → continuous-scroll section ids.
+const HASH_TO_ID: Record<string, string> = {
+  "#overview": "detail-overview",
+  "#performance": "detail-performance",
+  "#reviews": "detail-reviews",
+  "#story": "detail-story",
+  "#comments": "detail-comments",
+  "#related": "detail-related"
 };
 
 export function ShoeDetailSlides(props: Props) {
   const { translate } = useLocale();
-  const [slide, setSlide] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
-  const slideRef = useRef(0);
-  const animatingRef = useRef(false);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const trackRef = useRef<HTMLDivElement | null>(null);
 
-  const reducedMotion = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      typeof window.matchMedia === "function" &&
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-    []
-  );
-  const transitionMs = reducedMotion ? 0 : DEFAULT_TRANSITION_MS;
+  useNavScrollSections([
+    { id: "detail-overview", label: translate("Overview") },
+    { id: "detail-performance", label: translate("Performance") },
+    { id: "detail-reviews", label: translate("Pro reviews") },
+    { id: "detail-story", label: translate("Story") },
+    { id: "detail-comments", label: translate("Comments") },
+    { id: "detail-related", label: translate("Related") }
+  ]);
 
-  useEffect(() => {
-    slideRef.current = slide;
-  }, [slide]);
-
+  // Honor legacy #section links on entry.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const idx = HASH_TO_INDEX[window.location.hash.toLowerCase()];
-    if (typeof idx === "number" && idx >= 0 && idx < TOTAL) {
-      slideRef.current = idx;
-      setSlide(idx);
-    }
+    const id = HASH_TO_ID[window.location.hash.toLowerCase()];
+    if (!id) return;
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView());
   }, []);
 
-  const goTo = useCallback(
-    (next: number) => {
-      if (animatingRef.current) return;
-      if (next < 0 || next >= TOTAL) return;
-      if (next === slideRef.current) return;
-      animatingRef.current = true;
-      setSlide(next);
-      window.setTimeout(() => {
-        animatingRef.current = false;
-      }, transitionMs);
-    },
-    [transitionMs]
-  );
-
-  useEffect(() => {
-    let lastFire = 0;
-    const onWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("[data-detail-scroll-container]")) {
-        return;
-      }
-      const now = Date.now();
-      if (now - lastFire < 80) return;
-      if (Math.abs(e.deltaY) < SCROLL_DELTA_THRESHOLD) return;
-      e.preventDefault();
-      lastFire = now;
-      if (e.deltaY > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
-  }, [goTo]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("input,textarea,[contenteditable]")) return;
-      if (e.key === "ArrowDown" || e.key === "PageDown") {
-        e.preventDefault();
-        goTo(slideRef.current + 1);
-      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
-        e.preventDefault();
-        goTo(slideRef.current - 1);
-      } else if (e.key === "Home") {
-        goTo(0);
-      } else if (e.key === "End") {
-        goTo(TOTAL - 1);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [goTo]);
-
-  // Touch: finger-follow swipe; gestures starting in a scroll area scroll, not page.
-  useSlideSwipe({
-    trackRef,
-    slideRef,
-    animatingRef,
-    total: TOTAL,
-    ease: EASE,
-    durationMs: transitionMs,
-    scrollSelector: "[data-detail-scroll-container]",
-    blockSelector: "[data-detail-scroll-container]",
-    threshold: TOUCH_DELTA_THRESHOLD,
-    goTo,
-  });
-
-  useBodyScrollLock();
-
-  const labels = [
-    translate("Overview"),
-    translate("Performance"),
-    translate("Pro reviews"),
-    translate("Story"),
-    translate("Comments"),
-    translate("Related")
-  ];
-
-  const viewportHeight = SLIDE_VIEWPORT_H;
+  const jumpTo = (id: string) =>
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   return (
     <>
-    <div
-      ref={rootRef}
-      className="detail-slides relative"
-      style={{ height: viewportHeight, overflow: "hidden" }}
-    >
-      <div
-        ref={trackRef}
-        className="detail-slide-track flex flex-col"
-        style={{
-          transform: `translateY(calc(${-slide} * ${SLIDE_VIEWPORT_H} + var(--drag-offset, 0px)))`,
-          transition: `transform ${transitionMs}ms ${EASE}`,
-          willChange: "transform"
-        }}
-      >
-        <SlideFrame height={viewportHeight}>
-          <OverviewSlide
+      <div className="has-mobile-nav-pad">
+        <DetailSection id="detail-overview">
+          <OverviewSection
             {...props}
-            active={slide === 0}
             onShareCard={() => setShareOpen(true)}
-            onJumpToComments={() => goTo(4)}
+            onJumpToComments={() => jumpTo("detail-comments")}
           />
-        </SlideFrame>
-        <SlideFrame height={viewportHeight}>
-          <PerformanceSlide {...props} active={slide === 1} />
-        </SlideFrame>
-        <SlideFrame height={viewportHeight}>
-          <ReviewsSlide {...props} active={slide === 2} />
-        </SlideFrame>
-        <SlideFrame height={viewportHeight}>
-          <StorySlide {...props} active={slide === 3} />
-        </SlideFrame>
-        <SlideFrame height={viewportHeight}>
-          <CommentsSlide {...props} active={slide === 4} />
-        </SlideFrame>
-        <SlideFrame height={viewportHeight}>
-          <RelatedSlide {...props} active={slide === 5} />
-        </SlideFrame>
+        </DetailSection>
+
+        <DetailSection id="detail-performance">
+          <PerformanceSection
+            shoe={props.shoe}
+            extraTechCards={props.extraTechCards}
+            radarAxes={props.radarAxes}
+          />
+        </DetailSection>
+
+        <DetailSection id="detail-reviews">
+          <ReviewsSection bloggerReviews={props.bloggerReviews} />
+        </DetailSection>
+
+        <DetailSection id="detail-story">
+          <StorySection {...props} />
+        </DetailSection>
+
+        <DetailSection id="detail-comments">
+          <CommentsSection {...props} />
+        </DetailSection>
+
+        <DetailSection id="detail-related">
+          <RelatedSection {...props} />
+        </DetailSection>
       </div>
 
-      <div
-        className="pointer-events-none absolute right-5 top-1/2 z-20 hidden -translate-y-1/2 flex-col items-center gap-2 md:flex"
-        aria-hidden
-      >
-        <span
-          key={slide}
-          className="mb-1 select-none text-[0.55rem] font-medium uppercase tracking-[0.22em]"
-          style={{
-            color: "rgb(var(--subtext)/0.6)",
-            writingMode: "vertical-rl",
-            textOrientation: "mixed",
-            animation: reducedMotion ? undefined : `detailSlideLabelIn 380ms ${EASE}`
-          }}
-        >
-          {labels[slide]}
-        </span>
-        {Array.from({ length: TOTAL }).map((_, i) => (
-          <button
-            key={i}
-            type="button"
-            onClick={() => goTo(i)}
-            aria-label={`Slide ${i + 1} of ${TOTAL}: ${labels[i]}`}
-            className="pointer-events-auto rounded-sm border-none p-0 outline-none transition-[background,height] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--text)/0.6)]"
-            style={{
-              width: 4,
-              height: slide === i ? 22 : 4,
-              background: slide === i ? "rgb(var(--text)/0.8)" : "rgb(var(--muted)/0.55)",
-              transition: `height 320ms ${EASE}, background 220ms ${EASE}`,
-              cursor: "pointer"
-            }}
-          />
-        ))}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => goTo(slide + 1)}
-        aria-label={translate("Scroll to next slide")}
-        className="absolute left-1/2 z-10 -translate-x-1/2 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] text-[rgb(var(--subtext))] shadow-[0_4px_14px_rgb(var(--shadow)/0.18)] backdrop-blur-[12px] transition-[opacity,transform,color] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-[rgb(var(--text))]"
-        style={{
-          bottom: 32,
-          width: 36,
-          height: 36,
-          display: slide < TOTAL - 1 ? "inline-flex" : "none",
-          opacity: slide === 0 ? 1 : 0,
-          transform: `translateX(-50%) translateY(${slide === 0 ? "0" : "8px"})`
-        }}
-      >
-        <ChevronDown
-          className="h-4 w-4"
-          style={{ animation: reducedMotion ? undefined : "detailScrollHint 1.8s ease-in-out infinite" }}
-        />
-      </button>
-
-      <style>{`
-        @keyframes detailScrollHint {
-          0%, 100% { transform: translateY(0); opacity: 0.7; }
-          50% { transform: translateY(3px); opacity: 1; }
-        }
-        @keyframes detailSlideLabelIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @media print {
-          .detail-slides {
-            height: auto !important;
-            overflow: visible !important;
-          }
-          .detail-slide-track {
-            transform: none !important;
-          }
-        }
-      `}</style>
-    </div>
-    <CardPreviewModal
-      open={shareOpen}
-      onClose={() => setShareOpen(false)}
-      mode={{ kind: "single", shoe: props.shoe, axes: props.radarAxes }}
-    />
+      <CardPreviewModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        mode={{ kind: "single", shoe: props.shoe, axes: props.radarAxes }}
+      />
     </>
   );
 }
 
-function SlideFrame({ height, children }: { height: string; children: React.ReactNode }) {
+function DetailSection({
+  id,
+  children,
+  className
+}: {
+  id: string;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="shrink-0 overflow-hidden" style={{ height }}>
-      <div className="container-shell h-full pr-10 md:pr-14">{children}</div>
+    <section
+      id={id}
+      style={{ scrollMarginTop: "var(--top-nav-h)" }}
+      className={cn("container-shell py-9 md:py-14", className)}
+    >
+      {children}
+    </section>
+  );
+}
+
+function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="text-center">
+      <p className="t-eyebrow">{eyebrow}</p>
+      <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em] md:text-2xl">{title}</h2>
     </div>
   );
 }
 
-function slideEntranceClass(active: boolean) {
-  return `transition-[opacity,transform] duration-500 delay-150 ${
-    active ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-  }`;
-}
-
-function OverviewSlide({
+function OverviewSection({
   shoe,
   reviewImage,
   imageState,
@@ -353,204 +195,208 @@ function OverviewSlide({
   onPreviewUrl,
   onConfirmUpload,
   onCancelPreview,
-  active,
   onShareCard,
   finalStars,
   onJumpToComments
-}: Props & { active: boolean; onShareCard: () => void; onJumpToComments: () => void }) {
+}: Props & { onShareCard: () => void; onJumpToComments: () => void }) {
   const { translate, locale } = useLocale();
   const playstyleSummary = pickLocalized(locale, shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
   return (
-    <div className={`flex h-full flex-col justify-center py-6 md:py-10 ${slideEntranceClass(active)}`}>
-      <div className="grid gap-5 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-8">
-        <div className="order-2 max-w-2xl md:order-1">
-          <p className="t-eyebrow">
-            <span data-field-key="brand">{shoe.brand}</span> · {shoe.release_year ?? "TBD"}
+    <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-10">
+      <div className="order-2 max-w-2xl md:order-1">
+        <p className="t-eyebrow">
+          <span data-field-key="brand">{shoe.brand}</span> · {shoe.release_year ?? "TBD"}
+        </p>
+
+        <h1 data-field-key="shoe_name" className="t-display-sm mt-2 text-[rgb(var(--text))] md:mt-3">
+          {shoe.shoe_name}
+        </h1>
+
+        {playstyleSummary ? (
+          <p className="mt-3 text-[0.95rem] leading-7 soft-text md:mt-4 md:text-base">{playstyleSummary}</p>
+        ) : (
+          <p className="mt-3 text-[0.95rem] leading-7 soft-text md:mt-4 md:text-base">
+            {translate("No playstyle summary available yet.")}
           </p>
+        )}
 
-          <h1
-            data-field-key="shoe_name"
-            className="t-display-sm mt-2 text-[rgb(var(--text))] md:mt-3"
-          >
-            {shoe.shoe_name}
-          </h1>
-
-          {playstyleSummary ? (
-            <p className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base">
-              {playstyleSummary}
-            </p>
-          ) : (
-            <p className="mt-3 text-[0.92rem] leading-6 soft-text md:mt-4 md:text-base">
-              {translate("No playstyle summary available yet.")}
-            </p>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <StarRatingSlot value={finalStars} size="lg" showNumber count={shoe.userRatingCount ?? 0} />
+          {finalStars !== null && (
+            <button
+              type="button"
+              onClick={onJumpToComments}
+              className="text-xs underline-offset-2 soft-text hover:underline"
+            >
+              {translate("Rate this")}
+            </button>
           )}
-
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <StarRatingSlot
-              value={finalStars}
-              size="lg"
-              showNumber
-              count={shoe.userRatingCount ?? 0}
-            />
-            {finalStars !== null && (
-              <button
-                type="button"
-                onClick={onJumpToComments}
-                className="text-xs underline-offset-2 soft-text hover:underline"
-              >
-                {translate("Rate this")}
-              </button>
-            )}
-          </div>
-
-          {shoe.dimStars ? (
-            <div className="mt-4 max-w-md rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.4)] p-3">
-              <p className="mb-2 text-[0.65rem] uppercase tracking-[0.14em] soft-text">
-                {translate("By dimension")}
-              </p>
-              <DimRatingList stars={shoe.dimStars} size="sm" />
-            </div>
-          ) : null}
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {(shoe.spec.tags ?? []).map((tag) => (
-              <Badge key={tag}>
-                <DynamicTranslatedText as="span" text={tag} contentType="descriptive" />
-              </Badge>
-            ))}
-          </div>
-
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link href={`/compare?ids=${shoe.id}`}>
-              <Button>{translate("Add to compare")}</Button>
-            </Link>
-            <Button type="button" variant="secondary" onClick={onShareCard}>
-              <Share2 className="mr-1.5 h-3.5 w-3.5" />
-              {translate("Share card")}
-            </Button>
-            <Link href={`/submit/correction/${shoe.id}`}>
-              <Button variant="ghost">{translate("Submit correction")}</Button>
-            </Link>
-          </div>
         </div>
 
-        <div className="order-1 flex flex-col items-center gap-3 md:order-2">
-          <div className="w-full max-w-[200px] rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-3 shadow-cinematic sm:max-w-[240px] sm:p-4 md:max-w-xs md:p-6">
-            <ShoeImage
-              src={reviewImage}
-              alt={`${shoe.brand} ${shoe.shoe_name}`}
-              fallbackLabel={translate("No image")}
-              variant="detail"
-            />
+        {shoe.dimStars ? (
+          <div className="mt-4 max-w-md rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.4)] p-3">
+            <p className="mb-2 text-[0.65rem] uppercase tracking-[0.14em] soft-text">{translate("By dimension")}</p>
+            <DimRatingList stars={shoe.dimStars} size="sm" />
           </div>
-          <div className="text-center text-sm">
-            {hasPendingImage ? (
-              <p className="font-medium text-amber-400">{translate("Image pending review")}</p>
-            ) : imageState.approved ? (
-              <p className="font-medium text-emerald-400">{translate("Image approved")}</p>
-            ) : imageState.latestRejected ? (
-              <p className="font-medium text-rose-400">{translate("Image rejected")}</p>
-            ) : (
-              <p className="font-medium soft-text">{translate("No image")}</p>
+        ) : null}
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          {(shoe.spec.tags ?? []).map((tag) => (
+            <Badge key={tag}>
+              <DynamicTranslatedText as="span" text={tag} contentType="descriptive" />
+            </Badge>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link href={`/compare?ids=${shoe.id}`}>
+            <Button>{translate("Add to compare")}</Button>
+          </Link>
+          <Button type="button" variant="secondary" onClick={onShareCard}>
+            <Share2 className="mr-1.5 h-3.5 w-3.5" />
+            {translate("Share card")}
+          </Button>
+          <Link href={`/submit/correction/${shoe.id}`}>
+            <Button variant="ghost">{translate("Submit correction")}</Button>
+          </Link>
+        </div>
+      </div>
+
+      <div className="order-1 flex flex-col items-center gap-3 md:order-2">
+        <div className="w-full max-w-[220px] rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-4 shadow-cinematic sm:max-w-[260px] md:max-w-xs md:p-6">
+          <ShoeImage
+            src={reviewImage}
+            alt={`${shoe.brand} ${shoe.shoe_name}`}
+            fallbackLabel={translate("No image")}
+            variant="detail"
+          />
+        </div>
+        <div className="text-center text-sm">
+          {hasPendingImage ? (
+            <p className="font-medium text-amber-400">{translate("Image pending review")}</p>
+          ) : imageState.approved ? (
+            <p className="font-medium text-emerald-400">{translate("Image approved")}</p>
+          ) : imageState.latestRejected ? (
+            <p className="font-medium text-rose-400">{translate("Image rejected")}</p>
+          ) : (
+            <p className="font-medium soft-text">{translate("No image")}</p>
+          )}
+        </div>
+
+        {isAdmin && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Button type="button" onClick={() => runAdminImageAction("find")} disabled={imageActionLoading !== null}>
+              {imageActionLoading === "find"
+                ? translate("Searching images...")
+                : hasPendingImage
+                  ? translate("Search again")
+                  : translate("Find image")}
+            </Button>
+            {hasPendingImage && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => runAdminImageAction("approve")}
+                  disabled={imageActionLoading !== null}
+                >
+                  {translate("Approve image")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => runAdminImageAction("reject")}
+                  disabled={imageActionLoading !== null}
+                >
+                  {translate("Reject image")}
+                </Button>
+              </>
             )}
           </div>
+        )}
 
-          {isAdmin && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button type="button" onClick={() => runAdminImageAction("find")} disabled={imageActionLoading !== null}>
-                {imageActionLoading === "find"
-                  ? translate("Searching images...")
-                  : hasPendingImage
-                    ? translate("Search again")
-                    : translate("Find image")}
+        {isAdmin && (
+          <div className="flex w-full max-w-xs flex-col gap-2">
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={pasteUrl}
+                onChange={(event) => onPasteUrlChange(event.target.value)}
+                placeholder={translate("Paste image URL")}
+                disabled={imageActionLoading !== null || previewUpload !== null}
+                className="flex-1 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] px-3 py-2 text-sm text-[rgb(var(--text))] placeholder:soft-text disabled:opacity-50"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onPreviewUrl}
+                disabled={imageActionLoading !== null || previewUpload !== null || !pasteUrl.trim()}
+              >
+                {imageActionLoading === "preview_url" ? translate("Loading...") : translate("Preview")}
               </Button>
-              {hasPendingImage && (
-                <>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => runAdminImageAction("approve")}
-                    disabled={imageActionLoading !== null}
-                  >
-                    {translate("Approve image")}
+            </div>
+            {previewUpload && (
+              <div className="flex flex-col items-center gap-2 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-3">
+                <ShoeImage
+                  src={previewUpload.public_url}
+                  alt={translate("Pasted image preview")}
+                  fallbackLabel={translate("No image")}
+                  variant="detail"
+                />
+                <div className="flex gap-2">
+                  <Button type="button" onClick={onConfirmUpload} disabled={imageActionLoading !== null}>
+                    {imageActionLoading === "confirm_url" ? translate("Uploading...") : translate("Upload")}
                   </Button>
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => runAdminImageAction("reject")}
+                    onClick={onCancelPreview}
                     disabled={imageActionLoading !== null}
                   >
-                    {translate("Reject image")}
+                    {translate("Cancel")}
                   </Button>
-                </>
-              )}
-            </div>
-          )}
-
-          {isAdmin && (
-            <div className="flex w-full max-w-xs flex-col gap-2">
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  value={pasteUrl}
-                  onChange={(event) => onPasteUrlChange(event.target.value)}
-                  placeholder={translate("Paste image URL")}
-                  disabled={imageActionLoading !== null || previewUpload !== null}
-                  className="flex-1 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] px-3 py-2 text-sm text-[rgb(var(--text))] placeholder:soft-text disabled:opacity-50"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={onPreviewUrl}
-                  disabled={imageActionLoading !== null || previewUpload !== null || !pasteUrl.trim()}
-                >
-                  {imageActionLoading === "preview_url" ? translate("Loading...") : translate("Preview")}
-                </Button>
-              </div>
-              {previewUpload && (
-                <div className="flex flex-col items-center gap-2 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-3">
-                  <ShoeImage
-                    src={previewUpload.public_url}
-                    alt={translate("Pasted image preview")}
-                    fallbackLabel={translate("No image")}
-                    variant="detail"
-                  />
-                  <div className="flex gap-2">
-                    <Button type="button" onClick={onConfirmUpload} disabled={imageActionLoading !== null}>
-                      {imageActionLoading === "confirm_url" ? translate("Uploading...") : translate("Upload")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={onCancelPreview}
-                      disabled={imageActionLoading !== null}
-                    >
-                      {translate("Cancel")}
-                    </Button>
-                  </div>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
 
-          {imageActionError && <FeedbackMessage message={imageActionError} isError />}
-          {imageActionSuccess && <FeedbackMessage message={imageActionSuccess} />}
-        </div>
+        {imageActionError && <FeedbackMessage message={imageActionError} isError />}
+        {imageActionSuccess && <FeedbackMessage message={imageActionSuccess} />}
       </div>
     </div>
   );
 }
 
-function PerformanceSlide({
+// Performance: radar on top, then a clean spec table below — two columns on
+// tablet/desktop, a single column on phones (so the enlarged labels and full,
+// untruncated text stay readable).
+function PerformanceSection({
   shoe,
   extraTechCards,
-  radarAxes,
-  active
-}: Props & { active: boolean }) {
+  radarAxes
+}: Pick<Props, "shoe" | "extraTechCards" | "radarAxes">) {
   const { translate, locale } = useLocale();
 
-  // Values are pre-translated in Supabase; pick zh (English fallback) per locale.
-  const dimensionCards: Array<{ label: string; field: keyof typeof shoe.spec; value: string | null | undefined }> = [
+  const techItems: Array<{ label: string; field: string; value: string | null | undefined }> = [
+    {
+      label: "Forefoot midsole tech",
+      field: "forefoot_midsole_tech",
+      value: pickLocalized(locale, shoe.spec.forefoot_midsole_tech, shoe.spec.forefoot_midsole_tech_zh)
+    },
+    {
+      label: "Heel midsole tech",
+      field: "heel_midsole_tech",
+      value: pickLocalized(locale, shoe.spec.heel_midsole_tech, shoe.spec.heel_midsole_tech_zh)
+    },
+    ...Object.entries(extraTechCards).map(([label, cfg]) => ({
+      label,
+      field: cfg.field,
+      value: cfg.value
+    }))
+  ];
+
+  const dimensionItems: Array<{ label: string; field: string; value: string | null | undefined }> = [
     { label: "Cushioning feel", field: "cushioning_feel", value: pickLocalized(locale, shoe.spec.cushioning_feel, shoe.spec.cushioning_feel_zh) },
     { label: "Court feel", field: "court_feel", value: pickLocalized(locale, shoe.spec.court_feel, shoe.spec.court_feel_zh) },
     { label: "Bounce", field: "bounce", value: pickLocalized(locale, shoe.spec.bounce, shoe.spec.bounce_zh) },
@@ -559,221 +405,147 @@ function PerformanceSlide({
     { label: "Fit", field: "fit", value: pickLocalized(locale, shoe.spec.fit, shoe.spec.fit_zh) }
   ];
 
-  const forefootTech = pickLocalized(locale, shoe.spec.forefoot_midsole_tech, shoe.spec.forefoot_midsole_tech_zh);
-  const heelTech = pickLocalized(locale, shoe.spec.heel_midsole_tech, shoe.spec.heel_midsole_tech_zh);
+  const items = [...techItems, ...dimensionItems];
 
   return (
-    <div className={`flex h-full min-h-0 flex-row items-stretch gap-2 py-4 md:gap-4 md:py-6 ${slideEntranceClass(active)}`}>
-      <div className="grid min-h-0 w-1/2 grid-cols-2 gap-1.5 overflow-hidden md:gap-2.5" style={{ gridAutoRows: "1fr" }}>
-        <Card className="flex min-h-0 flex-col justify-center p-2 md:p-3">
-          <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
-            {translate("Forefoot midsole tech")}
-          </p>
-          <p
-            data-field-key="forefoot_midsole_tech"
-            className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
+    <div>
+      <SectionHeading eyebrow={translate("Analysis")} title={translate("Performance profile")} />
+
+      <Card className="mx-auto mt-6 max-w-xl p-5 md:p-8">
+        <PerformanceRadar axes={radarAxes} />
+      </Card>
+
+      <div className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+        {items.map((it) => (
+          <div
+            key={it.field}
+            className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev)/0.5)] p-4"
           >
-            {forefootTech ?? translate("Not yet added")}
-          </p>
-        </Card>
-
-        <Card className="flex min-h-0 flex-col justify-center p-2 md:p-3">
-          <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
-            {translate("Heel midsole tech")}
-          </p>
-          <p
-            data-field-key="heel_midsole_tech"
-            className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-          >
-            {heelTech ?? translate("Not yet added")}
-          </p>
-        </Card>
-
-        {Object.entries(extraTechCards).map(([k, data]) => (
-          <Card key={k} className="flex min-h-0 flex-col justify-center p-2 md:p-3">
-            <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
-              {translate(k)}
+            <p className="text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-[rgb(var(--text)/0.7)]">
+              {translate(it.label)}
             </p>
-            {data.value ? (
-              <p
-                data-field-key={data.field}
-                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-              >
-                {data.value}
-              </p>
-            ) : (
-              <p
-                data-field-key={data.field}
-                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-              >
-                {translate("Not yet added")}
-              </p>
-            )}
-          </Card>
-        ))}
-
-        {dimensionCards.map((dim) => (
-          <Card key={dim.field} className="flex min-h-0 flex-col justify-center p-2 md:p-3">
-            <p className="text-[0.55rem] uppercase tracking-wide soft-text md:text-[0.65rem]">
-              {translate(dim.label)}
+            <p
+              data-field-key={it.field}
+              className="mt-1.5 text-[0.95rem] leading-relaxed text-[rgb(var(--text))]"
+            >
+              {it.value?.trim() ? it.value : translate("Not yet added")}
             </p>
-            {dim.value ? (
-              <p
-                data-field-key={dim.field}
-                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-              >
-                {dim.value}
-              </p>
-            ) : (
-              <p
-                data-field-key={dim.field}
-                className="mt-0.5 line-clamp-3 text-[0.78rem] font-medium leading-snug md:mt-1 md:text-sm"
-              >
-                {translate("Not yet added")}
-              </p>
-            )}
-          </Card>
+          </div>
         ))}
       </div>
-
-      <Card className="flex min-h-0 w-1/2 flex-col p-3 md:p-5">
-        <p className="t-eyebrow mb-1 text-[0.6rem] md:mb-2 md:text-xs">{translate("Analysis")}</p>
-        <h2 className="text-sm font-semibold tracking-[-0.02em] md:text-lg">{translate("Performance profile")}</h2>
-        <div className="mt-2 flex min-h-0 flex-1 items-center justify-center md:mt-4">
-          <PerformanceRadar axes={radarAxes} active={active} />
-        </div>
-      </Card>
     </div>
   );
 }
 
-function StorySlide({
+function ReviewsSection({ bloggerReviews }: { bloggerReviews: BloggerReview[] }) {
+  return <BloggerReviewsSlideBody reviews={bloggerReviews} />;
+}
+
+function StorySection({
   shoe,
   hasStory,
   storyTitle,
   storyContent,
   storySourceLabel,
-  storySourceUrl,
-  active
-}: Props & { active: boolean }) {
+  storySourceUrl
+}: Props) {
   const { translate } = useLocale();
   const sourceText = storySourceLabel || storySourceUrl;
   return (
-    <div className={`flex h-full flex-col justify-center py-6 md:py-10 ${slideEntranceClass(active)}`}>
-      <Card className="mx-auto w-full max-w-2xl p-5 sm:p-7 md:max-w-3xl md:p-10">
-        <p className="t-eyebrow mb-2 md:mb-3">{translate("Context")}</p>
-        <h2 className="text-xl font-semibold tracking-[-0.02em] md:text-3xl">
-          {translate("Story & provenance")}
-        </h2>
-        {hasStory ? (
-          <div
-            data-detail-scroll-container
-            className="mt-4 max-h-[55dvh] space-y-3 overflow-y-auto pr-2 md:mt-6 md:max-h-[60vh] md:space-y-4"
-          >
-            {storyTitle ? (
-              <p className="text-base font-semibold md:text-lg">{storyTitle}</p>
-            ) : (
-              <p data-field-key="shoe_name" className="text-base font-semibold md:text-lg">
-                {`${shoe.brand} ${shoe.shoe_name}`}
-              </p>
-            )}
-
-            {storyContent ? (
-              <p className="whitespace-pre-line text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
-                {storyContent}
-              </p>
-            ) : (
-              <p className="text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
-                {translate("No editorial story content yet.")}
-              </p>
-            )}
-
-            {sourceText ? (
-              <p className="border-t border-[rgb(var(--muted)/0.4)] pt-3 text-xs soft-text md:pt-4 md:text-sm">
-                {translate("Source")}:{" "}
-                {storySourceUrl ? (
-                  <a
-                    href={storySourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline underline-offset-2 hover:text-[rgb(var(--text))]"
-                  >
-                    {storySourceLabel || storySourceUrl}
-                  </a>
-                ) : (
-                  storySourceLabel
-                )}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            <p className="mt-4 text-[0.95rem] leading-7 soft-text md:mt-6 md:text-base md:leading-8">
-              {translate("No editorial story yet.")}
+    <Card className="mx-auto w-full max-w-3xl p-5 sm:p-7 md:p-10">
+      <p className="t-eyebrow mb-2 md:mb-3">{translate("Context")}</p>
+      <h2 className="text-xl font-semibold tracking-[-0.02em] md:text-3xl">{translate("Story & provenance")}</h2>
+      {hasStory ? (
+        <div className="mt-4 space-y-3 md:mt-6 md:space-y-4">
+          {storyTitle ? (
+            <p className="text-base font-semibold md:text-lg">{storyTitle}</p>
+          ) : (
+            <p data-field-key="shoe_name" className="text-base font-semibold md:text-lg">
+              {`${shoe.brand} ${shoe.shoe_name}`}
             </p>
-            <div className="mt-4 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text md:mt-5 md:p-4 md:text-sm">
-              {translate(
-                "Source/evidence: Seed dataset + community validation pipeline. Admin review required before promotion to official records."
+          )}
+
+          {storyContent ? (
+            <p className="whitespace-pre-line text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
+              {storyContent}
+            </p>
+          ) : (
+            <p className="text-[0.95rem] leading-7 soft-text md:text-base md:leading-8">
+              {translate("No editorial story content yet.")}
+            </p>
+          )}
+
+          {sourceText ? (
+            <p className="border-t border-[rgb(var(--muted)/0.4)] pt-3 text-xs soft-text md:pt-4 md:text-sm">
+              {translate("Source")}:{" "}
+              {storySourceUrl ? (
+                <a
+                  href={storySourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 hover:text-[rgb(var(--text))]"
+                >
+                  {storySourceLabel || storySourceUrl}
+                </a>
+              ) : (
+                storySourceLabel
               )}
-            </div>
-          </>
-        )}
-      </Card>
-    </div>
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <>
+          <p className="mt-4 text-[0.95rem] leading-7 soft-text md:mt-6 md:text-base md:leading-8">
+            {translate("No editorial story yet.")}
+          </p>
+          <div className="mt-4 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text md:mt-5 md:p-4 md:text-sm">
+            {translate(
+              "Source/evidence: Seed dataset + community validation pipeline. Admin review required before promotion to official records."
+            )}
+          </div>
+        </>
+      )}
+    </Card>
   );
 }
 
-function ReviewsSlide({ bloggerReviews, active }: Props & { active: boolean }) {
-  // No data-detail-scroll-container here: the gallery is fixed-height and fits,
-  // so the deck's wheel/swipe nav stays free to flip past this slide.
+function CommentsSection({ shoe, specStars, isLoggedIn }: Props) {
   return (
-    <div className={`h-full ${slideEntranceClass(active)}`}>
-      <BloggerReviewsSlideBody reviews={bloggerReviews} />
+    <div className="mx-auto w-full max-w-3xl">
+      <CommentSection
+        shoeId={shoe.id}
+        specStars={specStars}
+        initialMyDimRatings={shoe.myDimRatings ?? null}
+        isLoggedIn={isLoggedIn}
+      />
     </div>
   );
 }
 
-function CommentsSlide({ shoe, specStars, isLoggedIn, active }: Props & { active: boolean }) {
-  return (
-    <div className={`flex h-full flex-col py-8 ${slideEntranceClass(active)}`}>
-      <div data-detail-scroll-container className="h-full overflow-y-auto pr-2">
-        <CommentSection
-          shoeId={shoe.id}
-          specStars={specStars}
-          initialMyDimRatings={shoe.myDimRatings ?? null}
-          isLoggedIn={isLoggedIn}
-        />
-      </div>
-    </div>
-  );
-}
-
-function RelatedSlide({ related, active }: Props & { active: boolean }) {
+function RelatedSection({ related }: Props) {
   const { translate } = useLocale();
   return (
-    <div className={`flex h-full flex-col justify-center py-10 ${slideEntranceClass(active)}`}>
-      <Card className="mx-auto w-full max-w-4xl p-6 md:p-8">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-[-0.02em]">{translate("Related shoes")}</h2>
-          <Link href="/" className="inline-flex items-center gap-1 text-sm soft-text transition hover:text-[rgb(var(--text))]">
-            {translate("Back to database")} <ArrowRight className="h-3 w-3" />
-          </Link>
-        </div>
+    <Card className="mx-auto w-full max-w-4xl p-6 md:p-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold tracking-[-0.02em]">{translate("Related shoes")}</h2>
+        <Link href="/" className="inline-flex items-center gap-1 text-sm soft-text transition hover:text-[rgb(var(--text))]">
+          {translate("Back to database")} <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
 
-        <div className="mt-4 grid gap-2 md:grid-cols-3">
-          {related.map((item, i) => (
-            <Reveal key={item.id} active={active} index={i}>
-              <Link
-                href={`/shoes/${item.slug}`}
-                data-field-key="shoe_name"
-                className="block rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
-              >
-                {item.shoe_name}
-              </Link>
-            </Reveal>
-          ))}
-        </div>
-      </Card>
-    </div>
+      <div className="mt-4 grid gap-2 md:grid-cols-3">
+        {related.map((item, i) => (
+          <Reveal key={item.id} index={i}>
+            <Link
+              href={`/shoes/${item.slug}`}
+              data-field-key="shoe_name"
+              className="block rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
+            >
+              {item.shoe_name}
+            </Link>
+          </Reveal>
+        ))}
+      </div>
+    </Card>
   );
 }

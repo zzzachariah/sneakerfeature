@@ -1,4 +1,4 @@
-import { HomeSlides } from "@/components/home/home-slides";
+import { HomeView } from "@/components/home/home-view";
 import { getForYouData } from "@/lib/personalize/for-you-data";
 import { getShoes } from "@/lib/data/shoes";
 import type { Metadata } from "next";
@@ -51,7 +51,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           }),
         }}
       />
-      <HomeSlides
+      <HomeView
         shoes={shoes}
         shoesCount={shoes.length}
         brandsCount={brands}

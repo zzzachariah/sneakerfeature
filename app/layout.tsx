@@ -4,6 +4,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { NavScrollIndicatorProvider } from "@/components/layout/nav-scroll-indicator";
 import {
   CookieConsentProvider,
   CookieBanner,
@@ -66,12 +67,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <RatingFocusProvider>
                 <PersonaProvider>
                   <TutorialProvider>
-                    <div className="relative flex min-h-[100dvh] flex-col">
-                      <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
-                      <Navbar />
-                      <div className="flex-1">{children}</div>
-                      <MobileBottomNav />
-                    </div>
+                    <NavScrollIndicatorProvider>
+                      <div className="relative flex min-h-[100dvh] flex-col">
+                        <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
+                        <Navbar />
+                        <div className="flex-1">{children}</div>
+                        <MobileBottomNav />
+                      </div>
+                    </NavScrollIndicatorProvider>
                     <TutorialOverlay />
                     <PushRegistration />
                   </TutorialProvider>

@@ -19,7 +19,9 @@ const TABS: Tab[] = [
     href: "/",
     label: "Home",
     icon: Home,
-    match: (p) => p === "/" || p.startsWith("/shoes") || p.startsWith("/search"),
+    // Note: shoe detail (/shoes/*) intentionally matches no tab, so the bottom
+    // nav shows no active tab there.
+    match: (p) => p === "/" || p.startsWith("/search"),
   },
   {
     href: "/compare",
@@ -69,7 +71,9 @@ export function MobileBottomNav() {
 
   const [animateIdx, setAnimateIdx] = useState(activeIdx);
   useEffect(() => {
-    if (activeIdx >= 0) setAnimateIdx(activeIdx);
+    // Track activeIdx even when it's -1 (no tab) so the indicator pill hides on
+    // pages that aren't one of the tabs (e.g. a shoe detail page).
+    setAnimateIdx(activeIdx);
   }, [activeIdx]);
 
   return (

@@ -279,7 +279,7 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
     }
   }
 
-  return rows.map((row, idx) => {
+  const built = rows.map((row, idx) => {
     const agg = aggregates.get(row.id);
     const userRatingCount = agg?.count ?? 0;
     return {
@@ -293,11 +293,28 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
       myDimRatings: myDimRatings.get(row.id) ?? null
     };
   });
+
+  // Guarantee every shoe has a unique, non-empty slug. Legacy/seeded rows can
+  // carry an empty slug (a fully non-Latin name slugifies to "") or a duplicate
+  // one; since getShoeBySlug() resolves by first match, those collisions make
+  // several different shoes — and every link pointing at them — open the SAME
+  // wrong shoe. Fall back to the row id, which is always unique.
+  const seenSlugs = new Set<string>();
+  for (const shoe of built) {
+    let s = (shoe.slug ?? "").trim();
+    if (!s || seenSlugs.has(s)) s = shoe.id;
+    shoe.slug = s;
+    seenSlugs.add(s);
+  }
+
+  return built;
 });
 
 export async function getShoeBySlug(slug: string): Promise<Shoe | null> {
   const shoes = await getShoes();
-  return shoes.find((s) => s.slug === slug) ?? null;
+  // Resolve by slug first, then fall back to id so id-based links keep working
+  // for any shoe whose slug had to be repaired above.
+  return shoes.find((s) => s.slug === slug) ?? shoes.find((s) => s.id === slug) ?? null;
 }
 
 export async function getShoeImageState(shoeId: string, includePending: boolean): Promise<ShoeImageState> {
