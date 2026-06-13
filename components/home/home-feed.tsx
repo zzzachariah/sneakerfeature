@@ -128,7 +128,7 @@ export function HomeFeed({
         <div
           className={`${
             pageScroll ? "sticky top-[var(--top-nav-h)] z-30" : "sticky top-0 z-10"
-          } -mx-3 mb-3 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.92)] px-3 py-2 backdrop-blur-md`}
+          } -mx-3 mb-3 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.66)] px-3 py-2 backdrop-blur-[18px] backdrop-saturate-[180%]`}
           style={revealStyle(0)}
         >
         <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end">

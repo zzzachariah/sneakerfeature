@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, ImageDown, X } from "lucide-react";
+import { Download, Share2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/components/card/card-frame";
@@ -104,29 +104,36 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
     return safeFilename(["sneakerfeature", "compare", ...mode.shoes.map((s) => s.slug)]);
   }, [mode]);
 
-  // Whether the OS share sheet (which exposes "Save Image"/"Add to Photos") is
-  // available — true inside the native app, and on mobile web that supports
-  // Web Share with files. Probed with a tiny placeholder PNG file.
-  const [canSaveToAlbum, setCanSaveToAlbum] = useState(false);
+  // Whether the OS share sheet is available — true inside the native app, and on
+  // mobile web that supports Web Share with files. Probed with a tiny PNG file.
+  const [canShare, setCanShare] = useState(false);
   useEffect(() => {
     if (!open) return;
     const probe = new File([new Uint8Array(1)], "probe.png", { type: "image/png" });
-    setCanSaveToAlbum(isNativeApp() || canShareFiles([probe]));
+    setCanShare(isNativeApp() || canShareFiles([probe]));
   }, [open]);
 
-  // Save to the photo album via the OS share sheet on native / capable mobile
-  // web; otherwise fall back to a plain PNG download.
-  async function handleSave() {
+  // Open the OS share sheet with the rendered card (+ a link to the page) on
+  // native / capable mobile web; fall back to a plain PNG download on desktop.
+  async function handleShare() {
     const node = cardRef.current;
-    if (!node) return;
+    if (!node || !mode) return;
     setBusy(true);
     setError(null);
     try {
       const blob = await captureCardToBlob(node);
       const file = new File([blob], filename, { type: "image/png" });
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const url =
+        mode.kind === "single"
+          ? `${origin}/shoes/${mode.shoe.slug}`
+          : mode.kind === "compare"
+            ? `${origin}/compare?ids=${mode.shoes.map((s) => s.id).join(",")}`
+            : origin;
       const shared = await shareFiles([file], {
         title: translate("Share card"),
-        text: translate("Everything u need to know for sneakers")
+        text: translate("Everything u need to know for sneakers"),
+        url: url || undefined
       });
       // Desktop web (no file-share support) — keep the original download flow.
       if (!shared) triggerDownload(blob, filename);
@@ -159,7 +166,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           key="dialog"
           role="dialog"
           aria-modal
-          className="surface-card premium-border relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
+          className="liquid-glass-strong relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl"
           style={{ maxHeight: "calc(100dvh - 24px)" }}
           initial={{ y: 18, opacity: 0, scale: 0.985 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -253,15 +260,15 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
               </button>
               <button
                 type="button"
-                onClick={handleSave}
+                onClick={handleShare}
                 disabled={busy}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--bg))] transition hover:shadow-[0_8px_24px_rgb(var(--shadow)/0.3)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {canSaveToAlbum ? <ImageDown className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                {canShare ? <Share2 className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
                 {busy
                   ? translate("Rendering...")
-                  : canSaveToAlbum
-                    ? translate("Save to album")
+                  : canShare
+                    ? translate("Share")
                     : translate("Download PNG")}
               </button>
             </div>

@@ -117,7 +117,7 @@ export function NavScrollIndicator() {
   };
 
   return (
-    <div className="pointer-events-auto inline-flex max-w-[52vw] items-center gap-2 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg-elev)/0.5)] px-2.5 py-1 shadow-[0_2px_10px_rgb(var(--shadow)/0.12)] backdrop-blur-[14px]">
+    <div className="liquid-glass pointer-events-auto inline-flex max-w-[52vw] items-center gap-2 rounded-full px-2.5 py-1">
       <div className="flex shrink-0 items-center gap-1.5">
         {sections.map((s, i) => {
           const active = i === activeIndex;

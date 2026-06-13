@@ -815,6 +815,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "browse shoes": "去浏览球鞋",
   "continue browsing": "继续浏览",
   "popular this week": "本周热门",
+  "share": "分享",
   "show history": "查看历史",
   "collapse": "收起",
   "previous page": "上一页",

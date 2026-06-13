@@ -79,7 +79,7 @@ export function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary mobile navigation"
-      className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg)/0.86)] backdrop-blur-[18px] backdrop-saturate-[180%]"
+      className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg)/0.68)] shadow-[inset_0_1px_0_rgb(var(--glass-highlight)/0.35)] backdrop-blur-[22px] backdrop-saturate-[180%]"
       data-no-translate="true"
     >
       <ul
