@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { ChevronDown, SearchX, X } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,14 @@ export function HomeFeed({
   shoes,
   initialQuery = "",
   active = true,
-  scrollContainerAttr = false
+  scrollContainerAttr = false,
+  scrollHeader
 }: {
   shoes: Shoe[];
   initialQuery?: string;
   active?: boolean;
   scrollContainerAttr?: boolean;
+  scrollHeader?: ReactNode;
 }) {
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
@@ -245,6 +247,7 @@ export function HomeFeed({
           className="h-full overflow-auto p-3"
           {...(scrollContainerAttr ? { "data-home-scroll-container": "true" } : {})}
         >
+          {scrollHeader}
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center soft-text">
               <SearchX className="h-5 w-5" />

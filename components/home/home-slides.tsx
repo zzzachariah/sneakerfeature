@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { useSlideSwipe } from "@/components/motion/use-slide-swipe";
-import { HomeHero } from "@/components/home/home-hero";
 import { HomeFeed } from "@/components/home/home-feed";
+import { HomeFeedHeader } from "@/components/home/home-feed-header";
 import { HomeModeProvider } from "@/components/home/home-mode-context";
+import { ForYouView } from "@/components/personalize/for-you-view";
+import type { ForYouData } from "@/lib/personalize/for-you-data";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { Shoe } from "@/lib/types";
@@ -31,9 +33,10 @@ type Props = {
   shoesCount: number;
   brandsCount: number;
   initialQuery: string;
+  forYou: ForYouData;
 };
 
-export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Props) {
+export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery, forYou }: Props) {
   const { translate } = useLocale();
   const { persona } = usePersona();
   const TOTAL = 2;
@@ -124,7 +127,7 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
     return () => window.removeEventListener("tutorial:goto-slide", onTutorialGoto as EventListener);
   }, [goTo]);
 
-  const labels = [translate("Home"), translate("Recommendations")];
+  const labels = [translate("For You"), translate("Sneaker Database")];
 
   const slideHeight = "calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px))";
 
@@ -150,12 +153,8 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
           className="shrink-0 overflow-hidden"
           style={{ height: slideHeight }}
         >
-          <div className="container-shell h-full">
-            <HomeHero
-              shoesCount={shoesCount}
-              brandsCount={brandsCount}
-              active={slide === 0}
-            />
+          <div className="h-full overflow-y-auto overscroll-contain" data-home-scroll-container>
+            <ForYouView {...forYou} />
           </div>
         </div>
         <div
@@ -168,6 +167,7 @@ export function HomeSlides({ shoes, shoesCount, brandsCount, initialQuery }: Pro
               initialQuery={initialQuery}
               active={slide === 1}
               scrollContainerAttr
+              scrollHeader={<HomeFeedHeader shoesCount={shoesCount} brandsCount={brandsCount} />}
             />
           </div>
         </div>

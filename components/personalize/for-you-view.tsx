@@ -14,6 +14,8 @@ import {
   Crown
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePersona } from "@/components/preferences/persona-provider";
+import { PersonaAvatar } from "@/components/home/persona-avatar";
 import { haptics } from "@/lib/native/haptics";
 import type { DigestCompareShoe, DigestRecommendation } from "@/lib/personalize/digest";
 
@@ -50,6 +52,16 @@ const POSITION_EN: Record<string, string> = {
 
 export function ForYouView({ signedIn, username, personaPosition, digest, recentShoes, popular }: Props) {
   const { locale, translate, getRankLabel } = useLocale();
+  const { persona, isLoggedIn, openModal } = usePersona();
+
+  function handleAvatarClick() {
+    haptics.tap();
+    if (!isLoggedIn) {
+      window.location.href = "/login";
+      return;
+    }
+    openModal();
+  }
 
   const compareShoes = (digest?.compare_shoes as DigestCompareShoe[] | null) ?? [];
   const recommendations = (digest?.recommendations as DigestRecommendation[] | null) ?? [];
@@ -85,26 +97,31 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       : null;
 
   return (
-    <motion.main
+    <motion.div
       variants={container}
       initial="hidden"
       animate="show"
       className="mx-auto w-full max-w-3xl px-5 py-8 sm:py-12"
     >
-      {/* 1. Greeting */}
-      <motion.header variants={item}>
-        <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
-          <Sparkles className="h-5 w-5" />
-          <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
+      {/* 1. Greeting + player avatar */}
+      <motion.header variants={item} className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
+            <Sparkles className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
+          </div>
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            {greetWord}
+            {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
+          </h1>
+          <p className="mt-1 text-sm soft-text">
+            {dateStr}
+            {insight ? ` · ${insight}` : ""}
+          </p>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-          {greetWord}
-          {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
-        </h1>
-        <p className="mt-1 text-sm soft-text">
-          {dateStr}
-          {insight ? ` · ${insight}` : ""}
-        </p>
+        <div className="w-16 shrink-0 sm:w-20">
+          <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" />
+        </div>
       </motion.header>
 
       {/* Signed-out / empty: start-browsing guide (popular still shows below) */}
@@ -211,7 +228,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
           </div>
         </motion.section>
       ) : null}
-    </motion.main>
+    </motion.div>
   );
 }
 
@@ -238,10 +255,25 @@ function TapLink({ href, className, children }: { href: string; className?: stri
   );
 }
 
-function ShoeThumb({ shoe, className }: { shoe: ForYouShoe; className?: string }) {
+function ShoeThumb({
+  shoe,
+  className,
+  fit = "cover"
+}: {
+  shoe: ForYouShoe;
+  className?: string;
+  fit?: "cover" | "contain";
+}) {
   if (shoe.image) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={shoe.image} alt={shoe.name} loading="lazy" className={`object-cover ${className ?? ""}`} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={shoe.image}
+        alt={shoe.name}
+        loading="lazy"
+        className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className ?? ""}`}
+      />
+    );
   }
   return (
     <div className={`flex items-center justify-center bg-[rgb(var(--muted)/0.3)] ${className ?? ""}`}>
@@ -255,16 +287,17 @@ function PodiumItem({ shoe, rank, rankLabel }: { shoe: ForYouShoe; rank: 1 | 2 |
   const medal = rank === 1 ? "text-amber-400" : rank === 2 ? "text-slate-300" : "text-amber-700";
   return (
     <TapLink href={`/shoes/${shoe.slug}`} className="block">
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-1.5">
+        {/* Crown sits ABOVE the image; the fixed-height slot keeps all 3 aligned. */}
+        <div className="flex h-5 items-end justify-center">
+          {rank === 1 ? <Crown className="h-5 w-5 text-amber-400" /> : null}
+        </div>
         <div
-          className={`relative w-full overflow-hidden rounded-2xl border ${
-            tall
-              ? "border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.08)]"
-              : "border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)]"
+          className={`w-full overflow-hidden rounded-2xl border bg-[rgb(var(--bg-elev)/0.5)] ${
+            tall ? "border-[rgb(var(--accent)/0.55)]" : "border-[rgb(var(--muted)/0.45)]"
           }`}
         >
-          {rank === 1 ? <Crown className="absolute left-1/2 top-1 z-10 h-4 w-4 -translate-x-1/2 text-amber-400" /> : null}
-          <ShoeThumb shoe={shoe} className={tall ? "h-28 w-full" : "h-20 w-full"} />
+          <ShoeThumb shoe={shoe} fit="contain" className={tall ? "h-28 w-full" : "h-24 w-full"} />
         </div>
         <span className={`inline-flex items-center gap-1 text-xs font-bold ${medal}`}>
           <Trophy className="h-3 w-3" /> {rankLabel}

@@ -799,6 +799,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
     "每周根据你的浏览推送球鞋对比和精选推荐。",
 
   // For You — weekly personalized digest page
+  "for you": "为你推荐",
   "your weekly picks": "本周为你推荐",
   "we refresh these every monday based on what you browse.": "每周一根据你的浏览为你刷新。",
   "a comparison for you": "为你挑的对比",
