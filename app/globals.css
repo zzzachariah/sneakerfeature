@@ -179,10 +179,30 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* The brand logo art is black; invert it on the dark theme so it stays
-   visible against the dark navbar. */
-:root:not(.light) .nav-logo {
-  filter: invert(1);
+/* The brand logo art is black on transparent; it sits on a white chip (see the
+   navbar) so it reads on both themes. */
+
+/* Liquid-glass surfaces — translucent + blurred + saturated, with a soft stroke
+   and a subtle top highlight. Applied consistently across the app chrome
+   (navbar indicator, bottom nav, search bar, dropdowns, modals) so the glass
+   treatment stops feeling partial / abrupt. */
+.liquid-glass {
+  background: rgb(var(--bg-elev) / 0.6);
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  backdrop-filter: saturate(180%) blur(18px);
+  box-shadow:
+    0 10px 30px rgb(var(--glass-shadow) / 0.18),
+    inset 0 1px 0 rgb(var(--glass-highlight) / 0.4);
+}
+.liquid-glass-strong {
+  background: rgb(var(--bg-elev) / 0.82);
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  backdrop-filter: saturate(180%) blur(22px);
+  box-shadow:
+    0 24px 60px rgb(var(--glass-shadow) / 0.4),
+    inset 0 1px 0 rgb(var(--glass-highlight) / 0.45);
 }
 
 /* Touch-friendly tap target. Use on icon buttons that need ≥40-44px hit area
@@ -204,14 +224,17 @@ body {
 }
 
 .nav-dropdown-panel {
-  background: rgb(var(--bg-elev) / 0.98);
+  background: rgb(var(--bg-elev) / 0.82);
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
-  box-shadow: 0 16px 32px rgb(var(--glass-shadow) / 0.2);
+  box-shadow:
+    0 16px 32px rgb(var(--glass-shadow) / 0.2),
+    inset 0 1px 0 rgb(var(--glass-highlight) / 0.4);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
 }
 
 .dark .nav-dropdown-panel {
-  background: rgb(20 20 23 / 0.96);
+  background: rgb(20 20 23 / 0.8);
 }
 
 .premium-border {

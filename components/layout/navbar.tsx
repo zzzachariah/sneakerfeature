@@ -113,7 +113,11 @@ export function Navbar() {
           className="inline-flex items-center transition-opacity hover:opacity-80"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="sneakerfeature" className="nav-logo h-7 w-7 rounded-md" />
+          <img
+            src="/logo.png"
+            alt="sneakerfeature"
+            className="h-7 w-7 rounded-md border border-black/5 bg-white object-contain p-0.5"
+          />
         </Link>
 
         <nav

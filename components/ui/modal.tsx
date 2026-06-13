@@ -43,7 +43,7 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
-            className="surface-card liquid-interactive premium-border flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
+            className="liquid-glass-strong liquid-interactive flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl"
             initial={{ y: 16, opacity: 0, scale: 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 8, opacity: 0, scale: 0.985 }}
