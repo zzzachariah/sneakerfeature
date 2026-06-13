@@ -87,6 +87,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "compare now": "立即对比",
   "advanced search": "高级搜索",
   "language": "语言",
+  "menu": "菜单",
   "toggle mobile menu": "切换移动端菜单",
   "close mobile navigation": "关闭移动端导航",
   "contact": "联系",
