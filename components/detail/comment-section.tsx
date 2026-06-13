@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn } from "lucide-react";
+import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn, MoreHorizontal, Flag, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { TurnstileWidget } from "@/components/ui/turnstile";
@@ -45,6 +45,8 @@ export function CommentSection({
   const [loading, setLoading] = useState(true);
   const [posting, setPosting] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [reportOpenId, setReportOpenId] = useState<string | null>(null);
 
   const focusReady = typeof specStars === "number";
   const ratingLoggedIn = isLoggedIn ?? Boolean(userId);
@@ -123,6 +125,32 @@ export function CommentSection({
     if (data.ok) await loadComments();
   }
 
+  async function reportComment(commentId: string, reason: "spam" | "harassment" | "inappropriate" | "other") {
+    setMenuOpenId(null);
+    setReportOpenId(null);
+    const response = await fetch("/api/comments/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId, reason })
+    });
+    const data = await response.json();
+    setIsError(!data.ok);
+    setMessage(data.message ?? translate(data.ok ? "Report submitted" : "Failed"));
+  }
+
+  async function blockUser(targetUserId: string) {
+    setMenuOpenId(null);
+    const response = await fetch("/api/blocks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: targetUserId, action: "block" })
+    });
+    const data = await response.json();
+    setIsError(!data.ok);
+    setMessage(data.message ?? translate(data.ok ? "User blocked" : "Failed"));
+    if (data.ok) await loadComments();
+  }
+
   return (
     <section className="space-y-4">
     {focusReady ? (
@@ -163,6 +191,13 @@ export function CommentSection({
             <p className="text-xs soft-text">{translate("Keep it constructive and specific to on-court experience.")}</p>
           </div>
           {message && <FeedbackMessage message={message} isError={isError} />}
+          <p className="text-[11px] leading-5 soft-text">
+            {translate("By posting, you agree to our")}{" "}
+            <Link href="/terms" className="underline transition hover:text-[rgb(var(--accent))]">
+              {translate("Terms")}
+            </Link>
+            {translate(". There is zero tolerance for objectionable content or abusive users; reported content is reviewed within 24 hours.")}
+          </p>
         </div>
       </aside>
 
@@ -196,11 +231,58 @@ export function CommentSection({
                     <p className="text-sm font-medium">{comment.username}</p>
                     <p className="text-xs soft-text">{new Date(comment.createdAt).toLocaleString()}</p>
                   </div>
-                  {isOwn && (
+                  {isOwn ? (
                     <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2 py-1 text-xs soft-text transition hover:border-red-300" onClick={() => deleteComment(comment.id)} aria-label={translate("Delete my comment")}>
                       <Trash2 className="h-3.5 w-3.5" /> {translate("Delete")}
                     </button>
-                  )}
+                  ) : userId ? (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        className="inline-flex items-center rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 text-xs soft-text transition hover:border-[rgb(var(--ring)/0.45)]"
+                        onClick={() => {
+                          setMenuOpenId(menuOpenId === comment.id ? null : comment.id);
+                          setReportOpenId(null);
+                        }}
+                        aria-label={translate("More")}
+                      >
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+                      {menuOpenId === comment.id && (
+                        <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev))] p-1 shadow-lg">
+                          {reportOpenId === comment.id ? (
+                            (["spam", "harassment", "inappropriate", "other"] as const).map((reason) => (
+                              <button
+                                key={reason}
+                                type="button"
+                                className="block w-full rounded-lg px-3 py-1.5 text-left text-xs capitalize transition hover:bg-[rgb(var(--muted)/0.3)]"
+                                onClick={() => reportComment(comment.id, reason)}
+                              >
+                                {translate(reason)}
+                              </button>
+                            ))
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs transition hover:bg-[rgb(var(--muted)/0.3)]"
+                                onClick={() => setReportOpenId(comment.id)}
+                              >
+                                <Flag className="h-3.5 w-3.5" /> {translate("Report comment")}
+                              </button>
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-rose-400 transition hover:bg-rose-400/10"
+                                onClick={() => blockUser(comment.userId)}
+                              >
+                                <Ban className="h-3.5 w-3.5" /> {translate("Block user")}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
 
                 <p className="mt-2 text-sm leading-6">{comment.content}</p>

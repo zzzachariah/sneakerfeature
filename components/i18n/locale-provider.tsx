@@ -790,7 +790,21 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "coming soon to the app store": "即将上线 App Store",
   "ios build is on the way. in the meantime, use the web version.":
     "iOS 版正在路上。在此期间，可使用网页版。",
-  "continue on web": "继续用网页版"
+  "continue on web": "继续用网页版",
+
+  // UGC moderation — report / block (App Store 1.2)
+  "report comment": "举报评论",
+  "block user": "屏蔽用户",
+  "report submitted": "举报已提交",
+  "user blocked": "已屏蔽该用户",
+  "spam": "垃圾信息",
+  "harassment": "骚扰",
+  "inappropriate": "不当内容",
+  "other": "其他",
+  "terms": "条款",
+  "by posting, you agree to our": "发布即表示你同意我们的",
+  ". there is zero tolerance for objectionable content or abusive users; reported content is reviewed within 24 hours.":
+    "。我们对不当内容和滥用行为零容忍；被举报的内容将在 24 小时内审核处理。"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {
