@@ -809,6 +809,10 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "sign in to see your weekly picks.": "登录后查看你的每周推荐。",
   "browse a few shoes and your weekly picks will appear here.": "多浏览几双鞋，你的每周推荐就会出现在这里。",
   "browse shoes": "去浏览球鞋",
+  "continue browsing": "继续浏览",
+  "popular this week": "本周热门",
+  "sign in and browse a few shoes to unlock personalized weekly picks.":
+    "登录并浏览几双鞋，解锁你的每周个性化推荐。",
 
   // UGC moderation — report / block (App Store 1.2)
   "report comment": "举报评论",
