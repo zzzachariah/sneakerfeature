@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ChevronLeft } from "lucide-react";
 import { ShoeDetailSlides } from "@/components/detail/shoe-detail-slides";
 import { type RadarAxis } from "@/components/detail/performance-radar";
 import { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
@@ -233,6 +234,21 @@ export function ShoeDetailClient({
 
   return (
     <main className="relative">
+      {/* Back button — sits at the top-left, just under the navbar logo, and
+          returns to the previous screen (falls back to home on direct entry). */}
+      <button
+        type="button"
+        onClick={() => {
+          if (typeof window !== "undefined" && window.history.length > 1) router.back();
+          else router.push("/");
+        }}
+        aria-label={translate("Back")}
+        className="liquid-glass fixed left-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:text-[rgb(var(--text))] active:scale-95"
+        style={{ top: "calc(var(--top-nav-h) + 8px)" }}
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+
       {!isLoggedIn ? (
         <div className="pointer-events-none fixed right-5 top-[84px] z-30 max-w-[min(22rem,calc(100vw-40px))]">
           <div className="pointer-events-auto rounded-2xl border border-red-500/50 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-200 shadow-[0_10px_32px_rgb(var(--shadow)/0.25)] backdrop-blur-[10px]">
