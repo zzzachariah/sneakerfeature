@@ -266,6 +266,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "everything u need to know for sneakers": "球鞋情报，一网打尽",
   "rendering...": "生成中…",
   "download png": "下载 PNG",
+  "save to album": "保存到相册",
   "3:4 ratio · 1080 × 1440 captured at 3x for retina sharpness.":
     "3:4 比例 · 1080 × 1440，按 3x 输出更清晰",
   "head to head": "正面对决",

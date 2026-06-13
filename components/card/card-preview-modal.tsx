@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, X } from "lucide-react";
+import { Download, ImageDown, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/components/card/card-frame";
@@ -12,6 +12,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import type { RadarAxis } from "@/components/detail/performance-radar";
 import { captureCardToBlob, safeFilename, triggerDownload } from "@/lib/card/capture";
+import { canShareFiles, isNativeApp, shareFiles } from "@/lib/native/native";
 import type { RecommendationItem } from "@/lib/ai/types";
 import type { Shoe } from "@/lib/types";
 
@@ -103,14 +104,32 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
     return safeFilename(["sneakerfeature", "compare", ...mode.shoes.map((s) => s.slug)]);
   }, [mode]);
 
-  async function handleDownload() {
+  // Whether the OS share sheet (which exposes "Save Image"/"Add to Photos") is
+  // available — true inside the native app, and on mobile web that supports
+  // Web Share with files. Probed with a tiny placeholder PNG file.
+  const [canSaveToAlbum, setCanSaveToAlbum] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const probe = new File([new Uint8Array(1)], "probe.png", { type: "image/png" });
+    setCanSaveToAlbum(isNativeApp() || canShareFiles([probe]));
+  }, [open]);
+
+  // Save to the photo album via the OS share sheet on native / capable mobile
+  // web; otherwise fall back to a plain PNG download.
+  async function handleSave() {
     const node = cardRef.current;
     if (!node) return;
     setBusy(true);
     setError(null);
     try {
       const blob = await captureCardToBlob(node);
-      triggerDownload(blob, filename);
+      const file = new File([blob], filename, { type: "image/png" });
+      const shared = await shareFiles([file], {
+        title: translate("Share card"),
+        text: translate("Everything u need to know for sneakers")
+      });
+      // Desktop web (no file-share support) — keep the original download flow.
+      if (!shared) triggerDownload(blob, filename);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to render the card.");
     } finally {
@@ -150,7 +169,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 md:px-6 md:pt-5">
             <div className="min-w-0">
-              <p className="t-eyebrow">{translate("Share card")}</p>
+              <p className="t-eyebrow">{translate("Preview")}</p>
               <h2 className="mt-0.5 text-base font-semibold tracking-[-0.02em] md:text-lg">
                 {mode.kind === "single"
                   ? translate("Spec sheet")
@@ -234,12 +253,16 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
               </button>
               <button
                 type="button"
-                onClick={handleDownload}
+                onClick={handleSave}
                 disabled={busy}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--bg))] transition hover:shadow-[0_8px_24px_rgb(var(--shadow)/0.3)] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Download className="h-3.5 w-3.5" />
-                {busy ? translate("Rendering...") : translate("Download PNG")}
+                {canSaveToAlbum ? <ImageDown className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                {busy
+                  ? translate("Rendering...")
+                  : canSaveToAlbum
+                    ? translate("Save to album")
+                    : translate("Download PNG")}
               </button>
             </div>
           </div>
