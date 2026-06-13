@@ -104,22 +104,23 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       className="mx-auto w-full max-w-3xl px-5 py-8 sm:py-12"
     >
       {/* 1. Greeting + player avatar */}
-      <motion.header variants={item} className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
-            <Sparkles className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-            {greetWord}
-            {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
-          </h1>
-          <p className="mt-1 text-sm soft-text">
-            {dateStr}
-            {insight ? ` · ${insight}` : ""}
-          </p>
+      <motion.header variants={item}>
+        <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
+          <Sparkles className="h-5 w-5" />
+          <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
         </div>
-        <div className="w-16 shrink-0 sm:w-20">
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+          {greetWord}
+          {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
+        </h1>
+        <p className="mt-1 text-sm soft-text">
+          {dateStr}
+          {insight ? ` · ${insight}` : ""}
+        </p>
+        {/* Player avatar on its own full-width row (it includes a stats panel, so
+            squeezing it beside the greeting pushed it off-screen on phones). The
+            frosted-glass card is a light glassmorphism touch. */}
+        <div className="mt-4 overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg-elev)/0.45)] p-3 backdrop-blur-md">
           <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" />
         </div>
       </motion.header>

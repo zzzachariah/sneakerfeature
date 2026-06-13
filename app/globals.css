@@ -34,7 +34,7 @@
   --dur-cin: 500ms;
   /* Layout — nav heights. Top navbar is 64px everywhere.
      Bottom mobile nav appears <md only and includes safe-area inset. */
-  --top-nav-h: 64px;
+  --top-nav-h: calc(64px + env(safe-area-inset-top, 0px));
   --mobile-nav-h: 0px;
 }
 

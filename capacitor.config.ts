@@ -26,7 +26,7 @@ const config: CapacitorConfig = {
   ios: {
     appendUserAgent: USER_AGENT_SUFFIX,
     backgroundColor: "#0a0a0a",
-    contentInset: "always",
+    contentInset: "never",
   },
   android: {
     appendUserAgent: USER_AGENT_SUFFIX,
