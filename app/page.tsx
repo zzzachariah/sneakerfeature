@@ -1,4 +1,5 @@
 import { HomeSlides } from "@/components/home/home-slides";
+import { ForYouOverlay } from "@/components/home/for-you-overlay";
 import { getShoes } from "@/lib/data/shoes";
 import type { Metadata } from "next";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
@@ -55,6 +56,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         brandsCount={brands}
         initialQuery={q ?? ""}
       />
+      <ForYouOverlay />
     </main>
   );
 }

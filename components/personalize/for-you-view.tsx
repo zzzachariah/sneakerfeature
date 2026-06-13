@@ -85,7 +85,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       : null;
 
   return (
-    <motion.main
+    <motion.div
       variants={container}
       initial="hidden"
       animate="show"
@@ -211,7 +211,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
           </div>
         </motion.section>
       ) : null}
-    </motion.main>
+    </motion.div>
   );
 }
 
@@ -238,10 +238,25 @@ function TapLink({ href, className, children }: { href: string; className?: stri
   );
 }
 
-function ShoeThumb({ shoe, className }: { shoe: ForYouShoe; className?: string }) {
+function ShoeThumb({
+  shoe,
+  className,
+  fit = "cover"
+}: {
+  shoe: ForYouShoe;
+  className?: string;
+  fit?: "cover" | "contain";
+}) {
   if (shoe.image) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={shoe.image} alt={shoe.name} loading="lazy" className={`object-cover ${className ?? ""}`} />;
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={shoe.image}
+        alt={shoe.name}
+        loading="lazy"
+        className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className ?? ""}`}
+      />
+    );
   }
   return (
     <div className={`flex items-center justify-center bg-[rgb(var(--muted)/0.3)] ${className ?? ""}`}>
@@ -255,16 +270,17 @@ function PodiumItem({ shoe, rank, rankLabel }: { shoe: ForYouShoe; rank: 1 | 2 |
   const medal = rank === 1 ? "text-amber-400" : rank === 2 ? "text-slate-300" : "text-amber-700";
   return (
     <TapLink href={`/shoes/${shoe.slug}`} className="block">
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-1.5">
+        {/* Crown sits ABOVE the image; the fixed-height slot keeps all 3 aligned. */}
+        <div className="flex h-5 items-end justify-center">
+          {rank === 1 ? <Crown className="h-5 w-5 text-amber-400" /> : null}
+        </div>
         <div
-          className={`relative w-full overflow-hidden rounded-2xl border ${
-            tall
-              ? "border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.08)]"
-              : "border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)]"
+          className={`w-full overflow-hidden rounded-2xl border bg-[rgb(var(--bg-elev)/0.5)] ${
+            tall ? "border-[rgb(var(--accent)/0.55)]" : "border-[rgb(var(--muted)/0.45)]"
           }`}
         >
-          {rank === 1 ? <Crown className="absolute left-1/2 top-1 z-10 h-4 w-4 -translate-x-1/2 text-amber-400" /> : null}
-          <ShoeThumb shoe={shoe} className={tall ? "h-28 w-full" : "h-20 w-full"} />
+          <ShoeThumb shoe={shoe} fit="contain" className={tall ? "h-28 w-full" : "h-24 w-full"} />
         </div>
         <span className={`inline-flex items-center gap-1 text-xs font-bold ${medal}`}>
           <Trophy className="h-3 w-3" /> {rankLabel}
