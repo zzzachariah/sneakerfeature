@@ -199,7 +199,20 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
         </motion.section>
       ) : null}
 
-      {/* 4. Continue browsing */}
+      {/* 4. Popular — podium top 3 (moved above "Continue browsing" so it sits
+          higher up the For You face) */}
+      {popular.length >= 3 ? (
+        <motion.section variants={item} className="mt-8">
+          <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Popular this week")} />
+          <div className="mt-4 grid grid-cols-3 items-end gap-3">
+            <PodiumItem shoe={popular[1]} rank={2} rankLabel={getRankLabel(2)} />
+            <PodiumItem shoe={popular[0]} rank={1} rankLabel={getRankLabel(1)} />
+            <PodiumItem shoe={popular[2]} rank={3} rankLabel={getRankLabel(3)} />
+          </div>
+        </motion.section>
+      ) : null}
+
+      {/* 5. Continue browsing */}
       {recentShoes.length > 0 ? (
         <motion.section variants={item} className="mt-8">
           <SectionTitle icon={<History className="h-4 w-4" />} text={translate("Continue browsing")} />
@@ -214,18 +227,6 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
                 <p className="truncate px-3 py-2 text-xs font-medium">{shoe.name}</p>
               </TapLink>
             ))}
-          </div>
-        </motion.section>
-      ) : null}
-
-      {/* 5. Popular — podium top 3 */}
-      {popular.length >= 3 ? (
-        <motion.section variants={item} className="mt-8">
-          <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Popular this week")} />
-          <div className="mt-4 grid grid-cols-3 items-end gap-3">
-            <PodiumItem shoe={popular[1]} rank={2} rankLabel={getRankLabel(2)} />
-            <PodiumItem shoe={popular[0]} rank={1} rankLabel={getRankLabel(1)} />
-            <PodiumItem shoe={popular[2]} rank={3} rankLabel={getRankLabel(3)} />
           </div>
         </motion.section>
       ) : null}
