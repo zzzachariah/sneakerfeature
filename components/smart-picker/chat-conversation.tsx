@@ -17,6 +17,7 @@ type Props = {
   loadingMessages: boolean;
   sending: boolean;
   balance: number;
+  creditsLoaded: boolean;
   unlimited: boolean;
   checkin: CheckinStatus;
   chats: AiChatSummary[];
@@ -33,6 +34,7 @@ export function ChatConversation({
   loadingMessages,
   sending,
   balance,
+  creditsLoaded,
   unlimited,
   checkin,
   chats,
@@ -111,8 +113,14 @@ export function ChatConversation({
         <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
         <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
           <Wallet className="h-3.5 w-3.5" />
-          {unlimited ? "∞" : balance} {translate("credits")}
-          <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+          {creditsLoaded ? (
+            <>{unlimited ? "∞" : balance} {translate("credits")}</>
+          ) : (
+            <span aria-hidden className="inline-block h-3.5 w-12 animate-pulse rounded bg-[rgb(var(--muted)/0.5)]" />
+          )}
+          {creditsLoaded && (
+            <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+          )}
         </div>
       </div>
 
@@ -129,8 +137,14 @@ export function ChatConversation({
         </div>
         <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
           <Wallet className="h-3.5 w-3.5" />
-          {unlimited ? "∞" : balance} {translate("credits")}
-          <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+          {creditsLoaded ? (
+            <>{unlimited ? "∞" : balance} {translate("credits")}</>
+          ) : (
+            <span aria-hidden className="inline-block h-3.5 w-12 animate-pulse rounded bg-[rgb(var(--muted)/0.5)]" />
+          )}
+          {creditsLoaded && (
+            <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+          )}
         </div>
       </div>
 
