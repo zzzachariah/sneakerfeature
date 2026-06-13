@@ -29,12 +29,14 @@ export function SmartPickerClient() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Initial load: chats + balance.
+  // Note: we intentionally do NOT auto-select the most recent conversation.
+  // Entering Smart Picker always starts on a fresh, empty conversation; the
+  // user opens a past one explicitly from the history list.
   useEffect(() => {
     void (async () => {
       const [chatsRes, creditsRes] = await Promise.all([getJson("/api/ai/chats"), getJson("/api/ai/credits")]);
       if (chatsRes?.ok) {
         setChats(chatsRes.chats as AiChatSummary[]);
-        if (chatsRes.chats[0]) setActiveChatId(chatsRes.chats[0].id);
       }
       if (creditsRes?.ok) {
         setBalance(creditsRes.balance);

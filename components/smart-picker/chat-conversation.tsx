@@ -8,6 +8,7 @@ import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
+import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import type { AiChatMessage, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 
@@ -89,6 +90,13 @@ export function ChatConversation({
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 md:px-6">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
+          {/* Loading a past conversation from history — animated spinner while it fetches. */}
+          {loadingMessages && (
+            <div className="mt-16 flex justify-center" aria-live="polite" aria-busy="true">
+              <SneakerLoader label={translate("Loading...")} />
+            </div>
+          )}
+
           {isEmpty && (
             <div className="mt-10 flex flex-col items-center gap-3 text-center">
               <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)] shadow-[0_8px_24px_rgb(var(--glass-shadow)/0.18)]">
@@ -104,7 +112,7 @@ export function ChatConversation({
             </div>
           )}
 
-          {messages.map((message, idx) => {
+          {!loadingMessages && messages.map((message, idx) => {
             if (message.role === "user") {
               return (
                 <div key={message.id} className="flex justify-end">
