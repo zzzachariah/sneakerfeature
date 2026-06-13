@@ -18,12 +18,16 @@ export function HomeFeed({
   initialQuery = "",
   active = true,
   scrollContainerAttr = false,
+  pageScroll = false,
   scrollHeader
 }: {
   shoes: Shoe[];
   initialQuery?: string;
   active?: boolean;
   scrollContainerAttr?: boolean;
+  /** When true, the feed flows in the page scroll (no internal scroll area);
+      the filter bar pins under the navbar instead of the container top. */
+  pageScroll?: boolean;
   scrollHeader?: ReactNode;
 }) {
   const { translate } = useLocale();
@@ -115,14 +119,16 @@ export function HomeFeed({
   const personalizedDisabled = !persona;
 
   return (
-    <section className="flex h-full min-h-0 flex-col" data-tutorial="home-feed">
+    <section className={pageScroll ? "flex flex-col" : "flex h-full min-h-0 flex-col"} data-tutorial="home-feed">
       <div
-        className="min-h-0 flex-1 overflow-auto px-3 pb-3"
-        {...(scrollContainerAttr ? { "data-home-scroll-container": "true" } : {})}
+        className={pageScroll ? "px-3" : "min-h-0 flex-1 overflow-auto px-3 pb-3"}
+        {...(scrollContainerAttr && !pageScroll ? { "data-home-scroll-container": "true" } : {})}
       >
         {scrollHeader}
         <div
-          className="sticky top-0 z-10 -mx-3 mb-3 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.92)] px-3 py-2 backdrop-blur-md"
+          className={`${
+            pageScroll ? "sticky top-[var(--top-nav-h)] z-30" : "sticky top-0 z-10"
+          } -mx-3 mb-3 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.92)] px-3 py-2 backdrop-blur-md`}
           style={revealStyle(0)}
         >
         <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end">

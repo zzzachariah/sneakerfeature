@@ -7,6 +7,7 @@ import { Check, Gavel, HelpCircle, Languages, Menu, Search, Sparkles, User } fro
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { NavScrollIndicator } from "@/components/layout/nav-scroll-indicator";
 import { AboutModal } from "@/components/layout/about-modal";
 import { TutorialTrigger } from "@/components/tutorial/tutorial-trigger";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -34,7 +35,7 @@ export function Navbar() {
   const zh = locale === "zh";
   const { reopen: reopenCookieConsent } = useCookieConsent();
   const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
-  const { isAdmin, username } = useAuthState();
+  const { isAdmin } = useAuthState();
   const { start: startTutorial } = useTutorial();
   const [langOpen, setLangOpen] = useState(false);
   const [legalOpen, setLegalOpen] = useState(false);
@@ -146,6 +147,13 @@ export function Navbar() {
             );
           })}
         </nav>
+
+        {/* Mobile-only in-page scroll indicator — lives in the otherwise empty
+            center of the navbar on phones (continuous-scroll pages publish their
+            sections to it). */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center md:hidden">
+          <NavScrollIndicator />
+        </div>
 
         <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
           <Tooltip label={translate("Advanced Search")} className="hidden md:inline-flex">
@@ -433,11 +441,6 @@ export function Navbar() {
             )}
           </div>
 
-          {username ? (
-            <span className="max-w-[7rem] truncate text-sm font-medium text-[rgb(var(--text))] md:hidden">
-              {username}
-            </span>
-          ) : null}
           <span className="inline-flex" data-tutorial="nav-account">
             <AccountMenu />
           </span>
