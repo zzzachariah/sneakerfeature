@@ -117,12 +117,16 @@ npx cap open android
 
 | Secret | 用途 |
 |---|---|
-| `APPSTORE_ISSUER_ID` / `APPSTORE_KEY_ID` / `APPSTORE_PRIVATE_KEY` | App Store Connect API Key，CI 上传 TestFlight |
-| `IOS_DIST_CERT_P12` / `IOS_DIST_CERT_PASSWORD` | iOS 发布证书（base64 的 .p12） |
-| `IOS_PROVISIONING_PROFILE` | App Store 描述文件（base64） |
-| `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` | 安卓签名 |
+| `APPSTORE_ISSUER_ID` / `APPSTORE_KEY_ID` / `APPSTORE_PRIVATE_KEY` | App Store Connect API Key（.p8 内容），CI 上传 TestFlight |
+| `APPLE_TEAM_ID` | 你的 Apple 开发者 Team ID（10 位） |
+| `IOS_DIST_CERT_P12` / `IOS_DIST_CERT_PASSWORD` | iOS 发布证书（base64 的 .p12 + 密码） |
+| `IOS_PROVISIONING_PROFILE` / `IOS_PROVISIONING_PROFILE_NAME` | App Store 描述文件（base64）+ 它的名称 |
+| `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` | 安卓签名（keystore base64 + 密码 + 别名 + 密钥密码） |
 
-> 生成 base64：`base64 -i sneakerfeature.keystore | pbcopy`（macOS）。
+> 生成 base64：`base64 -i sneakerfeature.keystore | pbcopy`（macOS，证书 .p12 同理）。
+> 工作流文件：[`.github/workflows/mobile.yml`](./.github/workflows/mobile.yml)。推一个
+> `mobile-v0.1.0` 标签，或在 Actions 页手动运行即可触发。iOS 上传到 TestFlight，
+> 安卓签名 APK 自动挂到对应的 GitHub Release（供 `/download` 页下载）。
 
 ---
 
