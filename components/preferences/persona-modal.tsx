@@ -364,11 +364,13 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
               {translate("Primary 40% · Secondary 30% · Tertiary 20% · Others share 10%.")}
             </p>
           </div>
+        </div>
 
+        <div className="mt-3 border-t border-[rgb(var(--muted)/0.4)] pt-3">
           {localError && <FeedbackMessage message={localError} isError />}
           {message && !localError && <FeedbackMessage message={message} isError={isError} />}
 
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
             <div>
               {persona && (
                 <button
