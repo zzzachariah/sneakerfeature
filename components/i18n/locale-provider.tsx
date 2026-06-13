@@ -792,6 +792,12 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
     "iOS 版正在路上。在此期间，可使用网页版。",
   "continue on web": "继续用网页版",
 
+  // Notifications — personalized push opt-out
+  "notifications": "通知",
+  "personalized recommendations": "个性化推荐",
+  "get a weekly push with shoe comparisons and picks based on what you browse.":
+    "每周根据你的浏览推送球鞋对比和精选推荐。",
+
   // UGC moderation — report / block (App Store 1.2)
   "report comment": "举报评论",
   "block user": "屏蔽用户",
