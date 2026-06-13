@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Download, Menu, Sparkles, Wallet } from "lucide-react";
+import { ChevronDown, Download, History, Plus, Sparkles, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
@@ -9,7 +9,7 @@ import { RecommendationGroup } from "@/components/smart-picker/recommendation-gr
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
-import type { AiChatMessage, RecommendationItem } from "@/lib/ai/types";
+import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 
 type Props = {
@@ -19,10 +19,13 @@ type Props = {
   balance: number;
   unlimited: boolean;
   checkin: CheckinStatus;
+  chats: AiChatSummary[];
+  activeChatId: string | null;
   activeTitle: string | null;
   onClaimCheckin: () => Promise<void>;
   onSend: (message: string, count: number) => void;
-  onOpenSidebar: () => void;
+  onSelectChat: (id: string) => void;
+  onNewChat: () => void;
 };
 
 export function ChatConversation({
@@ -32,19 +35,42 @@ export function ChatConversation({
   balance,
   unlimited,
   checkin,
+  chats,
+  activeChatId,
   activeTitle,
   onClaimCheckin,
   onSend,
-  onOpenSidebar
+  onSelectChat,
+  onNewChat
 }: Props) {
   const { translate } = useLocale();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, sending]);
+
+  // Close the mobile history popover on outside click / Escape.
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (historyRef.current?.contains(e.target as Node)) return;
+      setHistoryOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setHistoryOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [historyOpen]);
 
   const isEmpty = !loadingMessages && messages.length === 0;
   const headerTitle = activeTitle?.trim() || translate("Smart Picker");
@@ -54,14 +80,34 @@ export function ChatConversation({
     <div className="flex h-full min-w-0 flex-1 flex-col">
       {/* Mobile header */}
       <div className="flex items-center justify-between gap-2 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-3 py-2 md:hidden">
-        <button
-          type="button"
-          onClick={onOpenSidebar}
-          aria-label={translate("Conversations")}
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-[rgb(var(--text)/0.08)]"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        {/* Conversation history — anchored dropdown popover (not a full-screen takeover). */}
+        <div ref={historyRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((prev) => !prev)}
+            aria-label={translate("Conversations")}
+            aria-haspopup="menu"
+            aria-expanded={historyOpen}
+            className="inline-flex h-9 items-center gap-1 rounded-full px-2 hover:bg-[rgb(var(--text)/0.08)]"
+          >
+            <History className="h-5 w-5" />
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+          </button>
+          {historyOpen && (
+            <ConversationHistoryPopover
+              chats={chats}
+              activeChatId={activeChatId}
+              onSelect={(id) => {
+                onSelectChat(id);
+                setHistoryOpen(false);
+              }}
+              onNewChat={() => {
+                onNewChat();
+                setHistoryOpen(false);
+              }}
+            />
+          )}
+        </div>
         <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
         <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
           <Wallet className="h-3.5 w-3.5" />
@@ -179,6 +225,89 @@ export function ChatConversation({
         onClose={() => setReport(null)}
         mode={report ? { kind: "report", requestText: report.requestText, summary: report.summary, recommendations: report.recs } : null}
       />
+    </div>
+  );
+}
+
+function historyGroupKey(iso: string): "today" | "yesterday" | "earlier" {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const t = d.getTime();
+  if (t >= startOfToday) return "today";
+  if (t >= startOfToday - 86_400_000) return "yesterday";
+  return "earlier";
+}
+
+const HISTORY_GROUP_LABEL: Record<"today" | "yesterday" | "earlier", string> = {
+  today: "Today",
+  yesterday: "Yesterday",
+  earlier: "Earlier"
+};
+
+/**
+ * Compact, anchored dropdown listing past conversations. Replaces the previous
+ * full-screen sidebar takeover on mobile — tapping the history button now opens
+ * this popover instead of covering the whole interface.
+ */
+function ConversationHistoryPopover({
+  chats,
+  activeChatId,
+  onSelect,
+  onNewChat
+}: {
+  chats: AiChatSummary[];
+  activeChatId: string | null;
+  onSelect: (id: string) => void;
+  onNewChat: () => void;
+}) {
+  const { translate } = useLocale();
+  const groups: { key: "today" | "yesterday" | "earlier"; chats: AiChatSummary[] }[] = [];
+  for (const key of ["today", "yesterday", "earlier"] as const) {
+    const list = chats.filter((c) => historyGroupKey(c.updated_at) === key);
+    if (list.length) groups.push({ key, chats: list });
+  }
+
+  return (
+    <div className="nav-dropdown-panel absolute left-0 top-[calc(100%+0.4rem)] z-50 max-h-[70vh] w-[16rem] overflow-y-auto rounded-xl p-1">
+      <button
+        type="button"
+        onClick={onNewChat}
+        className="mb-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-medium transition hover:bg-[rgb(var(--text)/0.06)]"
+      >
+        <Plus className="h-4 w-4 shrink-0" />
+        {translate("New chat")}
+      </button>
+
+      {groups.length === 0 && (
+        <p className="px-2.5 py-4 text-center text-[0.78rem] soft-text">{translate("No conversations yet.")}</p>
+      )}
+
+      {groups.map((group) => (
+        <div key={group.key} className="mb-1">
+          <p className="px-2.5 py-1 text-[0.66rem] font-semibold uppercase tracking-[0.1em] soft-text">
+            {translate(HISTORY_GROUP_LABEL[group.key])}
+          </p>
+          <ul className="space-y-0.5">
+            {group.chats.map((chat) => {
+              const active = chat.id === activeChatId;
+              return (
+                <li key={chat.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelect(chat.id)}
+                    className={`block w-full truncate rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)] ${
+                      active ? "bg-[rgb(var(--text)/0.1)] font-medium" : ""
+                    }`}
+                  >
+                    {chat.title?.trim() || translate("New conversation")}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </div>
   );
 }
