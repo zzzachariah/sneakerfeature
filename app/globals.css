@@ -179,9 +179,17 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* The brand logo art is black on transparent; invert it on the dark theme so it
-   shows as white on the dark navbar (no background chip). */
-:root:not(.light) .nav-logo {
+/* Brand logo badge — a contrasting chip behind the black logo art, so it reads
+   as a crisp badge in either theme:
+   - dark theme  → white chip, black logo (no invert)
+   - light theme → black chip, logo inverted to white */
+.nav-logo-chip {
+  background: #ffffff;
+}
+.light .nav-logo-chip {
+  background: #000000;
+}
+.light .nav-logo-img {
   filter: invert(1);
 }
 
