@@ -45,7 +45,7 @@ export function CompareRadar({ shoes, active }: Props) {
       <svg
         viewBox={`-30 -16 ${SIZE + 60} ${SIZE + 32}`}
         preserveAspectRatio="xMidYMid meet"
-        className="mx-auto block w-full max-w-[360px]"
+        className="mx-auto block w-full max-w-[260px] sm:max-w-[300px]"
         style={{ overflow: "visible" }}
       >
         {GRID_RINGS.map((ratio) => (

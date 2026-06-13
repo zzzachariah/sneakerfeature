@@ -61,7 +61,9 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: 
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <Link href={href} target="_blank" rel="noopener noreferrer" className="min-w-0">
-              <div className="truncate text-sm font-semibold tracking-[-0.01em]">{rec.shoe_name}</div>
+              <div className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-[1.25] tracking-[-0.01em]">
+                {rec.shoe_name}
+              </div>
               <div className="truncate text-[0.75rem] soft-text">
                 {rec.brand}
                 {rec.category ? <span className="opacity-60"> · {rec.category}</span> : null}
@@ -134,7 +136,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: 
         </div>
       )}
 
-      <div className="mt-2.5 flex justify-end">
+      <div className="mt-auto flex justify-end pt-2.5">
         <Link
           href={href}
           target="_blank"

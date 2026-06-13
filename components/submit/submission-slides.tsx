@@ -10,8 +10,6 @@ import { useLocale } from "@/components/i18n/locale-provider";
 
 const EASE = "cubic-bezier(0.22,1,0.36,1)";
 const SLIDE_TRANSITION_MS = 720;
-const SCROLL_DELTA_THRESHOLD = 14;
-const TOUCH_DELTA_THRESHOLD = 48;
 const TOTAL = 4;
 
 export type SubmissionSlidesHandle = {
@@ -59,16 +57,6 @@ type Props = {
   isError: boolean;
 };
 
-function trySelfScroll(el: HTMLElement | null, deltaY: number): boolean {
-  if (!el) return false;
-  if (el.scrollHeight <= el.clientHeight) return false;
-  const atTop = el.scrollTop <= 0;
-  const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-  if (deltaY > 0 && !atBottom) return true;
-  if (deltaY < 0 && !atTop) return true;
-  return false;
-}
-
 export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(function SubmissionSlides(
   { mode, targetShoeLabel, initialValues, token, onToken, isSubmitting, message, isError },
   ref
@@ -95,78 +83,10 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
 
   useImperativeHandle(ref, () => ({ goTo }), [goTo]);
 
-  // Wheel
-  useEffect(() => {
-    let lastFire = 0;
-    const onWheel = (e: WheelEvent) => {
-      const target = e.target as HTMLElement | null;
-
-      if (target?.tagName === "TEXTAREA" && trySelfScroll(target, e.deltaY)) return;
-
-      const sc = target?.closest("[data-submission-scroll-container]") as HTMLElement | null;
-      if (sc && trySelfScroll(sc, e.deltaY)) return;
-
-      const now = Date.now();
-      if (now - lastFire < 80) return;
-      if (Math.abs(e.deltaY) < SCROLL_DELTA_THRESHOLD) return;
-      e.preventDefault();
-      lastFire = now;
-      if (e.deltaY > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
-  }, [goTo]);
-
-  // Keyboard — skip when typing in form fields
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null;
-      const tag = target?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (e.key === "ArrowDown" || e.key === "PageDown") {
-        e.preventDefault();
-        goTo(slideRef.current + 1);
-      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
-        e.preventDefault();
-        goTo(slideRef.current - 1);
-      } else if (e.key === "Home") {
-        goTo(0);
-      } else if (e.key === "End") {
-        goTo(TOTAL - 1);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [goTo]);
-
-  // Touch — skip when starting on form fields
-  useEffect(() => {
-    let startY = 0;
-    let blockNav = false;
-    let scroller: HTMLElement | null = null;
-    const onStart = (e: TouchEvent) => {
-      const target = e.target as HTMLElement | null;
-      blockNav = !!target?.closest("input, textarea, select, button");
-      scroller = target?.closest("[data-submission-scroll-container]") as HTMLElement | null;
-      startY = e.touches[0]?.clientY ?? 0;
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (blockNav) return;
-      const endY = e.changedTouches[0]?.clientY ?? 0;
-      const dy = startY - endY;
-      if (Math.abs(dy) < TOUCH_DELTA_THRESHOLD) return;
-      if (scroller && trySelfScroll(scroller, dy)) return;
-      if (dy > 0) goTo(slideRef.current + 1);
-      else goTo(slideRef.current - 1);
-    };
-    window.addEventListener("touchstart", onStart, { passive: true });
-    window.addEventListener("touchend", onEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onStart);
-      window.removeEventListener("touchend", onEnd);
-    };
-  }, [goTo]);
+  // Step navigation is intentionally limited to the Next/Back buttons only.
+  // Wheel / touch-swipe / keyboard slide-navigation listeners were removed so a
+  // stray scroll or swipe can never change the step. Each step's inner
+  // `overflow-y-auto` container still scrolls its own long content normally.
 
   useBodyScrollLock();
 
@@ -191,10 +111,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
       >
         {/* Slide 0: Identity */}
         <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
-          <div
-            className="container-shell h-full overflow-y-auto py-6 md:py-10"
-            data-submission-scroll-container
-          >
+          <StepScrollArea className="container-shell h-full overflow-y-auto py-6 md:py-10">
             <div className="flex min-h-full flex-col justify-center">
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
                 <SlideHeader
@@ -216,15 +133,12 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
                 />
               </div>
             </div>
-          </div>
+          </StepScrollArea>
         </div>
 
         {/* Slide 1: Tech */}
         <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
-          <div
-            className="container-shell h-full overflow-y-auto py-6 md:py-10"
-            data-submission-scroll-container
-          >
+          <StepScrollArea className="container-shell h-full overflow-y-auto py-6 md:py-10">
             <div className="flex min-h-full flex-col justify-center">
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
                 <SlideHeader
@@ -242,15 +156,12 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
                 />
               </div>
             </div>
-          </div>
+          </StepScrollArea>
         </div>
 
         {/* Slide 2: Feel */}
         <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
-          <div
-            className="container-shell h-full overflow-y-auto py-6 md:py-10"
-            data-submission-scroll-container
-          >
+          <StepScrollArea className="container-shell h-full overflow-y-auto py-6 md:py-10">
             <div className="flex min-h-full flex-col justify-center">
               <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
                 <SlideHeader
@@ -268,16 +179,13 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
                 />
               </div>
             </div>
-          </div>
+          </StepScrollArea>
         </div>
 
         {/* Slide 3: Story + Submit */}
         <div className="shrink-0 overflow-hidden" style={{ height: slideHeight }}>
           <div className="container-shell flex h-full flex-col py-6 md:py-10">
-            <div
-              className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col gap-5 overflow-y-auto pr-1"
-              data-submission-scroll-container
-            >
+            <StepScrollArea className="mx-auto flex w-full min-h-0 max-w-3xl flex-1 flex-col gap-5 overflow-y-auto pr-1">
               <SlideHeader
                 eyebrow={translate("Step 4 of 4")}
                 title={translate("Story")}
@@ -353,7 +261,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
                   <p className="text-[11px] soft-text">{translate("Complete verification above to enable submit.")}</p>
                 )}
               </div>
-            </div>
+            </StepScrollArea>
           </div>
         </div>
       </div>
@@ -428,6 +336,64 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
     </div>
   );
 });
+
+/**
+ * Scrollable step body. Keeps its own `overflow-y-auto` so long content scrolls,
+ * and shows a bottom fade + down-chevron "more below" hint while the content
+ * overflows and is not yet scrolled to the bottom.
+ */
+function StepScrollArea({
+  className,
+  children
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [showHint, setShowHint] = useState(false);
+
+  const recompute = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const overflowing = el.scrollHeight > el.clientHeight + 1;
+    const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 2;
+    setShowHint(overflowing && !atBottom);
+  }, []);
+
+  useEffect(() => {
+    recompute();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", recompute, { passive: true });
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(recompute) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener("resize", recompute);
+    return () => {
+      el.removeEventListener("scroll", recompute);
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", recompute);
+    };
+  }, [recompute]);
+
+  return (
+    <div className="relative flex h-full min-h-0 flex-1 flex-col">
+      <div ref={scrollRef} className={className} data-submission-scroll-container>
+        {children}
+      </div>
+      {/* "more below" affordance — fade + animated down-chevron */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-2 transition-opacity duration-300"
+        style={{ opacity: showHint ? 1 : 0 }}
+      >
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[rgb(var(--bg))] to-transparent" />
+        <div className="relative flex h-7 w-7 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] text-[rgb(var(--subtext))] shadow-[0_4px_14px_rgb(var(--shadow)/0.18)] backdrop-blur-[12px]">
+          <ChevronDown className="h-4 w-4" style={{ animation: "scrollHintSubmit 1.8s ease-in-out infinite" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SlideHeader({
   eyebrow,

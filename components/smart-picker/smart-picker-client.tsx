@@ -26,15 +26,16 @@ export function SmartPickerClient() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Initial load: chats + balance.
+  // Note: we intentionally do NOT auto-select the most recent conversation.
+  // Entering Smart Picker always starts on a fresh, empty conversation; the
+  // user opens a past one explicitly from the history list.
   useEffect(() => {
     void (async () => {
       const [chatsRes, creditsRes] = await Promise.all([getJson("/api/ai/chats"), getJson("/api/ai/credits")]);
       if (chatsRes?.ok) {
         setChats(chatsRes.chats as AiChatSummary[]);
-        if (chatsRes.chats[0]) setActiveChatId(chatsRes.chats[0].id);
       }
       if (creditsRes?.ok) {
         setBalance(creditsRes.balance);
@@ -69,7 +70,6 @@ export function SmartPickerClient() {
   }, []);
 
   const handleNewChat = useCallback(async () => {
-    setSidebarOpen(false);
     const res = await getJson("/api/ai/chats", { method: "POST" });
     if (res?.ok) {
       setChats((prev) => [res.chat as AiChatSummary, ...prev]);
@@ -80,7 +80,6 @@ export function SmartPickerClient() {
 
   const handleSelect = useCallback((id: string) => {
     setActiveChatId(id);
-    setSidebarOpen(false);
   }, []);
 
   const handleRename = useCallback(async (id: string, title: string) => {
@@ -331,27 +330,6 @@ export function SmartPickerClient() {
         />
       </aside>
 
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
-          <div className="absolute inset-0 bg-[rgb(var(--glass-overlay)/0.5)]" onClick={() => setSidebarOpen(false)} />
-          <div className="absolute inset-y-0 left-0 w-72 max-w-[82%] border-r border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--bg))] shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]">
-            <ChatSidebar
-              chats={chats}
-              activeChatId={activeChatId}
-              onSelect={handleSelect}
-              onNewChat={handleNewChat}
-              onRename={handleRename}
-              onDelete={handleDelete}
-              balance={balance}
-              unlimited={unlimited}
-              checkin={checkin}
-              onClaimCheckin={handleClaimCheckin}
-              onClose={() => setSidebarOpen(false)}
-            />
-          </div>
-        </div>
-      )}
-
       <ChatConversation
         messages={messages}
         loadingMessages={loadingMessages}
@@ -359,10 +337,13 @@ export function SmartPickerClient() {
         balance={balance}
         unlimited={unlimited}
         checkin={checkin}
+        chats={chats}
+        activeChatId={activeChatId}
         activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
         onClaimCheckin={handleClaimCheckin}
         onSend={handleSend}
-        onOpenSidebar={() => setSidebarOpen(true)}
+        onSelectChat={handleSelect}
+        onNewChat={handleNewChat}
       />
     </div>
   );

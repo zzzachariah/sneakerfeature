@@ -11,6 +11,7 @@ import {
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { LanguageFirstRun } from "@/components/i18n/language-first-run";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
@@ -59,6 +60,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeInitScript />
         <CapacitorBridge />
         <LocaleProvider>
+          <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
               <RatingFocusProvider>

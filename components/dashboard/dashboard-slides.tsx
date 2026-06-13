@@ -516,7 +516,7 @@ export function DashboardSlides(props: Props) {
       {/* Right-side dot indicator — visible everywhere except xl+ (where the
           left-side text indicator takes over). */}
       <div
-        className="pointer-events-none absolute right-4 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center gap-2 xl:hidden"
+        className="pointer-events-none absolute right-2 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center gap-2 xl:hidden"
         aria-hidden
       >
         {Array.from({ length: TOTAL }).map((_, i) => (
