@@ -97,7 +97,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.55)] p-4 md:items-center"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] p-4 backdrop-blur-[6px] md:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -106,7 +106,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
           <motion.div
             role="dialog"
             aria-modal
-            className="surface-card premium-border flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
+            className="glass-strong glass-rim relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl"
             initial={{ y: 24, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 24, opacity: 0, scale: 0.98 }}

@@ -12,7 +12,7 @@ export function Dropdown({ label, options, onSelect }: { label: string; options:
         {label} <ChevronDown className="h-4 w-4" />
       </button>
       {open && (
-        <div className="surface-card liquid-interactive premium-border absolute right-0 z-20 mt-2 w-44 rounded-xl p-1 shadow-[0_12px_28px_rgb(var(--glass-shadow)/0.2)]">
+        <div className="glass glass-rim liquid-interactive absolute right-0 z-20 mt-2 w-44 rounded-xl p-1">
           {options.map((option) => (
             <button key={option} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--accent)/0.08)]" onClick={() => { onSelect(option); setOpen(false); }}>
               {option}

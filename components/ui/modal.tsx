@@ -26,7 +26,7 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.5)] p-4`}
+          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] p-4 backdrop-blur-[6px]`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -43,7 +43,7 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
-            className="liquid-glass-strong liquid-interactive flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl"
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl"
             initial={{ y: 16, opacity: 0, scale: 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 8, opacity: 0, scale: 0.985 }}

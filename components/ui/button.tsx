@@ -12,7 +12,9 @@ const buttonStyles = cva(
         secondary:
           "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))] hover:border-[rgb(var(--text)/0.4)] hover:bg-[rgb(var(--surface))] active:scale-[0.98]",
         ghost:
-          "border-transparent bg-transparent text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))] active:scale-[0.98]"
+          "border-transparent bg-transparent text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))] active:scale-[0.98]",
+        glass:
+          "glass-rim glass-interactive relative border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--glass-tint)/0.5)] text-[rgb(var(--text))] backdrop-blur-md backdrop-saturate-[180%] hover:bg-[rgb(var(--glass-tint)/0.7)] active:scale-[0.98]"
       }
     },
     defaultVariants: {
