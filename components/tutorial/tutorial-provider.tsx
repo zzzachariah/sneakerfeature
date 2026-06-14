@@ -9,7 +9,7 @@ import {
   useRef,
   useState
 } from "react";
-import { TUTORIAL_STEPS } from "@/lib/tutorial/steps";
+import { TUTORIAL_STEPS, isStepAvailable, type TutorialStep } from "@/lib/tutorial/steps";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 
 const STORAGE_KEY = "tutorial_completed_v1";
@@ -18,6 +18,7 @@ type TutorialContextValue = {
   active: boolean;
   stepIndex: number;
   totalSteps: number;
+  steps: TutorialStep[];
   start: (fromIntro?: boolean) => void;
   next: () => void;
   prev: () => void;
@@ -27,9 +28,21 @@ type TutorialContextValue = {
 
 const TutorialContext = createContext<TutorialContextValue | null>(null);
 
+// Only the steps whose target is actually present on this device/page, so the
+// tour never lands on a hidden control (e.g. desktop-only navbar icons on phones).
+function computeSteps(): TutorialStep[] {
+  const filtered = TUTORIAL_STEPS.filter(isStepAvailable);
+  return filtered.length ? filtered : TUTORIAL_STEPS;
+}
+
 export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const [active, setActive] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [steps, setSteps] = useState<TutorialStep[]>(TUTORIAL_STEPS);
+  const stepsRef = useRef(steps);
+  useEffect(() => {
+    stepsRef.current = steps;
+  }, [steps]);
 
   const { signedIn, loaded } = useAuthState();
   // Baseline captured the first time auth resolves so an already-signed-in
@@ -44,10 +57,17 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const start = useCallback(() => {
+  const begin = useCallback(() => {
+    const resolved = computeSteps();
+    stepsRef.current = resolved;
+    setSteps(resolved);
     setStepIndex(0);
     setActive(true);
   }, []);
+
+  const start = useCallback(() => {
+    begin();
+  }, [begin]);
 
   const stop = useCallback(() => {
     setActive(false);
@@ -57,7 +77,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   const next = useCallback(() => {
     setStepIndex((i) => {
       const nextIdx = i + 1;
-      if (nextIdx >= TUTORIAL_STEPS.length) {
+      if (nextIdx >= stepsRef.current.length) {
         setActive(false);
         persistDone();
         return i;
@@ -71,7 +91,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const goTo = useCallback((index: number) => {
-    if (index < 0 || index >= TUTORIAL_STEPS.length) return;
+    if (index < 0 || index >= stepsRef.current.length) return;
     setStepIndex(index);
   }, []);
 
@@ -93,8 +113,7 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       }
       if (completed) return;
       const t = window.setTimeout(() => {
-        setStepIndex(0);
-        setActive(true);
+        begin();
       }, 650);
       return () => window.clearTimeout(t);
     }
@@ -102,20 +121,21 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     if (!signedIn) {
       baselineSignedInRef.current = false;
     }
-  }, [signedIn, loaded]);
+  }, [signedIn, loaded, begin]);
 
   const value = useMemo<TutorialContextValue>(
     () => ({
       active,
       stepIndex,
-      totalSteps: TUTORIAL_STEPS.length,
+      totalSteps: steps.length,
+      steps,
       start,
       next,
       prev,
       stop,
       goTo
     }),
-    [active, stepIndex, start, next, prev, stop, goTo]
+    [active, stepIndex, steps, start, next, prev, stop, goTo]
   );
 
   return <TutorialContext.Provider value={value}>{children}</TutorialContext.Provider>;

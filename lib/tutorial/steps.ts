@@ -7,14 +7,13 @@ export type TutorialStep = {
   padding?: number;
   radius?: number;
   shape?: "rect" | "circle";
-  requiresSlide?: 0 | 1;
   requiresPath?: string;
   scrollIntoView?: boolean;
   action?: { type: "open-modal"; modalId: "persona" | "rating-focus" };
   // When true, the tour hands control to the user: the overlay drops its dimmer,
-  // click blocker, and input interception so the opened UI is fully usable.
-  // The tour advances when the user completes the action (saves), or stops if
-  // they dismiss it.
+  // click blocker, and input interception so the opened UI is fully usable. The
+  // tour advances when the user completes the action (saves), or stops if they
+  // dismiss it.
   awaitUserAction?: boolean;
 };
 
@@ -29,7 +28,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     id: "nav-links",
     selector: "[data-tutorial='nav-links']",
     title: "Primary navigation",
-    body: "Jump to Home, Compare, Submit, and your Account from here.",
+    body: "Jump to Home, Compare, Smart Picker, Submit, and your Account from here.",
     placement: "bottom",
     padding: 10
   },
@@ -61,15 +60,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     padding: 6
   },
   {
-    id: "nav-theme",
-    selector: "[data-tutorial='nav-theme']",
-    title: "Theme",
-    body: "Cycle light, dark, and system. Your choice is remembered.",
-    placement: "bottom",
-    shape: "circle",
-    padding: 6
-  },
-  {
     id: "nav-account",
     selector: "[data-tutorial='nav-account']",
     title: "Account",
@@ -79,36 +69,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     padding: 6
   },
   {
-    id: "hero",
-    selector: "[data-tutorial='hero']",
-    title: "Sneaker Database — built around you",
-    body: "Live counts and what we cover. Below the fold you'll see shoes ranked for your player profile.",
-    placement: "right",
-    padding: 14,
-    requiresSlide: 0,
-    requiresPath: "/",
-    scrollIntoView: false
-  },
-  {
-    id: "persona-avatar",
-    selector: "[data-tutorial='hero-avatar']",
-    title: "Your player avatar",
-    body: "This little figure represents you. Tap it to set your position, skill level, height and weight so we can score every shoe for you.",
-    placement: "left",
-    requiresSlide: 0,
-    requiresPath: "/",
-    padding: 12,
-    radius: 16,
-    scrollIntoView: true
-  },
-  {
     id: "persona-setup",
-    selector: "[data-tutorial='hero-avatar']",
     title: "Set up your player profile",
-    body: "Pick your position(s), skill level, whether you have flat feet, and your height & weight. Save to continue the tour, or cancel to exit.",
+    body: "Tell us your position(s), skill level, flat-feet, and height & weight so we can score every shoe for you. Tap below to open it — the tour pauses while you fill it in, then continues after you save.",
     placement: "center",
-    requiresSlide: 0,
-    requiresPath: "/",
     action: { type: "open-modal", modalId: "persona" },
     awaitUserAction: true
   },
@@ -119,7 +83,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     body: "Every shoe scored against your player profile. Tap a card to open the full spec sheet.",
     placement: "top",
     padding: 12,
-    requiresSlide: 1,
     requiresPath: "/",
     scrollIntoView: false
   },
@@ -129,7 +92,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     title: "Browse all or Personalized",
     body: "Flip between personalized recommendations and the unfiltered database any time.",
     placement: "bottom",
-    requiresSlide: 1,
     requiresPath: "/",
     padding: 8
   },
@@ -140,7 +102,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     body: "Type a model, player, or tech keyword. Filter by brand from the toolbar.",
     placement: "bottom",
     padding: 8,
-    requiresSlide: 1,
     requiresPath: "/",
     scrollIntoView: false
   },
@@ -154,3 +115,20 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     padding: 6
   }
 ];
+
+/**
+ * Whether a step can be shown right now on this device/page. Center, no-selector,
+ * and action (modal) steps are always shown. Selector steps require a target
+ * that exists AND is laid out (nonzero box) — this transparently skips controls
+ * that are `display:none` on the current breakpoint (e.g. desktop-only navbar
+ * icons hidden on phones), so the tour never lands on a dead target.
+ */
+export function isStepAvailable(step: TutorialStep): boolean {
+  if (typeof document === "undefined") return true;
+  if (!step.selector || step.placement === "center" || step.action) return true;
+  if (step.requiresPath && window.location.pathname !== step.requiresPath) return false;
+  const el = document.querySelector(step.selector) as HTMLElement | null;
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}

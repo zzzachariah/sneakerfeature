@@ -6,7 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
-import { TUTORIAL_STEPS, type TutorialStep } from "@/lib/tutorial/steps";
+import { type TutorialStep } from "@/lib/tutorial/steps";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type Rect = { x: number; y: number; w: number; h: number };
@@ -29,7 +29,7 @@ function getRect(selector: string): Rect | null {
 }
 
 export function TutorialOverlay() {
-  const { active, stepIndex, totalSteps, next, prev, stop, goTo } = useTutorial();
+  const { active, stepIndex, totalSteps, steps, next, prev, stop, goTo } = useTutorial();
   const { translate, locale, requestLocaleChange } = useLocale();
   const pathname = usePathname();
 
@@ -38,41 +38,58 @@ export function TutorialOverlay() {
   const [vh, setVh] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [missingTarget, setMissingTarget] = useState(false);
+  // True once the user confirms an await-user-action step: the whole tour UI
+  // hides so the opened modal (e.g. the player profile) is unobstructed, until
+  // they save (advance) or cancel (stop).
+  const [awaitingModal, setAwaitingModal] = useState(false);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const step: TutorialStep | undefined = TUTORIAL_STEPS[stepIndex];
+  const step: TutorialStep | undefined = steps[stepIndex];
   const isFinalStep = stepIndex === totalSteps - 1;
   const awaitUserAction = step?.awaitUserAction === true;
 
-  // Dispatch slide change when step requires it
+  // Reset the modal-handoff whenever the step changes.
   useEffect(() => {
-    if (!active || !step) return;
-    if (step.requiresSlide === undefined) return;
-    window.dispatchEvent(
-      new CustomEvent("tutorial:goto-slide", { detail: { slide: step.requiresSlide } })
-    );
-  }, [active, step]);
+    setAwaitingModal(false);
+  }, [stepIndex]);
 
-  // Dispatch modal open requests for steps with an action
+  const openActionModal = () => {
+    if (step?.action?.type === "open-modal") {
+      window.dispatchEvent(
+        new CustomEvent("tutorial:open-modal", { detail: { modalId: step.action.modalId } })
+      );
+    }
+    setAwaitingModal(true);
+  };
+
+  // Auto-open the modal for plain (non-await) action steps. await-user-action
+  // steps instead wait for the user to confirm via the card button so the tour
+  // can hide itself first (see openActionModal) — no overlap with the modal.
   useEffect(() => {
     if (!active || !step) return;
-    if (step.action?.type === "open-modal") {
+    if (step.action?.type === "open-modal" && !step.awaitUserAction) {
       window.dispatchEvent(
         new CustomEvent("tutorial:open-modal", { detail: { modalId: step.action.modalId } })
       );
     }
   }, [active, step]);
 
-  // On an await-user-action step the user drives the highlighted UI directly.
+  // On an await-user-action step the user drives the opened modal directly.
   // Saving advances the tour; dismissing without saving exits it.
   useEffect(() => {
     if (!active || !awaitUserAction) return;
-    const onComplete = () => next();
-    const onCancel = () => stop();
+    const onComplete = () => {
+      setAwaitingModal(false);
+      next();
+    };
+    const onCancel = () => {
+      setAwaitingModal(false);
+      stop();
+    };
     window.addEventListener("tutorial:user-action-complete", onComplete);
     window.addEventListener("tutorial:user-action-cancelled", onCancel);
     return () => {
@@ -188,7 +205,7 @@ export function TutorialOverlay() {
   // buttons remain tappable. Skipped on await-user-action steps so the opened
   // UI (e.g. the player-profile modal) can be scrolled and used freely.
   useEffect(() => {
-    if (!active || awaitUserAction) return;
+    if (!active || awaitingModal) return;
 
     const isInCard = (target: EventTarget | null): boolean =>
       !!(target as HTMLElement | null)?.closest?.(".tutorial-card");
@@ -240,7 +257,7 @@ export function TutorialOverlay() {
       window.removeEventListener("touchend", blockTouchEnds, true);
       window.removeEventListener("keydown", blockKeys, true);
     };
-  }, [active, awaitUserAction]);
+  }, [active, awaitingModal]);
 
   const padding = step?.padding ?? SPOTLIGHT_PAD;
   const radius = step?.radius ?? 14;
@@ -324,6 +341,9 @@ export function TutorialOverlay() {
   }, [hole, step, vw, vh, missingTarget]);
 
   if (!mounted || !active || !step) return null;
+  // While the user fills in the handed-off modal, render nothing — the listeners
+  // (set up in effects above) still catch save/cancel to resume or end the tour.
+  if (awaitingModal) return null;
 
   const showSpotlight = !!hole && !missingTarget;
 
@@ -336,7 +356,7 @@ export function TutorialOverlay() {
     <div role="dialog" aria-modal="true" aria-label={translate("Site tour")}>
       {/* Visual layer — dimmer + spotlight outline. Hidden on await-user-action
           steps so the opened UI (e.g. player-profile modal) shows without a veil. */}
-      {!awaitUserAction && (
+      {!awaitingModal && (
       <svg
         className="fixed inset-0"
         style={{
@@ -415,7 +435,7 @@ export function TutorialOverlay() {
 
       {/* Full-screen click blocker — keeps the tour from being broken by stray
           clicks. Removed on await-user-action steps so the opened UI is usable. */}
-      {!awaitUserAction && (
+      {!awaitingModal && (
         <div className="fixed inset-0" style={{ zIndex: 61, ...blockerStyle }} />
       )}
 
@@ -427,16 +447,11 @@ export function TutorialOverlay() {
         className="glass-card tutorial-card"
         style={{
           position: "fixed",
-          ...(awaitUserAction
-            ? { right: 16, bottom: 16 }
-            : { left: cardPos.left, top: cardPos.top }),
+          left: cardPos.left,
+          top: cardPos.top,
           width: CARD_W,
           maxWidth: "calc(100vw - 24px)",
           zIndex: 63,
-          // While the user drives the opened modal, the card is an informational
-          // reminder only — let every click pass through to the modal beneath so
-          // it can never cover an action button on narrow screens.
-          pointerEvents: awaitUserAction ? "none" : undefined,
           padding: "18px 18px 14px 18px",
           borderRadius: 20,
           color: "rgb(var(--text))"
@@ -523,7 +538,7 @@ export function TutorialOverlay() {
 
         <div className="mt-4 flex items-center gap-2">
           <div className="flex flex-1 items-center gap-1">
-            {TUTORIAL_STEPS.map((_, i) => (
+            {steps.map((_, i) => (
               <button
                 key={i}
                 type="button"
@@ -553,12 +568,20 @@ export function TutorialOverlay() {
           </button>
           <button
             type="button"
-            onClick={next}
+            onClick={awaitUserAction ? openActionModal : next}
             className="shimmer-on-hover relative inline-flex h-8 items-center justify-center gap-1 overflow-hidden rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold tracking-[-0.005em] text-[rgb(var(--bg))] transition-[transform,box-shadow] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-[1px] hover:shadow-[0_8px_20px_rgb(var(--shadow)/0.35)]"
           >
             <span className="relative z-10 inline-flex items-center gap-1">
-              {isFinalStep ? translate("Finish") : translate("Next")}
-              {isFinalStep ? <Check className="h-3.5 w-3.5" /> : <ArrowRight className="h-3.5 w-3.5" />}
+              {awaitUserAction
+                ? translate("Set up profile")
+                : isFinalStep
+                  ? translate("Finish")
+                  : translate("Next")}
+              {awaitUserAction || !isFinalStep ? (
+                <ArrowRight className="h-3.5 w-3.5" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
             </span>
           </button>
         </div>
