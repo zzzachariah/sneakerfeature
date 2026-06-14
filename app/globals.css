@@ -34,10 +34,10 @@
   --glass-saturate: 180%;
   --glass-brightness: 1.06;
   /* Backdrop-blur scale — single source of truth (was a dead 0px token). */
-  --glass-blur-sm: 12px;
-  --glass-blur-md: 20px;
-  --glass-blur-lg: 28px;
-  --glass-blur-xl: 36px;
+  --glass-blur-sm: 16px;
+  --glass-blur-md: 26px;
+  --glass-blur-lg: 34px;
+  --glass-blur-xl: 44px;
   /* Motion */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 120ms;
@@ -205,6 +205,34 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Navbar dropdowns / menus expand in from their top edge. */
+@keyframes navPopIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.nav-pop {
+  transform-origin: top right;
+  animation: navPopIn 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, opacity;
+}
+
+/* Route/screen transition — content fades in on navigation. Opacity only (no
+   transform) so it never breaks sticky/fixed descendants. */
+@keyframes routeEnter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.route-enter {
+  animation: routeEnter 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-pop,
+  .route-enter {
+    animation: none;
+  }
+}
+
 /* The brand logo art is black on transparent. No background square: keep it
    black on light, invert to white on dark. This MUST mirror the theme tokens
    above — invert when explicitly dark, or when following the system (no class)
@@ -237,7 +265,7 @@ body {
    carry their own positioning context (most are already positioned). */
 .glass,
 .liquid-glass {
-  background-color: rgb(var(--glass-tint) / 0.55);
+  background-color: rgb(var(--glass-tint) / 0.62);
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
   -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
@@ -276,7 +304,7 @@ body {
 /* Top navbar: near-transparent until scrolled, then a thin glass film. */
 .glass-thin,
 .glass-nav {
-  background-color: rgb(var(--glass-tint) / 0.7);
+  background-color: rgb(var(--glass-tint) / 0.74);
   -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   border-bottom: 1px solid rgb(var(--glass-stroke-soft) / 0.4);
@@ -284,7 +312,7 @@ body {
 
 /* Bottom tab bar: a thicker, more present glass slab with a lit top edge. */
 .glass-tabbar {
-  background-color: rgb(var(--glass-tint) / 0.62);
+  background-color: rgb(var(--glass-tint) / 0.7);
   -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   border-top: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
@@ -307,7 +335,7 @@ body {
      unchanged. */
   .nav-glass-pill {
     position: relative;
-    background-color: rgb(var(--glass-tint) / 0.55);
+    background-color: rgb(var(--glass-tint) / 0.62);
     border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
     -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
     backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));

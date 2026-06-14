@@ -73,7 +73,7 @@ export function MobileBottomNav() {
     <nav
       aria-label="Primary mobile navigation"
       className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-2 md:hidden"
-      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5px)" }}
       data-no-translate="true"
     >
       <ul className="glass glass-refract glass-rim pointer-events-auto relative flex h-[60px] items-center gap-0.5 rounded-full px-2">
