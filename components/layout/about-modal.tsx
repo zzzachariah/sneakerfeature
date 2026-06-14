@@ -26,7 +26,7 @@ export function AboutModal({ open, onClose }: Props) {
           onClick={onClose}
         >
           <motion.div
-            className="surface-card premium-border relative w-full max-w-2xl rounded-3xl p-5 shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)] md:p-6"
+            className="glass-strong glass-rim relative w-full max-w-2xl rounded-3xl p-5 md:p-6"
             initial={{ y: 18, opacity: 0, scale: 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 8, opacity: 0, scale: 0.985 }}

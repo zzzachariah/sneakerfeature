@@ -5,7 +5,7 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
       className={cn(
-        "surface-card liquid-interactive rounded-2xl premium-border spotlight",
+        "glass-lite glass-rim liquid-interactive relative rounded-2xl spotlight",
         className
       )}
       {...props}

@@ -243,7 +243,7 @@ export function ShoeDetailClient({
           else router.push("/");
         }}
         aria-label={translate("Back")}
-        className="liquid-glass fixed left-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:text-[rgb(var(--text))] active:scale-95"
+        className="liquid-glass glass-rim fixed left-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:text-[rgb(var(--text))] active:scale-95"
         style={{ top: "calc(var(--top-nav-h) + 8px)" }}
       >
         <ChevronLeft className="h-5 w-5" />

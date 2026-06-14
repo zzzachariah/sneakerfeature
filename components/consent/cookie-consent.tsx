@@ -95,7 +95,7 @@ export function CookieBanner() {
       className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[calc(var(--mobile-nav-h)+1rem)] pt-2 md:pb-4"
     >
       <div className="container-shell">
-        <div className="surface-card premium-border mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl p-4 shadow-[0_16px_40px_rgb(var(--glass-shadow)/0.22)] md:flex-row md:items-center md:gap-4 md:p-5">
+        <div className="glass-strong glass-rim glass-clip relative mx-auto flex max-w-3xl flex-col gap-3 rounded-2xl p-4 md:flex-row md:items-center md:gap-4 md:p-5">
           <p className="text-[0.82rem] leading-[1.6] soft-text md:flex-1">
             {zh ? (
               <>

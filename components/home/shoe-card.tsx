@@ -56,7 +56,7 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
           {compareEnabled && (
             <label
               onClick={(e) => e.stopPropagation()}
-              className="absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md bg-[rgb(var(--bg-elev)/0.9)] backdrop-blur-md"
+              className="glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md"
             >
               <input
                 type="checkbox"
@@ -94,7 +94,7 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
             setWhyOpen((v) => !v);
           }}
           aria-label={translate("Why?")}
-          className="absolute bottom-3 right-3 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgb(var(--bg-elev)/0.92)] text-[rgb(var(--text))] opacity-100 shadow backdrop-blur-md transition md:opacity-0 md:group-hover:opacity-100"
+          className="glass-lite absolute bottom-3 right-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgb(var(--text))] opacity-100 transition md:opacity-0 md:group-hover:opacity-100"
         >
           <Info className="h-3.5 w-3.5" />
         </button>
@@ -103,7 +103,7 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
       {whyOpen && hasReasons && (
         <div
           ref={popoverRef}
-          className="pop-in absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.96)] p-3 shadow-lift backdrop-blur-md"
+          className="pop-in glass glass-rim absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl p-3"
           style={{ transformOrigin: "bottom right" }}
           onClick={(e) => e.preventDefault()}
         >
