@@ -52,7 +52,9 @@
 
 @media (max-width: 767.98px) {
   :root {
-    --mobile-nav-h: calc(56px + env(safe-area-inset-bottom, 0px));
+    /* Clearance for the floating glass tab capsule (≈60px tall, 12px above the
+       safe area) so page content never ends underneath it. */
+    --mobile-nav-h: calc(88px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -287,6 +289,57 @@ body {
   backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   border-top: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
   box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.4);
+}
+
+/* Phones only: the top navbar is composed of discrete floating glass blocks
+   (logo / indicator / account / menu) rather than one full-width slab, so the
+   header bar itself stays transparent. Desktop keeps .glass-nav on scroll. */
+@media (max-width: 767.98px) {
+  .glass-nav {
+    background-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom-color: transparent;
+  }
+
+  /* A single navbar control rendered as a floating glass circle (same material
+     + lensed rim as .glass / .glass-rim). Inert on desktop, where the navbar is
+     unchanged. */
+  .nav-glass-pill {
+    position: relative;
+    background-color: rgb(var(--glass-tint) / 0.55);
+    border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    box-shadow:
+      inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
+      inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05),
+      0 12px 32px -12px rgb(var(--glass-shadow) / 0.22);
+  }
+  .nav-glass-pill::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgb(var(--glass-rim) / 0.7) 0%,
+      rgb(var(--glass-rim) / 0.12) 30%,
+      transparent 52%,
+      rgb(var(--glass-rim-shade) / 0.12) 100%
+    );
+    -webkit-mask:
+      linear-gradient(rgb(0 0 0) 0 0) content-box,
+      linear-gradient(rgb(0 0 0) 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(rgb(0 0 0) 0 0) content-box,
+      linear-gradient(rgb(0 0 0) 0 0);
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 1;
+  }
 }
 
 /* Lensed edge — a 1px gradient ring (bright top-left → shaded bottom-right).

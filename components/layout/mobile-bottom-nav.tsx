@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import { GitCompare, Home, Plus, Shield, Sparkles, UserCircle } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -69,56 +68,40 @@ export function MobileBottomNav() {
   const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
   const activeIdx = tabs.findIndex((t) => t.match(pathname));
 
-  const [animateIdx, setAnimateIdx] = useState(activeIdx);
-  useEffect(() => {
-    // Track activeIdx even when it's -1 (no tab) so the indicator pill hides on
-    // pages that aren't one of the tabs (e.g. a shoe detail page).
-    setAnimateIdx(activeIdx);
-  }, [activeIdx]);
-
   return (
+    // Full-width wrapper is click-through; only the centered capsule is interactive.
     <nav
       aria-label="Primary mobile navigation"
-      className="glass-tabbar glass-refract md:hidden fixed inset-x-0 bottom-0 z-40"
+      className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-2 md:hidden"
+      style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}
       data-no-translate="true"
     >
-      <ul
-        className="relative grid h-14"
-        style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
-      >
-        {/* Animated active indicator pill */}
-        {animateIdx >= 0 && (
-          <span
-            aria-hidden
-            className="pointer-events-none absolute top-0 h-[2px] rounded-full bg-[rgb(var(--text))] transition-[left,width] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-            style={{
-              width: `calc(100% / ${tabs.length} - 36px)`,
-              left: `calc(${animateIdx} * (100% / ${tabs.length}) + 18px)`,
-            }}
-          />
-        )}
-
+      <ul className="glass glass-refract glass-rim pointer-events-auto relative flex h-[60px] items-center gap-0.5 rounded-full px-2">
         {tabs.map((tab, i) => {
           const active = i === activeIdx;
           const Icon = tab.icon;
           const showSignedDot = tab.href === "/dashboard" && signedIn;
           return (
-            <li key={tab.href} className="contents">
+            <li key={tab.href}>
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`group relative flex h-full select-none flex-col items-center justify-center gap-[3px] text-[rgb(var(--subtext))] transition-colors duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  active ? "text-[rgb(var(--text))]" : "hover:text-[rgb(var(--text))]"
+                className={`group relative flex h-[52px] w-[52px] select-none flex-col items-center justify-center gap-[3px] rounded-2xl transition-colors duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  active ? "text-[rgb(var(--text))]" : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
                 }`}
               >
+                {/* Selected-tab highlight */}
+                {active && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-x-1 inset-y-1.5 rounded-2xl bg-[rgb(var(--text)/0.1)]"
+                  />
+                )}
                 <span
-                  className="relative inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.92]"
+                  className="relative inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.9]"
                   style={{ transform: active ? "translateY(-1px)" : "none" }}
                 >
-                  <Icon
-                    className="h-[20px] w-[20px]"
-                    strokeWidth={active ? 2.2 : 1.7}
-                  />
+                  <Icon className="h-[20px] w-[20px]" strokeWidth={active ? 2.2 : 1.7} />
                   {showSignedDot && !active ? (
                     <span
                       aria-hidden
@@ -126,11 +109,7 @@ export function MobileBottomNav() {
                     />
                   ) : null}
                 </span>
-                <span
-                  className={`text-[0.62rem] font-medium leading-none tracking-[0.02em] transition-opacity duration-200 ${
-                    active ? "" : "opacity-90"
-                  }`}
-                >
+                <span className="relative text-[0.6rem] font-medium leading-none tracking-[0.02em]">
                   {translate(tab.label)}
                 </span>
               </Link>
@@ -138,15 +117,6 @@ export function MobileBottomNav() {
           );
         })}
       </ul>
-      {/* Brand wordmark tucked into the home-indicator safe area below the tabs. */}
-      <div
-        className="flex items-center justify-center overflow-hidden"
-        style={{ height: "env(safe-area-inset-bottom, 0px)" }}
-      >
-        <span className="select-none text-[0.5rem] font-semibold uppercase tracking-[0.25em] text-[rgb(var(--subtext)/0.5)]">
-          sneakerfeature
-        </span>
-      </div>
     </nav>
   );
 }
