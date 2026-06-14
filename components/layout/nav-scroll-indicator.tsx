@@ -117,8 +117,8 @@ export function NavScrollIndicator() {
   };
 
   return (
-    <div className="liquid-glass glass-refract glass-rim relative pointer-events-auto inline-flex max-w-[52vw] items-center gap-2 rounded-full px-2.5 py-1">
-      <div className="flex shrink-0 items-center gap-1.5">
+    <div className="liquid-glass glass-rim relative pointer-events-auto inline-flex max-w-[52vw] items-center gap-2.5 rounded-full px-3 py-1.5">
+      <div className="flex shrink-0 items-center gap-2">
         {sections.map((s, i) => {
           const active = i === activeIndex;
           return (
@@ -128,15 +128,16 @@ export function NavScrollIndicator() {
               onClick={() => jump(s.id)}
               aria-label={s.label}
               aria-current={active ? "true" : undefined}
-              className="inline-flex items-center justify-center p-1 outline-none"
+              className="inline-flex items-center justify-center p-0.5 outline-none"
             >
+              {/* Animate transform (GPU) not width, so the surrounding glass
+                  backdrop isn't re-rasterized every frame — keeps it smooth. */}
               <span
                 aria-hidden
-                className="block rounded-full transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                className="block h-[6px] w-[6px] rounded-full transition-[transform,background-color] duration-[300ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
                 style={{
-                  width: active ? 16 : 5,
-                  height: 5,
-                  background: active ? "rgb(var(--text))" : "rgb(var(--muted)/0.6)"
+                  transform: active ? "scale(1.5)" : "scale(0.85)",
+                  background: active ? "rgb(var(--text))" : "rgb(var(--muted)/0.55)"
                 }}
               />
             </button>
@@ -145,8 +146,8 @@ export function NavScrollIndicator() {
       </div>
       <span
         key={activeLabel}
-        className="truncate text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--text)/0.85)]"
-        style={{ animation: "navIndicatorLabelIn 320ms cubic-bezier(0.22,1,0.36,1)" }}
+        className="truncate text-[0.62rem] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--text)/0.9)]"
+        style={{ animation: "navIndicatorLabelIn 280ms cubic-bezier(0.22,1,0.36,1)" }}
       >
         {activeLabel}
       </span>

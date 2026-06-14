@@ -7,7 +7,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
-import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
@@ -62,28 +61,26 @@ export function AccountMenu({ className }: { className?: string }) {
           {translate("Log in")}
         </button>
       ) : (
-        <Tooltip label={label}>
-          <button
-            type="button"
-            onClick={() => setOpen((o) => !o)}
-            aria-haspopup="menu"
-            aria-expanded={open}
-            aria-label={label}
-            className={cn(
-              "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
-              className
-            )}
-          >
-            <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" />
-            <span className="sr-only" data-user-identity="true">{label}</span>
-            {signedIn ? (
-              <span
-                aria-hidden
-                className="absolute bottom-[4px] right-[4px] h-1.5 w-1.5 rounded-full bg-[rgb(var(--text))] ring-2 ring-[rgb(var(--bg))]"
-              />
-            ) : null}
-          </button>
-        </Tooltip>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={label}
+          className={cn(
+            "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
+            className
+          )}
+        >
+          <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" />
+          <span className="sr-only" data-user-identity="true">{label}</span>
+          {signedIn ? (
+            <span
+              aria-hidden
+              className="absolute bottom-[4px] right-[4px] h-1.5 w-1.5 rounded-full bg-[rgb(var(--text))] ring-2 ring-[rgb(var(--bg))]"
+            />
+          ) : null}
+        </button>
       )}
 
       <AnimatePresence>
@@ -119,6 +116,14 @@ export function AccountMenu({ className }: { className?: string }) {
               </>
             ) : (
               <>
+                {/* Signed-in identity header (replaces the old left-side tooltip). */}
+                <div className="mb-1 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-3 pb-2 pt-1">
+                  <p className="truncate text-sm font-semibold text-[rgb(var(--text))]">
+                    {username || email?.split("@")[0] || translate("Account")}
+                  </p>
+                  {email ? <p className="mt-0.5 truncate text-xs soft-text">{email}</p> : null}
+                </div>
+
                 <Link
                   href="/dashboard"
                   role="menuitem"

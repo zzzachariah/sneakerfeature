@@ -184,7 +184,7 @@ export function Navbar() {
               </button>
             </Tooltip>
             {langOpen && (
-              <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[9rem] rounded-xl p-1">
+              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[9rem] rounded-xl p-1">
                 <button
                   type="button"
                   className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
@@ -256,7 +256,7 @@ export function Navbar() {
               </button>
             </Tooltip>
             {legalOpen && (
-              <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[11rem] rounded-xl p-1">
+              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[11rem] rounded-xl p-1">
                 {[
                   { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use" },
                   { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy" },
@@ -310,7 +310,7 @@ export function Navbar() {
               <Menu className="h-[18px] w-[18px]" />
             </button>
             {menuOpen && (
-              <div className="nav-dropdown-panel absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
+              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
                 <Link
                   href="/search/advanced"
                   onClick={() => setMenuOpen(false)}
