@@ -24,8 +24,20 @@
   --glass-shadow: 17 17 17;
   --glass-shadow-ambient: 86 86 90;
   --glass-overlay: 0 0 0;
-  --glass-blur: 0px;
-  --glass-blur-strong: 0px;
+  /* Liquid Glass material — Apple iOS 26-style. tint = glass body color;
+     rim = lit lensed edge (top-left) vs shaded edge (bottom-right);
+     saturate/brightness drive the "vibrancy" lift behind the glass. */
+  --glass-tint: 255 255 255;
+  --glass-tint-strong: 252 252 254;
+  --glass-rim: 255 255 255;
+  --glass-rim-shade: 17 17 17;
+  --glass-saturate: 180%;
+  --glass-brightness: 1.06;
+  /* Backdrop-blur scale — single source of truth (was a dead 0px token). */
+  --glass-blur-sm: 12px;
+  --glass-blur-md: 20px;
+  --glass-blur-lg: 28px;
+  --glass-blur-xl: 36px;
   /* Motion */
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 120ms;
@@ -64,6 +76,12 @@
   --glass-shadow: 0 0 0;
   --glass-shadow-ambient: 0 0 0;
   --glass-overlay: 0 0 0;
+  --glass-tint: 30 30 34;
+  --glass-tint-strong: 22 22 26;
+  --glass-rim: 255 255 255;
+  --glass-rim-shade: 0 0 0;
+  --glass-saturate: 170%;
+  --glass-brightness: 1;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -87,6 +105,12 @@
     --glass-shadow: 0 0 0;
     --glass-shadow-ambient: 0 0 0;
     --glass-overlay: 0 0 0;
+    --glass-tint: 30 30 34;
+    --glass-tint-strong: 22 22 26;
+    --glass-rim: 255 255 255;
+    --glass-rim-shade: 0 0 0;
+    --glass-saturate: 170%;
+    --glass-brightness: 1;
   }
 }
 
@@ -193,27 +217,169 @@ body {
   }
 }
 
-/* Liquid-glass surfaces — translucent + blurred + saturated, with a soft stroke
-   and a subtle top highlight. Applied consistently across the app chrome
-   (navbar indicator, bottom nav, search bar, dropdowns, modals) so the glass
-   treatment stops feeling partial / abrupt. */
+/* ─────────────────────────────────────────────────────────────────────────
+   Liquid Glass material system (Apple iOS 26-style).
+
+   One source of truth for every translucent surface. Tiers:
+     .glass        regular material  — menus, popovers, tooltips, tab bar
+     .glass-thin / .glass-nav        — top navbar (appears on scroll)
+     .glass-strong overlays/heroes   — modals, sheets, banners
+     .glass-tabbar bottom tab bar    — thicker slab, lit top edge
+     .glass-lite   NO backdrop blur  — list cards (perf: virtualized feeds)
+   Stackable modifiers: .glass-rim (lensed edge) · .glass-clip (fix iOS
+   rounded-corner backdrop bleed) · .glass-interactive (press feedback) ·
+   .glass-refract (opt-in SVG lens, degrades to plain blur).
+   Legacy aliases .liquid-glass / .liquid-glass-strong map onto the tiers so
+   existing markup upgrades for free. Material classes intentionally DO NOT set
+   `position`, so they can be combined with absolute/fixed utilities; rim hosts
+   carry their own positioning context (most are already positioned). */
+.glass,
 .liquid-glass {
-  background: rgb(var(--bg-elev) / 0.6);
+  background-color: rgb(var(--glass-tint) / 0.55);
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
-  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   box-shadow:
-    0 10px 30px rgb(var(--glass-shadow) / 0.18),
-    inset 0 1px 0 rgb(var(--glass-highlight) / 0.4);
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05),
+    0 12px 32px -12px rgb(var(--glass-shadow) / 0.22);
 }
+
+.glass-strong,
 .liquid-glass-strong {
-  background: rgb(var(--bg-elev) / 0.82);
+  background-color: rgb(var(--glass-tint-strong) / 0.82);
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
-  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   box-shadow:
-    0 24px 60px rgb(var(--glass-shadow) / 0.4),
-    inset 0 1px 0 rgb(var(--glass-highlight) / 0.45);
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.07),
+    0 32px 64px -24px rgb(var(--glass-shadow) / 0.45),
+    0 12px 28px -16px rgb(var(--glass-shadow) / 0.28);
+}
+
+/* Cheap faux-glass for long/virtualized lists — translucent + lit edge, but
+   NO backdrop-filter (dozens of blurs in a scroll list tank iOS WebView FPS). */
+.glass-lite {
+  background-color: rgb(var(--glass-tint-strong) / 0.82);
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.32),
+    0 2px 12px rgb(var(--glass-shadow) / 0.08);
+}
+.dark .glass-lite {
+  background-color: rgb(var(--glass-tint) / 0.7);
+}
+
+/* Top navbar: near-transparent until scrolled, then a thin glass film. */
+.glass-thin,
+.glass-nav {
+  background-color: rgb(var(--glass-tint) / 0.7);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  border-bottom: 1px solid rgb(var(--glass-stroke-soft) / 0.4);
+}
+
+/* Bottom tab bar: a thicker, more present glass slab with a lit top edge. */
+.glass-tabbar {
+  background-color: rgb(var(--glass-tint) / 0.62);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  border-top: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.4);
+}
+
+/* Lensed edge — a 1px gradient ring (bright top-left → shaded bottom-right).
+   Host must be a positioning context (positioned, or has a transform). */
+.glass-rim::before,
+.nav-dropdown-panel::before,
+.glass-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-rim) / 0.7) 0%,
+    rgb(var(--glass-rim) / 0.12) 30%,
+    transparent 52%,
+    rgb(var(--glass-rim-shade) / 0.12) 100%
+  );
+  -webkit-mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Fixes the iOS Safari bug where backdrop-filter ignores rounded corners. */
+.glass-clip {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Tactile press feedback for glassy buttons / chips. */
+.glass-interactive {
+  transition:
+    transform var(--dur-base) var(--ease),
+    background-color var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease);
+}
+.glass-interactive:active {
+  transform: scale(0.97);
+}
+
+/* Opt-in refraction (Phase 6). Graceful: when backdrop-filter:url() is
+   unsupported this block is skipped and the element's plain blur stays. When
+   supported, displacement is deliberately gentle so it reads as a glass lens,
+   never a funhouse warp. SVG filter is mounted once in the root layout. */
+@supports ((backdrop-filter: url("#g")) or (-webkit-backdrop-filter: url("#g"))) {
+  .glass-refract {
+    -webkit-backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  }
+}
+
+/* ── Capability & accessibility fallbacks ── */
+/* No backdrop-filter support → opaque surfaces. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass, .liquid-glass,
+  .glass-strong, .liquid-glass-strong,
+  .glass-thin, .glass-nav, .glass-tabbar,
+  .nav-dropdown-panel, .glass-card {
+    background-color: rgb(var(--glass-tint-strong) / 0.98);
+  }
+}
+/* Respect iOS "Reduce Transparency": drop the blur, go opaque. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass, .liquid-glass,
+  .glass-strong, .liquid-glass-strong,
+  .glass-thin, .glass-nav, .glass-tabbar,
+  .glass-refract,
+  .nav-dropdown-panel, .glass-card {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: rgb(var(--glass-tint-strong) / 0.98);
+  }
+}
+/* Increase contrast: firm up the hairline strokes. */
+@media (prefers-contrast: more) {
+  .glass, .liquid-glass,
+  .glass-strong, .liquid-glass-strong,
+  .glass-thin, .glass-nav, .glass-tabbar,
+  .nav-dropdown-panel, .glass-card {
+    border-color: rgb(var(--glass-stroke) / 0.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glass-interactive { transition: none; }
+  .glass-interactive:active { transform: none; }
 }
 
 /* Touch-friendly tap target. Use on icon buttons that need ≥40-44px hit area
@@ -235,17 +401,17 @@ body {
 }
 
 .nav-dropdown-panel {
-  background: rgb(var(--bg-elev) / 0.94);
-  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  background-color: rgb(var(--glass-tint-strong) / 0.86);
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.55);
   box-shadow:
-    0 16px 32px rgb(var(--glass-shadow) / 0.2),
-    inset 0 1px 0 rgb(var(--glass-highlight) / 0.4);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+    0 16px 32px -12px rgb(var(--glass-shadow) / 0.22),
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.45);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
 }
 
 .dark .nav-dropdown-panel {
-  background: rgb(20 20 23 / 0.92);
+  background-color: rgb(var(--glass-tint) / 0.72);
 }
 
 .premium-border {
@@ -582,18 +748,18 @@ body {
 
 .glass-card {
   position: relative;
-  background: rgb(var(--bg-elev) / 0.72);
+  background: rgb(var(--glass-tint) / 0.6);
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.55);
   border-radius: 28px;
-  backdrop-filter: saturate(180%) blur(24px);
-  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
   box-shadow:
     0 1px 0 rgb(var(--glass-highlight) / 0.35) inset,
     0 30px 60px -24px rgb(var(--shadow) / 0.35),
     0 10px 24px -12px rgb(var(--shadow) / 0.22);
 }
 .dark .glass-card {
-  background: rgb(var(--bg-elev) / 0.58);
+  background: rgb(var(--glass-tint) / 0.5);
   box-shadow:
     0 1px 0 rgb(255 255 255 / 0.04) inset,
     0 30px 60px -24px rgb(0 0 0 / 0.6),
