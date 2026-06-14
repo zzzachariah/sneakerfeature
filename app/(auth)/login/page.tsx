@@ -14,9 +14,11 @@ import { TurnstileWidget } from "@/components/ui/turnstile";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { LAST_PATH_KEY } from "@/components/auth/route-memory";
 
 const CLIENT_TIMEOUT_MS = 12000;
 const SESSION_SYNC_TIMEOUT_MS = 5000;
+const AUTH_PREFIXES = ["/login", "/signup", "/register", "/forgot-password", "/reset-password"];
 
 const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const stagger = {
@@ -36,7 +38,21 @@ function devLog(step: string, payload?: unknown) {
 function normalizeRedirectTarget(raw: string | null): Route {
   if (!raw) return "/dashboard" as Route;
   if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard" as Route;
+  const path = raw.split("?")[0];
+  // Never bounce back into an auth page (avoids login → login loops).
+  if (AUTH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) return "/dashboard" as Route;
   return raw as Route;
+}
+
+// After login, go back to where the user was: an explicit ?next= wins, else the
+// last non-auth route we recorded, else the dashboard.
+function readLastPath(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(LAST_PATH_KEY);
+  } catch {
+    return null;
+  }
 }
 
 async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = CLIENT_TIMEOUT_MS) {
@@ -104,7 +120,6 @@ export default function LoginPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
-  const redirectTarget = normalizeRedirectTarget(nextPath);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -159,6 +174,7 @@ export default function LoginPage() {
 
       devLog("session sync end", "client session synchronized");
 
+      const redirectTarget = normalizeRedirectTarget(nextPath ?? readLastPath());
       setMessage("Login successful. Redirecting...");
       devLog("redirect start", { target: redirectTarget });
       if (pathname !== redirectTarget) {

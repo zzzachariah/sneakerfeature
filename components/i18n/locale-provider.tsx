@@ -817,6 +817,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "continue browsing": "继续浏览",
   "popular this week": "本周热门",
   "share": "分享",
+  "set up profile": "设置档案",
   "show history": "查看历史",
   "collapse": "收起",
   "previous page": "上一页",

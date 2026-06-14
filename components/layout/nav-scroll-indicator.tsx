@@ -117,7 +117,7 @@ export function NavScrollIndicator() {
   };
 
   return (
-    <div className="liquid-glass glass-rim relative pointer-events-auto inline-flex max-w-[52vw] items-center gap-2 rounded-full px-2.5 py-1">
+    <div className="liquid-glass glass-refract glass-rim relative pointer-events-auto inline-flex max-w-[52vw] items-center gap-2 rounded-full px-2.5 py-1">
       <div className="flex shrink-0 items-center gap-1.5">
         {sections.map((s, i) => {
           const active = i === activeIndex;

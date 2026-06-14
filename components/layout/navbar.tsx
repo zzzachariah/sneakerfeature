@@ -112,8 +112,10 @@ export function Navbar() {
           aria-label="sneakerfeature — home"
           className="inline-flex items-center transition-opacity hover:opacity-80"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="sneakerfeature" className="nav-logo h-7 w-7" />
+          <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="sneakerfeature" className="nav-logo h-7 w-7" />
+          </span>
         </Link>
 
         <nav
@@ -155,7 +157,7 @@ export function Navbar() {
           <NavScrollIndicator />
         </div>
 
-        <div className="ml-auto flex items-center gap-0.5 sm:gap-1">
+        <div className="ml-auto flex items-center gap-2 md:gap-1">
           <Tooltip label={translate("Advanced Search")} className="hidden md:inline-flex">
             <Link
               href="/search/advanced"
@@ -300,7 +302,7 @@ export function Navbar() {
             <button
               type="button"
               onClick={() => setMenuOpen((prev) => !prev)}
-              className={iconBtn}
+              className={`${iconBtn} nav-glass-pill`}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={translate("Menu")}
@@ -437,7 +439,7 @@ export function Navbar() {
             )}
           </div>
 
-          <span className="inline-flex" data-tutorial="nav-account">
+          <span className="nav-glass-pill inline-flex rounded-full" data-tutorial="nav-account">
             <AccountMenu />
           </span>
         </div>

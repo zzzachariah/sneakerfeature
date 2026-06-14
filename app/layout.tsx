@@ -5,6 +5,7 @@ import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NavScrollIndicatorProvider } from "@/components/layout/nav-scroll-indicator";
+import { RouteMemory } from "@/components/auth/route-memory";
 import {
   CookieConsentProvider,
   CookieBanner,
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeInitScript />
         <GlassFilterDefs />
         <CapacitorBridge />
+        <RouteMemory />
         <LocaleProvider>
           <LanguageFirstRun />
           <CookieConsentProvider>
