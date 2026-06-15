@@ -1,0 +1,21 @@
+{
+  "name": "native-chrome",
+  "version": "0.0.1",
+  "description": "Native iOS chrome (Liquid Glass tab bar) for the sneakerfeature Capacitor app. iOS-only; web/Android are no-ops.",
+  "private": true,
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    }
+  },
+  "files": [
+    "ios/",
+    "NativeChrome.podspec"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native"
+  ],
+  "license": "MIT"
+}

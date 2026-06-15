@@ -457,6 +457,14 @@ body {
   }
 }
 
+/* Inside the iOS native app the bottom navigation is a real native Liquid Glass
+   UITabBar (see components/native/native-bottom-nav.tsx + /native-chrome), so
+   hide the web capsule there to avoid stacking two bars. Web browsers and the
+   Android app keep the web nav. */
+html.capacitor-native[data-native-platform="ios"] nav[aria-label="Primary mobile navigation"] {
+  display: none !important;
+}
+
 /* ── Capability & accessibility fallbacks ── */
 /* No backdrop-filter support → opaque surfaces. */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
