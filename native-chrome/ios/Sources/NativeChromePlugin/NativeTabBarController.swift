@@ -31,6 +31,14 @@ final class NativeTabBarController: NSObject, UITabBarDelegate {
             tabBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tabBar.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         ])
+        // The Capacitor web view is a sibling; keep the bar above it.
+        view.bringSubviewToFront(tabBar)
+    }
+
+    private func bringToFront() {
+        if let view = host?.view {
+            view.bringSubviewToFront(tabBar)
+        }
     }
 
     /// `tabs` is an array of { key, label, symbol } pushed from JS.
@@ -44,6 +52,8 @@ final class NativeTabBarController: NSObject, UITabBarDelegate {
             items.append(UITabBarItem(title: label, image: image, tag: index))
         }
         tabBar.setItems(items, animated: false)
+        tabBar.isHidden = false
+        bringToFront()
         setActive(active)
     }
 

@@ -458,10 +458,12 @@ body {
 }
 
 /* Inside the iOS native app the bottom navigation is a real native Liquid Glass
-   UITabBar (see components/native/native-bottom-nav.tsx + /native-chrome), so
-   hide the web capsule there to avoid stacking two bars. Web browsers and the
-   Android app keep the web nav. */
-html.capacitor-native[data-native-platform="ios"] nav[aria-label="Primary mobile navigation"] {
+   UITabBar (see components/native/native-bottom-nav.tsx + /native-chrome). The
+   web capsule is hidden ONLY after the native bar is confirmed up — the JS adds
+   `native-tabbar-active` once configureTabBar resolves. If the plugin isn't
+   present (e.g. pod not synced) the class is never added and the web nav stays,
+   so there's always a bottom bar. Web + Android never get the class. */
+html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
   display: none !important;
 }
 
