@@ -27,16 +27,16 @@ export function GlassFilterDefs() {
         >
           <feTurbulence
             type="fractalNoise"
-            baseFrequency="0.009 0.013"
+            baseFrequency="0.013 0.017"
             numOctaves="2"
             seed="7"
             result="noise"
           />
-          <feGaussianBlur in="noise" stdDeviation="1.4" result="snoise" />
+          <feGaussianBlur in="noise" stdDeviation="1" result="snoise" />
           <feDisplacementMap
             in="SourceGraphic"
             in2="snoise"
-            scale="12"
+            scale="44"
             xChannelSelector="R"
             yChannelSelector="G"
           />

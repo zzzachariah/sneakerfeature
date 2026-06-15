@@ -90,22 +90,11 @@ export function MobileBottomNav() {
                   active ? "text-[rgb(var(--text))]" : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
                 }`}
               >
-                {/* Selected-tab indicator — a small dot above the icon (no
-                    background slab, so the icon + label keep their breathing
-                    room and never sit cramped against an edge). */}
-                <span
-                  aria-hidden
-                  className="absolute top-[6px] left-1/2 h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-[rgb(var(--text))] transition-[transform,opacity] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-                  style={{
-                    opacity: active ? 1 : 0,
-                    transform: `translateX(-50%) scale(${active ? 1 : 0})`
-                  }}
-                />
-                <span
-                  className="relative inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.9]"
-                  style={{ transform: active ? "translateY(1px)" : "none" }}
-                >
-                  <Icon className="h-[20px] w-[20px]" strokeWidth={active ? 2.2 : 1.7} />
+                {/* No dot / no background slab. The active screen is shown by
+                    simply darkening its icon + label to the full text colour
+                    (the inactive tabs stay muted). */}
+                <span className="relative inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.9]">
+                  <Icon className="h-[20px] w-[20px]" strokeWidth={active ? 2.5 : 1.8} />
                   {showSignedDot && !active ? (
                     <span
                       aria-hidden
