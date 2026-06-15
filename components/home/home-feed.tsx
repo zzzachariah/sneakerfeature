@@ -13,18 +13,21 @@ import { ShoeCard } from "@/components/home/shoe-card";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
-import { NATIVE_HOME_SEARCH_EVENT } from "@/components/native/native-chrome";
 
 export function HomeFeed({
   shoes,
-  initialQuery = "",
+  query,
+  onQueryChange,
   active = true,
   scrollContainerAttr = false,
   pageScroll = false,
   scrollHeader
 }: {
   shoes: Shoe[];
-  initialQuery?: string;
+  /** Committed search query (controlled by HomeView so it can hide For You and
+      switch to a results-only view while searching). */
+  query: string;
+  onQueryChange: (q: string) => void;
   active?: boolean;
   scrollContainerAttr?: boolean;
   /** When true, the feed flows in the page scroll (no internal scroll area);
@@ -35,8 +38,7 @@ export function HomeFeed({
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
   const { mode, setMode } = useHomeMode();
-  const [searchDraft, setSearchDraft] = useState(initialQuery);
-  const [query, setQuery] = useState(initialQuery);
+  const [searchDraft, setSearchDraft] = useState(query);
   const [brand, setBrand] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState(false);
@@ -48,17 +50,11 @@ export function HomeFeed({
     return () => window.clearTimeout(t);
   }, [active]);
 
-  // In the iOS app the search box is a native glass search bar (NativeHomeSearch);
-  // it relays text here so the same client-side filter runs.
+  // Mirror the committed query into the input when it changes from outside
+  // (the native search bar in the iOS app, or a clear).
   useEffect(() => {
-    const onNativeSearch = (e: Event) => {
-      const text = (e as CustomEvent<{ text: string }>).detail?.text ?? "";
-      setSearchDraft(text);
-      setQuery(text);
-    };
-    window.addEventListener(NATIVE_HOME_SEARCH_EVENT, onNativeSearch);
-    return () => window.removeEventListener(NATIVE_HOME_SEARCH_EVENT, onNativeSearch);
-  }, []);
+    setSearchDraft(query);
+  }, [query]);
 
   const scored = useMemo(() => {
     const base = shoes.map((shoe) => ({
@@ -112,11 +108,11 @@ export function HomeFeed({
 
   function runSearch(e?: FormEvent) {
     e?.preventDefault();
-    setQuery(searchDraft);
+    onQueryChange(searchDraft);
   }
   function clearSearch() {
     setSearchDraft("");
-    setQuery("");
+    onQueryChange("");
   }
 
   function toggleSelect(id: string) {
@@ -274,7 +270,7 @@ export function HomeFeed({
                 type="button"
                 onClick={() => {
                   setSearchDraft("");
-                  setQuery("");
+                  onQueryChange("");
                   setBrand("all");
                 }}
                 className="text-xs text-[rgb(var(--text))] underline-offset-2 hover:underline"

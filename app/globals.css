@@ -484,7 +484,7 @@ html.native-topbar-active header[data-app-header] {
 html.native-search-active form[data-home-search] {
   display: none;
 }
-html.native-search-active #home-for-you {
+html.native-search-active .home-top-pad {
   padding-top: 56px;
 }
 
