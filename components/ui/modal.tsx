@@ -26,7 +26,12 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] p-4 backdrop-blur-[16px]`}
+          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] backdrop-blur-[16px]`}
+          // Keep the dialog clear of the notch / home indicator on phones so its
+          // header and bottom actions are never tucked under a system bar.
+          style={{
+            padding: "max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))"
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -43,7 +48,7 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
-            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[85vh] w-full max-w-lg flex-col rounded-3xl"
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[85dvh] w-full max-w-lg flex-col rounded-3xl"
             initial={{ y: 16, opacity: 0, scale: 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 8, opacity: 0, scale: 0.985 }}

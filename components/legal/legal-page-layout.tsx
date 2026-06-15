@@ -21,7 +21,11 @@ export function LegalPageLayout({ doc }: { doc: BilingualLegalDoc }) {
   const tocLabel = locale === "zh" ? "目录" : "Contents";
 
   return (
-    <main className="container-shell pb-20 pt-10 md:pt-16" data-no-translate="true">
+    <main
+      className="container-shell pt-10 md:pt-16"
+      style={{ paddingBottom: "calc(var(--mobile-nav-h) + 2rem)" }}
+      data-no-translate="true"
+    >
       <div className="mx-auto max-w-3xl">
         <header>
           <p className="t-eyebrow">{d.eyebrow}</p>

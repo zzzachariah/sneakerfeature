@@ -54,7 +54,8 @@ export function CompareShoePicker({ open, shoes, max, onCancel, onConfirm }: Pro
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[110] flex items-end justify-center bg-[rgb(0_0_0/0.55)] p-4 md:items-center"
+      className="fixed inset-0 z-[110] flex items-end justify-center bg-[rgb(0_0_0/0.55)] md:items-center"
+      style={{ padding: "max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))" }}
       onClick={onCancel}
     >
       <div

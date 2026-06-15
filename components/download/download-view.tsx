@@ -34,7 +34,10 @@ export function DownloadView() {
   }, []);
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-5 py-12 sm:py-16">
+    <main
+      className="mx-auto w-full max-w-3xl px-5 pt-12 sm:pt-16"
+      style={{ paddingBottom: "calc(var(--mobile-nav-h) + 3rem)" }}
+    >
       <header className="text-center">
         <div className="text-4xl">👟</div>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
