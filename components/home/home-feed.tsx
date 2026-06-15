@@ -131,9 +131,10 @@ export function HomeFeed({
             pageScroll
               ? // Flush to the container-shell edges so the search field + button
                 // line up with the navbar's logo (left) and hamburger/account
-                // (right). Frosted on every breakpoint so content scrolls cleanly
-                // under it when the bar pins below the navbar.
-                "sticky top-[var(--top-nav-h)] z-30 mb-3 py-2 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.66)] backdrop-blur-[26px] backdrop-saturate-[180%]"
+                // (right). On phones the field + button float on their own pill
+                // backgrounds — NO full-width frosted band wrapping them (it read
+                // as an ugly rectangle). The desktop filter bar keeps its bar.
+                "sticky top-[var(--top-nav-h)] z-30 mb-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[26px] md:backdrop-saturate-[180%]"
               : "sticky top-0 z-10 -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[26px] md:backdrop-saturate-[180%]"
           }
           style={revealStyle(0)}

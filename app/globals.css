@@ -335,14 +335,15 @@ body {
      unchanged. */
   .nav-glass-pill {
     position: relative;
-    background-color: rgb(var(--glass-tint) / 0.62);
+    background-color: rgb(var(--glass-tint) / 0.6);
     border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
-    -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
-    backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.14);
+    backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.14);
     box-shadow:
-      inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
-      inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05),
-      0 12px 32px -12px rgb(var(--glass-shadow) / 0.22);
+      inset 0 1px 0 rgb(var(--glass-rim) / 0.75),
+      inset 0 0 22px rgb(var(--glass-rim) / 0.14),
+      inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+      0 14px 36px -12px rgb(var(--glass-shadow) / 0.32);
   }
   .nav-glass-pill::before {
     content: "";
@@ -375,8 +376,9 @@ body {
      plain blur above when backdrop-filter: url() is unsupported. */
   @supports ((backdrop-filter: url("#g")) or (-webkit-backdrop-filter: url("#g"))) {
     .nav-glass-pill {
-      -webkit-backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
-      backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+      /* Moderate blur so the SVG lens warp stays readable through it. */
+      -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
+      backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
     }
   }
 }
@@ -427,14 +429,31 @@ body {
   transform: scale(0.97);
 }
 
-/* Opt-in refraction (Phase 6). Graceful: when backdrop-filter:url() is
-   unsupported this block is skipped and the element's plain blur stays. When
-   supported, displacement is deliberately gentle so it reads as a glass lens,
-   never a funhouse warp. SVG filter is mounted once in the root layout. */
+/* "Liquid glass" chrome material — the bottom tab bar + the center scroll
+   indicator (and, via the mobile block above, the top-nav pills). Built in two
+   layers so it looks thick and glassy on EVERY engine, not just Chromium:
+
+   1. Base (works everywhere, incl. iOS/Safari): a heavier frost + brightness +
+      an inner glow, so the glass clearly thickens and smears the content behind
+      it. This is the only layer Safari/iOS can render.
+   2. Lens (Chromium / Android WebView only): additionally bend the backdrop
+      through the SVG displacement filter for true content refraction. Safari/iOS
+      silently ignore url() inside backdrop-filter, so they fall back to layer 1
+      rather than showing nothing. */
+.glass-refract {
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.14);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.14);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.75),
+    inset 0 0 22px rgb(var(--glass-rim) / 0.14),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+    0 14px 36px -12px rgb(var(--glass-shadow) / 0.32);
+}
 @supports ((backdrop-filter: url("#g")) or (-webkit-backdrop-filter: url("#g"))) {
   .glass-refract {
-    -webkit-backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
-    backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    /* Moderate blur (vs. the base) so the warped backdrop stays readable. */
+    -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
+    backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
   }
 }
 
