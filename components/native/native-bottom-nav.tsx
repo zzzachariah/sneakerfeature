@@ -43,7 +43,13 @@ const ADMIN_TAB: Tab = {
   match: (p) => p === "/admin" || p.startsWith("/admin/")
 };
 
-const isNativeIOS = () => Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+// Only treat the native bar as usable when we're in the iOS app AND the plugin
+// actually loaded (pod synced + built). Otherwise we leave the web nav alone so
+// the user is never left without a bottom bar.
+const nativeBarAvailable = () =>
+  Capacitor.isNativePlatform() &&
+  Capacitor.getPlatform() === "ios" &&
+  Capacitor.isPluginAvailable("NativeChrome");
 
 export function NativeBottomNav() {
   const pathname = usePathname();
@@ -52,13 +58,23 @@ export function NativeBottomNav() {
   const { isAdmin } = useAuthState();
 
   // Build / rebuild the native bar whenever its contents change (admin gate,
-  // language). Active tab is sent along so the right item is highlighted.
+  // language). Only after configureTabBar resolves do we hide the web nav (via
+  // the `native-tabbar-active` class) — so a missing/broken plugin leaves the
+  // web nav in place instead of removing the bar entirely.
   useEffect(() => {
-    if (!isNativeIOS()) return;
+    if (!nativeBarAvailable()) {
+      // Helpful breadcrumb in the Xcode/Safari console when running in-app.
+      if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") {
+        console.warn("[native-chrome] NativeChrome plugin not available — keeping the web nav. Did `npx cap sync ios` list it?");
+      }
+      return;
+    }
     const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
     const nativeTabs: NativeTab[] = tabs.map((t) => ({ key: t.key, label: translate(t.label), symbol: t.symbol }));
     const active = tabs.find((t) => t.match(pathname))?.key;
-    void NativeChrome.configureTabBar({ tabs: nativeTabs, active });
+    NativeChrome.configureTabBar({ tabs: nativeTabs, active })
+      .then(() => document.documentElement.classList.add("native-tabbar-active"))
+      .catch((err) => console.warn("[native-chrome] configureTabBar failed:", err));
     // pathname intentionally excluded — the separate effect below keeps the
     // active item in sync without rebuilding the whole bar on every navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +82,7 @@ export function NativeBottomNav() {
 
   // Tab tap (native) → navigate the web view.
   useEffect(() => {
-    if (!isNativeIOS()) return;
+    if (!nativeBarAvailable()) return;
     let remove: (() => void) | undefined;
     void (async () => {
       const handle = await NativeChrome.addListener("tabSelected", ({ key }) => {
@@ -81,7 +97,7 @@ export function NativeBottomNav() {
 
   // Route change → highlight the matching tab.
   useEffect(() => {
-    if (!isNativeIOS()) return;
+    if (!nativeBarAvailable()) return;
     const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
     const active = tabs.find((t) => t.match(pathname))?.key;
     if (active) void NativeChrome.setActiveTab({ key: active });
