@@ -104,6 +104,7 @@ export function Navbar() {
           : "border-b border-transparent bg-transparent"
       }`}
       style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      data-app-header="true"
       data-no-translate="true"
     >
       <div className="container-shell relative flex h-16 items-center">
