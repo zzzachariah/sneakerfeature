@@ -13,7 +13,6 @@ import { ShoeCard } from "@/components/home/shoe-card";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
-import { NATIVE_HOME_SEARCH_EVENT } from "@/components/native/native-chrome";
 
 export function HomeFeed({
   shoes,
@@ -47,18 +46,6 @@ export function HomeFeed({
     const t = window.setTimeout(() => setRevealed(true), 60);
     return () => window.clearTimeout(t);
   }, [active]);
-
-  // In the iOS app the search box is a native glass search bar (NativeHomeSearch);
-  // it relays text here so the same client-side filter runs.
-  useEffect(() => {
-    const onNativeSearch = (e: Event) => {
-      const text = (e as CustomEvent<{ text: string }>).detail?.text ?? "";
-      setSearchDraft(text);
-      setQuery(text);
-    };
-    window.addEventListener(NATIVE_HOME_SEARCH_EVENT, onNativeSearch);
-    return () => window.removeEventListener(NATIVE_HOME_SEARCH_EVENT, onNativeSearch);
-  }, []);
 
   const scored = useMemo(() => {
     const base = shoes.map((shoe) => ({
@@ -190,7 +177,6 @@ export function HomeFeed({
           </div>
           <form
             onSubmit={runSearch}
-            data-home-search="true"
             className="flex flex-row items-center gap-2 md:flex-row md:items-center"
           >
             <Select

@@ -5,8 +5,6 @@ import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NativeBottomNav } from "@/components/native/native-bottom-nav";
-import { NativeTopBar } from "@/components/native/native-top-bar";
-import { NativeHomeSearch } from "@/components/native/native-home-search";
 import { NavScrollIndicatorProvider } from "@/components/layout/nav-scroll-indicator";
 import { RouteMemory } from "@/components/auth/route-memory";
 import {
@@ -78,8 +76,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                       <div className="relative flex min-h-[100dvh] flex-col">
                         <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
                         <Navbar />
-                        <NativeTopBar />
-                        <NativeHomeSearch />
                         <div className="flex-1">{children}</div>
                         <MobileBottomNav />
                         <NativeBottomNav />
