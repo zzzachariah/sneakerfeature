@@ -113,7 +113,11 @@ export function NativeTopBar() {
       { key: "account", symbol: signedIn ? "person.crop.circle.fill" : "person.crop.circle", menu: accountMenu }
     ];
 
-    NativeChrome.configureNavBar({ title: "sneakerfeature", buttons })
+    // Use the real brand logo (tinted natively to match light/dark) and keep the
+    // wordmark only as a fallback if the image fails to load.
+    const logoUrl = typeof window !== "undefined" ? `${window.location.origin}/logo.png` : undefined;
+
+    NativeChrome.configureNavBar({ title: "sneakerfeature", logoUrl, buttons })
       .then(() => document.documentElement.classList.add("native-topbar-active"))
       .catch((err) => console.warn("[native-chrome] configureNavBar failed:", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
