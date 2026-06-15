@@ -50,7 +50,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const inputCls =
-  "mt-1 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm outline-none focus:border-[rgb(var(--ring)/0.7)]";
+  "mt-1 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm outline-none transition focus:border-[rgb(var(--text)/0.55)] focus:ring-2 focus:ring-[rgb(var(--text)/0.12)]";
 const taCls = `${inputCls} min-h-16 leading-6`;
 
 function toDraft(r: AdminReview): Draft {

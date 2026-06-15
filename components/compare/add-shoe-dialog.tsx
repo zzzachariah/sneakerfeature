@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Search, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Shoe } from "@/lib/types";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
@@ -97,7 +99,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] p-4 backdrop-blur-[6px] md:items-center"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] p-4 backdrop-blur-[16px] md:items-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -142,30 +144,22 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
                   autoFocus
                 />
               </label>
-              <select
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                className="w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:border-[rgb(var(--text)/0.35)] focus:border-[rgb(var(--text)/0.5)] focus:outline-none"
-              >
+              <Select value={brand} onChange={(e) => setBrand(e.target.value)}>
                 <option value="">{translate("All brands")}</option>
                 {brands.map((b) => (
                   <option key={b} value={b}>
                     {b}
                   </option>
                 ))}
-              </select>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:border-[rgb(var(--text)/0.35)] focus:border-[rgb(var(--text)/0.5)] focus:outline-none"
-              >
+              </Select>
+              <Select value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">{translate("All categories")}</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="mt-4 max-h-[55vh] flex-1 overflow-y-auto px-6 pb-4">
@@ -244,23 +238,14 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
                 {atCap ? <span className="ml-2 text-[rgb(var(--text)/0.7)]">· {translate("max reached")}</span> : null}
               </p>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-xs soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))]"
-                >
+                <Button type="button" variant="secondary" onClick={onClose} className="px-3 text-xs">
                   {translate("Cancel")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  disabled={pendingCount === 0}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--bg))] transition hover:shadow-[0_8px_24px_rgb(var(--shadow)/0.3)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-none"
-                >
+                </Button>
+                <Button type="button" onClick={handleConfirm} disabled={pendingCount === 0} className="px-3 text-xs">
                   {pendingCount > 0
                     ? `${translate("Add")} ${pendingCount} ${pendingCount === 1 ? translate("shoe") : translate("shoes")}`
                     : translate("Add shoes")}
-                </button>
+                </Button>
               </div>
             </div>
           </motion.div>

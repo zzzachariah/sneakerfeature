@@ -89,7 +89,7 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
                   type="button"
                   disabled={busy === report.id}
                   onClick={() => act(report, "dismiss")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:border-[rgb(var(--ring)/0.45)] disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:border-[rgb(var(--text)/0.45)] disabled:opacity-50"
                 >
                   <Check className="h-4 w-4" /> Dismiss
                 </button>

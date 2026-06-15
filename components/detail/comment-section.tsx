@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn, MoreHorizontal, Flag, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
@@ -171,15 +172,15 @@ export function CommentSection({
         {!userId && (
           <div className="mt-4 rounded-2xl border border-[rgb(var(--muted)/0.65)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
             <p className="text-sm soft-text">{translate("You need to be logged in to post a comment.")}</p>
-            <Link href="/login" className="mt-3 inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:border-[rgb(var(--ring)/0.45)]">
+            <Link href="/login" className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 text-sm transition hover:border-[rgb(var(--text)/0.45)] md:min-h-[36px]">
               <LogIn className="h-4 w-4" /> {translate("Log in")}
             </Link>
           </div>
         )}
 
         <div className="mt-4 space-y-3">
-          <textarea
-            className="min-h-40 w-full rounded-2xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.75)] p-3 text-sm text-[rgb(var(--text))] outline-none transition placeholder:text-[rgb(var(--subtext))] hover:border-[rgb(var(--ring)/0.4)] focus:border-[rgb(var(--ring)/0.9)] focus:ring-4 focus:ring-[rgb(var(--ring)/0.2)]"
+          <Textarea
+            className="min-h-40"
             placeholder={userId ? translate("Write your performance feedback...") : translate("Log in to start writing...")}
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -239,7 +240,7 @@ export function CommentSection({
                     <div className="relative">
                       <button
                         type="button"
-                        className="inline-flex items-center rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 text-xs soft-text transition hover:border-[rgb(var(--ring)/0.45)]"
+                        className="inline-flex items-center rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 text-xs soft-text transition hover:border-[rgb(var(--text)/0.45)]"
                         onClick={() => {
                           setMenuOpenId(menuOpenId === comment.id ? null : comment.id);
                           setReportOpenId(null);

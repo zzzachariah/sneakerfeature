@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 import { getShoes } from "@/lib/data/shoes";
 import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
@@ -92,18 +93,18 @@ export default async function AdvancedSearchPage({
 
           <div>
             <DynamicTranslatedText as="div" text="Brand" className="mb-1 block text-xs soft-text" />
-            <select name="brand" defaultValue={params.brand ?? ""} className="w-full rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.95)] px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:border-[rgb(var(--ring)/0.4)] focus:border-[rgb(var(--ring)/0.85)] focus:outline-none focus:ring-4 focus:ring-[rgb(var(--ring)/0.18)]">
+            <Select name="brand" defaultValue={params.brand ?? ""}>
               <option value="">All brands</option>
               {brands.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
+            </Select>
           </div>
 
           <div>
             <DynamicTranslatedText as="div" text="Category" className="mb-1 block text-xs soft-text" />
-            <select name="category" defaultValue={params.category ?? ""} className="w-full rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.95)] px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:border-[rgb(var(--ring)/0.4)] focus:border-[rgb(var(--ring)/0.85)] focus:outline-none focus:ring-4 focus:ring-[rgb(var(--ring)/0.18)]">
+            <Select name="category" defaultValue={params.category ?? ""}>
               <option value="">All categories</option>
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+            </Select>
           </div>
 
           <div>

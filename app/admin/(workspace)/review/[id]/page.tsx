@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 
@@ -297,12 +298,12 @@ export default function AdminSubmissionDetailPage() {
               <div key={field.key}>
                 <label className="mb-1 block text-xs soft-text">{field.label}</label>
                 {field.type === "textarea" ? (
-                  <textarea
+                  <Textarea
                     value={String(form[field.key] ?? "")}
                     onChange={(e) =>
                       setForm((prev) => ({ ...prev, [field.key]: e.target.value }))
                     }
-                    className="min-h-20 w-full rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] px-3 py-2"
+                    className="min-h-20"
                   />
                 ) : (
                   <Input

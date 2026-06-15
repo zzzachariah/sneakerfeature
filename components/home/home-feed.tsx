@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { ChevronDown, SearchX, X } from "lucide-react";
+import { SearchX, X } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeCard } from "@/components/home/shoe-card";
@@ -177,25 +178,23 @@ export function HomeFeed({
             onSubmit={runSearch}
             className="flex flex-row items-center gap-2 md:flex-row md:items-center"
           >
-            <div className="relative hidden md:block">
-              <select
-                className="h-9 w-auto appearance-none rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.45)] bg-[rgb(var(--surface)/0.7)] pl-3 pr-8 text-[0.77rem] text-[rgb(var(--subtext))] outline-none transition hover:border-[rgb(var(--text)/0.35)]"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-              >
-                <option value="all">{translate("All brands")}</option>
-                {brands.map((b) => (
-                  <option key={b}>{b}</option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[rgb(var(--subtext))]" />
-            </div>
+            <Select
+              wrapperClassName="hidden md:block"
+              className="md:w-auto md:text-[0.77rem]"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+            >
+              <option value="all">{translate("All brands")}</option>
+              {brands.map((b) => (
+                <option key={b}>{b}</option>
+              ))}
+            </Select>
             <div className="relative flex-1 md:flex-initial" data-tutorial="home-feed-search">
               <Input
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-10 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
+                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
               />
               {searchDraft.trim().length > 0 && (
                 <button
@@ -211,7 +210,7 @@ export function HomeFeed({
             <Button
               type="submit"
               variant="secondary"
-              className="h-10 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] md:shadow-none"
+              className="h-11 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] md:shadow-none"
             >
               {translate("Search")}
             </Button>

@@ -4,6 +4,7 @@ import { ClipboardCheck } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
@@ -61,7 +62,7 @@ export default async function AdminReviewPage({ searchParams }: { searchParams: 
         <h2 className="text-base font-semibold">Filters</h2>
         <form className="mt-4 grid gap-2 md:grid-cols-6" method="GET">
           <Input name="q" placeholder="Search shoe name" defaultValue={q} className="md:col-span-2" />
-          <select name="status" defaultValue={status} className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm">
+          <Select name="status" defaultValue={status}>
             <option value="queue">Queue (pending/normalized/draft)</option>
             <option value="all">All statuses</option>
             <option value="pending">Pending</option>
@@ -70,11 +71,11 @@ export default async function AdminReviewPage({ searchParams }: { searchParams: 
             <option value="published">Published</option>
             <option value="rejected">Rejected</option>
             <option value="unpublished">Unpublished</option>
-          </select>
-          <select name="brand" defaultValue={brand} className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm">
+          </Select>
+          <Select name="brand" defaultValue={brand}>
             <option value="all">All brands</option>
             {brands.map((b) => (<option key={b} value={b}>{b}</option>))}
-          </select>
+          </Select>
           <Input name="submitter" placeholder="Submitter" defaultValue={submitter} />
           <div className="flex flex-col gap-2 sm:flex-row">
             <Input type="date" name="from" defaultValue={from} />

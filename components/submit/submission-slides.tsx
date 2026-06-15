@@ -3,6 +3,7 @@
 import { forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { TurnstileWidget } from "@/components/ui/turnstile";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
@@ -149,10 +150,10 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
           </div>
           <div>
             <label className="mb-1 block text-xs soft-text">{translate("Story / background notes")}</label>
-            <textarea
+            <Textarea
               name="story_notes"
               defaultValue={valueOf("story_notes")}
-              className="min-h-24 w-full rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.78)] p-3 text-sm text-[rgb(var(--text))] outline-none transition focus:border-[rgb(var(--ring)/0.8)] focus:ring-4 focus:ring-[rgb(var(--ring)/0.16)]"
+              className="min-h-24"
               placeholder={translate("Release context, design intent, notable versions, community notes.")}
             />
           </div>
@@ -161,10 +162,10 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
               <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[rgb(var(--accent))]" />
               {translate("Raw notes (required)")}
             </label>
-            <textarea
+            <Textarea
               name="raw_text"
               defaultValue={valueOf("raw_text")}
-              className="min-h-32 w-full rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.78)] p-3 text-sm text-[rgb(var(--text))] outline-none transition focus:border-[rgb(var(--ring)/0.8)] focus:ring-4 focus:ring-[rgb(var(--ring)/0.16)]"
+              className="min-h-32"
               placeholder={translate("Paste your full performance observations and source snippets...")}
             />
           </div>
