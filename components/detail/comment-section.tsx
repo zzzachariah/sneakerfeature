@@ -170,7 +170,7 @@ export function CommentSection({
         <p className="mt-2 text-sm soft-text">{translate("Join the discussion with traction notes, fit tips, and durability observations.")}</p>
 
         {!userId && (
-          <div className="mt-4 rounded-2xl border border-[rgb(var(--muted)/0.65)] bg-[rgb(var(--bg-elev)/0.45)] p-4">
+          <div className="glass glass-rim relative mt-4 rounded-2xl p-4">
             <p className="text-sm soft-text">{translate("You need to be logged in to post a comment.")}</p>
             <Link href="/login" className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 text-sm transition hover:border-[rgb(var(--text)/0.45)] md:min-h-[36px]">
               <LogIn className="h-4 w-4" /> {translate("Log in")}
