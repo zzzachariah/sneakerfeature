@@ -16,6 +16,8 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setVisible", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "configureNavBar", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setNavBarVisible", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configureSearch", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSearchVisible", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentMenu", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise)
     ]
@@ -94,6 +96,28 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         let visible = call.getBool("visible") ?? true
         DispatchQueue.main.async {
             self.ensureNavBar()?.setVisible(visible)
+            call.resolve()
+        }
+    }
+
+    // MARK: Search bar (under the nav bar; live-filters the web list)
+
+    @objc func configureSearch(_ call: CAPPluginCall) {
+        let placeholder = call.getString("placeholder")
+        DispatchQueue.main.async {
+            let bar = self.ensureNavBar()
+            bar?.onSearch = { [weak self] text in
+                self?.notifyListeners("searchChanged", data: ["text": text])
+            }
+            bar?.configureSearch(placeholder: placeholder)
+            call.resolve()
+        }
+    }
+
+    @objc func setSearchVisible(_ call: CAPPluginCall) {
+        let visible = call.getBool("visible") ?? true
+        DispatchQueue.main.async {
+            self.ensureNavBar()?.setSearchVisible(visible)
             call.resolve()
         }
     }
