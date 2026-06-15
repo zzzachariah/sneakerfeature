@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
@@ -48,15 +49,15 @@ export default async function AdminPublishedPage({ searchParams }: { searchParam
         <h2 className="text-base font-semibold">Filters</h2>
         <form className="mt-4 grid gap-2 md:grid-cols-4" method="GET">
           <Input name="q" placeholder="Search shoe name" defaultValue={q} />
-          <select name="brand" defaultValue={brand} className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm">
+          <Select name="brand" defaultValue={brand}>
             <option value="all">All brands</option>
             {brands.map((b) => (<option key={b} value={b}>{b}</option>))}
-          </select>
-          <select name="state" defaultValue={state} className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm">
+          </Select>
+          <Select name="state" defaultValue={state}>
             <option value="all">All states</option>
             <option value="published">Published</option>
             <option value="unpublished">Unpublished</option>
-          </select>
+          </Select>
           <Button type="submit">Filter</Button>
         </form>
       </Card>

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 const shoeFields = [
@@ -163,8 +164,7 @@ export default function AdminPublishedDetailPage() {
           <div className="mt-3 grid gap-3 md:grid-cols-1">
             <div>
               <label className="mb-1 block text-xs soft-text">Playstyle summary</label>
-              <textarea
-                className="w-full rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm"
+              <Textarea
                 rows={3}
                 value={spec.playstyle_summary ?? ""}
                 onChange={(e) =>
@@ -174,8 +174,7 @@ export default function AdminPublishedDetailPage() {
             </div>
             <div>
               <label className="mb-1 block text-xs soft-text">Story summary (spec)</label>
-              <textarea
-                className="w-full rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm"
+              <Textarea
                 rows={3}
                 value={spec.story_summary ?? ""}
                 onChange={(e) =>
@@ -215,8 +214,7 @@ export default function AdminPublishedDetailPage() {
             </div>
             <div className="md:col-span-2">
               <label className="mb-1 block text-xs soft-text">Story content</label>
-              <textarea
-                className="w-full rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.7)] px-3 py-2 text-sm"
+              <Textarea
                 rows={5}
                 value={story.content ?? ""}
                 onChange={(e) =>

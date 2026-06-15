@@ -42,7 +42,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
   };
 
   return (
-    <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg)/0.6)] p-3 backdrop-blur-md">
+    <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg)/0.66)] p-3 backdrop-blur-[26px] backdrop-saturate-[180%]">
       <div className="surface-card premium-border rounded-2xl p-2.5 transition focus-within:shadow-[0_0_0_3px_rgb(var(--text)/0.07)]">
         <textarea
           value={text}

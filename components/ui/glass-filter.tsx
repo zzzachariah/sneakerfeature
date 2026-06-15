@@ -1,9 +1,11 @@
 /**
- * Hidden SVG filter used by the opt-in `.glass-refract` material (the bottom tab
- * bar). It bends the blurred backdrop ever so slightly so the glass reads like a
- * real lens. Mounted once in the root layout. The displacement is deliberately
- * gentle; when WebKit ignores `backdrop-filter: url()` the `@supports` guard in
- * globals.css skips the class entirely and the plain blur stays.
+ * Hidden SVG filter used by the opt-in `.glass-refract` material — now shared by
+ * every floating glass surface (bottom tab bar, top navbar pills, the scroll
+ * indicator). It bends the blurred backdrop so the glass reads like a real lens
+ * that warps the content behind it. Mounted once in the root layout. The
+ * displacement is moderate — clearly a glass lens, never a funhouse warp; when
+ * WebKit ignores `backdrop-filter: url()` the `@supports` guard in globals.css
+ * skips the class entirely and the plain blur stays.
  */
 export function GlassFilterDefs() {
   return (
@@ -34,7 +36,7 @@ export function GlassFilterDefs() {
           <feDisplacementMap
             in="SourceGraphic"
             in2="snoise"
-            scale="6"
+            scale="12"
             xChannelSelector="R"
             yChannelSelector="G"
           />

@@ -7,7 +7,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 export function HomeFeedHeader({ shoesCount, brandsCount }: { shoesCount: number; brandsCount: number }) {
   const { translate } = useLocale();
   return (
-    <div className="mb-3 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--bg-elev)/0.4)] p-4">
+    <div className="glass-lite mb-3 rounded-xl p-4">
       <p className="t-eyebrow mb-1.5">{translate("The Decision Layer for Basketball Sneakers")}</p>
       <h2 className="t-display-sm" style={{ fontSize: "clamp(1.25rem, 2.4vw, 1.75rem)", lineHeight: 1.1 }}>
         {translate("Sneaker Database")}

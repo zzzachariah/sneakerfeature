@@ -192,7 +192,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
                   href={r.video_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-2 text-sm transition hover:border-[rgb(var(--ring)/0.45)] active:scale-[0.98]"
+                  className="inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 text-sm transition hover:border-[rgb(var(--text)/0.45)] active:scale-[0.98] md:min-h-[36px]"
                 >
                   <ExternalLink className="h-4 w-4 shrink-0" />
                   {translate("Watch review")}

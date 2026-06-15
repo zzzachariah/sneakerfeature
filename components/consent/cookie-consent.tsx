@@ -120,12 +120,12 @@ export function CookieBanner() {
           <div className="flex shrink-0 items-center gap-2">
             <Button
               variant="ghost"
-              className="h-9 px-4 text-[0.85rem]"
+              className="px-4 text-[0.85rem]"
               onClick={() => setConsent("rejected")}
             >
               {zh ? "拒绝" : "Reject"}
             </Button>
-            <Button className="h-9 px-5 text-[0.85rem]" onClick={() => setConsent("accepted")}>
+            <Button className="px-5 text-[0.85rem]" onClick={() => setConsent("accepted")}>
               {zh ? "接受" : "Accept"}
             </Button>
           </div>

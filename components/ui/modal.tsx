@@ -26,7 +26,7 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] p-4 backdrop-blur-[6px]`}
+          className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] p-4 backdrop-blur-[16px]`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
