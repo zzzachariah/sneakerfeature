@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function ForYouPage() {
   const data = await getForYouData();
   return (
-    <main>
+    <main className="has-mobile-nav-pad">
       <ForYouView {...data} />
     </main>
   );

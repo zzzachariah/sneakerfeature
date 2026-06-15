@@ -99,7 +99,8 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] p-4 backdrop-blur-[16px] md:items-center"
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] backdrop-blur-[16px] md:items-center"
+          style={{ padding: "max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

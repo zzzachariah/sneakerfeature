@@ -69,7 +69,7 @@ export default async function AdvancedSearchPage({
     .map(({ shoe }) => shoe);
 
   return (
-    <main className="container-shell space-y-6 py-8">
+    <main className="container-shell space-y-6 pt-8" style={{ paddingBottom: "calc(var(--mobile-nav-h) + 2rem)" }}>
       <section className="surface-card premium-border rounded-3xl p-6 md:p-7">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-[rgb(var(--accent))]" />

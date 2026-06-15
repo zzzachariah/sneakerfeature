@@ -24,7 +24,7 @@ export function AuthShell({
   const { translate } = useLocale();
 
   return (
-    <main className="relative min-h-[calc(100dvh-var(--top-nav-h,64px)-var(--mobile-nav-h,0px))] overflow-hidden">
+    <main className="relative min-h-[calc(100dvh-var(--top-nav-h,64px)-var(--mobile-nav-h,0px))] overflow-x-clip has-mobile-nav-pad">
       <AnimatedBackground />
 
       <div className="container-shell relative z-10 grid grid-cols-1 items-center gap-10 py-8 md:py-16 lg:grid-cols-[1.05fr,0.95fr] lg:gap-16 lg:py-24">

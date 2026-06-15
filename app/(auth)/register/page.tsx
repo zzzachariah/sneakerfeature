@@ -46,7 +46,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="container-shell py-10">
+    <main className="container-shell pt-10" style={{ paddingBottom: "calc(var(--mobile-nav-h) + 2.5rem)" }}>
       {gateOpen && <RequiredReadingGate onContinue={() => setGateOpen(false)} />}
       <form onSubmit={onSubmit} className={`surface-card premium-border mx-auto max-w-md space-y-4 rounded-3xl p-7 ${gateOpen ? "pointer-events-none select-none" : ""}`}>
         <h1 className="text-2xl font-semibold tracking-[0.02em]">{translate("Register")}</h1>
