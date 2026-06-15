@@ -27,6 +27,9 @@ final class NativeNavBarController: NSObject {
         guard let view = host?.view else { return }
         navBar.translatesAutoresizingMaskIntoConstraints = false
         navBar.items = [navItem]
+        // Tint logo + bar-button glyphs to the label colour (monochrome, adapts
+        // to light/dark) instead of the default system blue.
+        navBar.tintColor = .label
         view.addSubview(navBar)
         NSLayoutConstraint.activate([
             navBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -63,9 +66,20 @@ final class NativeNavBarController: NSObject {
                 rightItems.append(item)
             }
         }
-        // rightBarButtonItems lay out right-to-left, so reverse to keep the JS
-        // array order reading left-to-right across the right cluster.
-        navItem.rightBarButtonItems = rightItems.reversed()
+        // rightBarButtonItems lay out right-to-left ([0] = far right). Keep the
+        // JS order (more / hamburger on the far right, account to its left, as on
+        // the web) and insert a small fixed space so they read as separate pills,
+        // not one merged cluster.
+        var ordered: [UIBarButtonItem] = []
+        for (index, item) in rightItems.enumerated() {
+            if index > 0 {
+                let space = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
+                space.width = 8
+                ordered.append(space)
+            }
+            ordered.append(item)
+        }
+        navItem.rightBarButtonItems = ordered
 
         navBar.isHidden = false
         host?.view.bringSubviewToFront(navBar)
@@ -117,15 +131,22 @@ final class NativeNavBarController: NSObject {
     }
 
     private func setLeadingLogo(_ image: UIImage) {
-        let height: CGFloat = 26
+        // The source logo can be large (≈1 MB). A UIImage's intrinsic size drives
+        // a bar button's layout, so a full-res image breaks the bar and the logo
+        // never appears. Downscale to bar height first, render as a template so it
+        // tints to the nav bar's tintColor (label colour, adapts to dark mode).
+        let small = resizedToHeight(image, 24).withRenderingMode(.alwaysTemplate)
+        let item = UIBarButtonItem(image: small, style: .plain, target: self, action: #selector(homeTapped))
+        navItem.leftBarButtonItem = item
+    }
+
+    private func resizedToHeight(_ image: UIImage, _ height: CGFloat) -> UIImage {
         let ratio = image.size.height > 0 ? image.size.width / image.size.height : 1
-        let imageView = UIImageView(image: image.withRenderingMode(.alwaysTemplate))
-        imageView.contentMode = .scaleAspectFit
-        imageView.tintColor = .label
-        imageView.frame = CGRect(x: 0, y: 0, width: height * ratio, height: height)
-        imageView.isUserInteractionEnabled = true
-        imageView.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(homeTapped)))
-        navItem.leftBarButtonItem = UIBarButtonItem(customView: imageView)
+        let size = CGSize(width: max(1, height * ratio), height: height)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = UIScreen.main.scale
+        let renderer = UIGraphicsImageRenderer(size: size, format: format)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
     }
 
     private func loadLogo(_ url: URL) {

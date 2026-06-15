@@ -447,6 +447,16 @@ html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
   display: none !important;
 }
 
+/* Same for the top bar: in the iOS app the header becomes a native Liquid Glass
+   UINavigationBar (see components/native/native-top-bar.tsx) — the reliable way
+   to get glass on top in WKWebView. Hide the web header with visibility:hidden
+   (keeps its layout height so content stays offset below the native bar). The
+   `native-topbar-active` class is added only after configureNavBar resolves, so
+   a missing plugin leaves the web header visible. */
+html.native-topbar-active header[data-app-header] {
+  visibility: hidden;
+}
+
 /* ── Capability & accessibility fallbacks ── */
 /* No backdrop-filter support → opaque surfaces. */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
