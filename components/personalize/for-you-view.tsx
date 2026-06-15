@@ -125,7 +125,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
         {/* Player avatar on its own full-width row (it includes a stats panel, so
             squeezing it beside the greeting pushed it off-screen on phones). The
             frosted-glass card is a light glassmorphism touch. */}
-        <div className="mt-4 overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg-elev)/0.45)] p-3 backdrop-blur-md">
+        <div className="glass mt-4 overflow-hidden rounded-2xl p-3">
           <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" />
         </div>
       </motion.header>

@@ -38,7 +38,7 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
     <li className="group relative">
       <Link
         href={`/shoes/${shoe.slug}`}
-        className="block overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--bg-elev)/0.5)] transition-colors duration-[180ms] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)]"
+        className="glass-lite block overflow-hidden rounded-2xl transition-colors duration-[180ms] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)]"
       >
         <div className="relative aspect-square w-full bg-white">
           <ShoeImage

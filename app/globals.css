@@ -368,6 +368,17 @@ body {
     pointer-events: none;
     z-index: 1;
   }
+
+  /* Same opt-in refraction the bottom tab bar uses, so the floating top-nav
+     pills (logo / hamburger / account) read as the exact same glass material —
+     blurred AND lensed, not just lower opacity. Mobile-only; degrades to the
+     plain blur above when backdrop-filter: url() is unsupported. */
+  @supports ((backdrop-filter: url("#g")) or (-webkit-backdrop-filter: url("#g"))) {
+    .nav-glass-pill {
+      -webkit-backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+      backdrop-filter: url(#glass-refract-filter) blur(var(--glass-blur-md)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+    }
+  }
 }
 
 /* Lensed edge — a 1px gradient ring (bright top-left → shaded bottom-right).

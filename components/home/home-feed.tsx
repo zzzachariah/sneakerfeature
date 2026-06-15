@@ -121,14 +121,20 @@ export function HomeFeed({
   return (
     <section className={pageScroll ? "flex flex-col" : "flex h-full min-h-0 flex-col"} data-tutorial="home-feed">
       <div
-        className={pageScroll ? "px-3" : "min-h-0 flex-1 overflow-auto px-3 pb-3"}
+        className={pageScroll ? "" : "min-h-0 flex-1 overflow-auto px-3 pb-3"}
         {...(scrollContainerAttr && !pageScroll ? { "data-home-scroll-container": "true" } : {})}
       >
         {scrollHeader}
         <div
-          className={`${
-            pageScroll ? "sticky top-[var(--top-nav-h)] z-30" : "sticky top-0 z-10"
-          } -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[18px] md:backdrop-saturate-[180%]`}
+          className={
+            pageScroll
+              ? // Flush to the container-shell edges so the search field + button
+                // line up with the navbar's logo (left) and hamburger/account
+                // (right). Frosted on every breakpoint so content scrolls cleanly
+                // under it when the bar pins below the navbar.
+                "sticky top-[var(--top-nav-h)] z-30 mb-3 py-2 border-b border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg)/0.66)] backdrop-blur-[26px] backdrop-saturate-[180%]"
+              : "sticky top-0 z-10 -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[26px] md:backdrop-saturate-[180%]"
+          }
           style={revealStyle(0)}
         >
         <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end">
@@ -189,7 +195,7 @@ export function HomeFeed({
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-10 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[14px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
+                className="h-10 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
               />
               {searchDraft.trim().length > 0 && (
                 <button
@@ -205,7 +211,7 @@ export function HomeFeed({
             <Button
               type="submit"
               variant="secondary"
-              className="h-10 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[14px] md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] md:shadow-none"
+              className="h-10 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] md:shadow-none"
             >
               {translate("Search")}
             </Button>
@@ -285,7 +291,7 @@ export function HomeFeed({
 
       {compareMode && selected.length > 1 && (
         <div
-          className="sticky flex flex-col gap-2 rounded-xl border border-[rgb(var(--text)/0.35)] bg-[rgb(var(--bg-elev)/0.92)] p-3 shadow-lift backdrop-blur-[20px] sm:flex-row sm:items-center sm:justify-between md:hidden"
+          className="glass-strong glass-rim sticky flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between md:hidden"
           style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 16px)" }}
         >
           <p className="text-sm">

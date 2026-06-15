@@ -90,16 +90,20 @@ export function MobileBottomNav() {
                   active ? "text-[rgb(var(--text))]" : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
                 }`}
               >
-                {/* Selected-tab highlight */}
-                {active && (
-                  <span
-                    aria-hidden
-                    className="absolute inset-x-1 inset-y-1.5 rounded-2xl bg-[rgb(var(--text)/0.1)]"
-                  />
-                )}
+                {/* Selected-tab indicator — a small dot above the icon (no
+                    background slab, so the icon + label keep their breathing
+                    room and never sit cramped against an edge). */}
+                <span
+                  aria-hidden
+                  className="absolute top-[6px] left-1/2 h-[5px] w-[5px] -translate-x-1/2 rounded-full bg-[rgb(var(--text))] transition-[transform,opacity] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{
+                    opacity: active ? 1 : 0,
+                    transform: `translateX(-50%) scale(${active ? 1 : 0})`
+                  }}
+                />
                 <span
                   className="relative inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.9]"
-                  style={{ transform: active ? "translateY(-1px)" : "none" }}
+                  style={{ transform: active ? "translateY(1px)" : "none" }}
                 >
                   <Icon className="h-[20px] w-[20px]" strokeWidth={active ? 2.2 : 1.7} />
                   {showSignedDot && !active ? (
@@ -109,7 +113,11 @@ export function MobileBottomNav() {
                     />
                   ) : null}
                 </span>
-                <span className="relative text-[0.6rem] font-medium leading-none tracking-[0.02em]">
+                <span
+                  className={`relative text-[0.6rem] leading-none tracking-[0.02em] transition-[font-weight] ${
+                    active ? "font-semibold" : "font-medium"
+                  }`}
+                >
                   {translate(tab.label)}
                 </span>
               </Link>
