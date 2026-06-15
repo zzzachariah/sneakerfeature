@@ -28,7 +28,7 @@ export interface NativeChromePlugin {
   setActiveTab(options: { key: string }): Promise<void>;
   setVisible(options: { visible: boolean }): Promise<void>;
   // Top navigation bar
-  configureNavBar(options: { title?: string; buttons: NativeNavButton[] }): Promise<void>;
+  configureNavBar(options: { title?: string; logoUrl?: string; buttons: NativeNavButton[] }): Promise<void>;
   setNavBarVisible(options: { visible: boolean }): Promise<void>;
   // Ad-hoc native menus / confirms (presentable from any web trigger)
   presentMenu(options: {

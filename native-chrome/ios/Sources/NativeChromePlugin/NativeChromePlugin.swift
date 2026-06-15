@@ -82,9 +82,10 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func configureNavBar(_ call: CAPPluginCall) {
         let title = call.getString("title")
+        let logoURL = call.getString("logoUrl")
         let buttons: [JSObject] = (call.getArray("buttons") ?? []).compactMap { $0 as? JSObject }
         DispatchQueue.main.async {
-            self.ensureNavBar()?.configure(title: title, buttons: buttons)
+            self.ensureNavBar()?.configure(title: title, logoURL: logoURL, buttons: buttons)
             call.resolve()
         }
     }
