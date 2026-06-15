@@ -56,7 +56,7 @@ export function AuthShell({
           </p>
 
           <div className="mt-4 flex items-center gap-5">
-            <div className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.55)] p-5 backdrop-blur-md">
+            <div className="glass glass-rim relative rounded-2xl p-5">
               <SneakerLoader label="sneakerfeature" />
             </div>
             <div className="space-y-1">

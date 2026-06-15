@@ -369,18 +369,6 @@ body {
     pointer-events: none;
     z-index: 1;
   }
-
-  /* Same opt-in refraction the bottom tab bar uses, so the floating top-nav
-     pills (logo / hamburger / account) read as the exact same glass material —
-     blurred AND lensed, not just lower opacity. Mobile-only; degrades to the
-     plain blur above when backdrop-filter: url() is unsupported. */
-  @supports ((backdrop-filter: url("#g")) or (-webkit-backdrop-filter: url("#g"))) {
-    .nav-glass-pill {
-      /* Moderate blur so the SVG lens warp stays readable through it. */
-      -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
-      backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
-    }
-  }
 }
 
 /* Lensed edge — a 1px gradient ring (bright top-left → shaded bottom-right).
@@ -429,17 +417,16 @@ body {
   transform: scale(0.97);
 }
 
-/* "Liquid glass" chrome material — the bottom tab bar + the center scroll
-   indicator (and, via the mobile block above, the top-nav pills). Built in two
-   layers so it looks thick and glassy on EVERY engine, not just Chromium:
+/* "Liquid glass" chrome material — the center scroll indicator + the web bottom
+   tab bar. A heavier frost + saturation + brightness + an inner glow + the lit
+   rim (.glass-rim) so it reads as thick liquid glass. Pure CSS so it renders on
+   iOS/Safari WebKit too.
 
-   1. Base (works everywhere, incl. iOS/Safari): a heavier frost + brightness +
-      an inner glow, so the glass clearly thickens and smears the content behind
-      it. This is the only layer Safari/iOS can render.
-   2. Lens (Chromium / Android WebView only): additionally bend the backdrop
-      through the SVG displacement filter for true content refraction. Safari/iOS
-      silently ignore url() inside backdrop-filter, so they fall back to layer 1
-      rather than showing nothing. */
+   NOTE: we deliberately do NOT use `backdrop-filter: url(#svg)` for SVG
+   refraction here. iOS 26 WebKit reports @supports support for it but cannot
+   render it, which makes it drop the WHOLE backdrop-filter — so the glass blur
+   vanishes entirely on iPhone. Plain blur + the treatment below is the robust
+   cross-engine result. */
 .glass-refract {
   -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.14);
   backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.14);
@@ -448,13 +435,6 @@ body {
     inset 0 0 22px rgb(var(--glass-rim) / 0.14),
     inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
     0 14px 36px -12px rgb(var(--glass-shadow) / 0.32);
-}
-@supports ((backdrop-filter: url("#g")) or (-webkit-backdrop-filter: url("#g"))) {
-  .glass-refract {
-    /* Moderate blur (vs. the base) so the warped backdrop stays readable. */
-    -webkit-backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
-    backdrop-filter: blur(18px) saturate(var(--glass-saturate)) brightness(1.08) url(#glass-refract-filter);
-  }
 }
 
 /* Inside the iOS native app the bottom navigation is a real native Liquid Glass

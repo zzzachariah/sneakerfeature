@@ -174,7 +174,7 @@ export function DashboardSlides(props: Props) {
                   props.submissions.map((item) => (
                     <div
                       key={item.id}
-                      className="premium-hover-lift rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-4 text-sm backdrop-blur-md"
+                      className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm"
                     >
                       <p className="font-medium">
                         {translate("Status")}:{" "}
@@ -205,7 +205,7 @@ export function DashboardSlides(props: Props) {
                     return (
                       <div
                         key={item.id}
-                        className="premium-hover-lift rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-4 text-sm backdrop-blur-md"
+                        className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm"
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
@@ -261,7 +261,7 @@ export function DashboardSlides(props: Props) {
             ) : (
               <>
                 {/* Profile */}
-                <section className="rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-5 backdrop-blur-md">
+                <section className="glass glass-rim relative rounded-2xl p-5">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.18em] soft-text">
                     {translate("Account details")}
                   </h3>
@@ -304,7 +304,7 @@ export function DashboardSlides(props: Props) {
                 <PersonalizedPushToggle />
 
                 {/* Security */}
-                <section className="rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-5 backdrop-blur-md">
+                <section className="glass glass-rim relative rounded-2xl p-5">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.18em] soft-text">
                     {translate("Password")}
                   </h3>
@@ -525,7 +525,7 @@ function OverviewSlide({
 
 function StatTile({ label, value, loading }: { label: string; value: number; loading?: boolean }) {
   return (
-    <div className="premium-hover-lift group relative overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.65)] p-5 backdrop-blur-md">
+    <div className="premium-hover-lift group relative overflow-hidden glass-lite rounded-2xl p-5">
       <div className="relative z-10">
         <p className="auth-eyebrow">{label}</p>
         <p className="mt-3 text-4xl font-semibold tracking-[-0.03em] text-[rgb(var(--text))]">
@@ -559,7 +559,7 @@ function ActivityCard({
         : translate("You disliked");
   const BadgeIcon = item.kind === "comment" ? MessageCircle : item.kind === "like" ? ThumbsUp : ThumbsDown;
   return (
-    <div className="premium-hover-lift rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.6)] p-4 text-sm backdrop-blur-md">
+    <div className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm">
       <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--muted)/0.5)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.16em] soft-text">
         <BadgeIcon className="h-3 w-3" />
         {badgeLabel}
