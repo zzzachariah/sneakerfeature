@@ -35,6 +35,7 @@
     "framer-motion": "^11.15.0",
     "lucide-react": "^0.468.0",
     "modern-screenshot": "^4.7.0",
+    "native-chrome": "file:native-chrome",
     "next": "15.1.11",
     "openai": "^4.80.1",
     "react": "19.0.0",

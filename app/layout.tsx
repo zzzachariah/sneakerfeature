@@ -4,6 +4,7 @@ import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { NativeBottomNav } from "@/components/native/native-bottom-nav";
 import { NavScrollIndicatorProvider } from "@/components/layout/nav-scroll-indicator";
 import { RouteMemory } from "@/components/auth/route-memory";
 import {
@@ -77,6 +78,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <Navbar />
                         <div className="flex-1">{children}</div>
                         <MobileBottomNav />
+                        <NativeBottomNav />
                       </div>
                     </NavScrollIndicatorProvider>
                     <TutorialOverlay />
