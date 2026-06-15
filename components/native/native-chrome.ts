@@ -30,6 +30,9 @@ export interface NativeChromePlugin {
   // Top navigation bar
   configureNavBar(options: { title?: string; logoUrl?: string; buttons: NativeNavButton[] }): Promise<void>;
   setNavBarVisible(options: { visible: boolean }): Promise<void>;
+  // Native search bar (under the nav bar; drives the web list)
+  configureSearch(options: { placeholder?: string }): Promise<void>;
+  setSearchVisible(options: { visible: boolean }): Promise<void>;
   // Ad-hoc native menus / confirms (presentable from any web trigger)
   presentMenu(options: {
     title?: string;
@@ -48,7 +51,15 @@ export interface NativeChromePlugin {
     eventName: "tabSelected" | "navAction",
     listener: (data: { key: string }) => void
   ): Promise<PluginListenerHandle>;
+  addListener(
+    eventName: "searchChanged",
+    listener: (data: { text: string }) => void
+  ): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
 
 export const NativeChrome = registerPlugin<NativeChromePlugin>("NativeChrome");
+
+// Window event the native search bar dispatches with { text }; the home feed
+// listens for it to drive its query. Keeps the two decoupled (no prop drilling).
+export const NATIVE_HOME_SEARCH_EVENT = "native-home-search";

@@ -11,8 +11,11 @@ final class NativeNavBarController: NSObject {
     private let navBar = UINavigationBar()
     private let navItem = UINavigationItem()
     private var cachedLogo: UIImage?
+    private let searchBar = UISearchBar()
+    private var searchAttached = false
 
     var onAction: ((String) -> Void)?
+    var onSearch: ((String) -> Void)?
 
     init(host: UIViewController) {
         self.host = host
@@ -70,6 +73,33 @@ final class NativeNavBarController: NSObject {
 
     func setVisible(_ visible: Bool) {
         navBar.isHidden = !visible
+    }
+
+    // MARK: Search bar (pinned directly under the nav bar)
+
+    func configureSearch(placeholder: String?) {
+        guard let view = host?.view else { return }
+        if !searchAttached {
+            searchBar.translatesAutoresizingMaskIntoConstraints = false
+            searchBar.delegate = self
+            // Let the system own the background so iOS 26 can apply Liquid Glass.
+            searchBar.isTranslucent = true
+            view.addSubview(searchBar)
+            NSLayoutConstraint.activate([
+                searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                searchBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                searchBar.topAnchor.constraint(equalTo: navBar.bottomAnchor)
+            ])
+            searchAttached = true
+        }
+        searchBar.placeholder = placeholder
+        view.bringSubviewToFront(searchBar)
+    }
+
+    func setSearchVisible(_ visible: Bool) {
+        searchBar.isHidden = !visible
+        if !visible { searchBar.resignFirstResponder() }
+        else { host?.view.bringSubviewToFront(searchBar) }
     }
 
     @objc private func homeTapped() {
@@ -137,5 +167,22 @@ final class NativeNavBarController: NSObject {
     private func objects(_ value: JSValue?) -> [JSObject] {
         guard let array = value as? JSArray else { return [] }
         return array.compactMap { $0 as? JSObject }
+    }
+}
+
+extension NativeNavBarController: UISearchBarDelegate {
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        onSearch?(searchText)
+    }
+
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.resignFirstResponder()
+        onSearch?(searchBar.text ?? "")
+    }
+
+    func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+        searchBar.text = ""
+        searchBar.resignFirstResponder()
+        onSearch?("")
     }
 }
