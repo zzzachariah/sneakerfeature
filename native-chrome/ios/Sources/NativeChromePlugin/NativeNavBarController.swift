@@ -66,20 +66,16 @@ final class NativeNavBarController: NSObject {
                 rightItems.append(item)
             }
         }
-        // rightBarButtonItems lay out right-to-left ([0] = far right). Keep the
-        // JS order (more / hamburger on the far right, account to its left, as on
-        // the web) and insert a small fixed space so they read as separate pills,
-        // not one merged cluster.
-        var ordered: [UIBarButtonItem] = []
-        for (index, item) in rightItems.enumerated() {
-            if index > 0 {
-                let space = UIBarButtonItem(barButtonSystemItem: .fixedSpace, target: nil, action: nil)
-                space.width = 8
-                ordered.append(space)
-            }
-            ordered.append(item)
+        // Each item in its OWN fixed group so iOS 26 renders them as two separate
+        // glass pills. Plain rightBarButtonItems (or a fixedSpace between them)
+        // get auto-grouped and collapse into a single "…" overflow on iOS 26.
+        // Reversed so the visual order matches the web: account left, hamburger
+        // right.
+        if #available(iOS 16.0, *) {
+            navItem.trailingItemGroups = rightItems.reversed().map { $0.creatingFixedGroup() }
+        } else {
+            navItem.rightBarButtonItems = rightItems
         }
-        navItem.rightBarButtonItems = ordered
 
         navBar.isHidden = false
         host?.view.bringSubviewToFront(navBar)
