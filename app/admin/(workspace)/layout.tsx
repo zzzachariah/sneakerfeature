@@ -1,10 +1,27 @@
 import { Shield } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
-import { AdminNav } from "@/components/admin/admin-nav";
+import { AdminNav, type AdminNavCounts } from "@/components/admin/admin-nav";
+
+async function loadNavCounts(): Promise<AdminNavCounts> {
+  const db = createAdminClient();
+  if (!db) return {};
+  const [submissions, imageCorrections, reports] = await Promise.all([
+    db.from("user_submissions").select("id", { count: "exact", head: true }).in("status", ["pending", "normalized", "draft"]),
+    db.from("image_corrections").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    db.from("comment_reports").select("id", { count: "exact", head: true }).eq("status", "open")
+  ]);
+  return {
+    "/admin/review": submissions.count ?? 0,
+    "/admin/image-corrections": imageCorrections.count ?? 0,
+    "/admin/reports": reports.count ?? 0
+  };
+}
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await requireAdminPageContext();
+  const navCounts = await loadNavCounts();
 
   return (
     <main className="container-shell py-6">
@@ -19,7 +36,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             <p className="mt-1 text-xs text-[rgb(var(--accent))]">role: {admin.role}</p>
           </div>
 
-          <AdminNav />
+          <AdminNav counts={navCounts} />
 
           <div className="mt-6">
             <AdminLogoutButton />

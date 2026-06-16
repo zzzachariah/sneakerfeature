@@ -9,6 +9,7 @@ import {
   Library,
   Megaphone,
   Flag,
+  ImagePlus,
   Wallet,
   Settings2,
   type LucideIcon
@@ -20,6 +21,10 @@ type NavItem = {
   icon: LucideIcon;
   match: (pathname: string) => boolean;
 };
+
+// Optional pending counts shown as a notification badge next to a nav item,
+// keyed by the item's href.
+export type AdminNavCounts = Partial<Record<string, number>>;
 
 type NavGroup = {
   label: string | null;
@@ -60,6 +65,12 @@ const NAV_GROUPS: NavGroup[] = [
         match: (p) => p.startsWith("/admin/blogger-reviews")
       },
       {
+        href: "/admin/image-corrections",
+        label: "Image corrections",
+        icon: ImagePlus,
+        match: (p) => p.startsWith("/admin/image-corrections")
+      },
+      {
         href: "/admin/reports",
         label: "Reported comments",
         icon: Flag,
@@ -86,7 +97,7 @@ const NAV_GROUPS: NavGroup[] = [
   }
 ];
 
-export function AdminNav() {
+export function AdminNav({ counts = {} }: { counts?: AdminNavCounts }) {
   const pathname = usePathname() ?? "";
 
   return (
@@ -101,6 +112,7 @@ export function AdminNav() {
           {group.items.map((item) => {
             const active = item.match(pathname);
             const Icon = item.icon;
+            const count = counts[item.href] ?? 0;
             return (
               <Link
                 key={item.href}
@@ -114,6 +126,11 @@ export function AdminNav() {
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 <span>{item.label}</span>
+                {count > 0 && (
+                  <span className="ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-[rgb(var(--accent))] px-1.5 py-0.5 text-[0.65rem] font-semibold leading-none text-[rgb(var(--bg))]">
+                    {count > 99 ? "99+" : count}
+                  </span>
+                )}
               </Link>
             );
           })}
