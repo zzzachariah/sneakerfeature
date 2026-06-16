@@ -5,10 +5,14 @@ import Link from "next/link";
 import { Apple, Smartphone, Download, ArrowRight } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-// Latest signed APK published by the mobile CI workflow (see MOBILE.md). The
-// `releases/latest/download/<asset>` form always resolves to the newest release.
-const ANDROID_APK_URL =
-  "https://github.com/zzzachariah/sneakerfeature/releases/latest/download/sneakerfeature.apk";
+const GITHUB_REPO = "zzzachariah/sneakerfeature";
+// Fallback APK link. NOTE: `releases/latest` resolves to the newest release of
+// ANY kind — and this repo also ships desktop releases, which would shadow it.
+// So at runtime we instead resolve the newest `mobile-v*` release's .apk asset
+// (see effect below) and only fall back to this static link if that lookup
+// fails (offline / rate-limited).
+const ANDROID_APK_FALLBACK_URL =
+  `https://github.com/${GITHUB_REPO}/releases/latest/download/sneakerfeature.apk`;
 // Set once the app is live on the App Store, e.g. https://apps.apple.com/app/id...
 const IOS_APP_STORE_URL = "";
 
@@ -28,9 +32,38 @@ function detectPlatform(): Platform {
 export function DownloadView() {
   const { translate } = useLocale();
   const [platform, setPlatform] = useState<Platform>("other");
+  const [apkUrl, setApkUrl] = useState(ANDROID_APK_FALLBACK_URL);
 
   useEffect(() => {
     setPlatform(detectPlatform());
+  }, []);
+
+  // Resolve the newest *mobile* release's APK so a later desktop release can't
+  // shadow the "latest" link. Falls back silently to the static URL on any
+  // error (GitHub API is unauthenticated → rate-limited, or offline).
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`, {
+      headers: { Accept: "application/vnd.github+json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((releases) => {
+        if (cancelled || !Array.isArray(releases)) return;
+        const mobile = releases.find(
+          (r) =>
+            r && !r.draft && !r.prerelease && typeof r.tag_name === "string" && r.tag_name.startsWith("mobile-v")
+        );
+        const apk = mobile?.assets?.find(
+          (a: { name?: string }) => typeof a.name === "string" && a.name.endsWith(".apk")
+        );
+        if (apk?.browser_download_url) setApkUrl(apk.browser_download_url);
+      })
+      .catch(() => {
+        /* keep the fallback URL */
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (
@@ -68,7 +101,7 @@ export function DownloadView() {
           </div>
 
           <a
-            href={ANDROID_APK_URL}
+            href={apkUrl}
             className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
           >
             <Download className="h-4 w-4" aria-hidden />

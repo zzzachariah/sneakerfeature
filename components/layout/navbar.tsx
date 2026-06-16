@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Gavel, HelpCircle, Languages, Menu, Search, Sparkles, User } from "lucide-react";
+import { Check, Download, Gavel, HelpCircle, Languages, Menu, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
@@ -103,7 +103,7 @@ export function Navbar() {
           ? "glass-nav"
           : "border-b border-transparent bg-transparent"
       }`}
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      style={{ paddingTop: "var(--safe-top)" }}
       data-app-header="true"
       data-no-translate="true"
     >
@@ -167,6 +167,20 @@ export function Navbar() {
               data-tutorial="nav-search"
             >
               <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
+            </Link>
+          </Tooltip>
+
+          {/* Get-the-app entry. data-download-entry is hidden inside the iOS app
+              via globals.css (they already have it + App Store external-link
+              rules); iOS web and the Android app still show it. */}
+          <Tooltip label={zh ? "下载 App" : "Get the app"} className="hidden md:inline-flex">
+            <Link
+              href="/download"
+              className={iconBtn}
+              aria-label={zh ? "下载 App" : "Get the app"}
+              data-download-entry
+            >
+              <Download className="h-[18px] w-[18px] md:h-4 md:w-4" />
             </Link>
           </Tooltip>
 
@@ -312,6 +326,16 @@ export function Navbar() {
             </button>
             {menuOpen && (
               <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
+                <Link
+                  href="/download"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  data-download-entry
+                >
+                  <Download className="h-4 w-4 shrink-0" />
+                  {zh ? "下载 App" : "Get the app"}
+                </Link>
+
                 <Link
                   href="/search/advanced"
                   onClick={() => setMenuOpen(false)}

@@ -44,17 +44,35 @@
   --dur-base: 200ms;
   --dur-slow: 320ms;
   --dur-cin: 500ms;
+  /* Safe-area insets — single source of truth. On iOS/web they resolve through
+     env() (needs viewport-fit=cover). On Android under Capacitor 8 the app is
+     forced edge-to-edge, but its WebView reports env(safe-area-inset-*)
+     unreliably, so the [data-native-platform="android"] block below floors
+     them. Everything else (nav heights, modals) consumes these vars, not env()
+     directly, so the Android floor applies everywhere at once. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
   /* Layout — nav heights. Top navbar is 64px everywhere.
      Bottom mobile nav appears <md only and includes safe-area inset. */
-  --top-nav-h: calc(64px + env(safe-area-inset-top, 0px));
+  --top-nav-h: calc(64px + var(--safe-top));
   --mobile-nav-h: 0px;
+}
+
+/* Android (Capacitor 8) runs forced edge-to-edge, so without this the web top
+   bar slides under the status bar and the floating bottom nav under the gesture
+   bar. Floor the insets so the chrome always clears the system bars; max()
+   keeps the exact (larger) values on devices where env() does resolve, and
+   leaves iOS / web untouched (this block only matches inside the Android app). */
+html[data-native-platform="android"] {
+  --safe-top: max(env(safe-area-inset-top, 0px), 24px);
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), 24px);
 }
 
 @media (max-width: 767.98px) {
   :root {
     /* Clearance for the floating glass tab capsule (≈60px tall, 12px above the
        safe area) so page content never ends underneath it. */
-    --mobile-nav-h: calc(88px + env(safe-area-inset-bottom, 0px));
+    --mobile-nav-h: calc(88px + var(--safe-bottom));
   }
 }
 
@@ -455,6 +473,15 @@ html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
    a missing plugin leaves the web header visible. */
 html.native-topbar-active header[data-app-header] {
   visibility: hidden;
+}
+
+/* Hide the "Get the app" entry points (navbar icon + hamburger item) inside the
+   iOS app only: the user already has the app, and App Store rules disallow
+   pointing at outside distribution. data-native-platform is set by
+   CapacitorBridge ONLY inside the native app, so iOS web still shows the entry,
+   and the Android app keeps it (so users can grab/share the APK). */
+html[data-native-platform="ios"] [data-download-entry] {
+  display: none !important;
 }
 
 /* ── Capability & accessibility fallbacks ── */
@@ -1052,9 +1079,10 @@ html.native-topbar-active header[data-app-header] {
 }
 .chip-scroll::-webkit-scrollbar { display: none; }
 
-/* Safe-area utility for iOS */
+/* Safe-area utility (iOS + Android edge-to-edge). Uses the floored --safe-bottom
+   so it clears the Android gesture bar too, not just the iOS home indicator. */
 .safe-pb {
-  padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
+  padding-bottom: max(var(--safe-bottom), 0.5rem);
 }
 
 /* Chevron bounce — spec table accordion */

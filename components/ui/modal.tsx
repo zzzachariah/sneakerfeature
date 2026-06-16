@@ -27,10 +27,11 @@ export function Modal({
       {open && (
         <motion.div
           className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] backdrop-blur-[16px]`}
-          // Keep the dialog clear of the notch / home indicator on phones so its
-          // header and bottom actions are never tucked under a system bar.
+          // Keep the dialog clear of the notch / home indicator / Android system
+          // bars on phones so its header and bottom actions are never tucked
+          // under a system bar (--safe-* is floored for Android edge-to-edge).
           style={{
-            padding: "max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))"
+            padding: "max(1rem, var(--safe-top)) 1rem max(1rem, var(--safe-bottom))"
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
