@@ -103,7 +103,7 @@ export function Navbar() {
           ? "glass-nav"
           : "border-b border-transparent bg-transparent"
       }`}
-      style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}
+      style={{ paddingTop: "var(--safe-top)" }}
       data-app-header="true"
       data-no-translate="true"
     >
