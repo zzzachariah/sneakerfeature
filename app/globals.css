@@ -475,6 +475,15 @@ html.native-topbar-active header[data-app-header] {
   visibility: hidden;
 }
 
+/* Hide the "Get the app" entry points (navbar icon + hamburger item) inside the
+   iOS app only: the user already has the app, and App Store rules disallow
+   pointing at outside distribution. data-native-platform is set by
+   CapacitorBridge ONLY inside the native app, so iOS web still shows the entry,
+   and the Android app keeps it (so users can grab/share the APK). */
+html[data-native-platform="ios"] [data-download-entry] {
+  display: none !important;
+}
+
 /* ── Capability & accessibility fallbacks ── */
 /* No backdrop-filter support → opaque surfaces. */
 @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
