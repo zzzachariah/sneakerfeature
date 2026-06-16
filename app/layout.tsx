@@ -14,6 +14,7 @@ import {
   AnalyticsGate,
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
+import { SkinInitScript } from "@/components/theme/skin-init";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { LanguageFirstRun } from "@/components/i18n/language-first-run";
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body>
         <ThemeInitScript />
+        <SkinInitScript />
         <GlassFilterDefs />
         <CapacitorBridge />
         <RouteMemory />

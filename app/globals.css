@@ -1217,3 +1217,120 @@ html[data-native-platform="ios"] [data-download-entry] {
     padding: 24px;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   "Clean" skin — drop the Liquid Glass material for solid, simple surfaces.
+
+   A pre-paint script (components/theme/skin-init.tsx) sets data-skin="clean" on
+   <html> for EVERY surface except the iOS native app, whose WebView keeps the
+   original glass (it shares the same web content as the site and must not
+   change). The base material system above is untouched, so:
+     • iOS native app          → no data-skin       → original Liquid Glass.
+     • web / Android / desktop  → data-skin="clean"  → solid, simple surfaces.
+   Fail-safe: if the script never runs, nothing is de-glassed, so iOS can never
+   accidentally change.
+
+   The "style" is otherwise preserved — same layout, palette, radii, typography;
+   we only remove the glassiness (backdrop blur, translucent tints, lensed rims,
+   inner glow). Surface rules use :where() so they override the base .glass*
+   classes but stay BELOW component hover utilities (e.g. hover:bg-…), keeping
+   hover feedback intact. Light/dark adapt automatically via the shared
+   --bg-elev / --surface / --shadow / --glass-stroke-soft tokens.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Neutralise the Liquid Glass material tokens so every .glass* backdrop-filter
+   built from them computes to an identity (no blur / no vibrancy). This is
+   prefix-agnostic — it kills the effect whether the engine reads
+   `backdrop-filter` or `-webkit-backdrop-filter` — which the opaque backgrounds
+   below then make moot anyway. (These tokens are only ever used inside
+   backdrop-filter declarations, so nothing else is affected.) */
+html[data-skin="clean"] {
+  --glass-blur-sm: 0px;
+  --glass-blur-md: 0px;
+  --glass-blur-lg: 0px;
+  --glass-blur-xl: 0px;
+  --glass-saturate: 100%;
+  --glass-brightness: 1;
+}
+
+/* Regular surfaces (cards, list items, popovers, chips) → solid card. */
+html[data-skin="clean"] :where(.glass, .liquid-glass, .glass-lite, .glass-refract) {
+  background-color: rgb(var(--bg-elev));
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    0 1px 2px rgb(var(--shadow) / 0.05),
+    0 8px 22px -14px rgb(var(--shadow) / 0.16);
+}
+
+/* Elevated surfaces (modals, sheets, auth cards, dropdown panels) → deeper lift. */
+html[data-skin="clean"] :where(.glass-strong, .liquid-glass-strong, .glass-card, .nav-dropdown-panel) {
+  background-color: rgb(var(--bg-elev));
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.65);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    0 4px 14px -6px rgb(var(--shadow) / 0.14),
+    0 24px 48px -28px rgb(var(--shadow) / 0.3);
+}
+
+/* Glass button variant (components/ui/button.tsx) → solid secondary button. */
+html[data-skin="clean"] :where(.glass-interactive) {
+  background-color: rgb(var(--surface));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+html[data-skin="clean"] .glass-interactive:hover {
+  background-color: rgb(var(--bg-elev));
+}
+
+/* Drop every lensed-edge ring / inner-glow pseudo element. */
+html[data-skin="clean"] :where(.glass-rim, .nav-dropdown-panel, .glass-card, .nav-glass-pill)::before {
+  display: none;
+}
+
+/* Kill any frosted blur applied via inline utilities (modal scrims, sticky
+   headers, toasts, …). Scrims keep their dimming background, just unblurred.
+   Emptying the Tailwind backdrop vars neutralises the effect on engines that
+   read the (autoprefixer-retained) -webkit- form too. */
+html[data-skin="clean"] [class*="backdrop-blur"] {
+  --tw-backdrop-blur: ;
+  --tw-backdrop-saturate: ;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/* Top navbar — desktop scrolled slab → solid bar with a hairline. Phones keep
+   their transparent header + floating pills (below), so the layout is unchanged. */
+@media (min-width: 768px) {
+  html[data-skin="clean"] :where(.glass-thin, .glass-nav) {
+    background-color: rgb(var(--bg-elev));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  }
+}
+
+/* Phones — floating navbar pills → solid circles (no blur / tint / rim). */
+@media (max-width: 767.98px) {
+  html[data-skin="clean"] :where(.nav-glass-pill) {
+    background-color: rgb(var(--bg-elev));
+    border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow:
+      0 1px 2px rgb(var(--shadow) / 0.06),
+      0 10px 26px -14px rgb(var(--shadow) / 0.22);
+  }
+}
+
+/* Bottom tab bar (the live mobile capsule uses .glass + .glass-refract, already
+   covered above; .glass-tabbar is the legacy slab) → solid pill. */
+html[data-skin="clean"] :where(.glass-tabbar) {
+  background-color: rgb(var(--bg-elev));
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 10px 28px -14px rgb(var(--shadow) / 0.22);
+}
