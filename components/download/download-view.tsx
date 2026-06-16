@@ -7,13 +7,13 @@ import { Apple, Smartphone, Download, ArrowRight } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 const GITHUB_REPO = "zzzachariah/sneakerfeature";
-// Fallback APK link. NOTE: `releases/latest` resolves to the newest release of
-// ANY kind — and this repo also ships desktop releases, which would shadow it.
-// So at runtime we instead resolve the newest `mobile-v*` release's .apk asset
-// (see effect below) and only fall back to this static link if that lookup
-// fails (offline / rate-limited).
-const ANDROID_APK_FALLBACK_URL =
-  `https://github.com/${GITHUB_REPO}/releases/latest/download/sneakerfeature.apk`;
+// Same-origin streaming proxy (app/api/download/android). GitHub's release CDN
+// (objects.githubusercontent.com) is blocked/throttled in mainland China, where
+// a direct link just hangs on a blank page. This route streams the APK through
+// our own domain, which IS reachable there. It is the default/fallback; when the
+// client can reach GitHub we upgrade to the direct release URL (faster, and
+// keeps the bulk of downloads off our own bandwidth) — see the effect below.
+const PROXY_APK_URL = "/api/download/android";
 // Set once the app is live on the App Store, e.g. https://apps.apple.com/app/id...
 const IOS_APP_STORE_URL = "";
 
@@ -33,7 +33,7 @@ function detectPlatform(): Platform {
 export function DownloadView() {
   const { translate } = useLocale();
   const [platform, setPlatform] = useState<Platform>("other");
-  const [apkUrl, setApkUrl] = useState(ANDROID_APK_FALLBACK_URL);
+  const [apkUrl, setApkUrl] = useState(PROXY_APK_URL);
   // Inside the Capacitor native shell the WebView has no DownloadListener, so a
   // same-window navigation to the APK binary just renders a blank/white page and
   // strands the app. Capacitor routes target="_blank" link taps to the system
@@ -46,9 +46,11 @@ export function DownloadView() {
     setIsNative(Capacitor.isNativePlatform());
   }, []);
 
-  // Resolve the newest *mobile* release's APK so a later desktop release can't
-  // shadow the "latest" link. Falls back silently to the static URL on any
-  // error (GitHub API is unauthenticated → rate-limited, or offline).
+  // Probe GitHub for the newest *mobile* release's APK. If reachable, download
+  // straight from GitHub (faster, no proxy bandwidth) and pick the newest
+  // mobile-v* asset so a later desktop release can't shadow "latest". If the
+  // probe fails (offline, rate-limited, or GitHub blocked as in mainland China),
+  // keep the same-origin proxy URL, which streams the APK through our own domain.
   useEffect(() => {
     let cancelled = false;
     fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`, {
