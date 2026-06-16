@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyTurnstileToken } from "@/lib/turnstile";
+import { verifyHumanToken } from "@/lib/human-verify";
 
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters."),
   email: z.string().email("Enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
-  turnstileToken: z.string().min(1, "Please complete human verification.")
+  verificationToken: z.string().min(1, "Please complete human verification.")
 });
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
     }
 
-    const verified = await verifyTurnstileToken(parsed.data.turnstileToken);
-    devLog("turnstile verification done", verified);
+    const verified = verifyHumanToken(parsed.data.verificationToken, "register");
+    devLog("human verification done", verified);
     if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
 
     const supabase = createAdminClient();

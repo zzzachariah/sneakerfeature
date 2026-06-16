@@ -61,7 +61,7 @@ export function SubmissionForm({
     }
     if (!token) {
       setIsError(true);
-      setMessage(translate("Complete Turnstile verification first."));
+      setMessage(translate("Complete the verification first."));
       return;
     }
 
@@ -76,7 +76,7 @@ export function SubmissionForm({
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify({ ...payload, turnstileToken: token })
+        body: JSON.stringify({ ...payload, verificationToken: token })
       });
 
       const rawTextResponse = await res.text();

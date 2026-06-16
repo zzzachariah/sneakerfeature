@@ -10,7 +10,7 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
-import { TurnstileWidget } from "@/components/ui/turnstile";
+import { HumanCheck } from "@/components/ui/human-check";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -110,7 +110,7 @@ export default function LoginPage() {
   const { translate } = useLocale();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -131,7 +131,7 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      if (!turnstileToken) {
+      if (!verificationToken) {
         setError(true);
         setMessage("Please complete human verification.");
         return;
@@ -140,7 +140,7 @@ export default function LoginPage() {
       const res = await fetchWithTimeout("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password, turnstileToken })
+        body: JSON.stringify({ identifier, password, verificationToken })
       });
 
       const data = await res.json();
@@ -250,7 +250,7 @@ export default function LoginPage() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <TurnstileWidget onToken={setTurnstileToken} />
+          <HumanCheck action="login" onToken={setVerificationToken} />
         </motion.div>
 
         <motion.div variants={fadeUp}>

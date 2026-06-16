@@ -58,7 +58,7 @@ npx cap open ios       # 打开 ios/App/App.xcworkspace
 
 - **Signing & Capabilities** → 登录开发者账号 → 勾 **Automatically manage signing** → 选 Team。
 - 顶部选你的 iPhone（或模拟器）→ 点 **▶ Run**。
-- 回归项：登录、Turnstile 人机验证、AI 选鞋、评论/投稿、推送、分享、深色模式、底部导航。
+- 回归项：登录、滑块人机验证、AI 选鞋、评论/投稿、推送、分享、深色模式、底部导航。
 
 ### 测「还没上线的本地改动」
 

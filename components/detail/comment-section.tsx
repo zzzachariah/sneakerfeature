@@ -6,7 +6,7 @@ import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn, MoreHorizontal,
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
-import { TurnstileWidget } from "@/components/ui/turnstile";
+import { HumanCheck } from "@/components/ui/human-check";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
 import { Reveal } from "@/components/motion/reveal";
 import { createClient } from "@/lib/supabase/client";
@@ -85,7 +85,7 @@ export function CommentSection({
     const response = await fetch("/api/comments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shoeId, content, turnstileToken: token })
+      body: JSON.stringify({ shoeId, content, verificationToken: token })
     });
 
     const data = await response.json();
@@ -186,7 +186,7 @@ export function CommentSection({
             onChange={(e) => setContent(e.target.value)}
             disabled={!userId}
           />
-          {userId && <TurnstileWidget onToken={setToken} />}
+          {userId && <HumanCheck action="comment" onToken={setToken} />}
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={submitComment} disabled={!canSubmit || posting}>{posting ? translate("Posting...") : translate("Post comment")}</Button>
             <p className="text-xs soft-text">{translate("Keep it constructive and specific to on-court experience.")}</p>

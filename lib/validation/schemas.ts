@@ -7,13 +7,13 @@ export const authSchema = z.object({
   username: z.string().min(3).max(20).optional(),
   email: z.string().email().optional(),
   password: z.string().min(8, "Password must be at least 8 characters."),
-  turnstileToken: z.string().min(1, "Please complete Turnstile verification.")
+  verificationToken: z.string().min(1, "Please complete human verification.")
 });
 
 export const commentSchema = z.object({
   shoeId: z.string().uuid("Invalid shoe identifier."),
   content: z.string().min(3).max(1000),
-  turnstileToken: z.string().min(1)
+  verificationToken: z.string().min(1, "Please complete human verification.")
 });
 
 export const reportCommentSchema = z.object({
@@ -111,7 +111,7 @@ export const submissionSchema = z.object({
   submission_type: z.enum(["new_shoe", "correction"]).optional().default("new_shoe"),
   target_shoe_id: z.string().uuid().optional(),
   original_snapshot: z.string().optional(),
-  turnstileToken: z.string().min(1)
+  verificationToken: z.string().min(1, "Please complete human verification.")
 }).superRefine((data, ctx) => {
   if (data.submission_type === "correction" && !data.target_shoe_id) {
     ctx.addIssue({

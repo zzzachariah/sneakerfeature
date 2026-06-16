@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
-import { verifyTurnstileToken } from "@/lib/turnstile";
+import { verifyHumanToken } from "@/lib/human-verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
   identifier: z.string().min(3),
   password: z.string().min(8),
-  turnstileToken: z.string().min(1)
+  verificationToken: z.string().min(1, "Please complete human verification.")
 });
 
 export async function POST(request: Request) {
@@ -18,9 +18,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  const turnstile = await verifyTurnstileToken(parsed.data.turnstileToken);
-  if (!turnstile.success) {
-    return NextResponse.json({ ok: false, message: turnstile.message ?? "Verification failed." }, { status: 400 });
+  const verified = verifyHumanToken(parsed.data.verificationToken, "admin-login");
+  if (!verified.success) {
+    return NextResponse.json({ ok: false, message: verified.message ?? "Verification failed." }, { status: 400 });
   }
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
