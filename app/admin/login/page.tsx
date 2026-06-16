@@ -4,14 +4,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
-import { TurnstileWidget } from "@/components/ui/turnstile";
+import { HumanCheck } from "@/components/ui/human-check";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export default function AdminLoginPage() {
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function AdminLoginPage() {
     setLoading(true);
 
     try {
-      if (!turnstileToken) {
+      if (!verificationToken) {
         setError(true);
         setMessage("Please complete human verification.");
         return;
@@ -34,7 +34,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password, turnstileToken })
+        body: JSON.stringify({ identifier, password, verificationToken })
       });
       const data = await res.json();
 
@@ -75,7 +75,7 @@ export default function AdminLoginPage() {
           <label className="mb-1 block text-xs soft-text">Password</label>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
-        <TurnstileWidget onToken={setTurnstileToken} />
+        <HumanCheck action="admin-login" onToken={setVerificationToken} />
 
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Authorizing..." : "Enter admin workspace"}

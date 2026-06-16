@@ -4,7 +4,7 @@ import { forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { TurnstileWidget } from "@/components/ui/turnstile";
+import { HumanCheck } from "@/components/ui/human-check";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 
@@ -184,7 +184,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
             </div>
           </div>
           <div className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)] p-3">
-            <TurnstileWidget onToken={onToken} />
+            <HumanCheck action="submission" onToken={onToken} />
           </div>
           <div className="flex flex-col items-stretch gap-3 pt-1 sm:flex-row sm:items-center">
             <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>

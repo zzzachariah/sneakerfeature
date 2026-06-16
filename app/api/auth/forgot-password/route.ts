@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyTurnstileToken } from "@/lib/turnstile";
+import { verifyHumanToken } from "@/lib/human-verify";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Enter a valid email address."),
-  turnstileToken: z.string().min(1, "Please complete human verification.")
+  verificationToken: z.string().min(1, "Please complete human verification.")
 });
 
 // Generic response — never reveal whether an account exists (no enumeration).
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  const verified = await verifyTurnstileToken(parsed.data.turnstileToken);
+  const verified = verifyHumanToken(parsed.data.verificationToken, "forgot-password");
   if (!verified.success) {
     return NextResponse.json({ ok: false, message: verified.message ?? "Human verification failed." }, { status: 400 });
   }
@@ -25,6 +25,6 @@ export async function POST(request: Request) {
   // The recovery email is actually sent client-side via
   // supabase.auth.resetPasswordForEmail so the PKCE code-verifier is stored in the
   // requesting browser and the link can be completed there. This endpoint only
-  // enforces Turnstile and returns a generic, non-enumerating response.
+  // enforces human verification and returns a generic, non-enumerating response.
   return NextResponse.json({ ok: true, message: GENERIC_OK });
 }

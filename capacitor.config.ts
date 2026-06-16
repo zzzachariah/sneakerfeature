@@ -8,9 +8,8 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const SITE_URL = process.env.SNEAKERFEATURE_URL || "https://snkrfeature.com";
 const isHttp = SITE_URL.startsWith("http://");
 
-// Cloudflare Turnstile (used by comments/submissions) rejects User-Agents it
-// flags as automation, so we append a vanilla marker token — same rationale as
-// electron/main.js:24-32.
+// Append an app marker to the WebView User-Agent so we can identify app traffic
+// — same rationale as the desktop shell (see electron/main.js).
 const USER_AGENT_SUFFIX = "sneakerfeature-mobile";
 
 const config: CapacitorConfig = {

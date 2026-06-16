@@ -10,7 +10,7 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
-import { TurnstileWidget } from "@/components/ui/turnstile";
+import { HumanCheck } from "@/components/ui/human-check";
 import { RequiredReadingGate } from "@/components/auth/required-reading-gate";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
@@ -93,7 +93,7 @@ function useTiltHandlers() {
 export default function SignupPage() {
   const { locale, translate } = useLocale();
   const [form, setForm] = useState({ username: "", email: "", password: "" });
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -134,7 +134,7 @@ export default function SignupPage() {
         return;
       }
 
-      if (!turnstileToken) {
+      if (!verificationToken) {
         setError(true);
         setMessage("Please complete verification before signing up.");
         return;
@@ -149,7 +149,7 @@ export default function SignupPage() {
       const res = await fetchWithTimeout("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, turnstileToken })
+        body: JSON.stringify({ ...form, verificationToken })
       });
 
       const data = await res.json();
@@ -256,7 +256,7 @@ export default function SignupPage() {
           </motion.div>
 
           <motion.div variants={fadeUp}>
-            <TurnstileWidget onToken={setTurnstileToken} />
+            <HumanCheck action="register" onToken={setVerificationToken} />
           </motion.div>
 
           <motion.div variants={fadeUp}>

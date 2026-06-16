@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeSubmission } from "@/lib/openai-normalize";
 import { submissionSchema } from "@/lib/validation/schemas";
-import { verifyTurnstileToken } from "@/lib/turnstile";
+import { verifyHumanToken } from "@/lib/human-verify";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -66,8 +66,8 @@ export async function POST(request: Request) {
       source_links: parsed.data.source_links
     };
 
-    const verified = await verifyTurnstileToken(parsed.data.turnstileToken);
-    console.log("[submissions] Turnstile validation result", verified);
+    const verified = verifyHumanToken(parsed.data.verificationToken, "submission");
+    console.log("[submissions] human verification result", verified);
     if (!verified.success) return jsonResponse({ ok: false, message: verified.message }, { status: 400 });
 
     const serverClient = await createClient();

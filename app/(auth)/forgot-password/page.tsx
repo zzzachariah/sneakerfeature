@@ -8,7 +8,7 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
-import { TurnstileWidget } from "@/components/ui/turnstile";
+import { HumanCheck } from "@/components/ui/human-check";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -36,7 +36,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = CLIE
 export default function ForgotPasswordPage() {
   const { translate } = useLocale();
   const [email, setEmail] = useState("");
-  const [turnstileToken, setTurnstileToken] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
         setMessage("Please enter a valid email address.");
         return;
       }
-      if (!turnstileToken) {
+      if (!verificationToken) {
         setError(true);
         setMessage("Please complete human verification.");
         return;
@@ -65,7 +65,7 @@ export default function ForgotPasswordPage() {
       const res = await fetchWithTimeout("/api/auth/forgot-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, turnstileToken })
+        body: JSON.stringify({ email, verificationToken })
       });
       const data = await res.json().catch(() => ({ ok: false }));
 
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
         return;
       }
 
-      // Turnstile passed server-side; send the recovery email from this browser so the
+      // Verification passed server-side; send the recovery email from this browser so the
       // PKCE code-verifier is stored here and the link can be completed in this browser.
       const supabase = createClient();
       if (supabase) {
@@ -130,7 +130,7 @@ export default function ForgotPasswordPage() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <TurnstileWidget onToken={setTurnstileToken} />
+          <HumanCheck action="forgot-password" onToken={setVerificationToken} />
         </motion.div>
 
         <motion.div variants={fadeUp}>

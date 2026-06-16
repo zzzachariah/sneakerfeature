@@ -21,10 +21,10 @@ function createWindow() {
     },
   });
 
-  // Cloudflare Turnstile rejects User-Agents containing "Electron/..." as
-  // automation, so the challenge silently fails to render. Strip the Electron
-  // token (and the app's own product token, which Electron injects by default)
-  // so the UA looks like a vanilla Chromium build before appending our marker.
+  // Present a clean, vanilla-Chromium User-Agent with our own app marker: strip
+  // the "Electron/..." token (and the app's own product token, which Electron
+  // injects by default) so anti-automation heuristics on third-party links don't
+  // flag the desktop app, then append our marker so we can identify app traffic.
   const baseUa = win.webContents
     .getUserAgent()
     .replace(/\sElectron\/\S+/i, "")

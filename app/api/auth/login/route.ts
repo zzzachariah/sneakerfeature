@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authSchema } from "@/lib/validation/schemas";
-import { verifyTurnstileToken } from "@/lib/turnstile";
+import { verifyHumanToken } from "@/lib/human-verify";
 
 const AUTH_TIMEOUT_MS = 10000;
 
@@ -27,8 +27,8 @@ export async function POST(request: Request) {
     const parsed = authSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
 
-    const verified = await verifyTurnstileToken(parsed.data.turnstileToken);
-    devLog("turnstile verification done", verified);
+    const verified = verifyHumanToken(parsed.data.verificationToken, "login");
+    devLog("human verification done", verified);
     if (!verified.success) return NextResponse.json({ ok: false, message: verified.message ?? "Verification not completed." }, { status: 400 });
 
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
