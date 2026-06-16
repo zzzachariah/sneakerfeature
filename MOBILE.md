@@ -133,7 +133,10 @@ npx cap open android
 ## 六、原生权限说明（提交前确认 Info.plist / Manifest）
 
 - **推送通知**：iOS 在 `Signing & Capabilities` 加 **Push Notifications** 能力；后端用
-  APNs。Android 用 FCM（放 `google-services.json`）。
+  APNs。**Android 推送当前已停用**：原本走 FCM，但 FCM 依赖 Google Play Services（大陆
+  大量机型没有 → 注册时闪退），且 FCM 在大陆被墙、根本推不到。代码里 `PushRegistration`
+  已限制为「仅 iOS」。要在安卓做推送，需接国内方案（厂商推送 / 极光 JPush 等），届时再
+  放开。原 FCM 路线需要 `google-services.json`，本仓库未配置。
 - **保存图片到相册**：iOS 需在 `Info.plist` 加 `NSPhotoLibraryAddUsageDescription`
   文案（如「保存球鞋图片到你的相册」）。
 

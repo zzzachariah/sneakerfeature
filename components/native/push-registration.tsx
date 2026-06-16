@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
-import { isNativeApp, nativePlatform } from "@/lib/native/native";
+import { nativePlatform } from "@/lib/native/native";
 
 // When the web app runs inside the native shell and the user is signed in, this
 // requests notification permission, registers for push, and stores the device
@@ -12,7 +12,14 @@ export function PushRegistration() {
   const { signedIn } = useAuthState();
 
   useEffect(() => {
-    if (!signedIn || !isNativeApp()) return;
+    // iOS only. On Android the @capacitor/push-notifications plugin uses Firebase
+    // Cloud Messaging, which requires Google Play Services — absent on many
+    // mainland-China devices (Huawei/HarmonyOS and GMS-stripped ROMs), where
+    // calling register() crashed the app a beat after the page loaded (the
+    // device-specific "loads, then crashes" reports). FCM is also blocked in
+    // mainland China, so it can't deliver there anyway. Skip Android until a
+    // China-capable push channel (e.g. a vendor/JPush integration) is wired up.
+    if (!signedIn || nativePlatform() !== "ios") return;
 
     let disposed = false;
     const cleanups: Array<() => void> = [];
