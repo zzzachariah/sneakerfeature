@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Capacitor } from "@capacitor/core";
 import { Apple, Smartphone, Download, ArrowRight } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -33,9 +34,16 @@ export function DownloadView() {
   const { translate } = useLocale();
   const [platform, setPlatform] = useState<Platform>("other");
   const [apkUrl, setApkUrl] = useState(ANDROID_APK_FALLBACK_URL);
+  // Inside the Capacitor native shell the WebView has no DownloadListener, so a
+  // same-window navigation to the APK binary just renders a blank/white page and
+  // strands the app. Capacitor routes target="_blank" link taps to the system
+  // browser (onCreateWindow → ACTION_VIEW), which downloads the APK properly. In
+  // a normal browser we keep the plain same-tab download (no _blank).
+  const [isNative, setIsNative] = useState(false);
 
   useEffect(() => {
     setPlatform(detectPlatform());
+    setIsNative(Capacitor.isNativePlatform());
   }, []);
 
   // Resolve the newest *mobile* release's APK so a later desktop release can't
@@ -102,6 +110,8 @@ export function DownloadView() {
 
           <a
             href={apkUrl}
+            target={isNative ? "_blank" : undefined}
+            rel={isNative ? "noopener noreferrer" : undefined}
             className="mt-5 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
           >
             <Download className="h-4 w-4" aria-hidden />
