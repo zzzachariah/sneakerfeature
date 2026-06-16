@@ -5,9 +5,11 @@ import {
   ClipboardCheck,
   Library,
   Megaphone,
+  ImagePlus,
   Wallet,
   Settings2,
   ChevronRight,
+  Bell,
   type LucideIcon
 } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
@@ -26,19 +28,21 @@ type MetricCard = {
 async function loadCounts() {
   const admin = createAdminClient();
   if (!admin) {
-    return { pending: null, published: null, bloggerReviews: null, balances: null };
+    return { pending: null, imageCorrections: null, published: null, bloggerReviews: null, balances: null };
   }
-  const [pending, published, bloggerReviews, balances] = await Promise.all([
+  const [pending, imageCorrections, published, bloggerReviews, balances] = await Promise.all([
     admin
       .from("user_submissions")
       .select("id", { count: "exact", head: true })
       .in("status", ["pending", "normalized", "draft"]),
+    admin.from("image_corrections").select("id", { count: "exact", head: true }).eq("status", "pending"),
     admin.from("shoes").select("id", { count: "exact", head: true }).eq("is_published", true),
     admin.from("blogger_reviews").select("id", { count: "exact", head: true }),
     admin.from("ai_credits").select("user_id", { count: "exact", head: true })
   ]);
   return {
     pending: pending.count ?? 0,
+    imageCorrections: imageCorrections.count ?? 0,
     published: published.count ?? 0,
     bloggerReviews: bloggerReviews.count ?? 0,
     balances: balances.count ?? 0
@@ -56,6 +60,13 @@ export default async function AdminPage() {
       description: "Pending in the queue — open to normalize and publish.",
       icon: ClipboardCheck,
       count: counts.pending
+    },
+    {
+      href: "/admin/image-corrections",
+      label: "Image corrections",
+      description: "User-uploaded image fixes — approve to update the shoe's image.",
+      icon: ImagePlus,
+      count: counts.imageCorrections
     },
     {
       href: "/admin/published",
@@ -88,6 +99,27 @@ export default async function AdminPage() {
         icon={Home}
         actions={<AdminLogoutButton />}
       />
+
+      {counts.imageCorrections ? (
+        <Link
+          href="/admin/image-corrections"
+          className="group flex items-center gap-3 rounded-2xl border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.12)] p-4 transition hover:bg-[rgb(var(--accent)/0.18)]"
+        >
+          <span className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.2)] text-[rgb(var(--accent))]">
+            <Bell className="h-5 w-5" />
+            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[rgb(var(--accent))]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold text-[rgb(var(--accent))]">
+              {counts.imageCorrections} new image correction{counts.imageCorrections === 1 ? "" : "s"} awaiting review
+            </span>
+            <span className="mt-0.5 block text-sm soft-text">
+              Users uploaded images to fix shoe photos — review and approve them.
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-[rgb(var(--accent))] transition group-hover:translate-x-0.5" />
+        </Link>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2">
         {metrics.map((card) => {

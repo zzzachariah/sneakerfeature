@@ -6,6 +6,7 @@ import { ArrowRight, Share2 } from "lucide-react";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { CommentSection } from "@/components/detail/comment-section";
 import { BloggerReviewsSlideBody } from "@/components/detail/blogger-reviews-slide";
+import { ImageCorrectionButton } from "@/components/detail/image-correction-button";
 import { PerformanceRadar, type RadarAxis } from "@/components/detail/performance-radar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -185,6 +186,7 @@ function OverviewSection({
   imageState,
   hasPendingImage,
   isAdmin,
+  isLoggedIn,
   imageActionLoading,
   imageActionError,
   imageActionSuccess,
@@ -282,6 +284,8 @@ function OverviewSection({
             <p className="font-medium soft-text">{translate("No image")}</p>
           )}
         </div>
+
+        {!isAdmin && <ImageCorrectionButton shoeId={shoe.id} isLoggedIn={isLoggedIn} />}
 
         {isAdmin && (
           <div className="flex flex-wrap items-center justify-center gap-2">
