@@ -1,0 +1,128 @@
+name: Publish Announcement
+
+# Fill in the form below (Actions → Publish Announcement → Run workflow) to show
+# a site-wide popup to every visitor. It writes public/announcement.json on the
+# default branch; the deploy makes it live on the website AND inside the iOS /
+# Android apps (they load the live site — no rebuild needed).
+#
+# To take the popup down again, run it once with "enabled" unchecked.
+
+on:
+  workflow_dispatch:
+    inputs:
+      enabled:
+        description: "Show the popup? (uncheck to take it down)"
+        type: boolean
+        default: true
+      frequency:
+        description: "How often each visitor sees it"
+        type: choice
+        default: once
+        options:
+          - once     # once per user, ever
+          - session  # once each time they open the app/site
+          - always   # every page load
+      title:
+        description: "Title (English)"
+        required: true
+      body:
+        description: "Body text (English)"
+        required: true
+      button_label:
+        description: "Button label — leave blank for no button"
+        required: false
+        default: ""
+      button_url:
+        description: "Button link URL (e.g. https://… or /download)"
+        required: false
+        default: ""
+      dismissible:
+        description: "Let users close it?"
+        type: boolean
+        default: true
+      title_zh:
+        description: "Title (中文) — optional, falls back to English"
+        required: false
+        default: ""
+      body_zh:
+        description: "Body text (中文) — optional"
+        required: false
+        default: ""
+      button_label_zh:
+        description: "Button label (中文) — optional"
+        required: false
+        default: ""
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Write public/announcement.json
+        # Inputs are passed through env (never interpolated into the script) and
+        # the JSON is assembled with jq --arg, so quotes/newlines/special chars
+        # in the text can't break the file or inject shell.
+        env:
+          ENABLED: ${{ inputs.enabled }}
+          FREQUENCY: ${{ inputs.frequency }}
+          DISMISSIBLE: ${{ inputs.dismissible }}
+          TITLE: ${{ inputs.title }}
+          BODY: ${{ inputs.body }}
+          BUTTON_LABEL: ${{ inputs.button_label }}
+          BUTTON_URL: ${{ inputs.button_url }}
+          TITLE_ZH: ${{ inputs.title_zh }}
+          BODY_ZH: ${{ inputs.body_zh }}
+          BUTTON_LABEL_ZH: ${{ inputs.button_label_zh }}
+        run: |
+          set -euo pipefail
+          ID="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_RUN_NUMBER}"
+          jq -n \
+            --arg id "$ID" \
+            --argjson enabled "${ENABLED:-false}" \
+            --argjson dismissible "${DISMISSIBLE:-true}" \
+            --arg frequency "${FREQUENCY:-once}" \
+            --arg title "$TITLE" \
+            --arg body "$BODY" \
+            --arg buttonLabel "$BUTTON_LABEL" \
+            --arg buttonUrl "$BUTTON_URL" \
+            --arg titleZh "$TITLE_ZH" \
+            --arg bodyZh "$BODY_ZH" \
+            --arg buttonLabelZh "$BUTTON_LABEL_ZH" \
+            '{
+              id: $id,
+              enabled: $enabled,
+              frequency: $frequency,
+              dismissible: $dismissible,
+              title: $title,
+              body: $body,
+              buttonLabel: $buttonLabel,
+              buttonUrl: $buttonUrl,
+              titleZh: $titleZh,
+              bodyZh: $bodyZh,
+              buttonLabelZh: $buttonLabelZh
+            }' > public/announcement.json
+          echo "Wrote public/announcement.json:"
+          cat public/announcement.json
+
+      - name: Commit & deploy
+        env:
+          TITLE: ${{ inputs.title }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/announcement.json
+          if git diff --staged --quiet; then
+            echo "No changes to publish."
+            exit 0
+          fi
+          git commit -m "Publish announcement: ${TITLE}"
+          # Push to the default branch (what deploys to production), matching the
+          # checkout above — independent of which branch this was dispatched from.
+          git push origin "HEAD:${DEFAULT_BRANCH}"

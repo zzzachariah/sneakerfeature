@@ -1,0 +1,13 @@
+{
+  "id": "none",
+  "enabled": false,
+  "frequency": "once",
+  "dismissible": true,
+  "title": "",
+  "body": "",
+  "buttonLabel": "",
+  "buttonUrl": "",
+  "titleZh": "",
+  "bodyZh": "",
+  "buttonLabelZh": ""
+}

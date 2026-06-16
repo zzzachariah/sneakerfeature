@@ -17,6 +17,7 @@ import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { LanguageFirstRun } from "@/components/i18n/language-first-run";
+import { AnnouncementModal } from "@/components/announce/announcement-modal";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
@@ -91,6 +92,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AuthStateProvider>
             <CookieBanner />
             <AnalyticsGate />
+            <AnnouncementModal />
           </CookieConsentProvider>
         </LocaleProvider>
         <Analytics />
