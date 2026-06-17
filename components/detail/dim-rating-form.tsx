@@ -8,6 +8,7 @@ import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { StarRating } from "@/components/shoe/star-rating";
 import { Reveal } from "@/components/motion/reveal";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
 import { DIM_KEYS, DIM_LABELS, type DimKey } from "@/lib/star-rating";
 
 type Picks = Partial<Record<DimKey, number>>;
@@ -57,10 +58,12 @@ export function DimRatingForm({
     const data = await res.json();
     setPosting(false);
     if (!data?.ok) {
+      haptics.error();
       setIsError(true);
       setMessage(data?.message ?? translate("Save failed"));
       return;
     }
+    haptics.success();
     setIsError(false);
     setMessage(
       translate(hasExistingRating ? "Rating updated." : "Rating saved.")
@@ -81,10 +84,12 @@ export function DimRatingForm({
     const data = await res.json();
     setPosting(false);
     if (!data?.ok) {
+      haptics.error();
       setIsError(true);
       setMessage(data?.message ?? translate("Clear failed"));
       return;
     }
+    haptics.success();
     setIsError(false);
     setMessage(translate("Rating cleared."));
     setPicks({});

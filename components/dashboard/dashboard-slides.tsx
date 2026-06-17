@@ -12,6 +12,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
+import { HapticsToggle } from "@/components/preferences/haptics-toggle";
 
 export type DashboardComment = {
   id: string;
@@ -302,6 +303,9 @@ export function DashboardSlides(props: Props) {
 
                 {/* Notifications */}
                 <PersonalizedPushToggle />
+
+                {/* Haptics (native app only) */}
+                <HapticsToggle />
 
                 {/* Security */}
                 <section className="glass glass-rim relative rounded-2xl p-5">

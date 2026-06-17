@@ -127,22 +127,74 @@ final class NativeNavBarController: NSObject {
     }
 
     private func setLeadingLogo(_ image: UIImage) {
-        // The source logo can be large (≈1 MB). A UIImage's intrinsic size drives
-        // a bar button's layout, so a full-res image breaks the bar and the logo
-        // never appears. Downscale to bar height first, render as a template so it
-        // tints to the nav bar's tintColor (label colour, adapts to dark mode).
-        let small = resizedToHeight(image, 24).withRenderingMode(.alwaysTemplate)
-        let item = UIBarButtonItem(image: small, style: .plain, target: self, action: #selector(homeTapped))
+        // logo.png is a 1024² canvas whose brand mark only fills the middle (~62%
+        // wide, ~35% tall) — the rest is transparent padding. Downscaling the whole
+        // square (the old behaviour) left a tiny mark adrift in the iOS 26 glass
+        // pill. Instead trim to the opaque bounds, then re-center the mark in a
+        // fixed 24pt square: it now fills most of the glass circle WITHOUT growing
+        // the pill (the bar button is still sized from a 24pt box, exactly as
+        // before). Rendered as a template so it tints to the bar's tintColor
+        // (label colour, adapts to light/dark).
+        let mark = croppedToOpaqueBounds(image)
+        let logo = squareLogo(mark, side: 24, inset: 2).withRenderingMode(.alwaysTemplate)
+        let item = UIBarButtonItem(image: logo, style: .plain, target: self, action: #selector(homeTapped))
         navItem.leftBarButtonItem = item
     }
 
-    private func resizedToHeight(_ image: UIImage, _ height: CGFloat) -> UIImage {
-        let ratio = image.size.height > 0 ? image.size.width / image.size.height : 1
-        let size = CGSize(width: max(1, height * ratio), height: height)
+    /// Crops `image` to the bounding box of its non-transparent pixels so baked-in
+    /// padding doesn't shrink the visible mark. Returns the original image if the
+    /// bounds can't be computed.
+    private func croppedToOpaqueBounds(_ image: UIImage) -> UIImage {
+        guard let cg = image.cgImage,
+              let bounds = opaqueBounds(of: cg),
+              let cropped = cg.cropping(to: bounds) else { return image }
+        return UIImage(cgImage: cropped, scale: image.scale, orientation: image.imageOrientation)
+    }
+
+    /// Pixel-space bounding box of `cg`'s pixels whose alpha exceeds `threshold`,
+    /// or nil if it's effectively empty. A freshly drawn bitmap context is laid
+    /// out top-left first, matching `CGImage.cropping(to:)`, so no flip is needed.
+    /// Runs once, when the logo first loads.
+    private func opaqueBounds(of cg: CGImage, threshold: UInt8 = 16) -> CGRect? {
+        let w = cg.width, h = cg.height
+        guard w > 0, h > 0 else { return nil }
+        let bytesPerRow = w * 4
+        var pixels = [UInt8](repeating: 0, count: h * bytesPerRow)
+        guard let ctx = CGContext(
+            data: &pixels, width: w, height: h, bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var minX = w, minY = h, maxX = -1, maxY = -1
+        for y in 0..<h {
+            let row = y * bytesPerRow
+            for x in 0..<w where pixels[row + x * 4 + 3] > threshold {
+                if x < minX { minX = x }
+                if x > maxX { maxX = x }
+                if y < minY { minY = y }
+                if y > maxY { maxY = y }
+            }
+        }
+        guard maxX >= minX, maxY >= minY else { return nil }
+        return CGRect(x: minX, y: minY, width: maxX - minX + 1, height: maxY - minY + 1)
+    }
+
+    /// Draws `image` aspect-fit and centered inside a `side`×`side` square with a
+    /// uniform `inset`, at screen scale. The square canvas keeps the bar button's
+    /// glass pill round and the same size, while the mark inside grows to fill it.
+    private func squareLogo(_ image: UIImage, side: CGFloat, inset: CGFloat) -> UIImage {
         let format = UIGraphicsImageRendererFormat.default()
         format.scale = UIScreen.main.scale
-        let renderer = UIGraphicsImageRenderer(size: size, format: format)
-        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+        format.opaque = false
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format)
+        return renderer.image { _ in
+            let maxBox = max(1, side - inset * 2)
+            let s = image.size
+            let fit = (s.width > 0 && s.height > 0) ? min(maxBox / s.width, maxBox / s.height) : 1
+            let dw = s.width * fit, dh = s.height * fit
+            image.draw(in: CGRect(x: (side - dw) / 2, y: (side - dh) / 2, width: dw, height: dh))
+        }
     }
 
     private func loadLogo(_ url: URL) {

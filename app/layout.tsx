@@ -2,10 +2,13 @@ import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
+import { ServiceWorkerRegister } from "@/components/native/service-worker-register";
+import { RouteProgress } from "@/components/layout/route-progress";
 import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NativeBottomNav } from "@/components/native/native-bottom-nav";
 import { NativeTopBar } from "@/components/native/native-top-bar";
+import { NativePullToRefresh } from "@/components/native/native-gestures";
 import { NavScrollIndicatorProvider } from "@/components/layout/nav-scroll-indicator";
 import { RouteMemory } from "@/components/auth/route-memory";
 import {
@@ -30,6 +33,7 @@ import { DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from "@/
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  manifest: "/manifest.webmanifest",
   title: {
     default: HOME_TITLE,
     template: "%s",
@@ -68,6 +72,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <SkinInitScript />
         <GlassFilterDefs />
         <CapacitorBridge />
+        <ServiceWorkerRegister />
+        <RouteProgress />
         <RouteMemory />
         <LocaleProvider>
           <LanguageFirstRun />
@@ -88,6 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     </NavScrollIndicatorProvider>
                     <TutorialOverlay />
                     <PushRegistration />
+                    <NativePullToRefresh />
                   </TutorialProvider>
                 </PersonaProvider>
               </RatingFocusProvider>

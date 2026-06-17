@@ -29,3 +29,20 @@ export async function nativeConfirm(opts: {
   const { confirmed } = await NativeChrome.confirm(opts);
   return confirmed;
 }
+
+/**
+ * Confirm a (usually destructive) action with the native glass alert inside the
+ * iOS app, falling back to the web `confirm()` everywhere else. Lets call sites
+ * use one async call instead of branching on the platform themselves.
+ */
+export async function confirmDialog(opts: {
+  title?: string;
+  message: string;
+  okLabel?: string;
+  cancelLabel?: string;
+  destructive?: boolean;
+}): Promise<boolean> {
+  if (nativeMenuAvailable()) return nativeConfirm(opts);
+  if (typeof window === "undefined") return false;
+  return window.confirm(opts.title ? `${opts.title}\n\n${opts.message}` : opts.message);
+}

@@ -33,6 +33,9 @@ export interface NativeChromePlugin {
   // Native search bar (under the nav bar; drives the web list)
   configureSearch(options: { placeholder?: string }): Promise<void>;
   setSearchVisible(options: { visible: boolean }): Promise<void>;
+  // Native pull-to-refresh (UIRefreshControl on the web scroll view). Toggle per
+  // route; fires the `pullRefresh` event when the user pulls down at the top.
+  setPullToRefreshEnabled(options: { enabled: boolean }): Promise<void>;
   // Ad-hoc native menus / confirms (presentable from any web trigger)
   presentMenu(options: {
     title?: string;
@@ -55,6 +58,7 @@ export interface NativeChromePlugin {
     eventName: "searchChanged",
     listener: (data: { text: string }) => void
   ): Promise<PluginListenerHandle>;
+  addListener(eventName: "pullRefresh", listener: () => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
 

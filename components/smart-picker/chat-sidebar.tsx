@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MoreHorizontal, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { confirmDialog } from "@/components/native/native-menu";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import type { AiChatSummary } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
@@ -177,9 +178,15 @@ export function ChatSidebar({
                           </button>
                           <button
                             type="button"
-                            onClick={() => {
+                            onClick={async () => {
                               setMenuId(null);
-                              if (window.confirm(translate("Delete this conversation?"))) onDelete(chat.id);
+                              const ok = await confirmDialog({
+                                message: translate("Delete this conversation?"),
+                                okLabel: translate("Delete"),
+                                cancelLabel: translate("Cancel"),
+                                destructive: true
+                              });
+                              if (ok) onDelete(chat.id);
                             }}
                             className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)]"
                           >

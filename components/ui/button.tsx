@@ -1,6 +1,9 @@
+"use client";
+
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
+import { haptics } from "@/lib/native/haptics";
 
 const buttonStyles = cva(
   "liquid-interactive inline-flex min-h-[44px] items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium tracking-[-0.01em] transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] md:min-h-[36px]",
@@ -25,6 +28,13 @@ const buttonStyles = cva(
 
 interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonStyles> {}
 
-export function Button({ className, variant, ...props }: Props) {
-  return <button className={cn(buttonStyles({ variant }), className)} {...props} />;
+export function Button({ className, variant, onClick, ...props }: Props) {
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    // Routine tap feedback on every button press. Centralised here so every CTA
+    // in the app gets it for free; no-ops on web and (for routine taps) on
+    // Android, per the haptics design in lib/native/haptics.ts.
+    haptics.tap();
+    onClick?.(event);
+  };
+  return <button className={cn(buttonStyles({ variant }), className)} {...props} onClick={handleClick} />;
 }

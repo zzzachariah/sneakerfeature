@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Youtube, PlayCircle, RefreshCw, Trash2, Save, Eye, EyeOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/components/native/native-menu";
 
 type AdminReview = {
   id: string;
@@ -156,7 +157,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
 
   const remove = useCallback(
     async (id: string) => {
-      if (!confirm("Delete this blogger review? This cannot be undone.")) return;
+      if (!(await confirmDialog({ message: "Delete this blogger review? This cannot be undone.", okLabel: "Delete", destructive: true }))) return;
       setBusyId(id);
       setMessage(null);
       try {

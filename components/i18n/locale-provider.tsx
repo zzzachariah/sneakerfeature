@@ -820,6 +820,11 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "personalized recommendations": "个性化推荐",
   "get a weekly push with shoe comparisons and picks based on what you browse.":
     "每周根据你的浏览推送球鞋对比和精选推荐。",
+  "haptics": "触感",
+  "haptic feedback": "触感反馈",
+  "feel a subtle tap on buttons, switches, and key moments.":
+    "在按钮、开关和关键操作时给你轻微的触感反馈。",
+  "take a photo or choose from your library": "拍照或从相册选择",
 
   // For You — weekly personalized digest page
   "for you": "为你推荐",

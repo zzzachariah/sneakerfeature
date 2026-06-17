@@ -139,5 +139,38 @@ npx cap open android
   放开。原 FCM 路线需要 `google-services.json`，本仓库未配置。
 - **保存图片到相册**：iOS 需在 `Info.plist` 加 `NSPhotoLibraryAddUsageDescription`
   文案（如「保存球鞋图片到你的相册」）。
+- **拍照 / 从相册选图（图片纠错）**：用 `@capacitor/camera`。装好后 `npx cap sync ios`
+  会带入插件；iOS 需在 `Info.plist` 补两条用途说明，否则首次调用会闪退：
+  - `NSCameraUsageDescription`（如「拍摄球鞋照片用于图片纠错」）
+  - `NSPhotoLibraryUsageDescription`（如「从相册选择球鞋照片用于图片纠错」）
+  代码里 `lib/native/camera.ts` 仅在原生 App 内启用；网页端继续用文件选择，**不需要这两条**。
 
 详见各功能对应的代码注释与提交说明。
+
+---
+
+## 七、性能与缓存（点击反馈 / 预取 / 离线）
+
+针对「点球鞋要点好几次」+「App 整体慢半拍」，已做的（多为纯 Web，部署即生效）：
+
+- **首次点击更可靠**：全局 `touch-action: manipulation`（去掉合成点击延迟 / 双击缩放抢手势）。
+- **即时反馈**：球鞋卡片按压态（`active:scale`）；顶部**路由进度条**（`RouteProgress`）——
+  点链接立刻有反应，慢 SSR 也不再「像没点上」。
+- **预取**：卡片在手指/指针进入时就预取详情页 RSC（`router.prefetch`），点击近乎瞬开。
+- **Service Worker + PWA**（`public/sw.js` + `manifest.webmanifest`，`ServiceWorkerRegister`）：
+  静态资源/图片 stale-while-revalidate（重复加载瞬时）、整页导航 network-first + 离线兜底；
+  **绝不缓存** `/api`、RSC 数据、非 GET（个性化/登录态永不变旧）。
+  - **Android WebView / 所有浏览器**：直接生效。
+  - **iOS App（WKWebView）要让 SW 生效**：需把站点设为 *app-bound domain*——在 iOS 工程
+    `Info.plist` 加 `WKAppBoundDomains`（含 `snkrfeature.com`）。未配前 iOS App 内 SW 不跑
+    （无副作用，自动回退到现有行为），iOS Safari/PWA 仍能用。
+
+### 仍值得做、但需在真机验证的「深水区」（未盲改，避免改坏首页/登录）
+
+- **边缘 ISR 缓存（首页/详情）**：现在首页和详情都读 cookie（For You / persona / 登录态），
+  所以是 `force-dynamic`。要走 Vercel 边缘 CDN 秒开，需把**个性化下沉到客户端**：服务端只渲染
+  可缓存的基础数据（`revalidate`），For You / persona 排序改成客户端拉新 API（先出骨架）。
+  这是「每次跳转都慢」的根治，但属核心改造，建议单独一批 + 真机回归。
+- **本地结构化球鞋库（SQLite）**：把相对静态的球鞋规格下到设备本地（`@capacitor-community/sqlite`
+  或 IndexedDB），列表/详情本地秒出 + 离线 + 后台增量同步。收益最大、工程最大；当前 SW 的
+  Cache Storage 已先覆盖了「本地 + 离线 + 重复访问快」的主要诉求。

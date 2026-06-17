@@ -27,11 +27,13 @@ export function Modal({
       {open && (
         <motion.div
           className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] backdrop-blur-[16px]`}
-          // Keep the dialog clear of the notch / home indicator / Android system
-          // bars on phones so its header and bottom actions are never tucked
-          // under a system bar (--safe-* is floored for Android edge-to-edge).
+          // Reserve the full top nav bar and bottom tab bar footprints (not just
+          // the raw safe-area insets) so the dialog never sits under the top nav
+          // or the bottom tab bar — native chrome in the app, web nav on mobile.
+          // --top-nav-h already folds in --safe-top; --mobile-nav-h folds in
+          // --safe-bottom and collapses to 0 on desktop (no bottom nav there).
           style={{
-            padding: "max(1rem, var(--safe-top)) 1rem max(1rem, var(--safe-bottom))"
+            padding: "max(1rem, var(--top-nav-h)) 1rem max(1rem, var(--mobile-nav-h))"
           }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -49,7 +51,7 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
-            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[85dvh] w-full max-w-lg flex-col rounded-3xl"
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full max-w-lg flex-col rounded-3xl"
             initial={{ y: 16, opacity: 0, scale: 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 8, opacity: 0, scale: 0.985 }}

@@ -8,6 +8,8 @@ import { Modal } from "@/components/ui/modal";
 import { Textarea } from "@/components/ui/textarea";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
+import { nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
@@ -43,8 +45,8 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
     reset();
   }
 
-  function onPick(event: React.ChangeEvent<HTMLInputElement>) {
-    const picked = event.target.files?.[0] ?? null;
+  // Validate + accept a chosen file (from the web input or the native camera).
+  function acceptFile(picked: File | null) {
     setMessage("");
     setIsError(false);
     if (!picked) return;
@@ -63,8 +65,26 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
     setPreview(URL.createObjectURL(picked));
   }
 
+  function onPick(event: React.ChangeEvent<HTMLInputElement>) {
+    acceptFile(event.target.files?.[0] ?? null);
+  }
+
+  // Inside the app: open the native camera / photo-library picker. On the web
+  // this branch is never reached (the picker opens the file input instead).
+  async function captureNative() {
+    haptics.tap();
+    const picked = await pickPhotoFile("prompt");
+    if (picked) acceptFile(picked);
+  }
+
+  function openPicker() {
+    if (nativeCameraAvailable()) void captureNative();
+    else inputRef.current?.click();
+  }
+
   async function onSubmit() {
     if (!file) {
+      haptics.warning();
       setIsError(true);
       setMessage(translate("Please choose an image to upload."));
       return;
@@ -82,13 +102,16 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
       const data = await res.json().catch(() => null);
 
       if (!res.ok || !data?.ok) {
+        haptics.error();
         setIsError(true);
         setMessage(data?.message ?? translate("Upload failed. Please try again."));
         return;
       }
+      haptics.success();
       setDone(true);
       setMessage(data.message ?? translate("Thanks! Your image was submitted for admin review."));
     } catch {
+      haptics.error();
       setIsError(true);
       setMessage(translate("Network error. Please try again."));
     } finally {
@@ -138,7 +161,7 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
 
             <button
               type="button"
-              onClick={() => inputRef.current?.click()}
+              onClick={openPicker}
               className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--surface)/0.6)] p-6 text-sm soft-text transition hover:border-[rgb(var(--text)/0.4)]"
             >
               {preview ? (
@@ -149,7 +172,13 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
               ) : (
                 <UploadCloud className="h-8 w-8" />
               )}
-              <span>{file ? file.name : translate("Choose an image (JPG, PNG, WebP · max 6 MB)")}</span>
+              <span>
+                {file
+                  ? file.name
+                  : nativeCameraAvailable()
+                    ? translate("Take a photo or choose from your library")
+                    : translate("Choose an image (JPG, PNG, WebP · max 6 MB)")}
+              </span>
             </button>
 
             <Textarea
