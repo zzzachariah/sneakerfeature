@@ -11,6 +11,8 @@ import { DimRatingForm } from "@/components/detail/dim-rating-form";
 import { Reveal } from "@/components/motion/reveal";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { nativeMenuAvailable, presentNativeMenu } from "@/components/native/native-menu";
+import { haptics } from "@/lib/native/haptics";
 import type { DimKey } from "@/lib/star-rating";
 
 type CommentItem = {
@@ -139,6 +141,35 @@ export function CommentSection({
     setMessage(data.message ?? translate(data.ok ? "Report submitted" : "Failed"));
   }
 
+  // Comment overflow menu. Inside the app, present a native (Liquid Glass) action
+  // sheet — Report drills into a second sheet of reasons. On the web we fall back
+  // to the inline dropdown toggled by menuOpenId/reportOpenId below.
+  async function openCommentMenu(comment: { id: string; userId: string }) {
+    if (!nativeMenuAvailable()) {
+      setMenuOpenId(menuOpenId === comment.id ? null : comment.id);
+      setReportOpenId(null);
+      return;
+    }
+    haptics.selection();
+    const choice = await presentNativeMenu(
+      [
+        { key: "report", label: translate("Report comment") },
+        { key: "block", label: translate("Block user"), destructive: true }
+      ],
+      { title: translate("Comment") }
+    );
+    if (choice === "report") {
+      const reasons = ["spam", "harassment", "inappropriate", "other"] as const;
+      const reason = await presentNativeMenu(
+        reasons.map((r) => ({ key: r, label: translate(r) })),
+        { title: translate("Report comment") }
+      );
+      if (reason) await reportComment(comment.id, reason as (typeof reasons)[number]);
+    } else if (choice === "block") {
+      await blockUser(comment.userId);
+    }
+  }
+
   async function blockUser(targetUserId: string) {
     setMenuOpenId(null);
     const response = await fetch("/api/blocks", {
@@ -241,10 +272,7 @@ export function CommentSection({
                       <button
                         type="button"
                         className="inline-flex items-center rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 text-xs soft-text transition hover:border-[rgb(var(--text)/0.45)]"
-                        onClick={() => {
-                          setMenuOpenId(menuOpenId === comment.id ? null : comment.id);
-                          setReportOpenId(null);
-                        }}
+                        onClick={() => openCommentMenu(comment)}
                         aria-label={translate("More")}
                       >
                         <MoreHorizontal className="h-3.5 w-3.5" />
