@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
 import {
   SubmissionSlides,
   type SubmissionSlidesHandle
@@ -93,6 +94,7 @@ export function SubmissionForm({
       }
 
       if (!res.ok) {
+        haptics.error();
         setIsError(true);
         setMessage(data?.message ?? `Submit failed with status ${res.status}.`);
         return;
@@ -107,9 +109,13 @@ export function SubmissionForm({
       setIsError(data.ok === false);
       setMessage(data.message ?? "Submitted");
       if (data.ok !== false) {
+        haptics.success();
         setResultModalOpen(true);
+      } else {
+        haptics.error();
       }
     } catch {
+      haptics.error();
       setIsError(true);
       setMessage("Network error while submitting. Please try again.");
     } finally {

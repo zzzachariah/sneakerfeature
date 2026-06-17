@@ -7,6 +7,7 @@ import { Capacitor } from "@capacitor/core";
 import { NativeChrome, type NativeTab } from "@/components/native/native-chrome";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { haptics } from "@/lib/native/haptics";
 
 // Drives the native iOS glass tab bar (see /native-chrome). On every other
 // platform this renders nothing and never touches the plugin — the web
@@ -86,6 +87,7 @@ export function NativeBottomNav() {
     let remove: (() => void) | undefined;
     void (async () => {
       const handle = await NativeChrome.addListener("tabSelected", ({ key }) => {
+        haptics.selection();
         const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
         const href = tabs.find((t) => t.key === key)?.href;
         if (href) router.push(href);
