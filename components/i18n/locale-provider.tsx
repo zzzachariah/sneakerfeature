@@ -824,6 +824,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "haptic feedback": "触感反馈",
   "feel a subtle tap on buttons, switches, and key moments.":
     "在按钮、开关和关键操作时给你轻微的触感反馈。",
+  "take a photo or choose from your library": "拍照或从相册选择",
 
   // For You — weekly personalized digest page
   "for you": "为你推荐",

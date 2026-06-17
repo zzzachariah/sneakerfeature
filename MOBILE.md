@@ -139,5 +139,10 @@ npx cap open android
   放开。原 FCM 路线需要 `google-services.json`，本仓库未配置。
 - **保存图片到相册**：iOS 需在 `Info.plist` 加 `NSPhotoLibraryAddUsageDescription`
   文案（如「保存球鞋图片到你的相册」）。
+- **拍照 / 从相册选图（图片纠错）**：用 `@capacitor/camera`。装好后 `npx cap sync ios`
+  会带入插件；iOS 需在 `Info.plist` 补两条用途说明，否则首次调用会闪退：
+  - `NSCameraUsageDescription`（如「拍摄球鞋照片用于图片纠错」）
+  - `NSPhotoLibraryUsageDescription`（如「从相册选择球鞋照片用于图片纠错」）
+  代码里 `lib/native/camera.ts` 仅在原生 App 内启用；网页端继续用文件选择，**不需要这两条**。
 
 详见各功能对应的代码注释与提交说明。
