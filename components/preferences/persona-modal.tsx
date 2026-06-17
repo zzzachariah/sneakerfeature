@@ -171,7 +171,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
         </div>
       ) : (
         <>
-          <div className="space-y-4 max-h-[72vh] overflow-y-auto pr-1 -mr-1">
+          <div className="space-y-4">
           <p className="text-sm soft-text">
             {translate(
               "Pick your position(s), skill level, whether you have flat feet, and your height & weight. We will use these to recommend shoes."
