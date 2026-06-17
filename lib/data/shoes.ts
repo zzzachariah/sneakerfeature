@@ -183,7 +183,10 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
 
 const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v3"], {
   tags: ["shoes"],
-  revalidate: 300
+  // Auto-refresh at most once a minute so edits made directly in Supabase (which
+  // don't call revalidateTag) still show up within ~60s instead of going stale.
+  // App-side admin writes still bust this instantly via revalidateTag("shoes").
+  revalidate: 60
 });
 
 type UserContext = {
