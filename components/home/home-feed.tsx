@@ -10,12 +10,13 @@ import { Select } from "@/components/ui/select";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeCard } from "@/components/home/shoe-card";
+import { useLocalShoes } from "@/lib/local/use-local-shoes";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
 
 export function HomeFeed({
-  shoes,
+  shoes: initialShoes,
   initialQuery = "",
   active = true,
   scrollContainerAttr = false,
@@ -34,6 +35,9 @@ export function HomeFeed({
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
   const { mode, setMode } = useHomeMode();
+  // Render the SSR list (keeps personalization); keep an offline IndexedDB copy
+  // of the public catalog in sync, and fall back to it when there's no server data.
+  const shoes = useLocalShoes(initialShoes);
   const [searchDraft, setSearchDraft] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const [brand, setBrand] = useState("all");
