@@ -183,7 +183,10 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
 
 const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v3"], {
   tags: ["shoes"],
-  revalidate: 300
+  // Auto-refresh at most once a minute so edits made directly in Supabase (which
+  // don't call revalidateTag) still show up within ~60s instead of going stale.
+  // App-side admin writes still bust this instantly via revalidateTag("shoes").
+  revalidate: 60
 });
 
 type UserContext = {
@@ -229,10 +232,7 @@ function isFrameworkError(error: unknown): boolean {
   return digest === "DYNAMIC_SERVER_USAGE" || digest.startsWith("NEXT_");
 }
 
-export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
-  const [base, userCtx] = await Promise.all([getShoesBase(), loadUserContext()]);
-  if (!base) return demoShoes;
-
+function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
   const { rows, aggregates: aggregateEntries } = base;
   const { myDimRatings, focus } = userCtx;
   const aggregates = new Map<string, DimAggregate>(aggregateEntries);
@@ -308,7 +308,22 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
   }
 
   return built;
+}
+
+export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
+  const [base, userCtx] = await Promise.all([getShoesBase(), loadUserContext()]);
+  if (!base) return demoShoes;
+  return assembleShoes(base, userCtx);
 });
+
+// Public, non-personalized catalog (reads no cookies) — safe to cache and to
+// serve from /api/shoes for the on-device (IndexedDB) library. Same shape as
+// getShoes but with an empty user context, so no per-user blending/ordering.
+export async function getPublicShoes(): Promise<Shoe[]> {
+  const base = await getShoesBase();
+  if (!base) return demoShoes;
+  return assembleShoes(base, EMPTY_USER_CONTEXT);
+}
 
 export async function getShoeBySlug(slug: string): Promise<Shoe | null> {
   const shoes = await getShoes();
