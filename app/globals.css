@@ -154,6 +154,14 @@ body {
   overscroll-behavior: none;
 }
 
+/* First-tap reliability: drop the synthetic tap delay / double-tap-zoom on
+   interactive elements so a single tap always activates — this is a big part of
+   why a sneaker sometimes needed several taps inside the WebView (a tap on a link
+   right after a scroll was being eaten as a gesture). */
+a, button, [role="button"], label, input, select, textarea, summary {
+  touch-action: manipulation;
+}
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgb(var(--muted)); border-radius: 3px; }

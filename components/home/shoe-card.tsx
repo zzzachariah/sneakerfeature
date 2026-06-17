@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import type { Shoe } from "@/lib/types";
@@ -19,8 +21,10 @@ type Props = {
 
 export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, onToggleSelect }: Props) {
   const { translate } = useLocale();
+  const router = useRouter();
   const [whyOpen, setWhyOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
+  const href = `/shoes/${shoe.slug}` as Route;
 
   useEffect(() => {
     if (!whyOpen) return;
@@ -37,8 +41,12 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
   return (
     <li className="group relative">
       <Link
-        href={`/shoes/${shoe.slug}`}
-        className="glass-lite block overflow-hidden rounded-2xl transition-colors duration-[180ms] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)]"
+        href={href}
+        prefetch
+        // Warm the detail route the moment a finger lands / pointer enters, so by
+        // the time the tap completes the navigation is already in flight.
+        onPointerEnter={() => router.prefetch(href)}
+        className="glass-lite block overflow-hidden rounded-2xl transition duration-[160ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)] active:scale-[0.985] active:bg-[rgb(var(--text)/0.06)]"
       >
         <div className="relative aspect-square w-full bg-white">
           <ShoeImage
