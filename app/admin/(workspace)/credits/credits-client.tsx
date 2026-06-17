@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/components/native/native-menu";
 
 type CreditRow = {
   userId: string;
@@ -75,7 +76,7 @@ export function CreditsClient() {
       setMessage("Enter a username to clear.");
       return;
     }
-    if (!confirm(`Clear all credits for "${clearUser}"? This cannot be undone.`)) return;
+    if (!(await confirmDialog({ message: `Clear all credits for "${clearUser}"? This cannot be undone.`, okLabel: "Clear", destructive: true }))) return;
     setBusy(true);
     try {
       const res = await fetch("/api/admin/credits", {
