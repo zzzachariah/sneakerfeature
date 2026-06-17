@@ -18,12 +18,23 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setNavBarVisible", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "configureSearch", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSearchVisible", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setPullToRefreshEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentMenu", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise)
     ]
 
     private var controller: NativeTabBarController?
     private var navBar: NativeNavBarController?
+    private var refreshControl: UIRefreshControl?
+
+    // Enable the WKWebView's own interactive edge-swipe to go back/forward
+    // through the (Next.js) history — iOS doesn't turn this on by default for an
+    // embedded web view, so without it there's no swipe-from-edge-to-go-back.
+    override public func load() {
+        DispatchQueue.main.async {
+            self.bridge?.webView?.allowsBackForwardNavigationGestures = true
+        }
+    }
 
     private func ensureController() -> NativeTabBarController? {
         if controller == nil, let host = self.bridge?.viewController {
@@ -119,6 +130,46 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         DispatchQueue.main.async {
             self.ensureNavBar()?.setSearchVisible(visible)
             call.resolve()
+        }
+    }
+
+    // MARK: Pull-to-refresh (UIRefreshControl on the web scroll view)
+
+    @objc func setPullToRefreshEnabled(_ call: CAPPluginCall) {
+        let enabled = call.getBool("enabled") ?? true
+        DispatchQueue.main.async {
+            self.setPullToRefresh(enabled)
+            call.resolve()
+        }
+    }
+
+    private func setPullToRefresh(_ enabled: Bool) {
+        guard let scrollView = bridge?.webView?.scrollView else { return }
+        if enabled {
+            guard refreshControl == nil else { return }
+            let rc = UIRefreshControl()
+            rc.addTarget(self, action: #selector(handlePullRefresh(_:)), for: .valueChanged)
+            scrollView.refreshControl = rc
+            // Let the web view rubber-band at the top even when content is short,
+            // so the pull is always available.
+            scrollView.alwaysBounceVertical = true
+            refreshControl = rc
+        } else {
+            refreshControl?.endRefreshing()
+            if scrollView.refreshControl === refreshControl {
+                scrollView.refreshControl = nil
+            }
+            refreshControl = nil
+        }
+    }
+
+    @objc private func handlePullRefresh(_ sender: UIRefreshControl) {
+        // Hand the refresh to the web (router.refresh()); we don't get a signal
+        // back, so end the spinner after a short beat — long enough to read as a
+        // real refresh, short enough to never feel stuck.
+        notifyListeners("pullRefresh", data: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+            sender.endRefreshing()
         }
     }
 
