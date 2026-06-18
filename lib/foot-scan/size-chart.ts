@@ -12,8 +12,16 @@ export type FitFeel = "snug" | "perfect" | "roomy";
 
 export type SizeSystem =
   | "us_men" // US men's sizing (most basketball shoes)
+  | "eu" // European sizing
   | "cn_mm" // Chinese sizing where the number is the foot length in mm
   | "foot_cm"; // user enters measured foot length directly
+
+export const SIZE_SYSTEM_LABEL: Record<SizeSystem, string> = {
+  us_men: "US (men's)",
+  eu: "EU",
+  cn_mm: "CN (mm)",
+  foot_cm: "Foot length (cm)"
+};
 
 export type BrandOption = {
   id: string;
@@ -66,8 +74,18 @@ const US_MEN_MM: Record<string, number> = {
   "15": 330
 };
 
+// EU size → foot length (mm). ~6.67mm per EU size, anchored at EU 40 ≈ 250mm.
+function euToMm(eu: number): number {
+  return Math.round(250 + (eu - 40) * (200 / 30));
+}
+
 export function sizeOptions(system: SizeSystem): string[] {
   if (system === "us_men") return Object.keys(US_MEN_MM);
+  if (system === "eu") {
+    const out: string[] = [];
+    for (let eu = 35; eu <= 50; eu += 0.5) out.push(eu % 1 === 0 ? String(eu) : eu.toFixed(1));
+    return out;
+  }
   if (system === "cn_mm") {
     const out: string[] = [];
     for (let mm = 230; mm <= 320; mm += 5) out.push(String(mm));
@@ -77,6 +95,14 @@ export function sizeOptions(system: SizeSystem): string[] {
   return [];
 }
 
+// Which sizing systems a brand can be entered in (always offers EU as a common
+// alternative for non-measured brands).
+export function systemsForBrand(brand: BrandOption): SizeSystem[] {
+  if (brand.system === "foot_cm") return ["foot_cm"];
+  if (brand.system === "cn_mm") return ["cn_mm", "eu"];
+  return ["us_men", "eu"];
+}
+
 const FIT_ADJUST_MM: Record<FitFeel, number> = {
   // A snug-fitting shoe means the foot is at the larger end of that size.
   snug: 3,
@@ -84,31 +110,38 @@ const FIT_ADJUST_MM: Record<FitFeel, number> = {
   roomy: -3
 };
 
-// Resolve a selection to foot length in mm, or null if it can't.
+// Resolve a selection to foot length in mm, or null if it can't. `system`
+// overrides the brand's native system (e.g. entering an EU size for Nike).
 export function footLengthMm(input: {
   brandId: string;
-  size: string; // size token (us/cn) OR foot length in cm for "measured"
+  size: string; // size token for the chosen system, OR foot length in cm
   fit?: FitFeel;
+  system?: SizeSystem;
 }): number | null {
   const brand = getBrand(input.brandId);
   if (!brand) return null;
+  const system = input.system ?? brand.system;
+  const offset = brand.offsetMm ?? 0;
 
-  let base: number | null = null;
-  if (brand.system === "foot_cm") {
+  if (system === "foot_cm") {
     const cm = Number(input.size);
     if (!Number.isFinite(cm) || cm < 18 || cm > 36) return null;
-    base = Math.round(cm * 10);
     // A directly measured length needs no fit nudge.
-    return base + (brand.offsetMm ?? 0);
+    return Math.round(cm * 10) + offset;
   }
-  if (brand.system === "us_men") {
+
+  let base: number | null = null;
+  if (system === "us_men") {
     base = US_MEN_MM[input.size] ?? null;
-  } else if (brand.system === "cn_mm") {
+  } else if (system === "eu") {
+    const eu = Number(input.size);
+    base = Number.isFinite(eu) ? euToMm(eu) : null;
+  } else if (system === "cn_mm") {
     const mm = Number(input.size);
     base = Number.isFinite(mm) ? mm : null;
   }
   if (base === null) return null;
 
   const fitAdj = input.fit ? FIT_ADJUST_MM[input.fit] : 0;
-  return base + (brand.offsetMm ?? 0) + fitAdj;
+  return base + offset + fitAdj;
 }

@@ -9,8 +9,8 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 
 const ITEMS = [
-  "I'm barefoot (no socks)",
-  "The floor is a plain colour that contrasts with my skin",
+  "Barefoot, or thin socks (thick socks affect accuracy)",
+  "The floor is a plain colour that contrasts with my foot",
   "Lighting is even — no strong shadows or backlight",
   "The area around my foot is clear"
 ];
