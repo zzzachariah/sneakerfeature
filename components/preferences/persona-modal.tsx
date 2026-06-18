@@ -20,6 +20,13 @@ import {
   type Position,
   type SkillLevel
 } from "@/lib/persona/types";
+import {
+  isFootProfile,
+  WIDTH_LABEL,
+  INSTEP_LABEL,
+  TOE_LABEL,
+  type FootProfile
+} from "@/lib/foot-scan/types";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
 import { DIM_KEYS, DIM_LABELS, type DimKey, type RatingFocus } from "@/lib/star-rating";
@@ -58,8 +65,10 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
   const [pendingClose, setPendingClose] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   // Whether to surface the Foot Scan entry — only for users who can open the
-  // (hidden) tool: admins, or everyone when the public flag is on.
+  // (hidden) tool: admins, or everyone when the public flag is on. Also holds
+  // the saved foot profile so we can show it and offer a re-scan.
   const [canScan, setCanScan] = useState(false);
+  const [footProfile, setFootProfile] = useState<FootProfile | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -69,7 +78,9 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
     fetch("/api/foot-scan/access", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        if (!cancelled) setCanScan(Boolean(d?.canUse));
+        if (cancelled) return;
+        setCanScan(Boolean(d?.canUse));
+        setFootProfile(isFootProfile(d?.profile) ? d.profile : null);
       })
       .catch(() => {});
     return () => {
@@ -307,22 +318,47 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
           </div>
 
           {canScan && (
-            <Link
-              href="/foot-scan"
-              onClick={onClose}
-              className="flex items-center justify-between gap-2 rounded-2xl border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev)/0.45)] px-3 py-2.5 transition hover:border-[rgb(var(--text)/0.4)]"
-            >
-              <span className="flex items-center gap-2">
-                <Footprints className="h-4 w-4 text-[rgb(var(--accent))]" />
-                <span className="flex flex-col">
-                  <span className="text-sm font-medium">{translate("Scan your feet")}</span>
-                  <span className="text-[0.7rem] soft-text">
-                    {translate("Measure width, instep & toe shape")}
+            <div className="rounded-2xl border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev)/0.45)] p-3">
+              {footProfile && (
+                <div className="mb-2.5">
+                  <p className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+                    {translate("Your foot type")}
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {[
+                      translate(WIDTH_LABEL[footProfile.foot_width]),
+                      translate(INSTEP_LABEL[footProfile.instep]),
+                      translate(TOE_LABEL[footProfile.toe_shape])
+                    ].map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full bg-[rgb(var(--text)/0.08)] px-2.5 py-1 text-xs text-[rgb(var(--text))]"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <Link
+                href="/foot-scan"
+                onClick={onClose}
+                className="flex items-center justify-between gap-2 rounded-xl border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev)/0.5)] px-3 py-2.5 transition hover:border-[rgb(var(--text)/0.4)]"
+              >
+                <span className="flex items-center gap-2">
+                  <Footprints className="h-4 w-4 text-[rgb(var(--accent))]" />
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      {translate(footProfile ? "Re-scan my feet" : "Scan your feet")}
+                    </span>
+                    <span className="text-[0.7rem] soft-text">
+                      {translate("Measure width, instep & toe shape")}
+                    </span>
                   </span>
                 </span>
-              </span>
-              <ArrowRight className="h-4 w-4 soft-text" />
-            </Link>
+                <ArrowRight className="h-4 w-4 soft-text" />
+              </Link>
+            </div>
           )}
 
           <div className="grid grid-cols-2 gap-2">

@@ -24,7 +24,7 @@ const SHOTS: Record<ViewId, ShotConfig> = {
       "Stand up, foot flat on the floor.",
       "Hold the phone directly above your foot, lens pointing straight down.",
       "Fit the whole foot in the outline; let your toes spread naturally.",
-      "Keep the phone flat — it shoots automatically when level."
+      "Keep the phone flat, then tap Capture."
     ]
   },
   oblique: {
@@ -34,10 +34,10 @@ const SHOTS: Record<ViewId, ShotConfig> = {
     tilt: "tilt45",
     mode: "handheld",
     instructions: [
-      "Sit down, foot flat on the floor.",
-      "Hold the phone above and in front of your foot, tilted down about 45°.",
-      "Frame the highest part of your instep in the outline.",
-      "Hold the angle steady — it shoots automatically."
+      "Sit down with your foot flat on the floor.",
+      "Hold the phone above your foot with the screen facing you.",
+      "Tilt the TOP edge of the phone away from you until the camera looks down on your foot at about 45°.",
+      "Frame the top of your foot in the outline, then tap Capture."
     ]
   },
   side: {
@@ -50,7 +50,7 @@ const SHOTS: Record<ViewId, ShotConfig> = {
       "Lean the phone upright against a wall, book or bottle at floor level.",
       "Point the lens at where your foot will go.",
       "Place your foot in the outline, outer edge to the camera, toes forward.",
-      "Hold still — it shoots on a short countdown."
+      "Tap Capture, or use the Timer if you can't reach the button."
     ]
   },
   top_other: {
@@ -62,7 +62,7 @@ const SHOTS: Record<ViewId, ShotConfig> = {
     instructions: [
       "Now your other foot.",
       "Same as the first shot: phone flat, straight above the foot.",
-      "Fit the whole foot in the outline."
+      "Fit the whole foot in the outline, then tap Capture."
     ]
   }
 };
@@ -70,7 +70,7 @@ const SHOTS: Record<ViewId, ShotConfig> = {
 type Step = "checklist" | "size" | "capture" | "analyzing" | "result" | "error";
 
 export function FootScanClient() {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
   const [step, setStep] = useState<Step>("checklist");
   const [choice, setChoice] = useState<SizeChoice | null>(null);
   const [shotList, setShotList] = useState<ViewId[]>([]);
@@ -103,6 +103,7 @@ export function FootScanClient() {
         body: JSON.stringify({
           primarySide: c.primarySide,
           footLengthMm: c.footLengthMm,
+          locale,
           images: { top: caps.top, oblique: caps.oblique, side: caps.side, top_other: caps.top_other ?? null }
         })
       });

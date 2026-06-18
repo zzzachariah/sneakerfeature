@@ -19,6 +19,7 @@ const dataUrl = z
 const schema = z.object({
   primarySide: z.enum(["left", "right"]),
   footLengthMm: z.coerce.number().int().min(180).max(360),
+  locale: z.string().max(10).optional(),
   images: z.object({
     top: dataUrl,
     oblique: dataUrl,
@@ -45,10 +46,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { primarySide, footLengthMm, images } = parsed.data;
+  const { primarySide, footLengthMm, locale, images } = parsed.data;
   const outcome = await analyzeFootScan({
     primarySide,
     footLengthMm,
+    locale,
     images: { top: images.top, oblique: images.oblique, side: images.side, top_other: images.top_other ?? null }
   });
 
