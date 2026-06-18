@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getShoes } from "@/lib/data/shoes";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { isValidPersona, type Persona } from "@/lib/persona/types";
+import { isFootProfile, type FootProfile } from "@/lib/foot-scan/types";
 import {
   createPackyClient,
   getPackyEnvReport,
@@ -89,6 +90,16 @@ export async function POST(request: Request) {
   const usingDemo = shoes === demoShoes; // getShoes() returns demoShoes by reference when the DB is empty/unreachable
   const rawPersona = profileRow?.persona;
   const persona: Persona | null = isValidPersona(rawPersona) ? rawPersona : null;
+  // Foot profile lives in its own column (added by a later migration). Fetched
+  // separately and tolerantly so the recommender keeps working — with persona
+  // intact — even before that migration is applied.
+  let footProfile: FootProfile | null = null;
+  try {
+    const { data: fpRow } = await admin.from("profiles").select("foot_profile").eq("id", ctx.userId).maybeSingle();
+    if (fpRow && isFootProfile(fpRow.foot_profile)) footProfile = fpRow.foot_profile;
+  } catch {
+    /* column not present yet — ignore */
+  }
   const rawFocus = profileRow?.rating_focus;
   const focus: RatingFocus | null = isValidFocus(rawFocus) ? rawFocus : null;
 
@@ -138,7 +149,7 @@ export async function POST(request: Request) {
 
         let result: Awaited<ReturnType<typeof recommendShoes>>;
         try {
-          result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona, reviewsByShoe }, onProgress);
+          result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona, footProfile, reviewsByShoe }, onProgress);
         } catch (error) {
           console.error("[ai/chat] recommend failed", error);
           const target = getPackyTarget();

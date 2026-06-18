@@ -12,6 +12,7 @@ import {
   ImagePlus,
   Wallet,
   Settings2,
+  Footprints,
   type LucideIcon
 } from "lucide-react";
 
@@ -92,6 +93,18 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Site settings",
         icon: Settings2,
         match: (p) => p.startsWith("/admin/settings")
+      }
+    ]
+  },
+  {
+    label: "Tools",
+    items: [
+      {
+        // Hidden feature — no public link. Admins reach it directly from here.
+        href: "/foot-scan",
+        label: "Foot Scan",
+        icon: Footprints,
+        match: (p) => p.startsWith("/foot-scan")
       }
     ]
   }

@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const SMART_PICKER_PUBLIC_KEY = "smart_picker_public_enabled";
+const FOOT_SCAN_PUBLIC_KEY = "foot_scan_public_enabled";
 const DAILY_CHECKIN_CREDITS_KEY = "daily_checkin_credits";
 
 export const DEFAULT_DAILY_CHECKIN_CREDITS = 3;
@@ -28,6 +29,36 @@ export async function setSmartPickerPublicEnabled(enabled: boolean, adminUserId:
     .upsert(
       {
         key: SMART_PICKER_PUBLIC_KEY,
+        value: enabled,
+        updated_at: new Date().toISOString(),
+        updated_by: adminUserId
+      },
+      { onConflict: "key" }
+    );
+  if (error) throw error;
+}
+
+// Foot Scan visibility flag — same admin-controlled pattern as Smart Picker.
+// Admins always have access; this flag opens it to everyone else.
+export const isFootScanPublicEnabled = cache(async function isFootScanPublicEnabled(): Promise<boolean> {
+  const admin = createAdminClient();
+  if (!admin) return false;
+  const { data } = await admin
+    .from("app_settings")
+    .select("value")
+    .eq("key", FOOT_SCAN_PUBLIC_KEY)
+    .maybeSingle();
+  return data?.value === true;
+});
+
+export async function setFootScanPublicEnabled(enabled: boolean, adminUserId: string): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Service-role client unavailable");
+  const { error } = await admin
+    .from("app_settings")
+    .upsert(
+      {
+        key: FOOT_SCAN_PUBLIC_KEY,
         value: enabled,
         updated_at: new Date().toISOString(),
         updated_by: adminUserId
