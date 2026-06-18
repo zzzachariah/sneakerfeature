@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Anchor, Check, Cloud, Footprints, Hand, Info, Magnet, X, Zap } from "lucide-react";
+import Link from "next/link";
+import { Anchor, ArrowRight, Check, Cloud, Footprints, Hand, Info, Magnet, X, Zap } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
@@ -56,8 +57,25 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
   const [showFlatFootHelp, setShowFlatFootHelp] = useState(false);
   const [pendingClose, setPendingClose] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  // Whether to surface the Foot Scan entry — only for users who can open the
+  // (hidden) tool: admins, or everyone when the public flag is on.
+  const [canScan, setCanScan] = useState(false);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!open || !isLoggedIn) return;
+    let cancelled = false;
+    fetch("/api/foot-scan/access", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled) setCanScan(Boolean(d?.canUse));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, isLoggedIn]);
 
   useEffect(() => {
     if (open) {
@@ -287,6 +305,25 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
               </div>
             )}
           </div>
+
+          {canScan && (
+            <Link
+              href="/foot-scan"
+              onClick={onClose}
+              className="flex items-center justify-between gap-2 rounded-2xl border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev)/0.45)] px-3 py-2.5 transition hover:border-[rgb(var(--text)/0.4)]"
+            >
+              <span className="flex items-center gap-2">
+                <Footprints className="h-4 w-4 text-[rgb(var(--accent))]" />
+                <span className="flex flex-col">
+                  <span className="text-sm font-medium">{translate("Scan your feet")}</span>
+                  <span className="text-[0.7rem] soft-text">
+                    {translate("Measure width, instep & toe shape")}
+                  </span>
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 soft-text" />
+            </Link>
+          )}
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
