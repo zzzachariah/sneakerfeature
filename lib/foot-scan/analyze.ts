@@ -21,7 +21,8 @@ import {
   PACKY_MODEL,
   getPackyEnvReport,
   describePackyEnvProblem,
-  describePackyError
+  describePackyError,
+  type PackyClientOptions
 } from "@/lib/ai/packy-client";
 import {
   widthClassFromRatio,
@@ -54,6 +55,14 @@ const VISION_MODEL =
   process.env.PACKYAPI_VISION_MODEL?.trim() ||
   process.env.PACKY_API_VISION_MODEL?.trim() ||
   PACKY_MODEL;
+
+// packyapi can issue a SEPARATE key per model, so the foot scan can use its own
+// key/endpoint: FOOT_SCAN_API_KEY (and optionally FOOT_SCAN_BASE_URL) are
+// preferred when set, otherwise it falls back to the shared PACKYAPI_* config.
+const FOOT_SCAN_CLIENT_ENV: PackyClientOptions = {
+  apiKeyEnv: ["FOOT_SCAN_API_KEY"],
+  baseURLEnv: ["FOOT_SCAN_BASE_URL"]
+};
 
 // How many times to read each scan and aggregate (1 = no self-consistency).
 const SAMPLE_COUNT = (() => {
@@ -269,12 +278,12 @@ async function runSample(
 // --- Public entry point ----------------------------------------------------
 
 export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutcome> {
-  const client = createPackyClient();
+  const client = createPackyClient(FOOT_SCAN_CLIENT_ENV);
   if (!client) {
     return {
       ok: false,
       error: "AI service is not configured.",
-      detail: describePackyEnvProblem(getPackyEnvReport())
+      detail: describePackyEnvProblem(getPackyEnvReport(FOOT_SCAN_CLIENT_ENV), FOOT_SCAN_CLIENT_ENV)
     };
   }
 
