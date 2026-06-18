@@ -1,4 +1,5 @@
-import { Settings2 } from "lucide-react";
+import Link from "next/link";
+import { Settings2, ArrowUpRight } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import {
   getDailyCheckinCredits,
@@ -42,7 +43,16 @@ export default async function AdminSettingsPage() {
             </div>
           </div>
           <div>
-            <p className="text-sm font-medium">Foot Scan access</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">Foot Scan access</p>
+              <Link
+                href="/foot-scan"
+                className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--accent))] hover:underline"
+              >
+                Open the tool
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
             <p className="mt-1 text-xs soft-text">
               Decide whether the hidden Foot Scan tool (/foot-scan) is visible to regular users.
             </p>
