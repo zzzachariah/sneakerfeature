@@ -33,9 +33,21 @@ export function CapacitorBridge() {
         /* status bar plugin unavailable */
       }
 
+      // The native splash is configured with launchAutoHide:false (see
+      // capacitor.config.ts) so it stays up until the remote page is on screen
+      // instead of vanishing on a fixed timer and exposing a black WebView while
+      // a slow network finishes loading. This effect runs after the (already
+      // server-rendered) page has painted, so hiding here drops the splash the
+      // moment there is real content. The timeout is a safety net: if anything
+      // stalls, the user is never trapped behind the splash forever.
       try {
         const { SplashScreen } = await import("@capacitor/splash-screen");
+        const fallback = setTimeout(() => {
+          void SplashScreen.hide();
+        }, 5000);
+        cleanups.push(() => clearTimeout(fallback));
         await SplashScreen.hide();
+        clearTimeout(fallback);
       } catch {
         /* splash plugin unavailable */
       }

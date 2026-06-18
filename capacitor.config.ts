@@ -33,7 +33,14 @@ const config: CapacitorConfig = {
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 800,
+      // Don't dismiss the splash on a fixed timer. The app loads a remote SSR
+      // site (server.url) whose first paint can take longer than any fixed
+      // duration on a slow network — if the splash vanishes first, the WebView
+      // shows its bare #0a0a0a background and the user sees a "black screen on
+      // launch". Instead the splash stays up until the page is actually on
+      // screen: CapacitorBridge hides it once the app paints (with a timeout
+      // safety net), and the offline shell hides it too (capacitor-shell).
+      launchAutoHide: false,
       backgroundColor: "#0a0a0a",
       showSpinner: false,
     },
