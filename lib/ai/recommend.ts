@@ -2,6 +2,7 @@ import type OpenAI from "openai";
 import type { Shoe, ShoeSpec, BloggerReview } from "@/lib/types";
 import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference, OnProgress } from "@/lib/ai/types";
 import type { Persona } from "@/lib/persona/types";
+import type { FootProfile } from "@/lib/foot-scan/types";
 import { computeMatchScore } from "@/lib/match/score";
 import { dimScores } from "@/lib/star-rating";
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
@@ -142,6 +143,30 @@ const SKILL_LABEL_ZH: Record<string, string> = {
 function formatPersona(persona: Persona): string {
   const skill = SKILL_LABEL_ZH[persona.skill_level] ?? persona.skill_level;
   return `位置=${persona.positions.join("/")}；水平=${skill}；扁平足=${persona.flat_foot ? "是" : "否"}；身高=${persona.height_cm}cm；体重=${persona.weight_kg}kg`;
+}
+
+// Foot-shape profile from the Foot Scan tool — surfaced so the model can match
+// last width, toe-box shape and upper volume to the user's foot.
+const FOOT_WIDTH_ZH: Record<string, string> = {
+  narrow: "偏窄",
+  standard: "标准",
+  wide: "偏宽",
+  extra_wide: "超宽"
+};
+const INSTEP_ZH: Record<string, string> = { low: "低", normal: "正常", high: "偏高" };
+const TOE_ZH: Record<string, string> = {
+  egyptian: "埃及型(拇趾最长)",
+  greek: "希腊型(二趾最长)",
+  roman: "罗马型(前几趾齐平)",
+  square: "方型(脚趾齐平)"
+};
+
+function formatFootProfile(fp: FootProfile): string {
+  const w = FOOT_WIDTH_ZH[fp.foot_width] ?? fp.foot_width;
+  const i = INSTEP_ZH[fp.instep] ?? fp.instep;
+  const t = TOE_ZH[fp.toe_shape] ?? fp.toe_shape;
+  const len = fp.foot_length_mm ? `；脚长≈${fp.foot_length_mm}mm` : "";
+  return `脚宽=${w}；脚背=${i}；脚趾型=${t}${len}`;
 }
 
 // Up to 3 deduped blogger pros/cons for a shoe, handed to the model as real
@@ -767,6 +792,7 @@ export async function recommendShoes(
     currentInput: string;
     count: number;
     persona?: Persona | null;
+    footProfile?: FootProfile | null;
     reviewsByShoe?: Record<string, BloggerReview[]>;
   },
   onProgress?: OnProgress
@@ -788,13 +814,16 @@ export async function recommendShoes(
     else messages.push({ role: "assistant", content: turn.content });
   }
   const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
+  const footSuffix = opts.footProfile
+    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好）。`
+    : "";
   // The strict output contract lives here in the final user turn — the model's
   // "last word" — so it isn't buried under the long prompt + catalog above and
   // can't be answered as casual prose.
   messages.push({
     role: "user",
     content:
-      `现在推荐的要求是："${opts.currentInput}"${personaSuffix}\n\n` +
+      `现在推荐的要求是："${opts.currentInput}"${personaSuffix}${footSuffix}\n\n` +
       `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），然后说明该鞋如何匹配那一点。\n` +
       `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。\n\n` +
       `【数量锁定】本次 N = ${opts.count}。必须严格推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 里也只能提 ${opts.count}。` +

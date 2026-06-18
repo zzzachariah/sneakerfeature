@@ -4,29 +4,36 @@ import { getAdminContext } from "@/lib/admin/auth";
 import {
   getDailyCheckinCredits,
   isSmartPickerPublicEnabled,
+  isFootScanPublicEnabled,
   MAX_DAILY_CHECKIN_CREDITS,
   setDailyCheckinCredits,
-  setSmartPickerPublicEnabled
+  setSmartPickerPublicEnabled,
+  setFootScanPublicEnabled
 } from "@/lib/admin/settings";
 
 export async function GET() {
   const ctx = await getAdminContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
-  const [smartPickerPublic, dailyCheckinCredits] = await Promise.all([
+  const [smartPickerPublic, footScanPublic, dailyCheckinCredits] = await Promise.all([
     isSmartPickerPublicEnabled(),
+    isFootScanPublicEnabled(),
     getDailyCheckinCredits()
   ]);
-  return NextResponse.json({ ok: true, settings: { smartPickerPublic, dailyCheckinCredits } });
+  return NextResponse.json({ ok: true, settings: { smartPickerPublic, footScanPublic, dailyCheckinCredits } });
 }
 
 const schema = z
   .object({
     smartPickerPublic: z.boolean().optional(),
+    footScanPublic: z.boolean().optional(),
     dailyCheckinCredits: z.number().int().min(0).max(MAX_DAILY_CHECKIN_CREDITS).optional()
   })
   .refine(
-    (v) => v.smartPickerPublic !== undefined || v.dailyCheckinCredits !== undefined,
+    (v) =>
+      v.smartPickerPublic !== undefined ||
+      v.footScanPublic !== undefined ||
+      v.dailyCheckinCredits !== undefined,
     "Provide at least one setting to update."
   );
 
@@ -49,14 +56,18 @@ export async function POST(request: Request) {
     if (parsed.data.smartPickerPublic !== undefined) {
       await setSmartPickerPublicEnabled(parsed.data.smartPickerPublic, ctx.userId);
     }
+    if (parsed.data.footScanPublic !== undefined) {
+      await setFootScanPublicEnabled(parsed.data.footScanPublic, ctx.userId);
+    }
     if (parsed.data.dailyCheckinCredits !== undefined) {
       await setDailyCheckinCredits(parsed.data.dailyCheckinCredits, ctx.userId);
     }
-    const [smartPickerPublic, dailyCheckinCredits] = await Promise.all([
+    const [smartPickerPublic, footScanPublic, dailyCheckinCredits] = await Promise.all([
       isSmartPickerPublicEnabled(),
+      isFootScanPublicEnabled(),
       getDailyCheckinCredits()
     ]);
-    return NextResponse.json({ ok: true, settings: { smartPickerPublic, dailyCheckinCredits } });
+    return NextResponse.json({ ok: true, settings: { smartPickerPublic, footScanPublic, dailyCheckinCredits } });
   } catch (e) {
     console.error("[admin/settings] update failed", e);
     return NextResponse.json({ ok: false, message: e instanceof Error ? e.message : "Update failed." }, { status: 500 });
