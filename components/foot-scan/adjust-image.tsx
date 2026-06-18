@@ -2,10 +2,11 @@
 
 // Post-capture editor: drag to pan, slider to zoom, buttons to rotate — so the
 // user can line their photo up with the outline (and fix a rotated photo from
-// the device camera). On confirm we screenshot the framed image layer (WYSIWYG),
-// so what they aligned is exactly what gets analysed.
+// the device camera). The transform is applied imperatively (ref + rAF) so
+// dragging stays smooth — no React re-render per pointer move. On confirm we
+// screenshot the framed image layer (WYSIWYG).
 
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Check, RotateCcw, RotateCw, RefreshCw } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -37,25 +38,41 @@ export function AdjustImage({
 }) {
   const { translate } = useLocale();
   const captureRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const t = useRef({ scale: 1, rot: 0, tx: 0, ty: 0 });
   const drag = useRef<{ x: number; y: number } | null>(null);
-
-  const [scale, setScale] = useState(1);
-  const [rot, setRot] = useState(0);
-  const [tx, setTx] = useState(0);
-  const [ty, setTy] = useState(0);
+  const raf = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const apply = useCallback(() => {
+    raf.current = null;
+    const el = imgRef.current;
+    if (!el) return;
+    const { scale, rot, tx, ty } = t.current;
+    el.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`;
+  }, []);
+
+  const schedule = useCallback(() => {
+    if (raf.current == null) raf.current = requestAnimationFrame(apply);
+  }, [apply]);
 
   function onDown(e: React.PointerEvent) {
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    drag.current = { x: e.clientX - tx, y: e.clientY - ty };
+    drag.current = { x: e.clientX - t.current.tx, y: e.clientY - t.current.ty };
   }
   function onMove(e: React.PointerEvent) {
     if (!drag.current) return;
-    setTx(e.clientX - drag.current.x);
-    setTy(e.clientY - drag.current.y);
+    t.current.tx = e.clientX - drag.current.x;
+    t.current.ty = e.clientY - drag.current.y;
+    schedule();
   }
   function onUp() {
     drag.current = null;
+  }
+
+  function rotate(delta: number) {
+    t.current.rot += delta;
+    schedule();
   }
 
   async function confirm() {
@@ -72,7 +89,6 @@ export function AdjustImage({
       haptics.success();
       onConfirm(url);
     } catch {
-      // Screenshot failed — fall back to the untransformed capture.
       onConfirm(src);
     } finally {
       setBusy(false);
@@ -91,14 +107,12 @@ export function AdjustImage({
         <div ref={captureRef} className="absolute inset-0 overflow-hidden bg-black">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            ref={imgRef}
             src={src}
             alt=""
             draggable={false}
             className="absolute inset-0 h-full w-full select-none object-cover"
-            style={{
-              transform: `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(${scale})`,
-              transformOrigin: "center"
-            }}
+            style={{ transformOrigin: "center", willChange: "transform" }}
           />
         </div>
         {/* guide overlay — excluded from the screenshot */}
@@ -116,18 +130,21 @@ export function AdjustImage({
         min={1}
         max={4}
         step={0.02}
-        value={scale}
-        onChange={(e) => setScale(Number(e.target.value))}
+        defaultValue={1}
+        onInput={(e) => {
+          t.current.scale = Number((e.target as HTMLInputElement).value);
+          schedule();
+        }}
         className="w-full accent-[rgb(var(--text))]"
         aria-label={translate("Zoom")}
       />
 
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="secondary" className="gap-2" onClick={() => setRot((r) => r - 90)}>
+        <Button variant="secondary" className="gap-2" onClick={() => rotate(-90)}>
           <RotateCcw className="h-4 w-4" />
           {translate("Rotate left")}
         </Button>
-        <Button variant="secondary" className="gap-2" onClick={() => setRot((r) => r + 90)}>
+        <Button variant="secondary" className="gap-2" onClick={() => rotate(90)}>
           <RotateCw className="h-4 w-4" />
           {translate("Rotate right")}
         </Button>

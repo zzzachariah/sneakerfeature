@@ -106,6 +106,14 @@ export const TOE_LABEL: Record<ToeShape, string> = {
   square: "Square (toes even)"
 };
 
+// Short labels for compact chips (translated; full labels have parentheticals).
+export const TOE_SHORT: Record<ToeShape, string> = {
+  egyptian: "Egyptian",
+  greek: "Greek",
+  roman: "Roman",
+  square: "Square"
+};
+
 export const CONFIDENCE_LABEL: Record<Confidence, string> = {
   low: "Low confidence",
   medium: "Medium confidence",

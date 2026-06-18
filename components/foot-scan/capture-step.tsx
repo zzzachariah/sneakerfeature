@@ -207,7 +207,7 @@ export function CaptureStep({
     config.tilt === "flat"
       ? translate("Hold the phone flat, facing down")
       : config.tilt === "tilt45"
-        ? translate("Tilt the phone to about 45°")
+        ? translate("Tilt the top of the phone away from you (~45°)")
         : translate("Hold the phone upright");
 
   const header = (
@@ -338,7 +338,7 @@ export function CaptureStep({
                 </Button>
                 <Button variant="secondary" className="gap-2" onClick={async () => handleFile(await pickPhotoFile("photos"))}>
                   <Images className="h-4 w-4" />
-                  {translate("Library")}
+                  {translate("Photos")}
                 </Button>
               </>
             ) : (
@@ -359,7 +359,7 @@ export function CaptureStep({
                 <label className="inline-flex">
                   <span className="liquid-interactive inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-4 text-sm text-[rgb(var(--text))] md:min-h-[36px]">
                     <Images className="h-4 w-4" />
-                    {translate("Library")}
+                    {translate("Photos")}
                   </span>
                   <input
                     type="file"

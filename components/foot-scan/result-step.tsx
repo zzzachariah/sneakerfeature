@@ -5,17 +5,19 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, Share2, RotateCcw, Sparkles } from "lucide-react";
+import { AlertTriangle, Check, Share2, RotateCcw, Sparkles, ImageDown } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { triggerDownload, safeFilename } from "@/lib/card/capture";
 import { shareContent } from "@/lib/native/native";
 import { haptics } from "@/lib/native/haptics";
+import { ReportCard } from "@/components/foot-scan/report-card";
 import {
   WIDTH_LABEL,
   INSTEP_LABEL,
   TOE_LABEL,
+  TOE_SHORT,
   CONFIDENCE_LABEL,
   SIDE_LABEL,
   WIDTH_SCALE,
@@ -80,8 +82,10 @@ export function ResultStep({
 }) {
   const { translate } = useLocale();
   const cardRef = useRef<HTMLDivElement>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [sharing, setSharing] = useState(false);
+  const [imaging, setImaging] = useState(false);
 
   const p = result.primary;
   const m = p.measurements;
@@ -107,13 +111,34 @@ export function ResultStep({
     }
   }
 
+  // Render the polished off-screen report card to a PNG blob.
+  async function renderImage(): Promise<Blob | null> {
+    const node = reportRef.current;
+    if (!node) return null;
+    const { domToBlob } = await import("modern-screenshot");
+    return domToBlob(node, { scale: 3, type: "image/png", quality: 1 });
+  }
+
+  async function saveImage() {
+    setImaging(true);
+    try {
+      const blob = await renderImage();
+      if (blob) {
+        triggerDownload(blob, safeFilename(["my-foot-type"]));
+        haptics.success();
+      }
+    } catch {
+      /* capture failed — no-op */
+    } finally {
+      setImaging(false);
+    }
+  }
+
   async function share() {
-    const node = cardRef.current;
-    if (!node) return;
     setSharing(true);
     try {
-      const { domToBlob } = await import("modern-screenshot");
-      const blob = await domToBlob(node, { scale: 2, type: "image/png", quality: 1 });
+      const blob = await renderImage();
+      if (!blob) return;
       const file = new File([blob], safeFilename(["my-foot-type"]), { type: "image/png" });
       try {
         await shareContent({ title: "My foot type", text: "Scanned with sneakerfeature", files: [file] });
@@ -171,7 +196,7 @@ export function ResultStep({
               </span>
               <ConfBadge level={p.confidence.instep} />
             </div>
-            <ScaleBar value={INSTEP_SCALE[p.traits.instep]} average={INSTEP_SCALE.normal} leftLabel="Low" rightLabel="High" />
+            <ScaleBar value={INSTEP_SCALE[p.traits.instep]} average={INSTEP_SCALE.normal} leftLabel="Low instep" rightLabel="High instep" />
           </div>
 
           {/* toe shape */}
@@ -192,7 +217,7 @@ export function ResultStep({
                       : "bg-[rgb(var(--text)/0.06)] text-[rgb(var(--subtext))]"
                   }`}
                 >
-                  {t}
+                  {translate(TOE_SHORT[t])}
                 </span>
               ))}
             </div>
@@ -246,11 +271,15 @@ export function ResultStep({
             {translate("Find shoes for my feet")}
           </Button>
         </Link>
+        <Button variant="secondary" className="gap-2" disabled={imaging} onClick={saveImage}>
+          <ImageDown className="h-4 w-4" />
+          {translate(imaging ? "Generating…" : "Save image")}
+        </Button>
         <Button variant="secondary" className="gap-2" disabled={sharing} onClick={share}>
           <Share2 className="h-4 w-4" />
           {translate(sharing ? "Preparing…" : "Share")}
         </Button>
-        <Button variant="ghost" className="gap-2" onClick={onRestart}>
+        <Button variant="ghost" className="col-span-2 gap-2" onClick={onRestart}>
           <RotateCcw className="h-4 w-4" />
           {translate("Scan again")}
         </Button>
@@ -258,6 +287,11 @@ export function ResultStep({
       {saveState === "error" && (
         <p className="text-xs text-red-500">{translate("Could not save. Please try again.")}</p>
       )}
+
+      {/* off-screen polished card used for Save image / Share */}
+      <div aria-hidden style={{ position: "fixed", left: -10000, top: 0, pointerEvents: "none" }}>
+        <ReportCard ref={reportRef} result={result} />
+      </div>
     </div>
   );
 }

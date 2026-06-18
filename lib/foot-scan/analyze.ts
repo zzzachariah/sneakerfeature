@@ -49,6 +49,8 @@ export type AnalyzeInput = {
   // The chosen/primary foot we run the full 3-view analysis on.
   primarySide: FootSide;
   footLengthMm: number;
+  // UI language for the prose fields ("zh" | "en").
+  locale?: string;
   images: {
     top: string; // data URL — top-down of the primary foot
     oblique: string; // 45° front-oblique of the primary foot
@@ -110,7 +112,7 @@ Reply with STRICT JSON only, no markdown, no commentary:
   "summary": "one short, friendly paragraph describing the foot shape in plain language",
   "cautions": ["short caveats, e.g. lighting/angle limits"]
 }
-Set "other" to null if no other-foot photo was given. Keep summary and cautions in English (the app localises them).`;
+Set "other" to null if no other-foot photo was given.`;
 
 export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutcome> {
   const client = createPackyClient();
@@ -118,8 +120,10 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     return { ok: false, error: "AI service is not configured.", detail: describePackyEnvProblem(getPackyEnvReport()) };
   }
 
+  const language = input.locale === "zh" ? "Simplified Chinese" : "English";
   const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
     { type: "text", text: PROMPT },
+    { type: "text", text: `\nWrite the "summary" and "cautions" fields in ${language}. The classification enum values stay in English as specified.` },
     { type: "text", text: `\nReference foot length (anchor): ${input.footLengthMm} mm. Primary foot: ${input.primarySide}.` },
     { type: "text", text: `\n[Image: ${VIEW_LABELS.top}]` },
     { type: "image_url", image_url: { url: input.images.top } },
@@ -231,7 +235,11 @@ function buildResult(input: AnalyzeInput, parsed: Record<string, unknown>): Foot
     };
   }
 
-  // Always append the standing disclaimer.
-  result.cautions.push("Photo-based estimate for shoe-fitting reference only — not a medical assessment.");
+  // Always append the standing disclaimer (in the UI language).
+  result.cautions.push(
+    input.locale === "zh"
+      ? "本结果由照片估算，仅供选鞋参考，非医疗诊断。"
+      : "Photo-based estimate for shoe-fitting reference only — not a medical assessment."
+  );
   return result;
 }
