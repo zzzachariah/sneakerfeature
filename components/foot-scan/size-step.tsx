@@ -9,7 +9,16 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import type { FootSide } from "@/lib/foot-scan/types";
-import { BRANDS, footLengthMm, getBrand, sizeOptions, type FitFeel } from "@/lib/foot-scan/size-chart";
+import {
+  BRANDS,
+  footLengthMm,
+  getBrand,
+  sizeOptions,
+  systemsForBrand,
+  SIZE_SYSTEM_LABEL,
+  type FitFeel,
+  type SizeSystem
+} from "@/lib/foot-scan/size-chart";
 
 export type SizeChoice = {
   footLengthMm: number;
@@ -26,6 +35,7 @@ const FITS: { id: FitFeel; label: string }[] = [
 export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void }) {
   const { translate } = useLocale();
   const [brandId, setBrandId] = useState("nike");
+  const [system, setSystem] = useState<SizeSystem>("us_men");
   const [size, setSize] = useState("");
   const [cm, setCm] = useState("");
   const [fit, setFit] = useState<FitFeel>("perfect");
@@ -33,12 +43,19 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
   const [captureBoth, setCaptureBoth] = useState(true);
 
   const brand = getBrand(brandId);
-  const system = brand?.system ?? "us_men";
+  const systems = useMemo(() => (brand ? systemsForBrand(brand) : ["us_men" as SizeSystem]), [brand]);
   const options = useMemo(() => sizeOptions(system), [system]);
 
+  function changeBrand(id: string) {
+    setBrandId(id);
+    const b = getBrand(id);
+    setSystem(b ? systemsForBrand(b)[0] : "us_men");
+    setSize("");
+  }
+
   const resolvedLength = useMemo(() => {
-    if (system === "foot_cm") return footLengthMm({ brandId, size: cm });
-    return footLengthMm({ brandId, size, fit });
+    if (system === "foot_cm") return footLengthMm({ brandId, size: cm, system });
+    return footLengthMm({ brandId, size, fit, system });
   }, [brandId, size, cm, fit, system]);
 
   function handleContinue() {
@@ -57,13 +74,7 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">{translate("Brand")}</span>
-        <Select
-          value={brandId}
-          onChange={(e) => {
-            setBrandId(e.target.value);
-            setSize("");
-          }}
-        >
+        <Select value={brandId} onChange={(e) => changeBrand(e.target.value)}>
           {BRANDS.map((b) => (
             <option key={b.id} value={b.id}>
               {b.label}
@@ -71,6 +82,30 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
           ))}
         </Select>
       </label>
+
+      {systems.length > 1 && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">{translate("Size system")}</span>
+          <div className="grid grid-cols-2 gap-2">
+            {systems.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setSystem(s);
+                  setSize("");
+                }}
+                className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] ${
+                  system === s
+                    ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] font-semibold text-[rgb(var(--bg))]"
+                    : "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))]"
+                }`}
+              >
+                {translate(SIZE_SYSTEM_LABEL[s])}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {system === "foot_cm" ? (
         <label className="flex flex-col gap-1.5">
@@ -89,7 +124,7 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
       ) : (
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium">
-            {translate(system === "cn_mm" ? "Size (CN, mm)" : "Size (US men's)")}
+            {translate("Size")} ({translate(SIZE_SYSTEM_LABEL[system])})
           </span>
           <Select value={size} onChange={(e) => setSize(e.target.value)}>
             <option value="">{translate("Select…")}</option>

@@ -1,18 +1,23 @@
 "use client";
 
-// One guided shot: live camera preview + alignment overlay + gravity-gated
-// auto-shutter, with haptics, voice cues, a manual shutter, and a graceful
-// fallback to the file picker when the camera/sensor isn't available.
+// One guided shot. Two capture modes:
+//   - "live": in-app camera preview + alignment overlay (web, iOS app). The user
+//     taps to capture — no auto-shutter. A self-timer is offered for the propped
+//     side shot.
+//   - "photo": the device camera via the file/native picker, used on Android
+//     (WebView getUserMedia is unreliable) and whenever the live preview can't
+//     start. The outline is shown as a reference before and over the result.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, RotateCcw, Check, SwitchCamera, SmartphoneNfc } from "lucide-react";
+import { Camera, RotateCcw, Check, Timer, Images } from "lucide-react";
+import { Capacitor } from "@capacitor/core";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { haptics } from "@/lib/native/haptics";
 import { useDeviceTilt, type TiltTarget } from "@/lib/foot-scan/orientation";
 import { nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
 import { FootOverlay } from "@/components/foot-scan/foot-overlays";
-import type { ViewId } from "@/lib/foot-scan/types";
+import type { FootSide, ViewId } from "@/lib/foot-scan/types";
 
 export type ShotConfig = {
   view: ViewId;
@@ -46,7 +51,6 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-// Downscale an arbitrary data URL to keep upload size sane.
 function downscale(url: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -67,16 +71,18 @@ function downscale(url: string): Promise<string> {
   });
 }
 
-type Phase = "init" | "aligning" | "counting" | "captured" | "error";
+type Mode = "starting" | "live" | "photo" | "captured";
 
 export function CaptureStep({
   config,
+  side,
   index,
   total,
   onCaptured,
   onBack
 }: {
   config: ShotConfig;
+  side: FootSide;
   index: number;
   total: number;
   onCaptured: (dataUrl: string) => void;
@@ -85,10 +91,13 @@ export function CaptureStep({
   const { translate } = useLocale();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const stableTimer = useRef<number | null>(null);
-  const countTimer = useRef<number | null>(null);
+  const timerRef = useRef<number | null>(null);
 
-  const [phase, setPhase] = useState<Phase>("init");
+  // Android WebView getUserMedia is unreliable, so go straight to the device
+  // camera there. iOS app + web try the live preview first.
+  const skipLive = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
+
+  const [mode, setMode] = useState<Mode>("starting");
   const [captured, setCaptured] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -100,11 +109,16 @@ export function CaptureStep({
     streamRef.current = null;
   }, []);
 
-  const capture = useCallback(() => {
-    if (countTimer.current) {
-      clearInterval(countTimer.current);
-      countTimer.current = null;
+  const clearTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
     }
+    setCount(0);
+  }, []);
+
+  const capture = useCallback(() => {
+    clearTimer();
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
     const scale = Math.min(1, MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
@@ -119,18 +133,21 @@ export function CaptureStep({
     const url = canvas.toDataURL("image/jpeg", 0.82);
     stopStream();
     setCaptured(url);
-    setPhase("captured");
+    setMode("captured");
     haptics.success();
-    speak("Captured");
-  }, [stopStream]);
+  }, [clearTimer, stopStream]);
 
-  // Camera lifecycle (restarts on retake via `attempt`).
+  // Camera lifecycle (re-runs on retake via `attempt`).
   useEffect(() => {
+    if (skipLive) {
+      setMode("photo");
+      return;
+    }
     let cancelled = false;
     async function start() {
-      setPhase("init");
+      setMode("starting");
       if (!navigator.mediaDevices?.getUserMedia) {
-        setPhase("error");
+        setMode("photo");
         return;
       }
       try {
@@ -147,9 +164,9 @@ export function CaptureStep({
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
         }
-        setPhase("aligning");
+        setMode("live");
       } catch {
-        if (!cancelled) setPhase("error");
+        if (!cancelled) setMode("photo");
       }
     }
     start();
@@ -158,62 +175,35 @@ export function CaptureStep({
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     };
-  }, [attempt]);
+  }, [attempt, skipLive]);
 
-  const startCountdown = useCallback(() => {
-    setPhase("counting");
+  useEffect(() => () => clearTimer(), [clearTimer]);
+
+  // User-initiated self-timer (handy for the propped side shot).
+  const startTimer = useCallback(() => {
+    if (timerRef.current) return;
     setCount(3);
     haptics.gesture();
-    speak(config.mode === "propped" ? "Hold still" : "Hold still, capturing");
-    countTimer.current = window.setInterval(() => {
+    speak("3");
+    timerRef.current = window.setInterval(() => {
       setCount((c) => {
         if (c <= 1) {
           capture();
           return 0;
         }
         haptics.selection();
+        speak(String(c - 1));
         return c - 1;
       });
-    }, 800);
-  }, [capture, config.mode]);
-
-  // Auto-shutter: once the phone is held level, settle briefly then count down.
-  useEffect(() => {
-    if (phase !== "aligning") return;
-    if (!tilt.level) {
-      if (stableTimer.current) {
-        clearTimeout(stableTimer.current);
-        stableTimer.current = null;
-      }
-      return;
-    }
-    haptics.gesture();
-    stableTimer.current = window.setTimeout(() => startCountdown(), 900);
-    return () => {
-      if (stableTimer.current) {
-        clearTimeout(stableTimer.current);
-        stableTimer.current = null;
-      }
-    };
-  }, [tilt.level, phase, startCountdown]);
-
-  // Lost alignment mid-countdown → abort and wait for re-alignment.
-  useEffect(() => {
-    if (phase === "counting" && !tilt.level) {
-      if (countTimer.current) {
-        clearInterval(countTimer.current);
-        countTimer.current = null;
-      }
-      setPhase("aligning");
-    }
-  }, [phase, tilt.level]);
+    }, 1000);
+  }, [capture]);
 
   async function handleFile(file: File | null) {
     if (!file) return;
     const url = await downscale(await fileToDataUrl(file));
     stopStream();
     setCaptured(url);
-    setPhase("captured");
+    setMode("captured");
     haptics.success();
   }
 
@@ -222,13 +212,9 @@ export function CaptureStep({
     setAttempt((a) => a + 1);
   }
 
-  function confirm() {
-    if (captured) onCaptured(captured);
-  }
-
   const levelHint =
     config.tilt === "flat"
-      ? translate("Hold the phone flat, facing straight down")
+      ? translate("Hold the phone flat, facing down")
       : config.tilt === "tilt45"
         ? translate("Tilt the phone to about 45°")
         : translate("Hold the phone upright");
@@ -258,52 +244,49 @@ export function CaptureStep({
       {/* viewport */}
       <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-black">
         {captured ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={captured} alt={translate(config.title)} className="h-full w-full object-cover" />
-        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={captured} alt={translate(config.title)} className="h-full w-full object-cover" />
+            <div className="opacity-40">
+              <FootOverlay view={config.view} side={side} />
+            </div>
+          </>
+        ) : mode === "live" ? (
           <>
             <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
-            <FootOverlay view={config.view} />
-            {/* level chip */}
+            <FootOverlay view={config.view} side={side} />
             <div className="absolute left-1/2 top-3 -translate-x-1/2">
               <span
                 className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur ${
-                  tilt.level
-                    ? "bg-emerald-500/85 text-white"
-                    : "bg-black/55 text-white"
+                  tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
                 }`}
               >
-                {tilt.permission !== "granted"
-                  ? levelHint
-                  : tilt.level
-                    ? translate("Level — hold steady")
-                    : levelHint}
+                {tilt.permission === "granted" && tilt.level ? translate("Looks level") : levelHint}
               </span>
             </div>
-            {/* countdown */}
-            {phase === "counting" && (
+            {count > 0 && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-7xl font-bold text-white drop-shadow-lg">{count}</span>
               </div>
             )}
-            {phase === "error" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-                <p className="text-sm text-white/90">
-                  {translate("Camera unavailable. Pick a photo instead.")}
-                </p>
-              </div>
-            )}
           </>
+        ) : (
+          // photo / starting mode — show the outline as a reference panel
+          <div className="absolute inset-0 flex items-center justify-center bg-[rgb(var(--text)/0.06)]">
+            <FootOverlay view={config.view} side={side} />
+            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white">
+              {translate("Match this outline, then take the photo")}
+            </span>
+          </div>
         )}
       </div>
 
-      {/* enable-level prompt (iOS gesture requirement) */}
-      {!captured && tilt.supported && tilt.permission !== "granted" && tilt.permission !== "unsupported" && (
+      {/* enable-level (advisory only; iOS needs a gesture) */}
+      {mode === "live" && tilt.supported && tilt.permission !== "granted" && tilt.permission !== "unsupported" && (
         <button
           onClick={() => tilt.requestPermission()}
-          className="inline-flex items-center justify-center gap-2 text-xs text-[rgb(var(--subtext))] underline"
+          className="text-xs text-[rgb(var(--subtext))] underline"
         >
-          <SmartphoneNfc className="h-3.5 w-3.5" />
           {translate("Enable the level guide")}
         </button>
       )}
@@ -328,65 +311,85 @@ export function CaptureStep({
               <RotateCcw className="h-4 w-4" />
               {translate("Retake")}
             </Button>
-            <Button variant="primary" className="flex-1 gap-2" onClick={confirm}>
+            <Button variant="primary" className="flex-1 gap-2" onClick={() => onCaptured(captured)}>
               <Check className="h-4 w-4" />
               {translate("Use this")}
             </Button>
           </>
-        ) : phase === "error" ? (
-          <>
-            {nativeCameraAvailable() ? (
-              <Button
-                variant="primary"
-                className="flex-1 gap-2"
-                onClick={async () => handleFile(await pickPhotoFile("prompt"))}
-              >
-                <Camera className="h-4 w-4" />
-                {translate("Take / choose photo")}
-              </Button>
-            ) : (
-              <label className="flex-1">
-                <span className="liquid-interactive inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))] md:min-h-[36px]">
-                  <Camera className="h-4 w-4" />
-                  {translate("Choose photo")}
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-                />
-              </label>
-            )}
-          </>
-        ) : (
+        ) : mode === "live" ? (
           <>
             {onBack && (
               <Button variant="ghost" onClick={onBack}>
                 {translate("Back")}
               </Button>
             )}
-            <Button
-              variant="primary"
-              className="flex-1 gap-2"
-              disabled={phase === "init"}
-              onClick={capture}
-            >
+            <Button variant="primary" className="flex-1 gap-2" onClick={capture}>
               <Camera className="h-4 w-4" />
               {translate("Capture")}
             </Button>
-            <label className="inline-flex" title={translate("Choose photo")}>
-              <span className="liquid-interactive inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))] md:h-9 md:w-9">
-                <SwitchCamera className="h-4 w-4" />
-              </span>
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-              />
-            </label>
+            {config.mode === "propped" && (
+              <Button variant="secondary" className="gap-2" disabled={count > 0} onClick={startTimer}>
+                <Timer className="h-4 w-4" />
+                {translate("Timer")}
+              </Button>
+            )}
+          </>
+        ) : (
+          // photo / starting mode
+          <>
+            {onBack && (
+              <Button variant="ghost" onClick={onBack}>
+                {translate("Back")}
+              </Button>
+            )}
+            {nativeCameraAvailable() ? (
+              <>
+                <Button
+                  variant="primary"
+                  className="flex-1 gap-2"
+                  onClick={async () => handleFile(await pickPhotoFile("camera"))}
+                >
+                  <Camera className="h-4 w-4" />
+                  {translate("Take photo")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="gap-2"
+                  onClick={async () => handleFile(await pickPhotoFile("photos"))}
+                >
+                  <Images className="h-4 w-4" />
+                  {translate("Library")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <label className="flex-1">
+                  <span className="liquid-interactive inline-flex min-h-[44px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))] md:min-h-[36px]">
+                    <Camera className="h-4 w-4" />
+                    {translate("Take photo")}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <label className="inline-flex">
+                  <span className="liquid-interactive inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-2 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-4 text-sm text-[rgb(var(--text))] md:min-h-[36px]">
+                    <Images className="h-4 w-4" />
+                    {translate("Library")}
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+              </>
+            )}
           </>
         )}
       </div>

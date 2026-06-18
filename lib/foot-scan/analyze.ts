@@ -82,9 +82,9 @@ function asToe(v: unknown): ToeShape {
   return isToeShape(v) ? v : "egyptian";
 }
 
-const PROMPT = `You are a footwear-fitting assistant analysing guided photos of ONE person's bare feet to estimate basic foot shape. You are NOT making a medical diagnosis.
+const PROMPT = `You are a footwear-fitting assistant analysing guided photos of ONE person's feet to estimate basic foot shape. You are NOT making a medical diagnosis.
 
-You receive labelled images. For each, first judge whether it is usable.
+You receive labelled images. For each, first judge whether it is usable. The person may be wearing thin socks — that is acceptable; still estimate the traits. Only if thick socks blur the foot's outline or hide the toe boundaries, lower the affected confidence (and set toe_confidence to "low" when individual toes can't be told apart).
 
 Then read these traits from the PRIMARY foot:
 1. width_ratio — the foot's maximum width divided by its heel-to-longest-toe length, estimated from the TOP-DOWN photo. A normal foot is around 0.38-0.40; narrow ~0.34-0.37; wide ~0.42-0.46. Give a single decimal number.

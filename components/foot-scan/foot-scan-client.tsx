@@ -11,7 +11,7 @@ import { ChecklistStep } from "@/components/foot-scan/checklist-step";
 import { SizeStep, type SizeChoice } from "@/components/foot-scan/size-step";
 import { CaptureStep, type ShotConfig } from "@/components/foot-scan/capture-step";
 import { ResultStep } from "@/components/foot-scan/result-step";
-import type { FootScanResult, ViewId } from "@/lib/foot-scan/types";
+import type { FootScanResult, FootSide, ViewId } from "@/lib/foot-scan/types";
 
 const SHOTS: Record<ViewId, ShotConfig> = {
   top: {
@@ -149,7 +149,18 @@ export function FootScanClient() {
     setStep("checklist");
   }
 
+  const currentView = shotList[shotIndex];
+  // The outline should match the foot being shot (mirror for the left foot).
+  const currentSide: FootSide = choice
+    ? currentView === "top_other"
+      ? choice.primarySide === "right"
+        ? "left"
+        : "right"
+      : choice.primarySide
+    : "right";
+
   return (
+    <div className="has-mobile-nav-pad">
     <div className="container-shell mx-auto max-w-md px-4 py-8">
       <header className="mb-6 text-center">
         <h1 className="text-2xl font-semibold tracking-[-0.02em]">{translate("Foot Scan")}</h1>
@@ -160,10 +171,11 @@ export function FootScanClient() {
 
       {step === "size" && <SizeStep onSubmit={startCapture} />}
 
-      {step === "capture" && choice && shotList[shotIndex] && (
+      {step === "capture" && choice && currentView && (
         <CaptureStep
-          key={`${shotList[shotIndex]}-${shotIndex}`}
-          config={SHOTS[shotList[shotIndex]]}
+          key={`${currentView}-${shotIndex}`}
+          config={SHOTS[currentView]}
+          side={currentSide}
           index={shotIndex}
           total={shotList.length}
           onCaptured={handleCaptured}
@@ -190,6 +202,7 @@ export function FootScanClient() {
           </Button>
         </div>
       )}
+    </div>
     </div>
   );
 }
