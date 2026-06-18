@@ -6,10 +6,12 @@
 //     side shot.
 //   - "photo": the device camera via the file/native picker, used on Android
 //     (WebView getUserMedia is unreliable) and whenever the live preview can't
-//     start. The outline is shown as a reference before and over the result.
+//     start.
+// After capture the user lands in the Adjust step (rotate / zoom / pan) to line
+// the photo up with the outline.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, RotateCcw, Check, Timer, Images } from "lucide-react";
+import { Camera, Timer, Images } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,7 @@ import { haptics } from "@/lib/native/haptics";
 import { useDeviceTilt, type TiltTarget } from "@/lib/foot-scan/orientation";
 import { nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
 import { FootOverlay } from "@/components/foot-scan/foot-overlays";
+import { AdjustImage } from "@/components/foot-scan/adjust-image";
 import type { FootSide, ViewId } from "@/lib/foot-scan/types";
 
 export type ShotConfig = {
@@ -29,18 +32,6 @@ export type ShotConfig = {
 };
 
 const MAX_DIM = 1280;
-
-function speak(text: string) {
-  try {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
-  } catch {
-    /* speech unavailable */
-  }
-}
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -97,7 +88,7 @@ export function CaptureStep({
   // camera there. iOS app + web try the live preview first.
   const skipLive = Capacitor.isNativePlatform() && Capacitor.getPlatform() === "android";
 
-  const [mode, setMode] = useState<Mode>("starting");
+  const [mode, setMode] = useState<Mode>(skipLive ? "photo" : "starting");
   const [captured, setCaptured] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -137,7 +128,8 @@ export function CaptureStep({
     haptics.success();
   }, [clearTimer, stopStream]);
 
-  // Camera lifecycle (re-runs on retake via `attempt`).
+  // Camera lifecycle (re-runs on retake via `attempt`). The <video> is rendered
+  // for both "starting" and "live" so the ref exists when we attach the stream.
   useEffect(() => {
     if (skipLive) {
       setMode("photo");
@@ -184,7 +176,6 @@ export function CaptureStep({
     if (timerRef.current) return;
     setCount(3);
     haptics.gesture();
-    speak("3");
     timerRef.current = window.setInterval(() => {
       setCount((c) => {
         if (c <= 1) {
@@ -192,7 +183,6 @@ export function CaptureStep({
           return 0;
         }
         haptics.selection();
-        speak(String(c - 1));
         return c - 1;
       });
     }, 1000);
@@ -209,6 +199,7 @@ export function CaptureStep({
 
   function retake() {
     setCaptured(null);
+    setMode(skipLive ? "photo" : "starting");
     setAttempt((a) => a + 1);
   }
 
@@ -219,9 +210,8 @@ export function CaptureStep({
         ? translate("Tilt the phone to about 45°")
         : translate("Hold the phone upright");
 
-  return (
-    <div className="flex flex-col gap-4">
-      {/* progress */}
+  const header = (
+    <>
       <div className="flex items-center gap-1.5">
         {Array.from({ length: total }).map((_, i) => (
           <span
@@ -230,7 +220,6 @@ export function CaptureStep({
           />
         ))}
       </div>
-
       <div className="flex items-baseline justify-between">
         <h2 className="text-lg font-semibold tracking-[-0.01em]">
           {translate(config.title)}{" "}
@@ -240,30 +229,43 @@ export function CaptureStep({
         </h2>
         <span className="text-xs soft-text">{translate(config.measures)}</span>
       </div>
+    </>
+  );
+
+  if (captured) {
+    return (
+      <div className="flex flex-col gap-4">
+        {header}
+        <AdjustImage src={captured} view={config.view} side={side} onConfirm={onCaptured} onRetake={retake} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {header}
 
       {/* viewport */}
-      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-2xl bg-black">
-        {captured ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={captured} alt={translate(config.title)} className="h-full w-full object-cover" />
-            <div className="opacity-40">
-              <FootOverlay view={config.view} side={side} />
-            </div>
-          </>
-        ) : mode === "live" ? (
+      <div
+        className={`relative aspect-[3/4] w-full overflow-hidden rounded-2xl ${
+          mode === "live" || mode === "starting" ? "bg-black" : "bg-[rgb(var(--text)/0.06)]"
+        }`}
+      >
+        {mode === "live" || mode === "starting" ? (
           <>
             <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
             <FootOverlay view={config.view} side={side} />
-            <div className="absolute left-1/2 top-3 -translate-x-1/2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur ${
-                  tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
-                }`}
-              >
-                {tilt.permission === "granted" && tilt.level ? translate("Looks level") : levelHint}
-              </span>
-            </div>
+            {mode === "live" && (
+              <div className="absolute left-1/2 top-3 -translate-x-1/2">
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur ${
+                    tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
+                  }`}
+                >
+                  {tilt.permission === "granted" && tilt.level ? translate("Looks level") : levelHint}
+                </span>
+              </div>
+            )}
             {count > 0 && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <span className="text-7xl font-bold text-white drop-shadow-lg">{count}</span>
@@ -271,11 +273,10 @@ export function CaptureStep({
             )}
           </>
         ) : (
-          // photo / starting mode — show the outline as a reference panel
-          <div className="absolute inset-0 flex items-center justify-center bg-[rgb(var(--text)/0.06)]">
+          <div className="absolute inset-0 flex items-center justify-center">
             <FootOverlay view={config.view} side={side} />
             <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white">
-              {translate("Match this outline, then take the photo")}
+              {translate("Take a photo, then line it up with the outline")}
             </span>
           </div>
         )}
@@ -283,40 +284,24 @@ export function CaptureStep({
 
       {/* enable-level (advisory only; iOS needs a gesture) */}
       {mode === "live" && tilt.supported && tilt.permission !== "granted" && tilt.permission !== "unsupported" && (
-        <button
-          onClick={() => tilt.requestPermission()}
-          className="text-xs text-[rgb(var(--subtext))] underline"
-        >
+        <button onClick={() => tilt.requestPermission()} className="text-xs text-[rgb(var(--subtext))] underline">
           {translate("Enable the level guide")}
         </button>
       )}
 
       {/* instructions */}
-      {!captured && (
-        <ol className="space-y-1.5 rounded-xl bg-[rgb(var(--text)/0.04)] p-3 text-sm text-[rgb(var(--subtext))]">
-          {config.instructions.map((line, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="font-semibold text-[rgb(var(--text))]">{i + 1}.</span>
-              <span>{translate(line)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+      <ol className="space-y-1.5 rounded-xl bg-[rgb(var(--text)/0.04)] p-3 text-sm text-[rgb(var(--subtext))]">
+        {config.instructions.map((line, i) => (
+          <li key={i} className="flex gap-2">
+            <span className="font-semibold text-[rgb(var(--text))]">{i + 1}.</span>
+            <span>{translate(line)}</span>
+          </li>
+        ))}
+      </ol>
 
       {/* controls */}
       <div className="flex items-center gap-2">
-        {captured ? (
-          <>
-            <Button variant="secondary" className="flex-1 gap-2" onClick={retake}>
-              <RotateCcw className="h-4 w-4" />
-              {translate("Retake")}
-            </Button>
-            <Button variant="primary" className="flex-1 gap-2" onClick={() => onCaptured(captured)}>
-              <Check className="h-4 w-4" />
-              {translate("Use this")}
-            </Button>
-          </>
-        ) : mode === "live" ? (
+        {mode === "live" ? (
           <>
             {onBack && (
               <Button variant="ghost" onClick={onBack}>
@@ -334,8 +319,11 @@ export function CaptureStep({
               </Button>
             )}
           </>
+        ) : mode === "starting" ? (
+          <Button variant="primary" className="flex-1" disabled>
+            {translate("Starting camera…")}
+          </Button>
         ) : (
-          // photo / starting mode
           <>
             {onBack && (
               <Button variant="ghost" onClick={onBack}>
@@ -344,19 +332,11 @@ export function CaptureStep({
             )}
             {nativeCameraAvailable() ? (
               <>
-                <Button
-                  variant="primary"
-                  className="flex-1 gap-2"
-                  onClick={async () => handleFile(await pickPhotoFile("camera"))}
-                >
+                <Button variant="primary" className="flex-1 gap-2" onClick={async () => handleFile(await pickPhotoFile("camera"))}>
                   <Camera className="h-4 w-4" />
                   {translate("Take photo")}
                 </Button>
-                <Button
-                  variant="secondary"
-                  className="gap-2"
-                  onClick={async () => handleFile(await pickPhotoFile("photos"))}
-                >
+                <Button variant="secondary" className="gap-2" onClick={async () => handleFile(await pickPhotoFile("photos"))}>
                   <Images className="h-4 w-4" />
                   {translate("Library")}
                 </Button>
