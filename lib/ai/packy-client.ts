@@ -15,6 +15,21 @@ function readEnv(names: readonly string[]): string | undefined {
   return undefined;
 }
 
+// A feature can point at its OWN packyapi key/endpoint (e.g. packyapi issues a
+// separate key per model) by passing extra env var names that are checked
+// BEFORE the shared PACKYAPI_* / PACKY_API_* ones.
+export type PackyClientOptions = {
+  apiKeyEnv?: readonly string[];
+  baseURLEnv?: readonly string[];
+};
+
+function apiKeyNames(opts?: PackyClientOptions): readonly string[] {
+  return [...(opts?.apiKeyEnv ?? []), ...API_KEY_NAMES];
+}
+function baseURLNames(opts?: PackyClientOptions): readonly string[] {
+  return [...(opts?.baseURLEnv ?? []), ...BASE_URL_NAMES];
+}
+
 export const PACKY_MODEL = readEnv(MODEL_NAMES) ?? "claude-haiku-4-5-20251001";
 
 function normalizeBaseURL(raw: string): string {
@@ -57,21 +72,25 @@ export type PackyEnvReport = {
 // real env var names beginning with "PACKY" (case-insensitive) so a typo,
 // wrong casing, or stray whitespace in the name is immediately visible — the
 // values themselves are never exposed.
-export function getPackyEnvReport(): PackyEnvReport {
+export function getPackyEnvReport(opts?: PackyClientOptions): PackyEnvReport {
+  const optNames = [...(opts?.apiKeyEnv ?? []), ...(opts?.baseURLEnv ?? [])];
   return {
-    apiKey: envState(API_KEY_NAMES),
-    baseURL: envState(BASE_URL_NAMES),
-    detected: Object.keys(process.env)
-      .filter((k) => k.toUpperCase().startsWith("PACKY"))
-      .sort()
+    apiKey: envState(apiKeyNames(opts)),
+    baseURL: envState(baseURLNames(opts)),
+    detected: Array.from(
+      new Set([
+        ...Object.keys(process.env).filter((k) => k.toUpperCase().startsWith("PACKY")),
+        ...optNames.filter((n) => n in process.env)
+      ])
+    ).sort()
   };
 }
 
-export function describePackyEnvProblem(report: PackyEnvReport): string {
+export function describePackyEnvProblem(report: PackyEnvReport, opts?: PackyClientOptions): string {
   const stateText = (s: EnvState) => (s === "missing" ? "未找到" : s === "empty" ? "已设置但值为空" : "正常");
   const problems: string[] = [];
-  if (report.apiKey !== "ok") problems.push(`API key（${stateText(report.apiKey)}，可用名：${API_KEY_NAMES.join(" 或 ")}）`);
-  if (report.baseURL !== "ok") problems.push(`Base URL（${stateText(report.baseURL)}，可用名：${BASE_URL_NAMES.join(" 或 ")}）`);
+  if (report.apiKey !== "ok") problems.push(`API key（${stateText(report.apiKey)}，可用名：${apiKeyNames(opts).join(" 或 ")}）`);
+  if (report.baseURL !== "ok") problems.push(`Base URL（${stateText(report.baseURL)}，可用名：${baseURLNames(opts).join(" 或 ")}）`);
   const detectedText = report.detected.length
     ? `本次部署实际读取到的 PACKY* 变量：${JSON.stringify(report.detected)}`
     : "本次部署未读取到任何以 PACKY 开头的变量";
@@ -105,9 +124,9 @@ export function describePackyError(error: unknown): string {
 // packyapi.com is OpenAI-API-compatible, so we reuse the OpenAI SDK and only
 // swap the base URL + key. Returns null when env is missing so callers can
 // surface a clear "not configured" error instead of throwing.
-export function createPackyClient(): OpenAI | null {
-  const apiKey = readEnv(API_KEY_NAMES);
-  const baseURL = readEnv(BASE_URL_NAMES);
+export function createPackyClient(opts?: PackyClientOptions): OpenAI | null {
+  const apiKey = readEnv(apiKeyNames(opts));
+  const baseURL = readEnv(baseURLNames(opts));
   if (!apiKey || !baseURL) return null;
   return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL) });
 }

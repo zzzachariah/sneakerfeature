@@ -31,7 +31,7 @@ export type ShotConfig = {
   mode: "handheld" | "propped";
 };
 
-const MAX_DIM = 1280;
+const MAX_DIM = 1568;
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -55,7 +55,7 @@ function downscale(url: string): Promise<string> {
       const ctx = canvas.getContext("2d");
       if (!ctx) return resolve(url);
       ctx.drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", 0.82));
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
     };
     img.onerror = () => resolve(url);
     img.src = url;
@@ -121,7 +121,7 @@ export function CaptureStep({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, w, h);
-    const url = canvas.toDataURL("image/jpeg", 0.82);
+    const url = canvas.toDataURL("image/jpeg", 0.9);
     stopStream();
     setCaptured(url);
     setMode("captured");

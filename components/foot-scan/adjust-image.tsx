@@ -84,7 +84,10 @@ export function AdjustImage({
     setBusy(true);
     try {
       const { domToBlob } = await import("modern-screenshot");
-      const blob = await domToBlob(node, { scale: 2, type: "image/jpeg", quality: 0.85 });
+      // The framed layer is screenshotted at the display size × scale — this is
+      // the image actually sent for analysis, so render it at higher resolution
+      // and quality than the on-screen preview to preserve toe/edge detail.
+      const blob = await domToBlob(node, { scale: 3, type: "image/jpeg", quality: 0.92 });
       const url = await blobToDataUrl(blob);
       haptics.success();
       onConfirm(url);
