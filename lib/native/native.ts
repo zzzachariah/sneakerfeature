@@ -15,6 +15,13 @@ export function nativePlatform(): "ios" | "android" | "web" {
   return platform === "ios" || platform === "android" ? platform : "web";
 }
 
+// True only inside the native iOS app. Used to suppress analytics/advertising
+// cookies and the cookie-consent prompt there, so the app does not track users
+// (App Store Review Guideline 5.1.2(i)). Web and Android keep their behaviour.
+export function isIosNativeApp(): boolean {
+  return nativePlatform() === "ios";
+}
+
 export type ShareInput = { title?: string; text?: string; url?: string; files?: File[] };
 
 // Opens the native share sheet inside the app; falls back to the Web Share API,

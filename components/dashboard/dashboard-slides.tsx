@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useMemo } from "react";
-import { Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Modal } from "@/components/ui/modal";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -78,6 +79,15 @@ type Props = {
   passwordMessage: string;
   passwordError: boolean;
   onChangePassword: () => void;
+  // Settings — danger zone (account deletion)
+  deletePassword: string;
+  showDeletePassword: boolean;
+  onDeletePasswordChange: (v: string) => void;
+  onToggleShowDeletePassword: () => void;
+  deletingAccount: boolean;
+  deleteMessage: string;
+  deleteError: boolean;
+  onDeleteAccount: () => void;
 };
 
 const SECTION_OFFSET = { scrollMarginTop: "var(--top-nav-h)" } as const;
@@ -254,7 +264,7 @@ export function DashboardSlides(props: Props) {
           <SlideHeader
             eyebrow={translate("Section 4 of 4")}
             title={translate("Settings")}
-            description={translate("Manage your username and password.")}
+            description={translate("Manage your username, password, and account.")}
           />
           <div className="mt-5 space-y-5">
             {signedOut ? (
@@ -360,12 +370,124 @@ export function DashboardSlides(props: Props) {
                     )}
                   </div>
                 </section>
+
+                {/* Danger zone — account deletion */}
+                <DeleteAccountSection
+                  password={props.deletePassword}
+                  show={props.showDeletePassword}
+                  onPasswordChange={props.onDeletePasswordChange}
+                  onToggleShow={props.onToggleShowDeletePassword}
+                  deleting={props.deletingAccount}
+                  message={props.deleteMessage}
+                  isError={props.deleteError}
+                  onConfirm={props.onDeleteAccount}
+                  translate={translate}
+                />
               </>
             )}
           </div>
         </div>
       </section>
     </div>
+  );
+}
+
+function DeleteAccountSection({
+  password,
+  show,
+  onPasswordChange,
+  onToggleShow,
+  deleting,
+  message,
+  isError,
+  onConfirm,
+  translate
+}: {
+  password: string;
+  show: boolean;
+  onPasswordChange: (v: string) => void;
+  onToggleShow: () => void;
+  deleting: boolean;
+  message: string;
+  isError: boolean;
+  onConfirm: () => void;
+  translate: (s: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  function close() {
+    if (deleting) return;
+    setOpen(false);
+    onPasswordChange("");
+  }
+
+  return (
+    <section className="relative rounded-2xl border border-red-500/40 bg-[rgb(var(--surface)/0.5)] p-5">
+      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+        <AlertTriangle className="h-4 w-4" />
+        {translate("Delete account")}
+      </h3>
+      <p className="mt-3 text-sm leading-relaxed soft-text">
+        {translate(
+          "Permanently delete your account and all associated data — your profile, comments, reactions, submissions, and saved comparisons. This cannot be undone."
+        )}
+      </p>
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-4 w-full border-red-500/50 text-red-400 hover:border-red-500 hover:text-red-300 sm:w-auto"
+        onClick={() => setOpen(true)}
+      >
+        {translate("Delete account")}
+      </Button>
+
+      <Modal open={open} onClose={close} title="Delete account">
+        <div className="space-y-4">
+          <p className="text-sm leading-relaxed soft-text">
+            {translate(
+              "This will permanently delete your account and everything tied to it. This action cannot be undone."
+            )}
+          </p>
+          <div>
+            <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
+              {translate("Enter your password to confirm")}
+            </label>
+            <div className="relative">
+              <Input
+                value={password}
+                onChange={(e) => onPasswordChange(e.target.value)}
+                type={show ? "text" : "password"}
+                placeholder={translate("Your password")}
+                autoComplete="current-password"
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={onToggleShow}
+                aria-label={show ? translate("Hide password") : translate("Show password")}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-[rgb(var(--subtext))] transition hover:text-[rgb(var(--text))]"
+              >
+                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          {message && <FeedbackMessage message={message} isError={isError} />}
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={close} disabled={deleting}>
+              {translate("Cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="w-full border-red-600 bg-red-600 text-white hover:bg-red-500 sm:w-auto"
+              onClick={onConfirm}
+              disabled={deleting || !password}
+            >
+              {deleting ? translate("Deleting...") : translate("Delete my account")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </section>
   );
 }
 

@@ -11,6 +11,7 @@ import Link from "next/link";
 import Script from "next/script";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { isIosNativeApp } from "@/lib/native/native";
 
 /**
  * Cookie / analytics consent.
@@ -22,6 +23,11 @@ import { useLocale } from "@/components/i18n/locale-provider";
  * - {@link AnalyticsGate} loads the cookie-setting Google Analytics/Ads scripts
  *   ONLY after the visitor accepts. Vercel's cookieless analytics stay in the
  *   root layout and are not gated here.
+ *
+ * Inside the native iOS app, tracking is blocked entirely: the consent prompt is
+ * hidden and the cookie-setting analytics/ads scripts never load, so the app
+ * does not track users without App Tracking Transparency (App Store Review
+ * Guideline 5.1.2(i)). Web and Android are unaffected.
  */
 
 type Consent = "accepted" | "rejected" | null;
@@ -30,6 +36,8 @@ const STORAGE_KEY = "cookie-consent";
 type ConsentContextValue = {
   consent: Consent;
   ready: boolean;
+  /** True inside the iOS app, where analytics/ads cookies are never collected. */
+  blocked: boolean;
   setConsent: (value: "accepted" | "rejected") => void;
   reopen: () => void;
 };
@@ -39,8 +47,17 @@ const CookieConsentContext = createContext<ConsentContextValue | null>(null);
 export function CookieConsentProvider({ children }: { children: React.ReactNode }) {
   const [consent, setConsentState] = useState<Consent>(null);
   const [ready, setReady] = useState(false);
+  const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
+    // In the native iOS app we never collect analytics/advertising cookies and
+    // never show the consent prompt, so the app does not track users (App Store
+    // Review Guideline 5.1.2(i)). Skip restoring/storing any choice there.
+    if (isIosNativeApp()) {
+      setBlocked(true);
+      setReady(true);
+      return;
+    }
     try {
       const stored = window.localStorage.getItem(STORAGE_KEY);
       if (stored === "accepted" || stored === "rejected") setConsentState(stored);
@@ -69,7 +86,7 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
   }, []);
 
   return (
-    <CookieConsentContext.Provider value={{ consent, ready, setConsent, reopen }}>
+    <CookieConsentContext.Provider value={{ consent, ready, blocked, setConsent, reopen }}>
       {children}
     </CookieConsentContext.Provider>
   );
@@ -82,12 +99,13 @@ export function useCookieConsent() {
 }
 
 export function CookieBanner() {
-  const { consent, ready, setConsent } = useCookieConsent();
+  const { consent, ready, blocked, setConsent } = useCookieConsent();
   const { locale } = useLocale();
   const zh = locale === "zh";
 
-  // Only show once we've read the stored choice and the visitor hasn't decided.
-  if (!ready || consent !== null) return null;
+  // Never prompt inside the iOS app (no tracking there). Otherwise only show
+  // once we've read the stored choice and the visitor hasn't decided.
+  if (!ready || blocked || consent !== null) return null;
 
   return (
     <div
@@ -136,10 +154,11 @@ export function CookieBanner() {
 }
 
 export function AnalyticsGate() {
-  const { consent } = useCookieConsent();
+  const { consent, blocked } = useCookieConsent();
   const gaId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
-  if (consent !== "accepted" || !gaId) return null;
+  // Never load the cookie-setting Google scripts inside the iOS app.
+  if (blocked || consent !== "accepted" || !gaId) return null;
 
   return (
     <>

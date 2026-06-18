@@ -48,6 +48,11 @@ export default function DashboardPage() {
   const [passwordMessage, setPasswordMessage] = useState("");
   const [passwordError, setPasswordError] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleteError, setDeleteError] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -323,6 +328,57 @@ export default function DashboardPage() {
     }
   }
 
+  async function deleteAccount() {
+    if (deletingAccount) return;
+
+    setDeleteError(false);
+    setDeleteMessage("");
+
+    if (!deletePassword) {
+      setDeleteError(true);
+      return setDeleteMessage("Enter your password to confirm account deletion.");
+    }
+
+    setDeletingAccount(true);
+    try {
+      const response = await fetch("/api/auth/delete-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword })
+      });
+      const data = await response.json().catch(() => ({ ok: false }));
+
+      if (response.ok && data.ok) {
+        // The account is gone — clear the local session and leave the User Center.
+        const supabase = createClient();
+        if (supabase) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            /* session is already invalid once the user is deleted */
+          }
+        }
+        if (userId) {
+          try {
+            window.sessionStorage.removeItem(`sneaker-role:${userId}`);
+          } catch {
+            /* ignore cache clear failures */
+          }
+        }
+        window.location.href = "/";
+        return;
+      }
+
+      setDeleteError(true);
+      setDeleteMessage(data.message ?? "Failed to delete account.");
+    } catch {
+      setDeleteError(true);
+      setDeleteMessage("Network error. Please try again.");
+    } finally {
+      setDeletingAccount(false);
+    }
+  }
+
   return (
     <DashboardSlides
       loading={loading}
@@ -358,6 +414,14 @@ export default function DashboardPage() {
       passwordMessage={passwordMessage}
       passwordError={passwordError}
       onChangePassword={changePassword}
+      deletePassword={deletePassword}
+      showDeletePassword={showDeletePassword}
+      onDeletePasswordChange={setDeletePassword}
+      onToggleShowDeletePassword={() => setShowDeletePassword((v) => !v)}
+      deletingAccount={deletingAccount}
+      deleteMessage={deleteMessage}
+      deleteError={deleteError}
+      onDeleteAccount={deleteAccount}
     />
   );
 }
