@@ -86,6 +86,14 @@ const clamp01 = (n: number) => (n < 0 ? 0 : n > 1 ? 1 : n);
 // width/length ratio from the four landmarks, in true pixel space. Returns null
 // when the landmarks or the image size are missing/unusable so the caller can
 // fall back to the model's own width_ratio estimate.
+//
+// Length is the heel→toe distance (the foot's long axis). Width is the medial→
+// lateral breadth measured PERPENDICULAR to that axis — i.e. the magnitude of
+// the cross product with the unit long axis. Using the perpendicular component
+// (rather than the raw medial-to-lateral chord) cancels any fore/aft offset
+// between the two ball points, which would otherwise inflate the width; it
+// matches how foot width is measured anatomically (across the ball, square to
+// the length).
 export function ratioFromLandmarks(landmarks: unknown, size: ImageSize | null): number | null {
   if (!landmarks || typeof landmarks !== "object" || !size) return null;
   const lm = landmarks as Record<string, unknown>;
@@ -95,9 +103,24 @@ export function ratioFromLandmarks(landmarks: unknown, size: ImageSize | null): 
   const lat = lm.wide_lateral ?? lm.lateral;
   if (!isPt(heel) || !isPt(toe) || !isPt(med) || !isPt(lat)) return null;
   const px = (pt: Pt): Pt => [clamp01(pt[0]) * size.w, clamp01(pt[1]) * size.h];
-  const dist = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-  const lengthPx = dist(px(heel), px(toe));
-  const widthPx = dist(px(med), px(lat));
+  const [hx, hy] = px(heel);
+  const [tx, ty] = px(toe);
+  const [mx, my] = px(med);
+  const [lx, ly] = px(lat);
+
+  const ax = tx - hx;
+  const ay = ty - hy;
+  const lengthPx = Math.hypot(ax, ay);
   if (lengthPx <= 0) return null;
+
+  // Unit long axis, then the perpendicular component of the medial→lateral
+  // vector: |w × û| = |w| · sin θ.
+  const ux = ax / lengthPx;
+  const uy = ay / lengthPx;
+  const wx = lx - mx;
+  const wy = ly - my;
+  const widthPx = Math.abs(wx * uy - wy * ux);
+  if (widthPx <= 0) return null;
+
   return widthPx / lengthPx;
 }

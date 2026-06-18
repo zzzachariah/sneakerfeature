@@ -33,6 +33,7 @@ import {
 import { parseImageSize, ratioFromLandmarks, type ImageSize } from "@/lib/foot-scan/geometry";
 import {
   isInstepClass,
+  isToeShape,
   isConfidence,
   type Confidence,
   type FootScanResult,
@@ -42,7 +43,6 @@ import {
   type ToeShape,
   type ViewId
 } from "@/lib/foot-scan/types";
-import { isToeShape } from "@/lib/foot-scan/types";
 
 // A stronger vision model markedly helps the fine visual calls (toe boundaries,
 // instep doming, landmark placement). Set FOOT_SCAN_MODEL to the exact model
@@ -103,8 +103,13 @@ const VIEW_LABELS: Record<ViewId, string> = {
   top_other: "top-down view of the OTHER foot"
 };
 
-function stripFences(text: string): string {
-  return text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+// Pull the JSON object out of a model reply, tolerating code fences and any
+// stray prose before/after the object.
+function extractJson(text: string): string {
+  const stripped = text.trim().replace(/^```(?:json)?/i, "").replace(/```$/i, "").trim();
+  const first = stripped.indexOf("{");
+  const last = stripped.lastIndexOf("}");
+  return first >= 0 && last > first ? stripped.slice(first, last + 1) : stripped;
 }
 
 function asConfidence(v: unknown): Confidence {
@@ -117,36 +122,42 @@ function asToe(v: unknown): ToeShape {
   return isToeShape(v) ? v : "egyptian";
 }
 
-const PROMPT = `You are a footwear-fitting assistant estimating basic foot shape from guided photos of ONE person's feet. This is NOT a medical diagnosis.
+const PROMPT = `You are a careful footwear-fitting assistant estimating basic foot shape from guided photos of ONE person's feet. This is an indicative estimate for shoe sizing, NOT a medical diagnosis.
 
-You receive labelled images. For each, first judge whether it is usable. Thin socks are acceptable — still estimate the traits. Only when thick socks blur the outline or hide the toe boundaries should you lower the affected confidence (and set toe_confidence to "low" when individual toes can't be separated).
+Each image is labelled. Judge each for usability first. Read the bare-foot OUTLINE: if the person wears thin socks, estimate through them; only when thick socks blur the outline or merge the toes should you lower the affected confidence (set toe_confidence "low" when individual toes can't be separated). Judge the foot's REAL proportions — mentally correct for camera tilt and perspective, and do not let the quoted reference length bias what you actually see.
 
-Work in two steps for the PRIMARY foot, using the TOP-DOWN photo as the measurement reference.
+First reason briefly in "reasoning": describe the foot's outline in the TOP-DOWN photo and where its four extreme points lie. Then report:
 
-STEP 1 — Locate four landmarks. Give each as a normalized [x, y] pair where x is the fraction of image WIDTH (0 = left edge, 1 = right edge) and y is the fraction of image HEIGHT (0 = top edge, 1 = bottom edge):
-  - heel: the rear-most point of the heel.
-  - toe: the tip of the LONGEST toe.
-  - wide_medial: the widest point on the INNER edge (around the big-toe / first-metatarsal "ball").
-  - wide_lateral: the widest point on the OUTER edge (around the little-toe / fifth-metatarsal).
-Choose the true anatomical extremes even if the foot is rotated or tilted in the frame. If the foot is cut off or a point is unclear, still give your best estimate and lower width_confidence.
+A) LANDMARKS on the PRIMARY foot, from the TOP-DOWN photo. Give each as [x, y] where x = fraction of image WIDTH (0 = left edge, 1 = right edge) and y = fraction of image HEIGHT (0 = top edge, 1 = bottom edge):
+   - heel: the rear-most point of the heel.
+   - toe: the tip of the LONGEST toe (whichever toe reaches furthest forward).
+   - wide_medial: the widest point of the INNER edge (big-toe-side ball, ~1st metatarsal head).
+   - wide_lateral: the widest point of the OUTER edge (little-toe-side ball, ~5th metatarsal head).
+   Pick the true anatomical extremes even if the foot is rotated or tilted in the frame. If a point is hidden or cut off, give your best estimate and lower width_confidence.
 
-STEP 2 — Read these traits:
-1. width_ratio — foot maximum width divided by heel-to-longest-toe length, as a single decimal. Estimate it INDEPENDENTLY of the landmarks (it is a cross-check). Guide: narrow ~0.34-0.37, normal ~0.38-0.40, wide ~0.42-0.46.
-2. toe_shape — one of: "egyptian" (big toe longest, toes slope down), "greek" (second toe longest), "roman" (first 2-3 toes about even), "square" (all toes about even). From the TOP-DOWN photo.
-3. instep — overall height/volume of the top of the foot (dorsum/midfoot): "low", "normal", or "high". Read the SIDE photo (height silhouette) and the 45° OBLIQUE photo (how much it domes) together.
+B) TRAITS:
+   - width_ratio: foot maximum width ÷ heel-to-longest-toe length, as a single decimal. Estimate this INDEPENDENTLY of the landmarks (it is a cross-check). Reference: narrow ~0.34-0.37, average ~0.38-0.40, wide ~0.42-0.46, very wide ≥0.46.
+   - toe_shape, by comparing the toe tips in the TOP-DOWN photo:
+       "egyptian" = big toe is longest and the toes step down in order;
+       "greek" = the SECOND toe is the longest;
+       "roman" = the first two or three toes end about level;
+       "square" = all toes end on nearly the same line (flat toe front).
+   - instep, the height/volume of the top of the midfoot:
+       "low" = the top of the foot looks flat or thin in profile;
+       "normal" = a gentle dome;
+       "high" = a pronounced dome that sits tall.
+     Read the SIDE photo for the height silhouette and the 45° OBLIQUE photo for how much it domes — use both.
 
-For each trait give a confidence: "low", "medium" or "high" — be honest; if a needed view is poor, say low.
+Give every trait an honest confidence ("low" / "medium" / "high"); if the view it needs is poor, say "low".
 
-Ignore perspective and foreshortening: judge the foot's real proportions, not the apparent ones produced by camera angle.
+If an OTHER-foot top-down photo is provided, also give its four landmarks (same coordinate system), its width_ratio, and length_vs_primary (its heel-to-toe length ÷ the primary foot's, typically 0.95-1.05).
 
-If an OTHER-foot top-down photo is provided, also give its four landmarks (same coordinate system), its width_ratio, and length_vs_primary (its length divided by the primary foot's length, typically 0.95-1.05).
-
-Reply with STRICT JSON only, no markdown, no commentary:
+Reply with STRICT JSON only — no markdown, no commentary:
 {
-  "reasoning": "one or two short sentences on what you see and how you placed the landmarks",
+  "reasoning": "1-2 sentences on the outline and where the four extremes sit",
   "primary": {
     "view_quality": { "top": "ok|blurry|cropped|wrong_view|too_dark", "oblique": "ok|blurry|cropped|wrong_view|too_dark", "side": "ok|blurry|cropped|wrong_view|too_dark" },
-    "landmarks": { "heel": [0.5, 0.9], "toe": [0.5, 0.1], "wide_medial": [0.38, 0.42], "wide_lateral": [0.62, 0.46] },
+    "landmarks": { "heel": [0.50, 0.90], "toe": [0.50, 0.10], "wide_medial": [0.38, 0.42], "wide_lateral": [0.62, 0.46] },
     "width_ratio": 0.39,
     "width_confidence": "low|medium|high",
     "toe_shape": "egyptian|greek|roman|square",
@@ -199,15 +210,13 @@ async function runSample(
   try {
     let completion;
     try {
-      completion = await client.chat.completions.create(
-        temperature > 0 ? { ...base, temperature } : base
-      );
+      completion = await client.chat.completions.create({ ...base, temperature });
     } catch (e) {
-      // Stronger models (e.g. Opus 4.x) reject `temperature` on the native API;
-      // some relays pass it straight through. Retry once without it so the model
-      // upgrade can't break the feature — self-consistency then degrades to
-      // (near-)deterministic samples rather than failing.
-      if (temperature > 0 && e instanceof OpenAI.APIError && e.status === 400) {
+      // Opus-tier models reject `temperature` on the native API; some relays
+      // forward it. Retry once without it so the model upgrade can't break the
+      // call — self-consistency then relies on the model's own default variance
+      // instead of an explicit temperature.
+      if (e instanceof OpenAI.APIError && e.status === 400) {
         completion = await client.chat.completions.create(base);
       } else {
         throw e;
@@ -220,7 +229,7 @@ async function runSample(
 
   let parsed: Record<string, unknown>;
   try {
-    parsed = JSON.parse(stripFences(raw)) as Record<string, unknown>;
+    parsed = JSON.parse(extractJson(raw)) as Record<string, unknown>;
   } catch {
     return { ok: false, error: raw.slice(0, 300) };
   }
@@ -360,6 +369,28 @@ function modeOf<T extends string>(xs: T[]): T | null {
   return best;
 }
 
+function confWeight(c: Confidence): number {
+  return c === "high" ? 3 : c === "medium" ? 2 : 1;
+}
+
+// Majority vote weighted by each sample's confidence, so a split (e.g. 1-1-1
+// across three reads) breaks toward the most confident, not the first seen.
+function weightedMode<T extends string>(items: { value: T; weight: number }[]): T | null {
+  if (!items.length) return null;
+  const totals = new Map<T, number>();
+  let best = items[0].value;
+  let bestW = -1;
+  for (const { value, weight } of items) {
+    const w = (totals.get(value) ?? 0) + weight;
+    totals.set(value, w);
+    if (w > bestW) {
+      bestW = w;
+      best = value;
+    }
+  }
+  return best;
+}
+
 function fractionAgreeing<T>(xs: T[], chosen: T): number {
   if (!xs.length) return 0;
   return xs.filter((x) => x === chosen).length / xs.length;
@@ -402,8 +433,10 @@ function aggregate(input: AnalyzeInput, samples: Sample[]): FootScanResult {
   const widthMm = ratio !== null ? widthMmFromRatio(ratio, lengthMm) : null;
   const widthClass = ratio !== null ? widthClassFromRatio(ratio) : "standard";
 
-  const toe = modeOf(samples.map((s) => s.toe)) ?? "egyptian";
-  const instep = modeOf(samples.map((s) => s.instep)) ?? "normal";
+  const toe =
+    weightedMode(samples.map((s) => ({ value: s.toe, weight: confWeight(s.toeConf) }))) ?? "egyptian";
+  const instep =
+    weightedMode(samples.map((s) => ({ value: s.instep, weight: confWeight(s.instepConf) }))) ?? "normal";
 
   // Representative sample: the read whose ratio is nearest the median (falls
   // back to the first). Its prose + reported confidences stand in for the group.
