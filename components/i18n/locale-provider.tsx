@@ -216,6 +216,21 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "delete my comment": "删除我的评论",
   "delete": "删除",
 
+  // Account deletion (账户删除 · App Store 5.1.1(v))
+  "delete account": "删除账户",
+  "delete my account": "删除我的账户",
+  "deleting...": "删除中…",
+  "your password": "您的密码",
+  "enter your password to confirm": "请输入密码以确认",
+  "enter your password to confirm account deletion.": "请输入密码以确认删除账户。",
+  "failed to delete account.": "删除账户失败。",
+  "password is incorrect.": "密码不正确。",
+  "your account has been permanently deleted.": "您的账户已被永久删除。",
+  "permanently delete your account and all associated data — your profile, comments, reactions, submissions, and saved comparisons. this cannot be undone.":
+    "永久删除您的账户及所有相关数据——包括个人资料、评论、点赞/点踩、投稿和已保存的对比。此操作无法撤销。",
+  "this will permanently delete your account and everything tied to it. this action cannot be undone.":
+    "这将永久删除您的账户以及与之关联的一切数据。此操作无法撤销。",
+
   // Blogger reviews band (博主点评)
   "pro reviews": "博主点评",
   "paraphrased highlights from sneaker reviewers — not verbatim quotes.": "转述博主观点，非逐字引用",
@@ -365,6 +380,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   // Info copy / help text
   "let's start with what shoe this is.": "先确定这是哪一双鞋。",
   "manage your username and password.": "管理你的用户名和密码。",
+  "manage your username, password, and account.": "管理你的用户名、密码和账户。",
   "materials and construction details. all optional.": "材料与构造细节，全部为可选填。",
   "subjective performance qualities, in your own words.": "用你自己的话描述主观性能体验。",
   "every metric is tied — these shoes are evenly matched.": "所有指标打平 — 这两双鞋势均力敌。",
