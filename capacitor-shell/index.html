@@ -67,5 +67,18 @@
       </div>
       <button onclick="location.reload()">重试 / Retry</button>
     </div>
+    <script>
+      // This local page is shown when the remote site can't be reached at
+      // launch. The native splash uses launchAutoHide:false (see
+      // capacitor.config.ts), so hide it here too — otherwise an offline launch
+      // would sit behind the splash forever and look like a frozen black screen.
+      document.addEventListener("DOMContentLoaded", function () {
+        try {
+          window.Capacitor.Plugins.SplashScreen.hide();
+        } catch (e) {
+          /* splash plugin unavailable */
+        }
+      });
+    </script>
   </body>
 </html>
