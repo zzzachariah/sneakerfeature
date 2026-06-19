@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getFootScanContext } from "@/lib/foot-scan/access";
 import { analyzeFootScan } from "@/lib/foot-scan/analyze";
-import { saveScan } from "@/lib/foot-scan/store";
+import { listScans, saveScan } from "@/lib/foot-scan/store";
 
 // Node runtime (OpenAI SDK + Supabase admin); never cached — per-user and
 // side-effecting.
@@ -58,12 +58,24 @@ export async function POST(request: Request) {
   }
 
   const { primarySide, footLengthMm, locale, images, tilt } = parsed.data;
+
+  // Recent scans (fetched BEFORE this one is saved) feed cross-session fusion:
+  // the same foot is an unchanging quantity, so past width reads shrink variance.
+  const prior = await listScans(ctx.userId, 5).catch(() => []);
+  const priors = prior.map((s) => ({
+    primarySide: s.result.primary.side,
+    footLengthMm: s.result.primary.measurements.foot_length_mm,
+    widthRatio: s.result.primary.measurements.width_ratio,
+    widthConf: s.result.primary.confidence.width
+  }));
+
   const outcome = await analyzeFootScan({
     primarySide,
     footLengthMm,
     locale,
     images: { top: images.top, oblique: images.oblique, side: images.side, top_other: images.top_other ?? null },
-    tilt: tilt ?? null
+    tilt: tilt ?? null,
+    priors
   });
 
   if (!outcome.ok) {

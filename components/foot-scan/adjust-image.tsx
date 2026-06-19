@@ -75,24 +75,62 @@ export function AdjustImage({
     schedule();
   }
 
+  // Long edge of the analysed image. ~1568 is the size the vision model uses
+  // internally, so going larger wouldn't add usable detail.
+  const OUT_LONG = 1568;
+
   async function confirm() {
     const node = captureRef.current;
-    if (!node) {
+    const img = imgRef.current;
+    if (!node || !img || !img.naturalWidth) {
       onConfirm(src);
       return;
     }
     setBusy(true);
     try {
-      const { domToBlob } = await import("modern-screenshot");
-      // The framed layer is screenshotted at the display size × scale — this is
-      // the image actually sent for analysis, so render it at higher resolution
-      // and quality than the on-screen preview to preserve toe/edge detail.
-      const blob = await domToBlob(node, { scale: 3, type: "image/jpeg", quality: 0.92 });
-      const url = await blobToDataUrl(blob);
+      // Reproduce the WYSIWYG framing with a single canvas affine transform on
+      // the SOURCE pixels, then one high-quality encode. This replaces the old
+      // modern-screenshot path, which rasterised the already-downscaled, CSS-
+      // transformed <img> and re-JPEG'd it — softening exactly the toe/edge
+      // detail the landmark read depends on.
+      const rect = node.getBoundingClientRect();
+      const dispW = rect.width;
+      const dispH = rect.height;
+      if (dispW <= 0 || dispH <= 0) throw new Error("no layout");
+      const portrait = dispH >= dispW;
+      const outW = portrait ? Math.round(OUT_LONG * (dispW / dispH)) : OUT_LONG;
+      const outH = portrait ? OUT_LONG : Math.round(OUT_LONG * (dispH / dispW));
+      const canvas = document.createElement("canvas");
+      canvas.width = outW;
+      canvas.height = outH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no ctx");
+      ctx.imageSmoothingQuality = "high";
+      ctx.scale(outW / dispW, outH / dispH); // work in display coords
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, dispW, dispH);
+      // object-cover fit of the source into the frame, then the user's transform
+      // (translate → rotate → scale) about the frame centre — matching the CSS.
+      const cover = Math.max(dispW / img.naturalWidth, dispH / img.naturalHeight);
+      const cw = img.naturalWidth * cover;
+      const ch = img.naturalHeight * cover;
+      const { scale, rot, tx, ty } = t.current;
+      ctx.translate(dispW / 2 + tx, dispH / 2 + ty);
+      ctx.rotate((rot * Math.PI) / 180);
+      ctx.scale(scale, scale);
+      ctx.drawImage(img, -cw / 2, -ch / 2, cw, ch);
+      const url = canvas.toDataURL("image/jpeg", 0.95);
       haptics.success();
       onConfirm(url);
     } catch {
-      onConfirm(src);
+      // Fallback: the original DOM-screenshot path.
+      try {
+        const { domToBlob } = await import("modern-screenshot");
+        const blob = await domToBlob(node, { scale: 3, type: "image/jpeg", quality: 0.92 });
+        onConfirm(await blobToDataUrl(blob));
+      } catch {
+        onConfirm(src);
+      }
     } finally {
       setBusy(false);
     }

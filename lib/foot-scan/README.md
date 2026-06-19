@@ -12,13 +12,14 @@ capture (client)              analyze (server, /api/foot-scan)
 guided shot                   vision model reads each photo and POINTS at
  ├ device tilt @ shutter       named anatomical landmarks (it never eyeballs a
  ├ sharpest-of-burst frame     number); code does all the measuring:
- └ blur/exposure pre-check      ├ landmark-level self-consistency (per-point
-        │                       │   median over N reads → one consensus set)
-        ▼                       ├ adaptive top-up reads when they disagree
-   POST images + tilt           ├ optional 2-model ensemble (FOOT_SCAN_MODEL_2)
-                                ├ IMU de-tilt + gross-angle gate (geometry.ts)
-                                ├ width W/L, hallux d/h, instep AHI (geometry.ts)
+ ├ blur/exposure pre-check      ├ weighted per-point median over N reads → one
+ └ clean canvas re-encode       │   consensus set (drops degenerate reads)
+        │                       ├ adaptive top-up reads when they disagree
+        ▼                       ├ optional 2-model ensemble (FOOT_SCAN_MODEL_2)
+   POST images + tilt           ├ IMU de-tilt + gross-angle gate (geometry.ts)
+   (+ recent scans as priors)   ├ width W/L, hallux d/h, instep AHI (geometry.ts)
                                 ├ anatomical-plausibility + divergence checks
+                                ├ cross-session fusion + L/R corroboration
                                 └ classify + confidence (classify.ts/config.ts)
 ```
 
@@ -92,6 +93,13 @@ formulas + scale invariance + tilt correction + landmark aggregation.
 - **CV sub-pixel contour refinement** and **coarse-to-fine crop+re-read** — both
   need server-side pixel processing; no image lib (sharp/opencv) is in the deps
   and adding a native one to a working serverless feature wasn't justified.
+- **Native camera FOV → exact planar homography de-tilt** — would upgrade the
+  in-TS scalar tilt correction to an exact warp, but reading lens intrinsics
+  (AVCapture / Camera2) is native-plugin work. The scalar de-tilt ships now.
+- **Oblique-view second width estimate** — the 45° view's heavy length
+  foreshortening makes its W/L not directly comparable, so it isn't fused in.
+- **Foot-length redefinition** — left as heel→longest-toe so the literature-
+  anchored W/L bands stay valid; toe-tip noise is handled by aggregation instead.
 - **Few-shot annotated exemplars** in the prompt — no labelled foot photos exist
   yet (only derived results are stored, never images).
 - **Closed-loop calibration from fit feedback** — needs a feedback channel; the

@@ -11,6 +11,7 @@ import {
   ballPositionFraction,
   correctRatioForTilt,
   medianLandmarks,
+  isDegenerateTop,
   type NormLandmarks
 } from "../lib/foot-scan/geometry";
 import { halluxAngleFromRatio } from "../lib/foot-scan/config";
@@ -106,6 +107,19 @@ const reads: NormLandmarks[] = [
 const agg = medianLandmarks(reads);
 check("median landmark picks the middle read", near(agg.points.heel?.[0] ?? null, 0.51) && near(agg.points.heel?.[1] ?? null, 0.91), agg.points.heel);
 check("dispersion is non-negative", agg.dispersion >= 0, agg.dispersion);
+
+// --- weighted aggregation + degenerate-read rejection ----------------------
+const wreads: NormLandmarks[] = [
+  { ...empty, heel: [0.4, 0.9] },
+  { ...empty, heel: [0.5, 0.9] },
+  { ...empty, heel: [0.8, 0.9] }
+];
+check("unweighted median = middle", near(medianLandmarks(wreads).points.heel?.[0] ?? null, 0.5), medianLandmarks(wreads).points.heel);
+check("weighted median leans to the heavy read", near(medianLandmarks(wreads, [1, 1, 5]).points.heel?.[0] ?? null, 0.8), medianLandmarks(wreads, [1, 1, 5]).points.heel);
+
+const degBall: NormLandmarks = { ...widthFoot, wide_medial: [0.45, 0.85], wide_lateral: [0.55, 0.85] };
+check("degenerate when the ball sits at the heel", isDegenerateTop(degBall, SQ) === true);
+check("normal foot is not degenerate", isDegenerateTop(widthFoot, SQ) === false);
 
 console.log(`\nfoot geometry: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

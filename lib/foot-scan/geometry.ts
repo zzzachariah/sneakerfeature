@@ -273,35 +273,58 @@ export function correctRatioForTilt(
   return ratio * factor;
 }
 
-// Per-point coordinate-wise median across N reads → one consensus landmark set,
-// plus a dispersion score (mean per-point spread in normalized units) used to
-// derive an honest, geometry-grounded confidence. Aggregating the POINTS (then
-// computing one ratio) is more robust than aggregating N noisy ratios: a single
-// mis-placed point is outvoted per-point instead of corrupting a whole read.
-export function medianLandmarks(reads: NormLandmarks[]): {
+// True when a read's top-view landmarks are geometrically impossible (zero
+// length/width, or the ball sitting behind the heel / beyond the toe). Such a
+// read is dropped from the consensus instead of dragging the median.
+export function isDegenerateTop(p: NormLandmarks, size: ImageSize): boolean {
+  if (!p.heel || !p.toe || !p.wide_medial || !p.wide_lateral) return false; // can't judge
+  const ratio = ratioFromPoints(p, size);
+  if (ratio === null || ratio <= 0) return true;
+  const t = ballPositionFraction(p, size);
+  if (t === null || t < 0.4 || t > 0.95) return true; // ball implausibly placed
+  return false;
+}
+
+function weightedMedian(vals: { v: number; w: number }[]): number {
+  const s = [...vals].sort((a, b) => a.v - b.v);
+  const total = s.reduce((acc, it) => acc + it.w, 0);
+  if (total <= 0) return s[Math.floor(s.length / 2)].v;
+  let acc = 0;
+  for (const it of s) {
+    acc += it.w;
+    if (acc >= total / 2) return it.v;
+  }
+  return s[s.length - 1].v;
+}
+
+// Per-point coordinate-wise (weighted) median across N reads → one consensus
+// landmark set, plus a dispersion score (mean per-point spread in normalized
+// units) for an honest, geometry-grounded confidence. Aggregating the POINTS
+// (then computing one ratio) beats aggregating N noisy ratios: a single
+// mis-placed point is outvoted per-point. Optional per-read weights let a
+// blurry/low-confidence read count for less without being thrown away entirely.
+export function medianLandmarks(
+  reads: NormLandmarks[],
+  weights?: number[]
+): {
   points: NormLandmarks;
   dispersion: number;
 } {
   const out = {} as NormLandmarks;
   const spreads: number[] = [];
   for (const key of NORM_KEYS) {
-    const pts = reads.map((r) => r[key]).filter((p): p is Pt => p !== null);
-    if (!pts.length) {
+    const items = reads
+      .map((r, i) => ({ pt: r[key], w: weights?.[i] ?? 1 }))
+      .filter((it): it is { pt: Pt; w: number } => it.pt !== null && it.w > 0);
+    if (!items.length) {
       out[key] = null;
       continue;
     }
-    const xs = pts.map((p) => p[0]).sort((a, b) => a - b);
-    const ys = pts.map((p) => p[1]).sort((a, b) => a - b);
-    const med = (arr: number[]) => {
-      const m = Math.floor(arr.length / 2);
-      return arr.length % 2 ? arr[m] : (arr[m - 1] + arr[m]) / 2;
-    };
-    const mx = med(xs);
-    const my = med(ys);
+    const mx = weightedMedian(items.map((it) => ({ v: it.pt[0], w: it.w })));
+    const my = weightedMedian(items.map((it) => ({ v: it.pt[1], w: it.w })));
     out[key] = [mx, my];
-    // Spread = mean distance of the reads from the consensus point.
-    if (pts.length > 1) {
-      const s = pts.reduce((acc, p) => acc + Math.hypot(p[0] - mx, p[1] - my), 0) / pts.length;
+    if (items.length > 1) {
+      const s = items.reduce((acc, it) => acc + Math.hypot(it.pt[0] - mx, it.pt[1] - my), 0) / items.length;
       spreads.push(s);
     }
   }

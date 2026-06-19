@@ -51,6 +51,7 @@ import {
   ballPositionFraction,
   correctRatioForTilt,
   medianLandmarks,
+  isDegenerateTop,
   type ImageSize,
   type NormLandmarks
 } from "@/lib/foot-scan/geometry";
@@ -125,6 +126,10 @@ export type AnalyzeInput = {
   // Device tilt recorded at the shutter, per view (live capture only). Absent /
   // null entries simply skip the gate + correction for that view.
   tilt?: Partial<Record<ViewId, Tilt | null>> | null;
+  // The user's recent scans (same foot is an unchanging quantity), used to fuse
+  // the width ratio across sessions and shrink its variance. Supplied by the
+  // route from stored history; empty/absent disables cross-session fusion.
+  priors?: { primarySide: FootSide; footLengthMm: number; widthRatio: number | null; widthConf: Confidence }[];
 };
 
 export type AnalyzeOutcome =
@@ -175,7 +180,7 @@ A) TOP-DOWN LANDMARKS on the PRIMARY foot. Give each as [x, y] where x = fractio
 B) SIDE-VIEW LANDMARKS from the lateral (outer) side photo, same [x, y] coordinate system on THAT image:
    - heel_ground: where the heel meets the floor.
    - mtp1_ground: where the ball of the foot meets the floor (front contact point).
-   - dorsum_apex: the highest point of the top of the foot (instep) in the silhouette.
+   - dorsum_apex: the top-of-foot (instep) point directly ABOVE THE MIDPOINT of the foot length — i.e. over the halfway point between heel_ground and mtp1_ground (~50% of foot length), NOT necessarily the globally highest point.
    If the side photo is unusable, set side landmarks to null.
 
 C) TRAITS:
@@ -438,6 +443,15 @@ function confWeight(c: Confidence): number {
   return c === "high" ? 3 : c === "medium" ? 2 : 1;
 }
 
+// How much a read should count toward a view's landmark consensus, from the
+// model's own quality flag for that view. "ok" reads count fully; flagged ones
+// still contribute but at a discount (they aren't thrown away).
+function qualityWeight(q: string | null): number {
+  if (q === "ok") return 1;
+  if (q === null) return 0.8; // unreported — assume usable
+  return 0.4; // blurry / cropped / wrong_view / too_dark
+}
+
 // Majority vote weighted by each sample's confidence, so a split breaks toward
 // the most confident, not the first seen.
 function weightedMode<T extends string>(items: { value: T; weight: number }[]): T | null {
@@ -496,9 +510,20 @@ function aggregate(input: AnalyzeInput, samples: Sample[], sizes: Sizes): FootSc
   const single = samples.length === 1;
   const cfg = FOOT_SCAN_CONFIG;
 
-  // Consensus landmark sets (per-point median) for the primary foot.
-  const topAgg = medianLandmarks(samples.map((s) => s.top));
-  const sideAgg = medianLandmarks(samples.map((s) => s.side));
+  // Drop geometrically impossible top reads (ball behind heel, zero width, …)
+  // so they can't drag the consensus; fall back to all reads if that empties it.
+  const topUsable = sizes.top
+    ? samples.filter((s) => !isDegenerateTop(s.top, sizes.top as ImageSize))
+    : samples;
+  const topPool = topUsable.length ? topUsable : samples;
+
+  // Consensus landmark sets — weighted per-point median. Top landmarks are
+  // weighted by the top view's quality × the read's width confidence; side
+  // landmarks by the side view's quality.
+  const topWeights = topPool.map((s) => qualityWeight(s.quality.top) * confWeight(s.modelWidthConf));
+  const sideWeights = samples.map((s) => qualityWeight(s.quality.side));
+  const topAgg = medianLandmarks(topPool.map((s) => s.top), topWeights);
+  const sideAgg = medianLandmarks(samples.map((s) => s.side), sideWeights);
 
   // --- Width ----------------------------------------------------------------
   const modelRatios = samples.map((s) => s.modelRatio).filter((r): r is number => r !== null);
@@ -512,14 +537,38 @@ function aggregate(input: AnalyzeInput, samples: Sample[], sizes: Sizes): FootSc
       ? correctRatioForTilt(lmRatioRaw, topTilt.beta, topTilt.gamma, cfg.imu.minCorrectionDeg)
       : lmRatioRaw;
 
-  const ratio = sanitizeRatio(lmRatio) ?? modelRatioMed;
+  const baseRatio = sanitizeRatio(lmRatio) ?? modelRatioMed;
   const usedLandmarkRatio = sanitizeRatio(lmRatio) !== null;
+
+  // Cross-session fusion: blend this scan's width ratio with the user's recent
+  // scans of the SAME foot (same side, ~same length). Repeated measurements of
+  // an unchanging quantity, so a confidence-weighted mean shrinks variance.
+  // History is discounted and the shift is clamped, so it can only nudge — never
+  // override — a fresh read.
+  const priorMatches = (input.priors ?? []).filter(
+    (p) => p.primarySide === input.primarySide && p.widthRatio !== null && Math.abs(p.footLengthMm - lengthMm) <= 5
+  );
+  let ratio = baseRatio;
+  let crossSessionAgreed = false;
+  if (baseRatio !== null && priorMatches.length) {
+    const w0 = confWeight(single ? samples[0].modelWidthConf : confFromDispersion(topAgg.dispersion));
+    let num = w0 * baseRatio;
+    let den = w0;
+    for (const p of priorMatches) {
+      const w = confWeight(p.widthConf) * 0.5;
+      num += w * (p.widthRatio as number);
+      den += w;
+    }
+    ratio = Math.max(baseRatio - 0.02, Math.min(baseRatio + 0.02, num / den));
+    crossSessionAgreed = priorMatches.every((p) => Math.abs((p.widthRatio as number) - baseRatio) <= 0.03);
+  }
+
   const widthMm = ratio !== null ? widthMmFromRatio(ratio, lengthMm) : null;
   const widthClass = ratio !== null ? widthClassFromRatio(ratio) : "standard";
 
   // Width confidence: grounded in landmark agreement, then docked for an
   // implausible ball position, a landmark/model disagreement, or a model-only
-  // (no usable landmark) fallback.
+  // (no usable landmark) fallback; raised when history corroborates.
   let widthConf: Confidence;
   if (ratio === null) {
     widthConf = "low";
@@ -536,6 +585,7 @@ function aggregate(input: AnalyzeInput, samples: Sample[], sizes: Sizes): FootSc
     }
     if (!usedLandmarkRatio) widthConf = minConf(widthConf, "medium"); // model-only fallback
   }
+  if (crossSessionAgreed) widthConf = stepConf(widthConf, 1);
 
   // --- Hallux valgus (SCREENING) -------------------------------------------
   const halluxRatio = sizes.top ? halluxRatioFromPoints(topAgg.points, sizes.top) : null;
@@ -647,6 +697,12 @@ function aggregate(input: AnalyzeInput, samples: Sample[], sizes: Sizes): FootSc
         width_diff_mm: widthMm !== null && otherWidth !== null ? Math.abs(widthMm - otherWidth) : 0,
         larger: otherLen > lengthMm ? side : input.primarySide
       };
+      // Left/right corroboration: feet are usually near-symmetric, so an agreeing
+      // other-foot width raises confidence. We never average the two (different
+      // feet) — this only nudges the confidence.
+      if (otherRatio !== null && ratio !== null && Math.abs(otherRatio - ratio) <= 0.03) {
+        result.primary.confidence.width = stepConf(result.primary.confidence.width, 1);
+      }
     }
   }
 
