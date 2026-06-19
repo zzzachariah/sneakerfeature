@@ -104,3 +104,13 @@ formulas + scale invariance + tilt correction + landmark aggregation.
   yet (only derived results are stored, never images).
 - **Closed-loop calibration from fit feedback** — needs a feedback channel; the
   thresholds are externalised in `config.ts` so it's ready to wire up.
+
+## High-precision channels (native — planned)
+
+Build-ready specs for the two upgrades that need native code + a device build
+(can't be done/verified in the cloud dev env) live in
+[`HIGH-PRECISION.md`](./HIGH-PRECISION.md):
+**A** native camera FOV → exact homography de-tilt, and **B** depth
+(LiDAR/ToF/ARCore) → measurement-grade mm + girth (围度) + arch. Both are
+additive tiers with graceful fallback to this photo pipeline, and neither adds
+per-scan API cost.
