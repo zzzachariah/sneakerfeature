@@ -1,0 +1,38 @@
+// Capacitor Android plugin module for capacitor-foot-scan.
+// ⚠️ UNVERIFIED — written without an Android SDK/device. Versions mirror a
+// typical Capacitor 6/7 app; align them with the host app's variables.gradle
+// before building.
+ext {
+    capacitorFootScanCompileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 34
+    capacitorFootScanMinSdk = project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "com.sneakerfeature.footscan"
+    compileSdk capacitorFootScanCompileSdk
+    defaultConfig {
+        minSdk capacitorFootScanMinSdk
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    // ARCore (Depth API). Only needed for the Beta depth scan.
+    implementation "com.google.ar:core:1.42.0"
+}

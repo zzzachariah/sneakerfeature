@@ -10,12 +10,14 @@ projects + a device build (can't be compiled/tested in the cloud dev env).
 |-------|-------|
 | A — homography de-tilt math (`geometry.ts`) | ✅ implemented + tested |
 | A — FOV plumbing (capture → API → analyze, scalar fallback) | ✅ implemented |
-| A — native FOV plugin (`capacitor-foot-scan`, iOS Swift) | ⚠️ written, unverified |
-| A — Android FOV plugin | ⛔ TODO |
+| A — native FOV plugin, iOS Swift (`getCameraFieldOfView`) | ⚠️ written, unverified |
+| A — native FOV plugin, Android Kotlin (Camera2) | ⚠️ written, unverified |
 | B — depth measurement core (`depth.ts`) | ✅ implemented + tested |
 | B — capability detection + Beta opt-in UI (gates to "unavailable") | ✅ implemented |
-| B — native depth/capability plugin (iOS `isDepthSupported`) | ⚠️ written, unverified |
-| B — native AR capture (ARKit/ARCore → point cloud) | ⛔ TODO (big) |
+| B — Beta guided-capture page (`depth-capture.tsx`) + result mapping | ✅ implemented |
+| B — native capability check (iOS LiDAR / Android ARCore) | ⚠️ written, unverified |
+| B — iOS ARKit depth capture → point cloud (`FootScanDepthScanner`) | ⚠️ written, unverified |
+| B — Android ARCore depth capture | ⛔ scaffold only — needs a GL render loop / capture Activity (rejects for now → UI shows "unavailable") |
 
 ### Wiring the native plugin (when ready)
 `capacitor-foot-scan/` is a local plugin package (mirrors `native-chrome`). To

@@ -251,6 +251,11 @@ export function ResultStep({
                 {translate("Width")}: ~{(m.foot_width_mm / 10).toFixed(1)} cm
               </span>
             )}
+            {m.ball_girth_mm != null && (
+              <span>
+                {translate("Ball girth")}: ~{(m.ball_girth_mm / 10).toFixed(1)} cm
+              </span>
+            )}
             {result.asymmetry && (
               <span>
                 {translate("L/R length diff")}: ~{(result.asymmetry.length_diff_mm / 10).toFixed(1)} cm

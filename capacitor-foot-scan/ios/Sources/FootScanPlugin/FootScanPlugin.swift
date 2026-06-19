@@ -17,8 +17,11 @@ public class FootScanPlugin: CAPPlugin, CAPBridgedPlugin {
   public let jsName = "FootScanNative"
   public let pluginMethods: [CAPPluginMethod] = [
     CAPPluginMethod(name: "getCameraFieldOfView", returnType: CAPPluginReturnPromise),
-    CAPPluginMethod(name: "isDepthSupported", returnType: CAPPluginReturnPromise)
+    CAPPluginMethod(name: "isDepthSupported", returnType: CAPPluginReturnPromise),
+    CAPPluginMethod(name: "scanFootDepth", returnType: CAPPluginReturnPromise)
   ]
+
+  private var scanner: Any?
 
   // Horizontal field of view of the back wide-angle camera, in degrees.
   // Feeds the exact homography de-tilt (Channel A).
@@ -43,5 +46,23 @@ public class FootScanPlugin: CAPPlugin, CAPBridgedPlugin {
       return
     }
     call.resolve(["supported": false, "sensor": "none"])
+  }
+
+  // Run a short LiDAR depth scan and return a flat [x,y,z,…] world cloud (metres)
+  // for lib/foot-scan/depth.ts to measure. UNVERIFIED — see the scanner file.
+  @objc func scanFootDepth(_ call: CAPPluginCall) {
+    guard #available(iOS 14.0, *),
+          ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) else {
+      call.reject("Depth scanning is not supported on this device.")
+      return
+    }
+    DispatchQueue.main.async {
+      let s = FootScanDepthScanner()
+      self.scanner = s // retain during the scan
+      s.scan(durationSec: 4.0) { [weak self] flat in
+        self?.scanner = nil
+        call.resolve(["points": flat, "unit": "m"])
+      }
+    }
   }
 }

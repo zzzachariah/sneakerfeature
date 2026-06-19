@@ -899,6 +899,17 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "your device supports depth scanning. this beta is rolling out soon — for now, use the photo scan.":
     "你的设备支持深度扫描。该 Beta 即将开放——目前请先使用照片扫描。",
   "use photo scan": "使用照片扫描",
+  // depth (Beta) capture flow
+  "scanning… slowly move the phone around your foot.": "扫描中…缓慢绕脚移动手机。",
+  "couldn't complete the depth scan on this device. use the photo scan instead.":
+    "无法在此设备上完成深度扫描，请改用照片扫描。",
+  "your device's depth sensor measures real millimetres — length, width, instep height and ball girth.":
+    "你设备的深度传感器可实测毫米——脚长、脚宽、脚背高和跖围。",
+  "stand with your foot flat on a plain floor.": "站立，脚平放在颜色单一的地面上。",
+  "hold the phone ~30 cm above and to the side of your foot.": "把手机举在脚的上方偏侧约 30 厘米处。",
+  "slowly arc the phone around the foot until it's fully covered.": "缓慢绕脚划弧，直到整只脚都被扫到。",
+  "start depth scan": "开始深度扫描",
+  "ball girth": "跖围",
   "barefoot, or thin socks (thick socks affect accuracy)": "赤脚，或穿薄袜（厚袜会影响准确度）",
   "the floor is a plain colour that contrasts with my foot": "地面颜色单一，且与脚部有明显反差",
   "lighting is even — no strong shadows or backlight": "光线均匀——没有强烈阴影或逆光",
