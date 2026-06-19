@@ -909,6 +909,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "hold the phone ~30 cm above and to the side of your foot.": "把手机举在脚的上方偏侧约 30 厘米处。",
   "slowly arc the phone around the foot until it's fully covered.": "缓慢绕脚划弧，直到整只脚都被扫到。",
   "start depth scan": "开始深度扫描",
+  "camera access is needed for the depth scan. turn it on in settings, or use the photo scan.":
+    "深度扫描需要相机权限。请在系统设置中开启，或改用照片扫描。",
   "ball girth": "跖围",
   "barefoot, or thin socks (thick socks affect accuracy)": "赤脚，或穿薄袜（厚袜会影响准确度）",
   "the floor is a plain colour that contrasts with my foot": "地面颜色单一，且与脚部有明显反差",

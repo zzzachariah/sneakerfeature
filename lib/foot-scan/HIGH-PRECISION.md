@@ -19,6 +19,26 @@ projects + a device build (can't be compiled/tested in the cloud dev env).
 | B — iOS ARKit depth capture → point cloud (`FootScanDepthScanner`) | ⚠️ written, unverified |
 | B — Android ARCore depth capture | ⛔ scaffold only — needs a GL render loop / capture Activity (rejects for now → UI shows "unavailable") |
 
+### Permissions (request on first use — web / Android / iOS)
+- **Camera** — photo capture and the depth (AR) scan both need it.
+  - Web: the browser prompts on `getUserMedia` (photo). Depth has no web path.
+  - iOS: needs `NSCameraUsageDescription` in the app **Info.plist** (already
+    present for photo capture; ARKit reuses it). Requested at runtime via
+    `ensureCameraPermission()` before both photo capture and the depth scan.
+  - Android: `android.permission.CAMERA` is declared in the plugin manifest
+    (merged into the app) and requested at runtime via `@capacitor/camera`
+    `requestPermissions` (`ensureCameraPermission()`), before photo + depth.
+- **Motion / device orientation** (gyro tilt → Channel A de-tilt + gate)
+  - Web non-iOS / Android: no permission.
+  - iOS: `DeviceOrientationEvent.requestPermission()` must be called from a user
+    gesture (the "Enable the level guide" button in the capture screen) and needs
+    `NSMotionUsageDescription` in Info.plist. If not granted, tilt is null and the
+    de-tilt/gate simply don't run (graceful).
+
+App Info.plist keys to ensure (iOS): `NSCameraUsageDescription`,
+`NSMotionUsageDescription`. The `ios/` project isn't in the repo, so add these
+when the native project is committed.
+
 ### Wiring the native plugin (when ready)
 `capacitor-foot-scan/` is a local plugin package (mirrors `native-chrome`). To
 activate: add `"capacitor-foot-scan": "file:capacitor-foot-scan"` to

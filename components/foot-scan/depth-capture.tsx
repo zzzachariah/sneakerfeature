@@ -15,11 +15,12 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { haptics } from "@/lib/native/haptics";
+import { ensureCameraPermission } from "@/lib/native/camera";
 import { scanFootDepth } from "@/lib/native/foot-scan-native";
 import { depthResultFromCloud } from "@/lib/foot-scan/depth-result";
 import type { FootScanResult, FootSide } from "@/lib/foot-scan/types";
 
-type Phase = "intro" | "scanning" | "unavailable";
+type Phase = "intro" | "scanning" | "unavailable" | "denied";
 
 export function DepthCapture({
   onComplete,
@@ -35,6 +36,13 @@ export function DepthCapture({
   const [side, setSide] = useState<FootSide>("right");
 
   async function startScan() {
+    // Request the camera permission up-front (first use): ARKit/ARCore need it,
+    // same as the photo path. Web prompts on capture, so "unavailable" proceeds.
+    const perm = await ensureCameraPermission();
+    if (perm === "denied") {
+      setPhase("denied");
+      return;
+    }
     setPhase("scanning");
     haptics.gesture();
     const scan = await scanFootDepth();
@@ -75,12 +83,14 @@ export function DepthCapture({
     );
   }
 
-  if (phase === "unavailable") {
+  if (phase === "unavailable" || phase === "denied") {
     return (
       <Card className="flex flex-col items-center gap-4 p-8 text-center">
         {Heading}
         <p className="text-sm soft-text">
-          {translate("Couldn't complete the depth scan on this device. Use the photo scan instead.")}
+          {phase === "denied"
+            ? translate("Camera access is needed for the depth scan. Turn it on in Settings, or use the photo scan.")
+            : translate("Couldn't complete the depth scan on this device. Use the photo scan instead.")}
         </p>
         <div className="flex w-full gap-2">
           <Button variant="ghost" className="flex-1" onClick={onBack}>
