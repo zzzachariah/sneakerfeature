@@ -144,6 +144,14 @@ npx cap open android
   - `NSCameraUsageDescription`（如「拍摄球鞋照片用于图片纠错」）
   - `NSPhotoLibraryUsageDescription`（如「从相册选择球鞋照片用于图片纠错」）
   代码里 `lib/native/camera.ts` 仅在原生 App 内启用；网页端继续用文件选择，**不需要这两条**。
+- **脚型测量（Foot Scan）相机权限**：测量脚的拍摄页（`components/foot-scan/capture-step.tsx`）
+  在打开相机**之前**会先调 `lib/native/camera.ts` 的 `ensureCameraPermission()` 主动申请系统
+  相机权限。原因：iOS 的实时取景用的是 WKWebView 的 `getUserMedia`，**首次若系统相机权限还没授予，
+  预览会是一片黑、摄像头出不来**；安卓走原生拍照/相册选择器。提前弹一次系统授权框，相机才能正常出现；
+  用户拒绝时自动回退到「从相册选择」。要让它生效，原生工程仍需声明权限：
+  - **iOS**：`Info.plist` 的 `NSCameraUsageDescription`（与上面的图片纠错共用一条即可）。
+  - **Android**：`AndroidManifest.xml` 需有 `<uses-permission android:name="android.permission.CAMERA" />`
+    （`@capacitor/camera` 已自带声明，`npx cap sync android` 后确认存在即可）。
 
 详见各功能对应的代码注释与提交说明。
 

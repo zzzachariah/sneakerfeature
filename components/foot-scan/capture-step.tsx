@@ -17,7 +17,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { haptics } from "@/lib/native/haptics";
 import { useDeviceTilt, type TiltTarget } from "@/lib/foot-scan/orientation";
-import { nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
+import { ensureCameraPermission, nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
 import { FootOverlay } from "@/components/foot-scan/foot-overlays";
 import { AdjustImage } from "@/components/foot-scan/adjust-image";
 import type { FootSide, ViewId } from "@/lib/foot-scan/types";
@@ -92,6 +92,9 @@ export function CaptureStep({
   const [captured, setCaptured] = useState<string | null>(null);
   const [count, setCount] = useState(0);
   const [attempt, setAttempt] = useState(0);
+  // True when the OS camera permission was explicitly denied, so we can nudge
+  // the user to enable it in Settings (or fall back to picking from the library).
+  const [permissionBlocked, setPermissionBlocked] = useState(false);
 
   const tilt = useDeviceTilt(config.tilt);
 
@@ -131,13 +134,35 @@ export function CaptureStep({
   // Camera lifecycle (re-runs on retake via `attempt`). The <video> is rendered
   // for both "starting" and "live" so the ref exists when we attach the stream.
   useEffect(() => {
-    if (skipLive) {
-      setMode("photo");
-      return;
-    }
     let cancelled = false;
     async function start() {
+      // Android: getUserMedia in the WebView is unreliable, so we go straight to
+      // the native picker. Still request the camera permission now so the first
+      // capture opens the camera instead of a black/empty picker.
+      if (skipLive) {
+        const perm = await ensureCameraPermission();
+        if (cancelled) return;
+        setPermissionBlocked(perm === "denied");
+        setMode("photo");
+        return;
+      }
+
       setMode("starting");
+
+      // Native app (iOS): WKWebView's getUserMedia opens to a black frame the
+      // first time unless the OS camera permission is already granted, so ask
+      // up-front. If the user declines, fall back to the native photo picker.
+      if (Capacitor.isNativePlatform()) {
+        const perm = await ensureCameraPermission();
+        if (cancelled) return;
+        if (perm === "denied") {
+          setPermissionBlocked(true);
+          setMode("photo");
+          return;
+        }
+        setPermissionBlocked(false);
+      }
+
       if (!navigator.mediaDevices?.getUserMedia) {
         setMode("photo");
         return;
@@ -298,6 +323,13 @@ export function CaptureStep({
           </li>
         ))}
       </ol>
+
+      {/* camera permission was denied — explain how to recover */}
+      {permissionBlocked && (mode === "photo" || mode === "starting") && (
+        <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+          {translate("Camera access is off. Turn it on in Settings to use the camera, or pick a photo from your library.")}
+        </p>
+      )}
 
       {/* controls */}
       <div className="flex items-center gap-2">

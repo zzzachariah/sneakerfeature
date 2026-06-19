@@ -925,6 +925,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "starting camera…": "正在启动相机…",
   "take photo": "拍照",
   "photos": "相册",
+  "camera access is off. turn it on in settings to use the camera, or pick a photo from your library.":
+    "相机权限已关闭。请在系统设置中开启以使用相机，或从相册选择照片。",
   // shots
   "top-down view": "俯视图",
   "45° oblique view": "45° 斜视图",
