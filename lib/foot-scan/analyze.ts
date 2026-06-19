@@ -1,19 +1,27 @@
 // Server-side foot-shape analysis.
 //
-// The vision model (Claude via the packyapi relay) reads the guided photos. Two
-// accuracy levers live here on top of a plain single-pass read:
+// The vision model (Claude via the packyapi relay) reads the guided photos. The
+// model only has to *point* at anatomical landmarks; every measurement is then
+// computed deterministically in code (geometry.ts). Accuracy levers, all on the
+// SAME three photos (no extra shots asked of the user):
 //
-//  1. Landmark geometry. The model returns four normalized landmark points
-//     (heel, longest toe, widest medial/lateral) and the width/length ratio is
-//     computed deterministically in code (geometry.ts) — the model only has to
-//     *point*, not eyeball a ratio. It still reports a width_ratio as a fallback.
-//  2. Self-consistency. The model is run a few times in parallel and the results
-//     are aggregated (median ratio, majority vote on the discrete traits), so a
-//     single noisy read can't swing the result. Confidence is derived from how
-//     much the runs agreed — a more honest signal than a single self-report.
+//  1. Landmark geometry. Width/length, hallux deviation and the arch-height
+//     index are computed from named landmark points, not eyeballed by the model.
+//  2. Landmark-level self-consistency. Each scan is read a few times; the POINTS
+//     are aggregated per-point (coordinate median) into one consensus set, then
+//     the ratios are computed once. A single mis-placed point is outvoted rather
+//     than corrupting a whole read, and the per-point spread gives an honest
+//     confidence. Adaptive: extra reads fire only when the first ones disagree.
+//  3. IMU correction. The capture screen records the phone's tilt at the shutter
+//     (beta/gamma). A grossly wrong angle is gated for a re-take; a mild residual
+//     tilt is corrected out of the width ratio (correctRatioForTilt) — recovering
+//     the part of the accuracy a paper/card reference would have given, without
+//     asking the user to find one.
+//  4. Optional model ensemble. If FOOT_SCAN_MODEL_2 is set, reads are split
+//     across two vision models so their errors decorrelate.
 //
-// The width *classification* and the millimetre conversion stay in code
-// (classify.ts) so the boundaries remain explicit and tunable.
+// Classification + the mm conversion stay in code (classify.ts / config.ts) so
+// the boundaries remain explicit and tunable against a validation set.
 
 import OpenAI from "openai";
 import {
@@ -28,9 +36,24 @@ import {
   widthClassFromRatio,
   widthMmFromRatio,
   otherSide,
-  sanitizeRatio
+  sanitizeRatio,
+  halluxClassFromRatio,
+  halluxAngleFromRatio,
+  instepClassFromAhi
 } from "@/lib/foot-scan/classify";
-import { parseImageSize, ratioFromLandmarks, type ImageSize } from "@/lib/foot-scan/geometry";
+import { FOOT_SCAN_CONFIG } from "@/lib/foot-scan/config";
+import {
+  parseImageSize,
+  parseLandmarks,
+  ratioFromPoints,
+  halluxRatioFromPoints,
+  ahiFromPoints,
+  ballPositionFraction,
+  correctRatioForTilt,
+  medianLandmarks,
+  type ImageSize,
+  type NormLandmarks
+} from "@/lib/foot-scan/geometry";
 import {
   isInstepClass,
   isToeShape,
@@ -38,6 +61,7 @@ import {
   type Confidence,
   type FootScanResult,
   type FootSide,
+  type HalluxClass,
   type InstepClass,
   type RetakeRequest,
   type ToeShape,
@@ -46,15 +70,17 @@ import {
 
 // A stronger vision model markedly helps the fine visual calls (toe boundaries,
 // instep doming, landmark placement). Set FOOT_SCAN_MODEL to the exact model
-// string your packyapi account exposes for a strong vision model (e.g. an Opus
-// or Sonnet identifier — names vary by relay, so copy it from packyapi's model
-// list). When unset we fall back to PACKY_MODEL, which already works out of the
-// box, so leaving it unconfigured never breaks the feature.
+// string your packyapi account exposes; falls back to PACKY_MODEL when unset.
 const VISION_MODEL =
   process.env.FOOT_SCAN_MODEL?.trim() ||
   process.env.PACKYAPI_VISION_MODEL?.trim() ||
   process.env.PACKY_API_VISION_MODEL?.trim() ||
   PACKY_MODEL;
+
+// Optional second vision model for an ensemble. When set, reads alternate
+// between the two models so correlated single-model errors wash out. Leaving it
+// unset keeps the single-model behaviour unchanged.
+const VISION_MODEL_2 = process.env.FOOT_SCAN_MODEL_2?.trim() || "";
 
 // packyapi can issue a SEPARATE key per model, so the foot scan can use its own
 // key/endpoint: FOOT_SCAN_API_KEY (and optionally FOOT_SCAN_BASE_URL) are
@@ -64,19 +90,25 @@ const FOOT_SCAN_CLIENT_ENV: PackyClientOptions = {
   baseURLEnv: ["FOOT_SCAN_BASE_URL"]
 };
 
-// How many times to read each scan and aggregate (1 = no self-consistency).
+// Initial reads per scan (env overrides the config default). The adaptive pass
+// may top this up to maxCount when the first reads disagree.
 const SAMPLE_COUNT = (() => {
   const n = Number.parseInt(process.env.FOOT_SCAN_SAMPLES ?? "", 10);
-  return Number.isFinite(n) ? Math.min(5, Math.max(1, n)) : 3;
+  if (Number.isFinite(n)) return Math.min(FOOT_SCAN_CONFIG.sampling.maxCount, Math.max(1, n));
+  return FOOT_SCAN_CONFIG.sampling.count;
 })();
 
-// Sampling temperature used only when SAMPLE_COUNT > 1, to give the runs enough
-// variety to average. If the model/relay rejects `temperature`, the call is
-// retried without it (see runSample).
+const MAX_SAMPLES = FOOT_SCAN_CONFIG.sampling.maxCount;
+
+// Sampling temperature used only when more than one read is taken, to give the
+// runs enough variety to average. If the model/relay rejects `temperature`, the
+// call is retried without it (see runSample).
 const SAMPLE_TEMPERATURE = (() => {
   const t = Number.parseFloat(process.env.FOOT_SCAN_TEMPERATURE ?? "");
-  return Number.isFinite(t) && t >= 0 && t <= 1 ? t : 0.5;
+  return Number.isFinite(t) && t >= 0 && t <= 1 ? t : FOOT_SCAN_CONFIG.sampling.temperature;
 })();
+
+export type Tilt = { beta?: number | null; gamma?: number | null };
 
 export type AnalyzeInput = {
   // The chosen/primary foot we run the full 3-view analysis on.
@@ -90,6 +122,9 @@ export type AnalyzeInput = {
     side: string; // lateral side of the primary foot
     top_other?: string | null; // top-down of the other foot (optional)
   };
+  // Device tilt recorded at the shutter, per view (live capture only). Absent /
+  // null entries simply skip the gate + correction for that view.
+  tilt?: Partial<Record<ViewId, Tilt | null>> | null;
 };
 
 export type AnalyzeOutcome =
@@ -126,17 +161,25 @@ const PROMPT = `You are a careful footwear-fitting assistant estimating basic fo
 
 Each image is labelled. Judge each for usability first. Read the bare-foot OUTLINE: if the person wears thin socks, estimate through them; only when thick socks blur the outline or merge the toes should you lower the affected confidence (set toe_confidence "low" when individual toes can't be separated). Judge the foot's REAL proportions — mentally correct for camera tilt and perspective, and do not let the quoted reference length bias what you actually see.
 
-First reason briefly in "reasoning": describe the foot's outline in the TOP-DOWN photo and where its four extreme points lie. Then report:
+First reason briefly in "reasoning": describe the foot's outline in the TOP-DOWN photo and where its key points lie. Then report:
 
-A) LANDMARKS on the PRIMARY foot, from the TOP-DOWN photo. Give each as [x, y] where x = fraction of image WIDTH (0 = left edge, 1 = right edge) and y = fraction of image HEIGHT (0 = top edge, 1 = bottom edge):
+A) TOP-DOWN LANDMARKS on the PRIMARY foot. Give each as [x, y] where x = fraction of image WIDTH (0 = left edge, 1 = right edge) and y = fraction of image HEIGHT (0 = top edge, 1 = bottom edge):
    - heel: the rear-most point of the heel.
-   - toe: the tip of the LONGEST toe (whichever toe reaches furthest forward).
+   - toe: the tip of the LONGEST toe (whichever reaches furthest forward).
    - wide_medial: the widest point of the INNER edge (big-toe-side ball, ~1st metatarsal head).
    - wide_lateral: the widest point of the OUTER edge (little-toe-side ball, ~5th metatarsal head).
-   Pick the true anatomical extremes even if the foot is rotated or tilted in the frame. If a point is hidden or cut off, give your best estimate and lower width_confidence.
+   - mtp1: the centre of the big-toe knuckle joint (1st metatarsophalangeal joint, where the big toe meets the foot).
+   - hallux_tip: the tip of the BIG toe specifically.
+   Pick the true anatomical extremes even if the foot is rotated or tilted in the frame. If a point is hidden or cut off, give your best estimate and lower the relevant confidence.
 
-B) TRAITS:
-   - width_ratio: foot maximum width ÷ heel-to-longest-toe length, as a single decimal. Estimate this INDEPENDENTLY of the landmarks (it is a cross-check). Reference: narrow ~0.34-0.37, average ~0.38-0.40, wide ~0.42-0.46, very wide ≥0.46.
+B) SIDE-VIEW LANDMARKS from the lateral (outer) side photo, same [x, y] coordinate system on THAT image:
+   - heel_ground: where the heel meets the floor.
+   - mtp1_ground: where the ball of the foot meets the floor (front contact point).
+   - dorsum_apex: the highest point of the top of the foot (instep) in the silhouette.
+   If the side photo is unusable, set side landmarks to null.
+
+C) TRAITS:
+   - width_ratio: foot maximum width ÷ heel-to-longest-toe length, as a single decimal. Estimate this INDEPENDENTLY of the landmarks (a cross-check). Reference: narrow ~0.34-0.37, average ~0.38-0.40, wide ~0.42-0.46, very wide ≥0.46.
    - toe_shape, by comparing the toe tips in the TOP-DOWN photo:
        "egyptian" = big toe is longest and the toes step down in order;
        "greek" = the SECOND toe is the longest;
@@ -150,14 +193,15 @@ B) TRAITS:
 
 Give every trait an honest confidence ("low" / "medium" / "high"); if the view it needs is poor, say "low".
 
-If an OTHER-foot top-down photo is provided, also give its four landmarks (same coordinate system), its width_ratio, and length_vs_primary (its heel-to-toe length ÷ the primary foot's, typically 0.95-1.05).
+If an OTHER-foot top-down photo is provided, also give its four extreme landmarks (heel, toe, wide_medial, wide_lateral), its width_ratio, and length_vs_primary (its heel-to-toe length ÷ the primary foot's, typically 0.95-1.05).
 
 Reply with STRICT JSON only — no markdown, no commentary:
 {
-  "reasoning": "1-2 sentences on the outline and where the four extremes sit",
+  "reasoning": "1-2 sentences on the outline and where the key points sit",
   "primary": {
     "view_quality": { "top": "ok|blurry|cropped|wrong_view|too_dark", "oblique": "ok|blurry|cropped|wrong_view|too_dark", "side": "ok|blurry|cropped|wrong_view|too_dark" },
-    "landmarks": { "heel": [0.50, 0.90], "toe": [0.50, 0.10], "wide_medial": [0.38, 0.42], "wide_lateral": [0.62, 0.46] },
+    "landmarks": { "heel": [0.50, 0.90], "toe": [0.50, 0.10], "wide_medial": [0.38, 0.42], "wide_lateral": [0.62, 0.46], "mtp1": [0.40, 0.40], "hallux_tip": [0.44, 0.12] },
+    "side_landmarks": { "heel_ground": [0.15, 0.80], "mtp1_ground": [0.80, 0.80], "dorsum_apex": [0.45, 0.45] },
     "width_ratio": 0.39,
     "width_confidence": "low|medium|high",
     "toe_shape": "egyptian|greek|roman|square",
@@ -169,7 +213,7 @@ Reply with STRICT JSON only — no markdown, no commentary:
   "summary": "one short, friendly paragraph describing the foot shape in plain language",
   "cautions": ["short caveats, e.g. lighting/angle limits"]
 }
-Set "other" to null if no other-foot photo was given.`;
+Set "other" to null if no other-foot photo was given. Set "side_landmarks" to null if the side view is unusable.`;
 
 // --- One read of the scan --------------------------------------------------
 
@@ -177,15 +221,17 @@ type PrimaryQuality = Record<"top" | "oblique" | "side", string | null>;
 
 type Sample = {
   quality: PrimaryQuality;
-  ratio: number | null;
-  widthConf: Confidence;
+  top: NormLandmarks;
+  side: NormLandmarks;
+  modelRatio: number | null;
+  modelWidthConf: Confidence;
   toe: ToeShape;
   toeConf: Confidence;
   instep: InstepClass;
   instepConf: Confidence;
   summary: string;
   cautions: string[];
-  other: { quality: string | null; ratio: number | null; lengthVsPrimary: number } | null;
+  other: { quality: string | null; landmarks: NormLandmarks; lengthVsPrimary: number } | null;
 };
 
 type SampleResult = { ok: true; sample: Sample } | { ok: false; error: string };
@@ -194,15 +240,14 @@ async function runSample(
   client: OpenAI,
   content: OpenAI.Chat.Completions.ChatCompletionContentPart[],
   temperature: number,
-  topSize: ImageSize | null,
-  otherSize: ImageSize | null,
+  model: string,
   hasOther: boolean
 ): Promise<SampleResult> {
   // The relay does not lift an OpenAI `system` turn into Anthropic's system
   // field, so everything rides in a single user turn.
   const base = {
-    model: VISION_MODEL,
-    max_tokens: 1500,
+    model,
+    max_tokens: 1600,
     messages: [{ role: "user" as const, content }]
   };
 
@@ -213,9 +258,8 @@ async function runSample(
       completion = await client.chat.completions.create({ ...base, temperature });
     } catch (e) {
       // Opus-tier models reject `temperature` on the native API; some relays
-      // forward it. Retry once without it so the model upgrade can't break the
-      // call — self-consistency then relies on the model's own default variance
-      // instead of an explicit temperature.
+      // forward it. Retry once without it so a model upgrade can't break the
+      // call — self-consistency then relies on the model's own default variance.
       if (e instanceof OpenAI.APIError && e.status === 400) {
         completion = await client.chat.completions.create(base);
       } else {
@@ -242,24 +286,20 @@ async function runSample(
     side: typeof pq.side === "string" ? pq.side : null
   };
 
-  // Prefer the code-computed ratio from landmarks; fall back to the model's
-  // own width_ratio estimate when landmarks/image-size are unusable.
-  const ratio =
-    sanitizeRatio(ratioFromLandmarks(primary.landmarks, topSize)) ?? sanitizeRatio(primary.width_ratio);
+  const top = parseLandmarks(primary.landmarks);
+  const side = parseLandmarks(primary.side_landmarks);
+  const modelRatio = sanitizeRatio(primary.width_ratio);
 
   let other: Sample["other"] = null;
   if (hasOther) {
     const o = (parsed.other ?? null) as Record<string, unknown> | null;
     if (o) {
       const oq = (o.view_quality ?? {}) as Record<string, unknown>;
-      const oRatio =
-        sanitizeRatio(ratioFromLandmarks(o.landmarks, otherSize)) ?? sanitizeRatio(o.width_ratio);
       const lvpRaw = o.length_vs_primary;
-      const lvp =
-        typeof lvpRaw === "number" && lvpRaw > 0.8 && lvpRaw < 1.2 ? lvpRaw : 1;
+      const lvp = typeof lvpRaw === "number" && lvpRaw > 0.8 && lvpRaw < 1.2 ? lvpRaw : 1;
       other = {
         quality: typeof oq.top_other === "string" ? oq.top_other : null,
-        ratio: oRatio,
+        landmarks: parseLandmarks(o.landmarks),
         lengthVsPrimary: lvp
       };
     }
@@ -269,8 +309,10 @@ async function runSample(
     ok: true,
     sample: {
       quality,
-      ratio,
-      widthConf: ratio !== null ? asConfidence(primary.width_confidence) : "low",
+      top,
+      side,
+      modelRatio,
+      modelWidthConf: asConfidence(primary.width_confidence),
       toe: asToe(primary.toe_shape),
       toeConf: asConfidence(primary.toe_confidence),
       instep: asInstep(primary.instep),
@@ -316,35 +358,58 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     content.push({ type: "image_url", image_url: { url: input.images.top_other } });
   }
 
-  // Image dimensions are needed once to un-normalize the landmark coordinates.
-  const topSize = parseImageSize(input.images.top);
-  const otherSize = input.images.top_other ? parseImageSize(input.images.top_other) : null;
   const hasOther = Boolean(input.images.top_other);
 
-  // Self-consistency: read the scan a few times and aggregate. Runs go out in
-  // parallel, so wall-clock stays ~one call — only token cost scales.
-  const temperature = SAMPLE_COUNT > 1 ? SAMPLE_TEMPERATURE : 0;
-  const results = await Promise.all(
-    Array.from({ length: SAMPLE_COUNT }, () =>
-      runSample(client, content, temperature, topSize, otherSize, hasOther)
-    )
-  );
+  // Models to cycle through across the reads (ensemble when a 2nd is configured).
+  const models = VISION_MODEL_2 ? [VISION_MODEL, VISION_MODEL_2] : [VISION_MODEL];
+  const temperature = SAMPLE_COUNT > 1 || models.length > 1 ? SAMPLE_TEMPERATURE : 0;
+
+  const runBatch = (n: number, startIndex: number) =>
+    Promise.all(
+      Array.from({ length: n }, (_, i) =>
+        runSample(client, content, temperature, models[(startIndex + i) % models.length], hasOther)
+      )
+    );
+
+  const collect = (results: SampleResult[], into: Sample[]) => {
+    let err = "";
+    for (const r of results) {
+      if (r.ok) into.push(r.sample);
+      else err = r.error;
+    }
+    return err;
+  };
 
   const samples: Sample[] = [];
-  let lastError = "";
-  for (const r of results) {
-    if (r.ok) samples.push(r.sample);
-    else lastError = r.error;
+  let lastError = collect(await runBatch(SAMPLE_COUNT, 0), samples);
+
+  // Adaptive top-up: if the first reads disagree on the width ratio (the headline
+  // metric), spend a few more reads to settle it — but only up to maxCount.
+  if (samples.length >= 2 && samples.length < MAX_SAMPLES) {
+    const ratios = samples.map((s) => s.modelRatio).filter((r): r is number => r !== null);
+    const spread = ratios.length >= 2 ? Math.max(...ratios) - Math.min(...ratios) : 0;
+    if (spread > FOOT_SCAN_CONFIG.sampling.expandRatioSpread) {
+      const extra = MAX_SAMPLES - samples.length;
+      lastError = collect(await runBatch(extra, samples.length), samples) || lastError;
+    }
   }
 
   if (!samples.length) {
     return { ok: false, error: "Analysis request failed.", detail: lastError || undefined };
   }
 
-  return { ok: true, result: aggregate(input, samples) };
+  const sizes = {
+    top: parseImageSize(input.images.top),
+    side: parseImageSize(input.images.side),
+    other: input.images.top_other ? parseImageSize(input.images.top_other) : null
+  };
+
+  return { ok: true, result: aggregate(input, samples, sizes) };
 }
 
 // --- Aggregation across samples --------------------------------------------
+
+type Sizes = { top: ImageSize | null; side: ImageSize | null; other: ImageSize | null };
 
 function median(xs: number[]): number | null {
   if (!xs.length) return null;
@@ -373,8 +438,8 @@ function confWeight(c: Confidence): number {
   return c === "high" ? 3 : c === "medium" ? 2 : 1;
 }
 
-// Majority vote weighted by each sample's confidence, so a split (e.g. 1-1-1
-// across three reads) breaks toward the most confident, not the first seen.
+// Majority vote weighted by each sample's confidence, so a split breaks toward
+// the most confident, not the first seen.
 function weightedMode<T extends string>(items: { value: T; weight: number }[]): T | null {
   if (!items.length) return null;
   const totals = new Map<T, number>();
@@ -402,74 +467,145 @@ function confFromFraction(frac: number): Confidence {
   return "low";
 }
 
-function widthConfFromSpread(ratios: number[]): Confidence {
-  const spread = Math.max(...ratios) - Math.min(...ratios);
-  if (spread < 0.03) return "high";
-  if (spread < 0.06) return "medium";
+// Confidence from how tightly the landmark reads agreed (normalized spread).
+function confFromDispersion(disp: number): Confidence {
+  if (disp < 0.02) return "high";
+  if (disp < 0.05) return "medium";
   return "low";
 }
 
-function pickRepresentative(samples: Sample[], ratio: number | null): Sample {
-  if (ratio === null) return samples[0];
-  let best = samples[0];
-  let bestD = Infinity;
-  for (const s of samples) {
-    if (s.ratio === null) continue;
-    const d = Math.abs(s.ratio - ratio);
-    if (d < bestD) {
-      bestD = d;
-      best = s;
-    }
-  }
-  return best;
+const CONF_LEVELS: Confidence[] = ["low", "medium", "high"];
+function stepConf(c: Confidence, delta: number): Confidence {
+  const i = CONF_LEVELS.indexOf(c);
+  return CONF_LEVELS[Math.min(2, Math.max(0, i + delta))];
+}
+function minConf(a: Confidence, b: Confidence): Confidence {
+  return CONF_LEVELS.indexOf(a) <= CONF_LEVELS.indexOf(b) ? a : b;
 }
 
-function aggregate(input: AnalyzeInput, samples: Sample[]): FootScanResult {
+// Residual front-back tilt for a view, or null when no sensor reading was given.
+function tiltResidual(input: AnalyzeInput, view: ViewId): { beta: number; gamma: number } | null {
+  const t = input.tilt?.[view];
+  if (!t || typeof t.beta !== "number") return null;
+  const target = FOOT_SCAN_CONFIG.imu.targetBeta[view] ?? 0;
+  return { beta: t.beta - target, gamma: typeof t.gamma === "number" ? t.gamma : 0 };
+}
+
+function aggregate(input: AnalyzeInput, samples: Sample[], sizes: Sizes): FootScanResult {
   const lengthMm = input.footLengthMm;
   const single = samples.length === 1;
+  const cfg = FOOT_SCAN_CONFIG;
 
-  const ratios = samples.map((s) => s.ratio).filter((r): r is number => r !== null);
-  const ratio = median(ratios);
+  // Consensus landmark sets (per-point median) for the primary foot.
+  const topAgg = medianLandmarks(samples.map((s) => s.top));
+  const sideAgg = medianLandmarks(samples.map((s) => s.side));
+
+  // --- Width ----------------------------------------------------------------
+  const modelRatios = samples.map((s) => s.modelRatio).filter((r): r is number => r !== null);
+  const modelRatioMed = median(modelRatios);
+  const lmRatioRaw = sizes.top ? ratioFromPoints(topAgg.points, sizes.top) : null;
+
+  // De-tilt the landmark ratio with the IMU residual for the top shot.
+  const topTilt = tiltResidual(input, "top");
+  const lmRatio =
+    lmRatioRaw !== null && topTilt
+      ? correctRatioForTilt(lmRatioRaw, topTilt.beta, topTilt.gamma, cfg.imu.minCorrectionDeg)
+      : lmRatioRaw;
+
+  const ratio = sanitizeRatio(lmRatio) ?? modelRatioMed;
+  const usedLandmarkRatio = sanitizeRatio(lmRatio) !== null;
   const widthMm = ratio !== null ? widthMmFromRatio(ratio, lengthMm) : null;
   const widthClass = ratio !== null ? widthClassFromRatio(ratio) : "standard";
 
+  // Width confidence: grounded in landmark agreement, then docked for an
+  // implausible ball position, a landmark/model disagreement, or a model-only
+  // (no usable landmark) fallback.
+  let widthConf: Confidence;
+  if (ratio === null) {
+    widthConf = "low";
+  } else if (single) {
+    widthConf = samples[0].modelWidthConf;
+  } else {
+    widthConf = confFromDispersion(topAgg.dispersion);
+    const ballT = sizes.top ? ballPositionFraction(topAgg.points, sizes.top) : null;
+    if (ballT !== null && (ballT < cfg.plausibility.ballMinFromHeel || ballT > cfg.plausibility.ballMaxFromHeel)) {
+      widthConf = stepConf(widthConf, -1);
+    }
+    if (usedLandmarkRatio && modelRatioMed !== null && Math.abs((lmRatio as number) - modelRatioMed) > 0.05) {
+      widthConf = stepConf(widthConf, -1); // landmark vs model cross-check diverged
+    }
+    if (!usedLandmarkRatio) widthConf = minConf(widthConf, "medium"); // model-only fallback
+  }
+
+  // --- Hallux valgus (SCREENING) -------------------------------------------
+  const halluxRatio = sizes.top ? halluxRatioFromPoints(topAgg.points, sizes.top) : null;
+  let hallux: HalluxClass = "none";
+  let halluxAngle: number | null = null;
+  let halluxConf: Confidence = "low";
+  const halluxReads = samples.filter((s) => s.top.mtp1 && s.top.hallux_tip).length;
+  if (halluxRatio !== null && halluxReads >= Math.ceil(samples.length / 2)) {
+    hallux = halluxClassFromRatio(halluxRatio);
+    halluxAngle = halluxAngleFromRatio(halluxRatio);
+    // A photo screen never earns more than medium confidence.
+    halluxConf = minConf(single ? "medium" : confFromDispersion(topAgg.dispersion), "medium");
+  }
+
+  // --- Toe shape (model vote) ----------------------------------------------
   const toe =
     weightedMode(samples.map((s) => ({ value: s.toe, weight: confWeight(s.toeConf) }))) ?? "egyptian";
-  const instep =
-    weightedMode(samples.map((s) => ({ value: s.instep, weight: confWeight(s.instepConf) }))) ?? "normal";
-
-  // Representative sample: the read whose ratio is nearest the median (falls
-  // back to the first). Its prose + reported confidences stand in for the group.
   const rep = pickRepresentative(samples, ratio);
-
-  // With one sample, trust the model's self-reported confidence; with several,
-  // derive confidence from how much the runs agreed (a more honest signal).
-  const widthConf: Confidence =
-    ratio === null ? "low" : single ? rep.widthConf : widthConfFromSpread(ratios);
   const toeConf: Confidence = single
     ? rep.toeConf
     : confFromFraction(fractionAgreeing(samples.map((s) => s.toe), toe));
-  const instepConf: Confidence = single
-    ? rep.instepConf
-    : confFromFraction(fractionAgreeing(samples.map((s) => s.instep), instep));
 
-  // A view needs a re-shoot only if a majority of the reads flagged it.
+  // --- Instep: AHI corroborates the model's two-view read ------------------
+  const ahi = sizes.side ? ahiFromPoints(sideAgg.points, sizes.side) : null;
+  const modelInstep =
+    weightedMode(samples.map((s) => ({ value: s.instep, weight: confWeight(s.instepConf) }))) ?? "normal";
+  const modelInstepConf: Confidence = single
+    ? rep.instepConf
+    : confFromFraction(fractionAgreeing(samples.map((s) => s.instep), modelInstep));
+
+  let instep: InstepClass = modelInstep;
+  let instepConf: Confidence = modelInstepConf;
+  if (ahi !== null) {
+    const ahiInstep = instepClassFromAhi(ahi);
+    if (ahiInstep === modelInstep) {
+      instepConf = stepConf(modelInstepConf, 1); // two methods agree → more sure
+    } else {
+      instep = modelInstep; // keep the two-view read, but flag the conflict
+      instepConf = "low";
+    }
+  }
+
+  // --- Re-take requests: quality flags (majority) + a gross IMU angle gate --
   const needs_retake: RetakeRequest[] = [];
   for (const view of ["top", "oblique", "side"] as const) {
     const flags = samples
       .map((s) => s.quality[view])
       .filter((q): q is string => typeof q === "string" && q !== "ok");
-    if (flags.length > samples.length / 2) {
-      needs_retake.push({ view, reason: modeOf(flags) ?? "blurry" });
+    let reason: string | null = flags.length > samples.length / 2 ? (modeOf(flags) ?? "blurry") : null;
+    if (!reason) {
+      const r = tiltResidual(input, view);
+      if (r && (Math.abs(r.beta) > cfg.imu.betaGateTolerance || Math.abs(r.gamma) > cfg.imu.gammaGateTolerance)) {
+        reason = "bad_angle";
+      }
     }
+    if (reason) needs_retake.push({ view, reason });
   }
 
   const result: FootScanResult = {
     primary: {
       side: input.primarySide,
-      measurements: { foot_length_mm: lengthMm, foot_width_mm: widthMm, width_ratio: ratio },
-      traits: { width: widthClass, instep, toe_shape: toe },
-      confidence: { width: widthConf, instep: instepConf, toe_shape: toeConf }
+      measurements: {
+        foot_length_mm: lengthMm,
+        foot_width_mm: widthMm,
+        width_ratio: ratio,
+        hallux_angle_deg: halluxAngle,
+        ahi
+      },
+      traits: { width: widthClass, instep, toe_shape: toe, hallux },
+      confidence: { width: widthConf, instep: instepConf, toe_shape: toeConf, hallux: halluxConf }
     },
     other: null,
     asymmetry: null,
@@ -478,7 +614,7 @@ function aggregate(input: AnalyzeInput, samples: Sample[]): FootScanResult {
     cautions: rep.cautions.slice(0, 4)
   };
 
-  // Other foot + asymmetry (only when its photo was supplied and read).
+  // --- Other foot + asymmetry (only when its photo was supplied + read) -----
   if (input.images.top_other) {
     const others = samples
       .map((s) => s.other)
@@ -492,12 +628,19 @@ function aggregate(input: AnalyzeInput, samples: Sample[]): FootScanResult {
       }
       const lvp = median(others.map((o) => o.lengthVsPrimary)) ?? 1;
       const otherLen = Math.round(lengthMm * lvp);
-      const otherRatio = median(others.map((o) => o.ratio).filter((r): r is number => r !== null));
+      const otherAgg = medianLandmarks(others.map((o) => o.landmarks));
+      const otherRatio = sizes.other ? sanitizeRatio(ratioFromPoints(otherAgg.points, sizes.other)) : null;
       const otherWidth = otherRatio !== null ? widthMmFromRatio(otherRatio, otherLen) : null;
       const side = otherSide(input.primarySide);
       result.other = {
         side,
-        measurements: { foot_length_mm: otherLen, foot_width_mm: otherWidth, width_ratio: otherRatio }
+        measurements: {
+          foot_length_mm: otherLen,
+          foot_width_mm: otherWidth,
+          width_ratio: otherRatio,
+          hallux_angle_deg: null,
+          ahi: null
+        }
       };
       result.asymmetry = {
         length_diff_mm: Math.abs(lengthMm - otherLen),
@@ -507,6 +650,15 @@ function aggregate(input: AnalyzeInput, samples: Sample[]): FootScanResult {
     }
   }
 
+  // Gentle, non-clinical nudge when the bunion screen reads notable.
+  if (hallux === "moderate_plus" && halluxConf !== "low") {
+    result.cautions.push(
+      input.locale === "zh"
+        ? "拇趾向外偏斜较明显（仅为照片外观筛查）。如有不适，建议咨询足科医生。"
+        : "The big toe leans outward noticeably (photo-based screening only). If it bothers you, consider seeing a podiatrist."
+    );
+  }
+
   // Always append the standing disclaimer (in the UI language).
   result.cautions.push(
     input.locale === "zh"
@@ -514,4 +666,22 @@ function aggregate(input: AnalyzeInput, samples: Sample[]): FootScanResult {
       : "Photo-based estimate for shoe-fitting reference only — not a medical assessment."
   );
   return result;
+}
+
+// Representative sample: the read whose width ratio is nearest the final ratio
+// (falls back to the first). Its prose + reported confidences stand in for the
+// group where a single-sample value is still needed.
+function pickRepresentative(samples: Sample[], ratio: number | null): Sample {
+  if (ratio === null) return samples[0];
+  let best = samples[0];
+  let bestD = Infinity;
+  for (const s of samples) {
+    if (s.modelRatio === null) continue;
+    const d = Math.abs(s.modelRatio - ratio);
+    if (d < bestD) {
+      bestD = d;
+      best = s;
+    }
+  }
+  return best;
 }

@@ -18,6 +18,8 @@ import {
   INSTEP_LABEL,
   TOE_LABEL,
   TOE_SHORT,
+  HALLUX_LABEL,
+  HALLUX_SCALE,
   CONFIDENCE_LABEL,
   SIDE_LABEL,
   WIDTH_SCALE,
@@ -221,6 +223,22 @@ export function ResultStep({
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* big-toe alignment (bunion screening — non-clinical) */}
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {translate("Big-toe alignment")}: {translate(HALLUX_LABEL[p.traits.hallux ?? "none"])}
+              </span>
+              <ConfBadge level={p.confidence.hallux ?? "low"} />
+            </div>
+            <ScaleBar
+              value={HALLUX_SCALE[p.traits.hallux ?? "none"]}
+              average={HALLUX_SCALE.none}
+              leftLabel="Straight"
+              rightLabel="Leaning"
+            />
           </div>
 
           {/* measurements */}

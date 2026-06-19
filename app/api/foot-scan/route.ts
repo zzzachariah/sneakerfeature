@@ -16,6 +16,13 @@ const dataUrl = z
   .max(8_000_000)
   .regex(/^data:image\/(jpeg|jpg|png|webp);base64,/, "Expected an image data URL.");
 
+// Device tilt captured at the shutter (degrees), per view. Optional + nullable —
+// only the live in-app camera can supply it; picked/library photos send nothing.
+const tilt = z
+  .object({ beta: z.number().nullable(), gamma: z.number().nullable() })
+  .partial()
+  .nullish();
+
 const schema = z.object({
   primarySide: z.enum(["left", "right"]),
   footLengthMm: z.coerce.number().int().min(180).max(360),
@@ -25,7 +32,11 @@ const schema = z.object({
     oblique: dataUrl,
     side: dataUrl,
     top_other: dataUrl.nullish()
-  })
+  }),
+  tilt: z
+    .object({ top: tilt, oblique: tilt, side: tilt, top_other: tilt })
+    .partial()
+    .nullish()
 });
 
 export async function POST(request: Request) {
@@ -46,12 +57,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const { primarySide, footLengthMm, locale, images } = parsed.data;
+  const { primarySide, footLengthMm, locale, images, tilt } = parsed.data;
   const outcome = await analyzeFootScan({
     primarySide,
     footLengthMm,
     locale,
-    images: { top: images.top, oblique: images.oblique, side: images.side, top_other: images.top_other ?? null }
+    images: { top: images.top, oblique: images.oblique, side: images.side, top_other: images.top_other ?? null },
+    tilt: tilt ?? null
   });
 
   if (!outcome.ok) {

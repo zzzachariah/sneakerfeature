@@ -9,7 +9,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ChecklistStep } from "@/components/foot-scan/checklist-step";
 import { SizeStep, type SizeChoice } from "@/components/foot-scan/size-step";
-import { CaptureStep, type ShotConfig } from "@/components/foot-scan/capture-step";
+import { CaptureStep, type ShotConfig, type CaptureMeta } from "@/components/foot-scan/capture-step";
 import { ResultStep } from "@/components/foot-scan/result-step";
 import type { FootScanResult, FootSide, ViewId } from "@/lib/foot-scan/types";
 
@@ -76,6 +76,7 @@ export function FootScanClient() {
   const [shotList, setShotList] = useState<ViewId[]>([]);
   const [shotIndex, setShotIndex] = useState(0);
   const [captures, setCaptures] = useState<Partial<Record<ViewId, string>>>({});
+  const [metas, setMetas] = useState<Partial<Record<ViewId, CaptureMeta>>>({});
   const [result, setResult] = useState<FootScanResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
@@ -83,13 +84,18 @@ export function FootScanClient() {
   function startCapture(c: SizeChoice) {
     setChoice(c);
     setCaptures({});
+    setMetas({});
     const list: ViewId[] = c.captureBoth ? ["top", "oblique", "side", "top_other"] : ["top", "oblique", "side"];
     setShotList(list);
     setShotIndex(0);
     setStep("capture");
   }
 
-  async function analyze(c: SizeChoice, caps: Partial<Record<ViewId, string>>) {
+  async function analyze(
+    c: SizeChoice,
+    caps: Partial<Record<ViewId, string>>,
+    capMetas: Partial<Record<ViewId, CaptureMeta>>
+  ) {
     if (!caps.top || !caps.oblique || !caps.side) {
       setErrorMsg(translate("Missing one of the required photos."));
       setStep("error");
@@ -104,7 +110,13 @@ export function FootScanClient() {
           primarySide: c.primarySide,
           footLengthMm: c.footLengthMm,
           locale,
-          images: { top: caps.top, oblique: caps.oblique, side: caps.side, top_other: caps.top_other ?? null }
+          images: { top: caps.top, oblique: caps.oblique, side: caps.side, top_other: caps.top_other ?? null },
+          tilt: {
+            top: capMetas.top?.tilt ?? null,
+            oblique: capMetas.oblique?.tilt ?? null,
+            side: capMetas.side?.tilt ?? null,
+            top_other: capMetas.top_other?.tilt ?? null
+          }
         })
       });
       const data = await res.json();
@@ -122,15 +134,17 @@ export function FootScanClient() {
     }
   }
 
-  function handleCaptured(url: string) {
+  function handleCaptured(url: string, meta: CaptureMeta) {
     if (!choice) return;
     const view = shotList[shotIndex];
     const nextCaptures = { ...captures, [view]: url };
+    const nextMetas = { ...metas, [view]: meta };
     setCaptures(nextCaptures);
+    setMetas(nextMetas);
     if (shotIndex + 1 < shotList.length) {
       setShotIndex(shotIndex + 1);
     } else {
-      void analyze(choice, nextCaptures);
+      void analyze(choice, nextCaptures, nextMetas);
     }
   }
 
@@ -144,6 +158,7 @@ export function FootScanClient() {
   function reset() {
     setChoice(null);
     setCaptures({});
+    setMetas({});
     setResult(null);
     setScanId(null);
     setShotIndex(0);

@@ -2,10 +2,11 @@
 //
 // The flow: the user picks a best-fitting shoe (→ approximate foot length, the
 // scale anchor), then captures a few guided photos. A vision model + light
-// geometry turn those into three indicative foot-shape traits:
+// geometry turn those into indicative foot-shape traits:
 //   - width    (narrow / standard / wide / extra-wide)
-//   - instep   (low / normal / high)
+//   - instep   (low / normal / high)  — refined by a side-view AHI ratio
 //   - toe shape(egyptian / greek / roman / square)
+//   - hallux   (none / mild / moderate+) — bunion SCREENING, never a diagnosis
 // Arch / flat-foot is intentionally out of v1 (needs a plantar view; see v2).
 
 export type FootSide = "left" | "right";
@@ -17,6 +18,8 @@ export type ViewId = "top" | "oblique" | "side" | "top_other";
 export type WidthClass = "narrow" | "standard" | "wide" | "extra_wide";
 export type InstepClass = "low" | "normal" | "high";
 export type ToeShape = "egyptian" | "greek" | "roman" | "square";
+// Bunion screening only — phrased as an appearance band, never a clinical grade.
+export type HalluxClass = "none" | "mild" | "moderate_plus";
 export type Confidence = "low" | "medium" | "high";
 
 export type FootMeasurements = {
@@ -27,18 +30,26 @@ export type FootMeasurements = {
   // width / length, read from the top-down photo. Scale-free, so it survives an
   // imprecise length anchor — it's the backbone of the width classification.
   width_ratio: number | null;
+  // Hallux "external" deviation angle in degrees (θ = asin(d/h)), from the
+  // top-down landmarks. null when the toe/joint points were unusable.
+  hallux_angle_deg: number | null;
+  // Arch-height index Hd/TL from the side view; null when the side view lacked
+  // the needed landmarks. Informs (does not override) the instep class.
+  ahi: number | null;
 };
 
 export type FootTraits = {
   width: WidthClass;
   instep: InstepClass;
   toe_shape: ToeShape;
+  hallux: HalluxClass;
 };
 
 export type FootConfidence = {
   width: Confidence;
   instep: Confidence;
   toe_shape: Confidence;
+  hallux: Confidence;
 };
 
 // One foot's full read-out.
@@ -78,6 +89,8 @@ export type FootProfile = {
   foot_width: WidthClass;
   instep: InstepClass;
   toe_shape: ToeShape;
+  // Optional so profiles saved before the hallux trait existed still validate.
+  hallux?: HalluxClass;
   foot_length_mm: number;
   foot_width_mm: number | null;
   // ISO timestamp of the scan it came from.
@@ -114,6 +127,19 @@ export const TOE_SHORT: Record<ToeShape, string> = {
   square: "Square"
 };
 
+// Hallux (bunion) screening labels. Deliberately soft, non-clinical wording.
+export const HALLUX_LABEL: Record<HalluxClass, string> = {
+  none: "No bunion sign",
+  mild: "Mild bunion lean",
+  moderate_plus: "Noticeable bunion lean"
+};
+
+export const HALLUX_SHORT: Record<HalluxClass, string> = {
+  none: "None",
+  mild: "Mild",
+  moderate_plus: "Noticeable"
+};
+
 export const CONFIDENCE_LABEL: Record<Confidence, string> = {
   low: "Low confidence",
   medium: "Medium confidence",
@@ -139,9 +165,16 @@ export const INSTEP_SCALE: Record<InstepClass, number> = {
   high: 0.85
 };
 
+export const HALLUX_SCALE: Record<HalluxClass, number> = {
+  none: 0.15,
+  mild: 0.5,
+  moderate_plus: 0.85
+};
+
 export const WIDTH_ORDER: WidthClass[] = ["narrow", "standard", "wide", "extra_wide"];
 export const INSTEP_ORDER: InstepClass[] = ["low", "normal", "high"];
 export const TOE_ORDER: ToeShape[] = ["egyptian", "greek", "roman", "square"];
+export const HALLUX_ORDER: HalluxClass[] = ["none", "mild", "moderate_plus"];
 
 export function isWidthClass(v: unknown): v is WidthClass {
   return typeof v === "string" && (WIDTH_ORDER as string[]).includes(v);
@@ -151,6 +184,9 @@ export function isInstepClass(v: unknown): v is InstepClass {
 }
 export function isToeShape(v: unknown): v is ToeShape {
   return typeof v === "string" && (TOE_ORDER as string[]).includes(v);
+}
+export function isHalluxClass(v: unknown): v is HalluxClass {
+  return typeof v === "string" && (HALLUX_ORDER as string[]).includes(v);
 }
 export function isConfidence(v: unknown): v is Confidence {
   return v === "low" || v === "medium" || v === "high";

@@ -10,6 +10,8 @@ import {
   WIDTH_LABEL,
   INSTEP_LABEL,
   TOE_SHORT,
+  HALLUX_LABEL,
+  HALLUX_SCALE,
   WIDTH_SCALE,
   INSTEP_SCALE,
   SIDE_LABEL,
@@ -104,6 +106,10 @@ export const ReportCard = forwardRef<HTMLDivElement, { result: FootScanResult }>
 
       <Row label={translate("Instep")} value={translate(INSTEP_LABEL[p.traits.instep])}>
         <Bar value={INSTEP_SCALE[p.traits.instep]} leftLabel={translate("Low instep")} rightLabel={translate("High instep")} />
+      </Row>
+
+      <Row label={translate("Big-toe alignment")} value={translate(HALLUX_LABEL[p.traits.hallux ?? "none"])}>
+        <Bar value={HALLUX_SCALE[p.traits.hallux ?? "none"]} leftLabel={translate("Straight")} rightLabel={translate("Leaning")} />
       </Row>
 
       <div style={{ marginTop: 18 }}>

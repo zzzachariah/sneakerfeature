@@ -987,6 +987,20 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "low instep": "低脚背",
   "normal instep": "正常脚背",
   "high instep": "偏高脚背",
+  // big-toe alignment (bunion screening — non-clinical)
+  "big-toe alignment": "拇趾朝向",
+  "no bunion sign": "无外翻迹象",
+  "mild bunion lean": "轻度外翻",
+  "noticeable bunion lean": "明显外翻",
+  "straight": "笔直",
+  "leaning": "外翻",
+  // capture quality hints
+  "this shot looks blurry — hold steady and retake for a more accurate read.":
+    "这张照片有点模糊——拿稳手机重拍可提高准确度。",
+  "this shot looks dark — add light and retake for a more accurate read.":
+    "这张照片偏暗——增加光线后重拍可提高准确度。",
+  "this shot looks overexposed — reduce glare and retake for a more accurate read.":
+    "这张照片过曝——减少反光后重拍可提高准确度。",
   "egyptian (big toe longest)": "埃及型（拇趾最长）",
   "greek (second toe longest)": "希腊型（二趾最长）",
   "roman (first three even)": "罗马型（前三趾齐平）",
