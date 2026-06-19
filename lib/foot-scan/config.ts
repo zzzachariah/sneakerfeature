@@ -25,28 +25,38 @@ export const FOOT_SCAN_CONFIG = {
   },
 
   // --- Width: W/L ratio band edges (upper-exclusive) ---
-  // Population average sits ~0.38–0.40. Coarse on purpose; the prime knob.
+  // Anchored to the foot index (breadth/length): population mean ≈ 0.386,
+  // SD ≈ 0.022 (Bhattarai et al., medical-student cohort). Bands sit at the
+  // mean ∓ 1 SD and + 2 SD. NOTE: our W is the perpendicular ball width from
+  // photo landmarks, not a caliper breadth, so re-centre on our own data once
+  // a labelled set exists (the placeholders just start from a real distribution
+  // rather than a guess).
   width: {
-    narrowBelow: 0.37, // < 0.37 → narrow
-    standardBelow: 0.41, // < 0.41 → standard
-    wideBelow: 0.45 // < 0.45 → wide, else extra_wide
+    narrowBelow: 0.365, // < mean − 1 SD → narrow
+    standardBelow: 0.408, // < mean + 1 SD → standard
+    wideBelow: 0.43 // < mean + 2 SD → wide, else extra_wide
   },
 
   // --- Hallux valgus (SCREENING ONLY, not a diagnosis) ---
-  // Expressed as d/h = sin(external appearance angle). The on-camera "external"
-  // angle runs ~5–8° below a radiographic HVA, so these bands are deliberately
-  // conservative (see spec §5/§7). d/h: 15°≈0.26, 20°≈0.34, 30°≈0.50.
+  // Radiographic HVA bands are well established: normal < 15°, mild 15–20°,
+  // moderate 20–40°, severe ≥ 40° (Journal of Foot & Ankle Research; Arch
+  // Orthop Trauma Surg 2024). Our d/h = sin(on-camera "external" angle), which
+  // UNDER-reads radiographic HVA, so the cutoffs are set a touch more sensitive
+  // than the raw degree→sin values. The d/h→HVA offset is the one thing that
+  // genuinely needs a small clinically-rated sample to fix — treat as provisional.
   hallux: {
-    mildAbove: 0.26, // ≥ ~15° appearance → mild
-    moderatePlusAbove: 0.34 // ≥ ~20° appearance → moderate_plus
+    mildAbove: 0.23, // ≈ external 13° → mild
+    moderatePlusAbove: 0.33 // ≈ external 19° → moderate_plus
   },
 
   // --- Instep height: AHI = Hd / TL (side view) ---
-  // Mean ≈ 0.34. Vertical height is the most perspective-sensitive measure, so
-  // the AHI read only refines the qualitative low/normal/high call.
+  // Williams & McClay's arch-height index: mean ≈ 0.29 (original 2000 cohort) to
+  // ≈ 0.34 standing in later normative data (Butler/Hillstrom AHIMS; college
+  // cohort), SD ≈ 0.03. Bands at mean ∓ ~1 SD. Vertical height is the most
+  // perspective-sensitive measure, so AHI only refines the qualitative call.
   ahi: {
-    lowBelow: 0.3, // < 0.30 → low / flat
-    highAbove: 0.37 // > 0.37 → high, else normal
+    lowBelow: 0.31, // < ~mean − 1 SD → low / flat
+    highAbove: 0.37 // > ~mean + 1 SD → high, else normal
   },
 
   // --- Sanity clamp for any width ratio (model or landmark derived) ---

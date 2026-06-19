@@ -52,11 +52,35 @@ A physical reference (A4 / card) was rejected as too much user burden. Instead:
 ## Tuning
 
 Every threshold lives in [`config.ts`](./config.ts) (`FOOT_SCAN_CONFIG`) — width
-bands, hallux/AHI bands, IMU tolerances, quality thresholds, sampling. They are
-placeholders seeded from population norms; retune against a labelled validation
-set (grid-search the bands to match annotations). Env overrides:
-`FOOT_SCAN_MODEL`, `FOOT_SCAN_MODEL_2` (ensemble), `FOOT_SCAN_SAMPLES`,
+bands, hallux/AHI bands, IMU tolerances, quality thresholds, sampling. Env
+overrides: `FOOT_SCAN_MODEL`, `FOOT_SCAN_MODEL_2` (ensemble), `FOOT_SCAN_SAMPLES`,
 `FOOT_SCAN_TEMPERATURE`, `FOOT_SCAN_API_KEY` / `FOOT_SCAN_BASE_URL`.
+
+### Where the default bands come from (and their limits)
+
+The defaults are **anchored to published norms**, not guessed — but they are a
+starting prior, NOT a substitute for tuning on our own pipeline's output:
+
+- **Width** — foot index (breadth/length) mean ≈ 0.386, SD ≈ 0.022; bands at
+  mean ∓ 1 SD / + 2 SD. Our W is a perpendicular ball width from photo
+  landmarks (not a caliper breadth) and is ethnicity-dependent, so the mean will
+  drift — re-centre on our own distribution. The eventual target is a GB/T 3293
+  girth/"型" mapping calibrated on real orders.
+- **Arch-height index** — Williams & McClay's AHI: ≈ 0.29 (2000) to ≈ 0.34
+  (standing, later cohorts), SD ≈ 0.03; bands at mean ∓ ~1 SD.
+- **Hallux** — radiographic HVA bands (normal <15°, mild 15–20°, moderate ≥20°)
+  are firm, but our *external* d/h angle under-reads HVA by an unknown offset.
+  This is the one band that needs a small **clinically-rated** sample to fix.
+
+These norms are population distributions; they cannot calibrate the systematic
+offset between a clinical caliper/radiograph and our photo-landmark metric. That
+still requires a labelled validation set (foot photos through this pipeline with
+ground-truth labels), grid-searched to match annotations. We will **not** ship
+fabricated samples — real photos only.
+
+Sources: foot index — Bhattarai et al., *J Nepal Med Assoc* (PMC11455646);
+AHI — Butler/Hillstrom *AHIMS* (PMID 18347117) & Williams/McClay 2000; HVA —
+*J Foot Ankle Res* 2:15 and *Arch Orthop Trauma Surg* 2024 (PMC11582200).
 
 ## Tests
 
