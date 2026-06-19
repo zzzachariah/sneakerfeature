@@ -19,7 +19,7 @@ const dataUrl = z
 // Device tilt captured at the shutter (degrees), per view. Optional + nullable —
 // only the live in-app camera can supply it; picked/library photos send nothing.
 const tilt = z
-  .object({ beta: z.number().nullable(), gamma: z.number().nullable() })
+  .object({ beta: z.number().nullable(), gamma: z.number().nullable(), fovDeg: z.number().nullable() })
   .partial()
   .nullish();
 

@@ -36,6 +36,13 @@ export type FootMeasurements = {
   // Arch-height index Hd/TL from the side view; null when the side view lacked
   // the needed landmarks. Informs (does not override) the instep class.
   ahi: number | null;
+  // --- Depth (Beta) channel only; absent on the photo pipeline. ---
+  // Ball girth (跖围) in mm from a depth scan — feeds GB/T 型 sizing.
+  ball_girth_mm?: number | null;
+  // Instep height in mm from a depth scan.
+  instep_height_mm?: number | null;
+  // Which channel produced this read.
+  source?: "photo" | "depth";
 };
 
 export type FootTraits = {

@@ -19,6 +19,7 @@ import { haptics } from "@/lib/native/haptics";
 import { useDeviceTilt, type TiltTarget } from "@/lib/foot-scan/orientation";
 import { FOOT_SCAN_CONFIG } from "@/lib/foot-scan/config";
 import { assessImageQuality, frameSharpness, type QualityIssue } from "@/lib/foot-scan/image-quality";
+import { getCameraFovDeg } from "@/lib/native/foot-scan-native";
 import { ensureCameraPermission, nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
 import { FootOverlay } from "@/components/foot-scan/foot-overlays";
 import { AdjustImage } from "@/components/foot-scan/adjust-image";
@@ -35,8 +36,9 @@ export type ShotConfig = {
 
 // Metadata captured alongside the image and passed up to the analyzer. Tilt is
 // the phone's orientation at the shutter (live capture only — null for picked
-// photos), used server-side for the angle gate + perspective correction.
-export type CaptureMeta = { tilt: { beta: number | null; gamma: number | null } | null };
+// photos); fovDeg is the native camera field of view (null on web / no plugin).
+// Used server-side for the angle gate + perspective correction.
+export type CaptureMeta = { tilt: { beta: number | null; gamma: number | null; fovDeg: number | null } | null };
 
 const MAX_DIM = 1568;
 
@@ -102,7 +104,10 @@ export function CaptureStep({
   // re-creating the callback on every sensor tick.
   const tiltLiveRef = useRef<{ beta: number | null; gamma: number | null }>({ beta: null, gamma: null });
   // Tilt frozen at the moment of capture, sent up with the confirmed image.
-  const capturedTiltRef = useRef<{ beta: number | null; gamma: number | null } | null>(null);
+  const capturedTiltRef = useRef<{ beta: number | null; gamma: number | null; fovDeg: number | null } | null>(null);
+  // Native camera FOV (degrees), read once; null on web / when the plugin is
+  // absent, in which case the analyzer uses the scalar tilt correction.
+  const fovRef = useRef<number | null>(null);
   const [qualityIssue, setQualityIssue] = useState<QualityIssue | null>(null);
 
   // Android WebView getUserMedia is unreliable, so go straight to the device
@@ -121,6 +126,17 @@ export function CaptureStep({
   // Mirror the live tilt into a ref each render so capture() reads it cheaply.
   tiltLiveRef.current = { beta: tilt.beta, gamma: tilt.gamma };
 
+  // Read the native camera FOV once (null on web / no plugin → scalar de-tilt).
+  useEffect(() => {
+    let alive = true;
+    getCameraFovDeg().then((v) => {
+      if (alive) fovRef.current = v;
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -138,8 +154,9 @@ export function CaptureStep({
     clearTimer();
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
-    // Freeze the device tilt at the shutter — sent up for the angle gate.
-    capturedTiltRef.current = { ...tiltLiveRef.current };
+    // Freeze the device tilt + FOV at the shutter — sent up for the angle gate
+    // and the perspective de-tilt.
+    capturedTiltRef.current = { ...tiltLiveRef.current, fovDeg: fovRef.current };
     const scale = Math.min(1, MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
     const w = Math.round(video.videoWidth * scale);
     const h = Math.round(video.videoHeight * scale);

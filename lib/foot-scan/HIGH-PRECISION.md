@@ -1,10 +1,28 @@
 # Foot Scan — High-Precision Channels (A: native FOV · B: depth)
 
-Build-ready specs for the two precision upgrades above the current photo + VLM
-pipeline. **Neither is implemented yet** — both need the native `ios/` and
-`android/` Capacitor projects committed and a device build to verify (they
-cannot be compiled/tested in the cloud dev environment). This doc is the plan
-to drop in once those exist.
+Two precision upgrades above the current photo + VLM pipeline. The **TypeScript
+halves are implemented and unit-tested** now; the **native halves are written or
+specced but UNVERIFIED** — they need the native `ios/`/`android/` Capacitor
+projects + a device build (can't be compiled/tested in the cloud dev env).
+
+### Status
+| Piece | State |
+|-------|-------|
+| A — homography de-tilt math (`geometry.ts`) | ✅ implemented + tested |
+| A — FOV plumbing (capture → API → analyze, scalar fallback) | ✅ implemented |
+| A — native FOV plugin (`capacitor-foot-scan`, iOS Swift) | ⚠️ written, unverified |
+| A — Android FOV plugin | ⛔ TODO |
+| B — depth measurement core (`depth.ts`) | ✅ implemented + tested |
+| B — capability detection + Beta opt-in UI (gates to "unavailable") | ✅ implemented |
+| B — native depth/capability plugin (iOS `isDepthSupported`) | ⚠️ written, unverified |
+| B — native AR capture (ARKit/ARCore → point cloud) | ⛔ TODO (big) |
+
+### Wiring the native plugin (when ready)
+`capacitor-foot-scan/` is a local plugin package (mirrors `native-chrome`). To
+activate: add `"capacitor-foot-scan": "file:capacitor-foot-scan"` to
+`package.json`, `npm install`, `npx cap sync`. Until then the JS bridge
+(`lib/native/foot-scan-native.ts`) returns FOV = null and depth = unsupported,
+so the app is unchanged (scalar de-tilt; Beta shows "unavailable").
 
 Both are **additive tiers with graceful fallback**: when unavailable, the app
 keeps using the existing photo pipeline unchanged.

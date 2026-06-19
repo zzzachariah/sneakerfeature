@@ -889,6 +889,16 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   // checklist
   "before you start": "开始前",
   "takes about a minute. check each item to continue.": "大约一分钟。逐项勾选后开始。",
+  // high-precision (depth) Beta entry
+  "high-precision scan": "高精度扫描",
+  "uses your phone's depth sensor (lidar/tof) for millimetre measurements.":
+    "用手机的深度传感器（LiDAR/ToF）做毫米级测量。",
+  "try high-precision scan (beta)": "试用高精度扫描（Beta）",
+  "beta unavailable — this device has no supported depth sensor.":
+    "Beta 暂不可用——此设备没有受支持的深度传感器。",
+  "your device supports depth scanning. this beta is rolling out soon — for now, use the photo scan.":
+    "你的设备支持深度扫描。该 Beta 即将开放——目前请先使用照片扫描。",
+  "use photo scan": "使用照片扫描",
   "barefoot, or thin socks (thick socks affect accuracy)": "赤脚，或穿薄袜（厚袜会影响准确度）",
   "the floor is a plain colour that contrasts with my foot": "地面颜色单一，且与脚部有明显反差",
   "lighting is even — no strong shadows or backlight": "光线均匀——没有强烈阴影或逆光",

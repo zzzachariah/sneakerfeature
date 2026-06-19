@@ -3,10 +3,12 @@
 // Orchestrates the hidden Foot Scan flow:
 //   checklist → size anchor → guided capture (3-4 shots) → analyse → report.
 
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { getDepthSupport } from "@/lib/native/foot-scan-native";
 import { ChecklistStep } from "@/components/foot-scan/checklist-step";
 import { SizeStep, type SizeChoice } from "@/components/foot-scan/size-step";
 import { CaptureStep, type ShotConfig, type CaptureMeta } from "@/components/foot-scan/capture-step";
@@ -67,7 +69,7 @@ const SHOTS: Record<ViewId, ShotConfig> = {
   }
 };
 
-type Step = "checklist" | "size" | "capture" | "analyzing" | "result" | "error";
+type Step = "checklist" | "size" | "capture" | "analyzing" | "result" | "error" | "depth_beta";
 
 export function FootScanClient() {
   const { translate, locale } = useLocale();
@@ -80,6 +82,19 @@ export function FootScanClient() {
   const [result, setResult] = useState<FootScanResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  // Depth-sensor capability for the Beta high-precision path (false until proven
+  // — web / no native plugin / unsupported device all stay false).
+  const [depthSupported, setDepthSupported] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getDepthSupport().then((s) => {
+      if (alive) setDepthSupported(s.supported);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   function startCapture(c: SizeChoice) {
     setChoice(c);
@@ -183,7 +198,40 @@ export function FootScanClient() {
         <p className="mt-1 text-sm soft-text">{translate("Discover your foot shape in about a minute.")}</p>
       </header>
 
-      {step === "checklist" && <ChecklistStep onReady={() => setStep("size")} />}
+      {step === "checklist" && (
+        <ChecklistStep
+          onReady={() => setStep("size")}
+          depthSupported={depthSupported}
+          onChooseDepthBeta={() => setStep("depth_beta")}
+        />
+      )}
+
+      {step === "depth_beta" && (
+        <Card className="flex flex-col items-center gap-4 p-8 text-center">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--text)/0.06)]">
+            <Sparkles className="h-6 w-6 text-[rgb(var(--text))]" />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold tracking-[-0.01em]">
+              {translate("High-precision scan")}{" "}
+              <span className="align-middle rounded bg-[rgb(var(--text)/0.1)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                Beta
+              </span>
+            </h2>
+            <p className="mt-1 text-sm soft-text">
+              {translate("Your device supports depth scanning. This Beta is rolling out soon — for now, use the photo scan.")}
+            </p>
+          </div>
+          <div className="flex w-full gap-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setStep("checklist")}>
+              {translate("Back")}
+            </Button>
+            <Button variant="primary" className="flex-1" onClick={() => setStep("size")}>
+              {translate("Use photo scan")}
+            </Button>
+          </div>
+        </Card>
+      )}
 
       {step === "size" && <SizeStep onSubmit={startCapture} />}
 

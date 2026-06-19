@@ -297,6 +297,98 @@ function weightedMedian(vals: { v: number; w: number }[]): number {
   return s[s.length - 1].v;
 }
 
+// --- Channel A: exact perspective de-tilt via camera FOV -------------------
+// 3×3 matrix helpers (row-major).
+type Mat3 = number[][];
+function mul3(a: Mat3, b: Mat3): Mat3 {
+  const out: Mat3 = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0]
+  ];
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++) out[i][j] = a[i][0] * b[0][j] + a[i][1] * b[1][j] + a[i][2] * b[2][j];
+  return out;
+}
+function transpose3(m: Mat3): Mat3 {
+  return [
+    [m[0][0], m[1][0], m[2][0]],
+    [m[0][1], m[1][1], m[2][1]],
+    [m[0][2], m[1][2], m[2][2]]
+  ];
+}
+
+// Rectifying homography H = K · Rᵀ · K⁻¹ (rotation-only model about the camera
+// centre) for a camera tilted by `pitch`/`roll` from nadir, with focal length
+// `f` (px) and principal point (cx, cy). Exposed for tests.
+export function detiltHomography(f: number, cx: number, cy: number, pitchRad: number, rollRad: number): Mat3 {
+  const cxp = Math.cos(pitchRad);
+  const sxp = Math.sin(pitchRad);
+  const cyr = Math.cos(rollRad);
+  const syr = Math.sin(rollRad);
+  const Rx: Mat3 = [
+    [1, 0, 0],
+    [0, cxp, -sxp],
+    [0, sxp, cxp]
+  ];
+  const Ry: Mat3 = [
+    [cyr, 0, syr],
+    [0, 1, 0],
+    [-syr, 0, cyr]
+  ];
+  const R = mul3(Rx, Ry);
+  const K: Mat3 = [
+    [f, 0, cx],
+    [0, f, cy],
+    [0, 0, 1]
+  ];
+  const Kinv: Mat3 = [
+    [1 / f, 0, -cx / f],
+    [0, 1 / f, -cy / f],
+    [0, 0, 1]
+  ];
+  return mul3(mul3(K, transpose3(R)), Kinv);
+}
+
+export function applyHomography(h: Mat3, x: number, y: number): Pt {
+  const wx = h[0][0] * x + h[0][1] * y + h[0][2];
+  const wy = h[1][0] * x + h[1][1] * y + h[1][2];
+  const ww = h[2][0] * x + h[2][1] * y + h[2][2];
+  return ww !== 0 ? [wx / ww, wy / ww] : [wx, wy];
+}
+
+// Focal length in pixels from a field of view (degrees) and the image's long
+// edge: f = (longEdge/2) / tan(FOV/2).
+export function focalPxFromFov(fovDeg: number, size: ImageSize): number | null {
+  if (!(fovDeg > 1 && fovDeg < 179)) return null;
+  const f = Math.max(size.w, size.h) / 2 / Math.tan((fovDeg * Math.PI) / 360);
+  return f > 0 ? f : null;
+}
+
+// W/L after rectifying the ground plane to a true top-down view using the
+// device tilt + camera FOV. Exact when fovDeg is the real per-device value;
+// structurally correct (better than the scalar) with an assumed FOV. Returns
+// null on unusable input so the caller falls back to the scalar correction.
+//
+// NOTE: the device beta/gamma → camera pitch/roll convention here MUST be
+// confirmed on a real device (a flipped sign would amplify tilt, not remove it).
+// See HIGH-PRECISION.md "device checklist".
+export function rectifiedRatioWithFov(
+  p: NormLandmarks,
+  size: ImageSize,
+  betaResidualDeg: number,
+  gammaDeg: number,
+  fovDeg: number
+): number | null {
+  if (!p.heel || !p.toe || !p.wide_medial || !p.wide_lateral) return null;
+  const f = focalPxFromFov(fovDeg, size);
+  if (f === null) return null;
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const h = detiltHomography(f, size.w / 2, size.h / 2, rad(betaResidualDeg), rad(gammaDeg));
+  const warp = (pt: Pt): Pt => applyHomography(h, pt[0] * size.w, pt[1] * size.h);
+  return widthLengthRatioPx(warp(p.heel), warp(p.toe), warp(p.wide_medial), warp(p.wide_lateral));
+}
+
 // Per-point coordinate-wise (weighted) median across N reads → one consensus
 // landmark set, plus a dispersion score (mean per-point spread in normalized
 // units) for an honest, geometry-grounded confidence. Aggregating the POINTS

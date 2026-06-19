@@ -50,6 +50,7 @@ import {
   ahiFromPoints,
   ballPositionFraction,
   correctRatioForTilt,
+  rectifiedRatioWithFov,
   medianLandmarks,
   isDegenerateTop,
   type ImageSize,
@@ -109,7 +110,7 @@ const SAMPLE_TEMPERATURE = (() => {
   return Number.isFinite(t) && t >= 0 && t <= 1 ? t : FOOT_SCAN_CONFIG.sampling.temperature;
 })();
 
-export type Tilt = { beta?: number | null; gamma?: number | null };
+export type Tilt = { beta?: number | null; gamma?: number | null; fovDeg?: number | null };
 
 export type AnalyzeInput = {
   // The chosen/primary foot we run the full 3-view analysis on.
@@ -530,12 +531,21 @@ function aggregate(input: AnalyzeInput, samples: Sample[], sizes: Sizes): FootSc
   const modelRatioMed = median(modelRatios);
   const lmRatioRaw = sizes.top ? ratioFromPoints(topAgg.points, sizes.top) : null;
 
-  // De-tilt the landmark ratio with the IMU residual for the top shot.
+  // De-tilt the landmark ratio with the IMU residual for the top shot. With a
+  // camera FOV (native plugin, Channel A) use the exact homography; otherwise
+  // the scalar cos approximation. sanitizeRatio below bounds the result, so a
+  // bad FOV/sign can't produce an absurd ratio.
   const topTilt = tiltResidual(input, "top");
-  const lmRatio =
-    lmRatioRaw !== null && topTilt
-      ? correctRatioForTilt(lmRatioRaw, topTilt.beta, topTilt.gamma, cfg.imu.minCorrectionDeg)
-      : lmRatioRaw;
+  const topFov = input.tilt?.top?.fovDeg;
+  let lmRatio = lmRatioRaw;
+  if (lmRatioRaw !== null && topTilt) {
+    let rect: number | null = null;
+    if (typeof topFov === "number" && sizes.top) {
+      rect = rectifiedRatioWithFov(topAgg.points, sizes.top, topTilt.beta, topTilt.gamma, topFov);
+    }
+    lmRatio =
+      rect !== null ? rect : correctRatioForTilt(lmRatioRaw, topTilt.beta, topTilt.gamma, cfg.imu.minCorrectionDeg);
+  }
 
   const baseRatio = sanitizeRatio(lmRatio) ?? modelRatioMed;
   const usedLandmarkRatio = sanitizeRatio(lmRatio) !== null;

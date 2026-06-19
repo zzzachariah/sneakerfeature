@@ -12,6 +12,10 @@ import {
   correctRatioForTilt,
   medianLandmarks,
   isDegenerateTop,
+  detiltHomography,
+  applyHomography,
+  rectifiedRatioWithFov,
+  focalPxFromFov,
   type NormLandmarks
 } from "../lib/foot-scan/geometry";
 import { halluxAngleFromRatio } from "../lib/foot-scan/config";
@@ -120,6 +124,49 @@ check("weighted median leans to the heavy read", near(medianLandmarks(wreads, [1
 const degBall: NormLandmarks = { ...widthFoot, wide_medial: [0.45, 0.85], wide_lateral: [0.55, 0.85] };
 check("degenerate when the ball sits at the heel", isDegenerateTop(degBall, SQ) === true);
 check("normal foot is not degenerate", isDegenerateTop(widthFoot, SQ) === false);
+
+// --- Channel A: FOV homography de-tilt -------------------------------------
+const radD = (d: number) => (d * Math.PI) / 180;
+function invert3(m: number[][]): number[][] {
+  const [a, b, c] = m[0];
+  const [d, e, f] = m[1];
+  const [g, h, i] = m[2];
+  const A = e * i - f * h;
+  const B = -(d * i - f * g);
+  const C = d * h - e * g;
+  const det = a * A + b * B + c * C;
+  return [
+    [A / det, -(b * i - c * h) / det, (b * f - c * e) / det],
+    [B / det, (a * i - c * g) / det, -(a * f - c * d) / det],
+    [C / det, -(a * h - b * g) / det, (a * e - b * d) / det]
+  ];
+}
+
+check("focalPx from 90° FOV = half long edge", near(focalPxFromFov(90, SQ), SQ.w / 2, 1e-6), focalPxFromFov(90, SQ));
+check(
+  "zero-tilt rectify == plain ratio",
+  near(rectifiedRatioWithFov(widthFoot, SQ, 0, 0, 65), ratioFromPoints(widthFoot, SQ) as number, 1e-6)
+);
+
+// Forward-tilt the true points, then rectify must recover the original W/L.
+const fpx = focalPxFromFov(65, SQ) as number;
+const Hfwd = invert3(detiltHomography(fpx, SQ.w / 2, SQ.h / 2, radD(15), radD(8)));
+const projN = (pt: [number, number]): [number, number] => {
+  const o = applyHomography(Hfwd, pt[0] * SQ.w, pt[1] * SQ.h);
+  return [o[0] / SQ.w, o[1] / SQ.h];
+};
+const tilted: NormLandmarks = {
+  ...widthFoot,
+  heel: projN(widthFoot.heel as [number, number]),
+  toe: projN(widthFoot.toe as [number, number]),
+  wide_medial: projN(widthFoot.wide_medial as [number, number]),
+  wide_lateral: projN(widthFoot.wide_lateral as [number, number])
+};
+check(
+  "rectify inverts a known tilt (recovers W/L)",
+  near(rectifiedRatioWithFov(tilted, SQ, 15, 8, 65), ratioFromPoints(widthFoot, SQ) as number, 2e-3),
+  [rectifiedRatioWithFov(tilted, SQ, 15, 8, 65), ratioFromPoints(widthFoot, SQ)]
+);
 
 console.log(`\nfoot geometry: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
