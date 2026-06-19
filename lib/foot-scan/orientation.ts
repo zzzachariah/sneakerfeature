@@ -34,6 +34,34 @@ type IOSDeviceOrientationEvent = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<"granted" | "denied">;
 };
 
+// iOS motion permission is granted per session, globally — so once any gesture
+// grants it, every useDeviceTilt instance can start listening without prompting
+// again. This module flag tracks that.
+let motionPermissionGranted = false;
+
+// Proactively request the iOS motion/orientation permission. MUST be called
+// synchronously from inside a user gesture (e.g. a button onClick) on iOS, or
+// the request is ignored. No-op (returns "granted"/"unsupported") elsewhere.
+// Calling this up-front (on "Start scanning") makes the tilt de-tilt + angle
+// gate work by default instead of waiting for the optional level-guide button.
+export async function requestMotionPermission(): Promise<TiltPermission> {
+  if (typeof window === "undefined" || typeof window.DeviceOrientationEvent === "undefined") {
+    return "unsupported";
+  }
+  const DOE = window.DeviceOrientationEvent as IOSDeviceOrientationEvent;
+  if (typeof DOE.requestPermission !== "function") {
+    motionPermissionGranted = true; // non-iOS: no gate
+    return "granted";
+  }
+  try {
+    const res = await DOE.requestPermission();
+    if (res === "granted") motionPermissionGranted = true;
+    return res === "granted" ? "granted" : "denied";
+  } catch {
+    return "denied";
+  }
+}
+
 export function useDeviceTilt(target: TiltTarget): TiltState {
   const [beta, setBeta] = useState<number | null>(null);
   const [gamma, setGamma] = useState<number | null>(null);
@@ -63,7 +91,10 @@ export function useDeviceTilt(target: TiltTarget): TiltState {
       try {
         const res = await DOE.requestPermission();
         setPermission(res === "granted" ? "granted" : "denied");
-        if (res === "granted") startListening();
+        if (res === "granted") {
+          motionPermissionGranted = true;
+          startListening();
+        }
       } catch {
         setPermission("denied");
       }
@@ -80,8 +111,10 @@ export function useDeviceTilt(target: TiltTarget): TiltState {
       return;
     }
     const DOE = window.DeviceOrientationEvent as IOSDeviceOrientationEvent;
-    // Android / desktop: attach immediately. iOS waits for requestPermission().
-    if (typeof DOE.requestPermission !== "function") {
+    // Android / desktop: attach immediately. iOS waits for requestPermission() —
+    // but if it was already granted this session (e.g. the proactive request on
+    // "Start scanning"), start listening now without another prompt.
+    if (typeof DOE.requestPermission !== "function" || motionPermissionGranted) {
       setPermission("granted");
       startListening();
     }

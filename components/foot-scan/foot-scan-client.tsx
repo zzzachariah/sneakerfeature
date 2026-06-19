@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { getDepthSupport } from "@/lib/native/foot-scan-native";
+import { requestMotionPermission } from "@/lib/foot-scan/orientation";
 import { ChecklistStep } from "@/components/foot-scan/checklist-step";
 import { SizeStep, type SizeChoice } from "@/components/foot-scan/size-step";
 import { CaptureStep, type ShotConfig, type CaptureMeta } from "@/components/foot-scan/capture-step";
@@ -200,7 +201,12 @@ export function FootScanClient() {
 
       {step === "checklist" && (
         <ChecklistStep
-          onReady={() => setStep("size")}
+          onReady={() => {
+            // Proactively request iOS motion permission here, inside the tap, so
+            // the tilt de-tilt + angle gate work by default in the capture step.
+            void requestMotionPermission();
+            setStep("size");
+          }}
           depthSupported={depthSupported}
           onChooseDepthBeta={() => setStep("depth_beta")}
         />
