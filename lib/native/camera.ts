@@ -15,6 +15,34 @@ export function nativeCameraAvailable(): boolean {
   return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("Camera");
 }
 
+export type CameraPermissionResult = "granted" | "denied" | "unavailable";
+
+// Proactively check — and, when still undetermined, request — the native camera
+// permission *before* we open the camera. This is what makes the Foot Scan
+// capture screen work on a fresh install: iOS renders the live preview through
+// WKWebView's getUserMedia, which opens to a black frame the first time if the
+// OS camera permission hasn't been granted yet; Android opens the native
+// camera/photo picker. Surfacing the system dialog up-front means the camera
+// actually shows instead of a black screen.
+//
+// On the web there is no native permission to manage (the browser prompts on
+// getUserMedia itself), so this resolves to "unavailable" and callers just
+// proceed with their existing flow.
+export async function ensureCameraPermission(): Promise<CameraPermissionResult> {
+  if (!nativeCameraAvailable()) return "unavailable";
+  try {
+    const { Camera } = await import("@capacitor/camera");
+    let status = await Camera.checkPermissions();
+    if (status.camera === "prompt" || status.camera === "prompt-with-rationale") {
+      status = await Camera.requestPermissions({ permissions: ["camera"] });
+    }
+    return status.camera === "granted" || status.camera === "limited" ? "granted" : "denied";
+  } catch {
+    // Plugin/runtime error — let the caller fall back to its normal flow.
+    return "unavailable";
+  }
+}
+
 // Capture a photo with the camera, or pick one from the library, through the
 // native UI and return it as a File. `prompt` lets iOS show its own
 // "Take Photo / Choose from Library" sheet. Resolves to null when the user
