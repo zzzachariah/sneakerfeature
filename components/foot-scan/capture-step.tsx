@@ -11,12 +11,15 @@
 // the photo up with the outline.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Timer, Images } from "lucide-react";
+import { Camera, Timer, Images, AlertTriangle } from "lucide-react";
 import { Capacitor } from "@capacitor/core";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { haptics } from "@/lib/native/haptics";
 import { useDeviceTilt, type TiltTarget } from "@/lib/foot-scan/orientation";
+import { FOOT_SCAN_CONFIG } from "@/lib/foot-scan/config";
+import { assessImageQuality, frameSharpness, type QualityIssue } from "@/lib/foot-scan/image-quality";
+import { getCameraFovDeg } from "@/lib/native/foot-scan-native";
 import { ensureCameraPermission, nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
 import { FootOverlay } from "@/components/foot-scan/foot-overlays";
 import { AdjustImage } from "@/components/foot-scan/adjust-image";
@@ -31,7 +34,21 @@ export type ShotConfig = {
   mode: "handheld" | "propped";
 };
 
+// Metadata captured alongside the image and passed up to the analyzer. Tilt is
+// the phone's orientation at the shutter (live capture only — null for picked
+// photos); fovDeg is the native camera field of view (null on web / no plugin).
+// Used server-side for the angle gate + perspective correction.
+export type CaptureMeta = { tilt: { beta: number | null; gamma: number | null; fovDeg: number | null } | null };
+
 const MAX_DIM = 1568;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const QUALITY_HINT: Record<QualityIssue, string> = {
+  blurry: "This shot looks blurry — hold steady and retake for a more accurate read.",
+  too_dark: "This shot looks dark — add light and retake for a more accurate read.",
+  too_bright: "This shot looks overexposed — reduce glare and retake for a more accurate read."
+};
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -76,13 +93,22 @@ export function CaptureStep({
   side: FootSide;
   index: number;
   total: number;
-  onCaptured: (dataUrl: string) => void;
+  onCaptured: (dataUrl: string, meta: CaptureMeta) => void;
   onBack?: () => void;
 }) {
   const { translate } = useLocale();
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<number | null>(null);
+  // Latest tilt, kept in a ref so capture() can read it at the shutter without
+  // re-creating the callback on every sensor tick.
+  const tiltLiveRef = useRef<{ beta: number | null; gamma: number | null }>({ beta: null, gamma: null });
+  // Tilt frozen at the moment of capture, sent up with the confirmed image.
+  const capturedTiltRef = useRef<{ beta: number | null; gamma: number | null; fovDeg: number | null } | null>(null);
+  // Native camera FOV (degrees), read once; null on web / when the plugin is
+  // absent, in which case the analyzer uses the scalar tilt correction.
+  const fovRef = useRef<number | null>(null);
+  const [qualityIssue, setQualityIssue] = useState<QualityIssue | null>(null);
 
   // Android WebView getUserMedia is unreliable, so go straight to the device
   // camera there. iOS app + web try the live preview first.
@@ -97,6 +123,19 @@ export function CaptureStep({
   const [permissionBlocked, setPermissionBlocked] = useState(false);
 
   const tilt = useDeviceTilt(config.tilt);
+  // Mirror the live tilt into a ref each render so capture() reads it cheaply.
+  tiltLiveRef.current = { beta: tilt.beta, gamma: tilt.gamma };
+
+  // Read the native camera FOV once (null on web / no plugin → scalar de-tilt).
+  useEffect(() => {
+    let alive = true;
+    getCameraFovDeg().then((v) => {
+      if (alive) fovRef.current = v;
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -111,10 +150,13 @@ export function CaptureStep({
     setCount(0);
   }, []);
 
-  const capture = useCallback(() => {
+  const capture = useCallback(async () => {
     clearTimer();
     const video = videoRef.current;
     if (!video || !video.videoWidth) return;
+    // Freeze the device tilt + FOV at the shutter — sent up for the angle gate
+    // and the perspective de-tilt.
+    capturedTiltRef.current = { ...tiltLiveRef.current, fovDeg: fovRef.current };
     const scale = Math.min(1, MAX_DIM / Math.max(video.videoWidth, video.videoHeight));
     const w = Math.round(video.videoWidth * scale);
     const h = Math.round(video.videoHeight * scale);
@@ -123,12 +165,25 @@ export function CaptureStep({
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(video, 0, 0, w, h);
-    const url = canvas.toDataURL("image/jpeg", 0.9);
+    // Short burst behind the single tap: keep the sharpest frame so a moment of
+    // hand-shake doesn't decide the shot. No extra action for the user.
+    const { burstFrames, burstIntervalMs } = FOOT_SCAN_CONFIG.quality;
+    let url = "";
+    let bestScore = -1;
+    for (let i = 0; i < Math.max(1, burstFrames); i++) {
+      const score = frameSharpness(video);
+      if (score > bestScore) {
+        ctx.drawImage(video, 0, 0, w, h);
+        url = canvas.toDataURL("image/jpeg", 0.9);
+        bestScore = score;
+      }
+      if (i < burstFrames - 1) await sleep(burstIntervalMs);
+    }
     stopStream();
     setCaptured(url);
     setMode("captured");
     haptics.success();
+    setQualityIssue(await assessImageQuality(url));
   }, [clearTimer, stopStream]);
 
   // Camera lifecycle (re-runs on retake via `attempt`). The <video> is rendered
@@ -216,14 +271,18 @@ export function CaptureStep({
   async function handleFile(file: File | null) {
     if (!file) return;
     const url = await downscale(await fileToDataUrl(file));
+    // Library / native-picker photos carry no live IMU reading.
+    capturedTiltRef.current = null;
     stopStream();
     setCaptured(url);
     setMode("captured");
     haptics.success();
+    setQualityIssue(await assessImageQuality(url));
   }
 
   function retake() {
     setCaptured(null);
+    setQualityIssue(null);
     setMode(skipLive ? "photo" : "starting");
     setAttempt((a) => a + 1);
   }
@@ -261,7 +320,19 @@ export function CaptureStep({
     return (
       <div className="flex flex-col gap-4">
         {header}
-        <AdjustImage src={captured} view={config.view} side={side} onConfirm={onCaptured} onRetake={retake} />
+        {qualityIssue && (
+          <div className="flex items-start gap-2 rounded-xl bg-amber-500/12 p-3 text-sm">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <span className="soft-text">{translate(QUALITY_HINT[qualityIssue])}</span>
+          </div>
+        )}
+        <AdjustImage
+          src={captured}
+          view={config.view}
+          side={side}
+          onConfirm={(u) => onCaptured(u, { tilt: capturedTiltRef.current })}
+          onRetake={retake}
+        />
       </div>
     );
   }

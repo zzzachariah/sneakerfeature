@@ -160,13 +160,17 @@ const TOE_ZH: Record<string, string> = {
   roman: "罗马型(前几趾齐平)",
   square: "方型(脚趾齐平)"
 };
+// Bunion screening — surfaced to the model only when there's a sign, framed as
+// an appearance hint for last/toe-box choice (not a medical condition).
+const HALLUX_ZH: Record<string, string> = { none: "无", mild: "轻度", moderate_plus: "明显" };
 
 function formatFootProfile(fp: FootProfile): string {
   const w = FOOT_WIDTH_ZH[fp.foot_width] ?? fp.foot_width;
   const i = INSTEP_ZH[fp.instep] ?? fp.instep;
   const t = TOE_ZH[fp.toe_shape] ?? fp.toe_shape;
+  const hx = fp.hallux && fp.hallux !== "none" ? `；拇趾外翻迹象=${HALLUX_ZH[fp.hallux] ?? fp.hallux}` : "";
   const len = fp.foot_length_mm ? `；脚长≈${fp.foot_length_mm}mm` : "";
-  return `脚宽=${w}；脚背=${i}；脚趾型=${t}${len}`;
+  return `脚宽=${w}；脚背=${i}；脚趾型=${t}${hx}${len}`;
 }
 
 // Up to 3 deduped blogger pros/cons for a shoe, handed to the model as real
@@ -815,7 +819,7 @@ export async function recommendShoes(
   }
   const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
   const footSuffix = opts.footProfile
-    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好）。`
+    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
     : "";
   // The strict output contract lives here in the final user turn — the model's
   // "last word" — so it isn't buried under the long prompt + catalog above and

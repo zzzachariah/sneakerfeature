@@ -64,6 +64,7 @@ export function buildFootProfile(result: FootScanResult, scannedAt: string): Foo
     foot_width: result.primary.traits.width,
     instep: result.primary.traits.instep,
     toe_shape: result.primary.traits.toe_shape,
+    hallux: result.primary.traits.hallux,
     foot_length_mm: result.primary.measurements.foot_length_mm,
     foot_width_mm: result.primary.measurements.foot_width_mm,
     scanned_at: scannedAt

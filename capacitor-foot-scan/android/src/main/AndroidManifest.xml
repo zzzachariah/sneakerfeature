@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Merged into the host app manifest. CAMERA is needed for the ARCore depth
+         scan (the photo path already requests it at runtime). -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- ARCore is optional; the plugin reports unsupported when it's absent. -->
+    <uses-feature android:name="com.google.ar.core" android:required="false" />
+    <application>
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
+    </application>
+</manifest>

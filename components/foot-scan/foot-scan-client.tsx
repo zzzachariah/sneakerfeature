@@ -3,13 +3,16 @@
 // Orchestrates the hidden Foot Scan flow:
 //   checklist → size anchor → guided capture (3-4 shots) → analyse → report.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
+import { getDepthSupport } from "@/lib/native/foot-scan-native";
+import { requestMotionPermission } from "@/lib/foot-scan/orientation";
 import { ChecklistStep } from "@/components/foot-scan/checklist-step";
 import { SizeStep, type SizeChoice } from "@/components/foot-scan/size-step";
-import { CaptureStep, type ShotConfig } from "@/components/foot-scan/capture-step";
+import { CaptureStep, type ShotConfig, type CaptureMeta } from "@/components/foot-scan/capture-step";
+import { DepthCapture } from "@/components/foot-scan/depth-capture";
 import { ResultStep } from "@/components/foot-scan/result-step";
 import type { FootScanResult, FootSide, ViewId } from "@/lib/foot-scan/types";
 
@@ -67,7 +70,7 @@ const SHOTS: Record<ViewId, ShotConfig> = {
   }
 };
 
-type Step = "checklist" | "size" | "capture" | "analyzing" | "result" | "error";
+type Step = "checklist" | "size" | "capture" | "analyzing" | "result" | "error" | "depth_beta";
 
 export function FootScanClient() {
   const { translate, locale } = useLocale();
@@ -76,20 +79,39 @@ export function FootScanClient() {
   const [shotList, setShotList] = useState<ViewId[]>([]);
   const [shotIndex, setShotIndex] = useState(0);
   const [captures, setCaptures] = useState<Partial<Record<ViewId, string>>>({});
+  const [metas, setMetas] = useState<Partial<Record<ViewId, CaptureMeta>>>({});
   const [result, setResult] = useState<FootScanResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  // Depth-sensor capability for the Beta high-precision path (false until proven
+  // — web / no native plugin / unsupported device all stay false).
+  const [depthSupported, setDepthSupported] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getDepthSupport().then((s) => {
+      if (alive) setDepthSupported(s.supported);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   function startCapture(c: SizeChoice) {
     setChoice(c);
     setCaptures({});
+    setMetas({});
     const list: ViewId[] = c.captureBoth ? ["top", "oblique", "side", "top_other"] : ["top", "oblique", "side"];
     setShotList(list);
     setShotIndex(0);
     setStep("capture");
   }
 
-  async function analyze(c: SizeChoice, caps: Partial<Record<ViewId, string>>) {
+  async function analyze(
+    c: SizeChoice,
+    caps: Partial<Record<ViewId, string>>,
+    capMetas: Partial<Record<ViewId, CaptureMeta>>
+  ) {
     if (!caps.top || !caps.oblique || !caps.side) {
       setErrorMsg(translate("Missing one of the required photos."));
       setStep("error");
@@ -104,7 +126,13 @@ export function FootScanClient() {
           primarySide: c.primarySide,
           footLengthMm: c.footLengthMm,
           locale,
-          images: { top: caps.top, oblique: caps.oblique, side: caps.side, top_other: caps.top_other ?? null }
+          images: { top: caps.top, oblique: caps.oblique, side: caps.side, top_other: caps.top_other ?? null },
+          tilt: {
+            top: capMetas.top?.tilt ?? null,
+            oblique: capMetas.oblique?.tilt ?? null,
+            side: capMetas.side?.tilt ?? null,
+            top_other: capMetas.top_other?.tilt ?? null
+          }
         })
       });
       const data = await res.json();
@@ -122,15 +150,17 @@ export function FootScanClient() {
     }
   }
 
-  function handleCaptured(url: string) {
+  function handleCaptured(url: string, meta: CaptureMeta) {
     if (!choice) return;
     const view = shotList[shotIndex];
     const nextCaptures = { ...captures, [view]: url };
+    const nextMetas = { ...metas, [view]: meta };
     setCaptures(nextCaptures);
+    setMetas(nextMetas);
     if (shotIndex + 1 < shotList.length) {
       setShotIndex(shotIndex + 1);
     } else {
-      void analyze(choice, nextCaptures);
+      void analyze(choice, nextCaptures, nextMetas);
     }
   }
 
@@ -144,6 +174,7 @@ export function FootScanClient() {
   function reset() {
     setChoice(null);
     setCaptures({});
+    setMetas({});
     setResult(null);
     setScanId(null);
     setShotIndex(0);
@@ -168,7 +199,30 @@ export function FootScanClient() {
         <p className="mt-1 text-sm soft-text">{translate("Discover your foot shape in about a minute.")}</p>
       </header>
 
-      {step === "checklist" && <ChecklistStep onReady={() => setStep("size")} />}
+      {step === "checklist" && (
+        <ChecklistStep
+          onReady={() => {
+            // Proactively request iOS motion permission here, inside the tap, so
+            // the tilt de-tilt + angle gate work by default in the capture step.
+            void requestMotionPermission();
+            setStep("size");
+          }}
+          depthSupported={depthSupported}
+          onChooseDepthBeta={() => setStep("depth_beta")}
+        />
+      )}
+
+      {step === "depth_beta" && (
+        <DepthCapture
+          onComplete={(r) => {
+            setResult(r);
+            setScanId(null);
+            setStep("result");
+          }}
+          onUsePhoto={() => setStep("size")}
+          onBack={() => setStep("checklist")}
+        />
+      )}
 
       {step === "size" && <SizeStep onSubmit={startCapture} />}
 

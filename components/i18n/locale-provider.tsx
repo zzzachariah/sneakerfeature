@@ -889,6 +889,29 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   // checklist
   "before you start": "开始前",
   "takes about a minute. check each item to continue.": "大约一分钟。逐项勾选后开始。",
+  // high-precision (depth) Beta entry
+  "high-precision scan": "高精度扫描",
+  "uses your phone's depth sensor (lidar/tof) for millimetre measurements.":
+    "用手机的深度传感器（LiDAR/ToF）做毫米级测量。",
+  "try high-precision scan (beta)": "试用高精度扫描（Beta）",
+  "beta unavailable — this device has no supported depth sensor.":
+    "Beta 暂不可用——此设备没有受支持的深度传感器。",
+  "your device supports depth scanning. this beta is rolling out soon — for now, use the photo scan.":
+    "你的设备支持深度扫描。该 Beta 即将开放——目前请先使用照片扫描。",
+  "use photo scan": "使用照片扫描",
+  // depth (Beta) capture flow
+  "scanning… slowly move the phone around your foot.": "扫描中…缓慢绕脚移动手机。",
+  "couldn't complete the depth scan on this device. use the photo scan instead.":
+    "无法在此设备上完成深度扫描，请改用照片扫描。",
+  "your device's depth sensor measures real millimetres — length, width, instep height and ball girth.":
+    "你设备的深度传感器可实测毫米——脚长、脚宽、脚背高和跖围。",
+  "stand with your foot flat on a plain floor.": "站立，脚平放在颜色单一的地面上。",
+  "hold the phone ~30 cm above and to the side of your foot.": "把手机举在脚的上方偏侧约 30 厘米处。",
+  "slowly arc the phone around the foot until it's fully covered.": "缓慢绕脚划弧，直到整只脚都被扫到。",
+  "start depth scan": "开始深度扫描",
+  "camera access is needed for the depth scan. turn it on in settings, or use the photo scan.":
+    "深度扫描需要相机权限。请在系统设置中开启，或改用照片扫描。",
+  "ball girth": "跖围",
   "barefoot, or thin socks (thick socks affect accuracy)": "赤脚，或穿薄袜（厚袜会影响准确度）",
   "the floor is a plain colour that contrasts with my foot": "地面颜色单一，且与脚部有明显反差",
   "lighting is even — no strong shadows or backlight": "光线均匀——没有强烈阴影或逆光",
@@ -987,6 +1010,20 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "low instep": "低脚背",
   "normal instep": "正常脚背",
   "high instep": "偏高脚背",
+  // big-toe alignment (bunion screening — non-clinical)
+  "big-toe alignment": "拇趾朝向",
+  "no bunion sign": "无外翻迹象",
+  "mild bunion lean": "轻度外翻",
+  "noticeable bunion lean": "明显外翻",
+  "straight": "笔直",
+  "leaning": "外翻",
+  // capture quality hints
+  "this shot looks blurry — hold steady and retake for a more accurate read.":
+    "这张照片有点模糊——拿稳手机重拍可提高准确度。",
+  "this shot looks dark — add light and retake for a more accurate read.":
+    "这张照片偏暗——增加光线后重拍可提高准确度。",
+  "this shot looks overexposed — reduce glare and retake for a more accurate read.":
+    "这张照片过曝——减少反光后重拍可提高准确度。",
   "egyptian (big toe longest)": "埃及型（拇趾最长）",
   "greek (second toe longest)": "希腊型（二趾最长）",
   "roman (first three even)": "罗马型（前三趾齐平）",

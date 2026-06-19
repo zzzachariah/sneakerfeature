@@ -4,7 +4,7 @@
 // the camera opens, so we waste fewer shots on bad inputs.
 
 import { useState } from "react";
-import { Footprints } from "lucide-react";
+import { Footprints, Sparkles } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 
@@ -15,7 +15,17 @@ const ITEMS = [
   "The area around my foot is clear"
 ];
 
-export function ChecklistStep({ onReady }: { onReady: () => void }) {
+export function ChecklistStep({
+  onReady,
+  depthSupported,
+  onChooseDepthBeta
+}: {
+  onReady: () => void;
+  // Whether the device has a usable depth sensor (LiDAR/ToF/ARCore). Gates the
+  // Beta high-precision option; false → "Beta unavailable".
+  depthSupported: boolean;
+  onChooseDepthBeta: () => void;
+}) {
   const { translate } = useLocale();
   const [checked, setChecked] = useState<boolean[]>(ITEMS.map(() => false));
   const allChecked = checked.every(Boolean);
@@ -53,6 +63,27 @@ export function ChecklistStep({ onReady }: { onReady: () => void }) {
       <Button variant="primary" disabled={!allChecked} onClick={onReady}>
         {translate("Start scanning")}
       </Button>
+
+      {/* Beta high-precision (depth) entry — gated by device capability. */}
+      <div className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--surface)/0.4)] p-3">
+        <p className="flex items-center gap-1.5 text-sm font-medium">
+          <Sparkles className="h-3.5 w-3.5" />
+          {translate("High-precision scan")}
+          <span className="rounded bg-[rgb(var(--text)/0.1)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide">Beta</span>
+        </p>
+        <p className="mt-0.5 text-xs soft-text">
+          {translate("Uses your phone's depth sensor (LiDAR/ToF) for millimetre measurements.")}
+        </p>
+        {depthSupported ? (
+          <Button variant="secondary" className="mt-2 w-full" onClick={onChooseDepthBeta}>
+            {translate("Try high-precision scan (Beta)")}
+          </Button>
+        ) : (
+          <p className="mt-2 text-xs text-[rgb(var(--subtext))]">
+            {translate("Beta unavailable — this device has no supported depth sensor.")}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

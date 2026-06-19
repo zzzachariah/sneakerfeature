@@ -1,0 +1,25 @@
+{
+  "name": "capacitor-foot-scan",
+  "version": "0.0.1",
+  "description": "Native Foot Scan helpers for the sneakerfeature Capacitor app: camera field-of-view (for exact perspective de-tilt) and depth-sensor capability detection (LiDAR/ToF, gating the Beta high-precision scan). iOS implemented; Android TODO; web is a no-op (handled in lib/native/foot-scan-native.ts).",
+  "private": true,
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "files": [
+    "ios/",
+    "android/",
+    "FootScan.podspec"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native"
+  ],
+  "license": "MIT"
+}

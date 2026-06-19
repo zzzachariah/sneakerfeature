@@ -18,6 +18,8 @@ import {
   INSTEP_LABEL,
   TOE_LABEL,
   TOE_SHORT,
+  HALLUX_LABEL,
+  HALLUX_SCALE,
   CONFIDENCE_LABEL,
   SIDE_LABEL,
   WIDTH_SCALE,
@@ -223,6 +225,22 @@ export function ResultStep({
             </div>
           </div>
 
+          {/* big-toe alignment (bunion screening — non-clinical) */}
+          <div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">
+                {translate("Big-toe alignment")}: {translate(HALLUX_LABEL[p.traits.hallux ?? "none"])}
+              </span>
+              <ConfBadge level={p.confidence.hallux ?? "low"} />
+            </div>
+            <ScaleBar
+              value={HALLUX_SCALE[p.traits.hallux ?? "none"]}
+              average={HALLUX_SCALE.none}
+              leftLabel="Straight"
+              rightLabel="Leaning"
+            />
+          </div>
+
           {/* measurements */}
           <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-[rgb(var(--text)/0.08)] pt-3 text-xs soft-text">
             <span>
@@ -231,6 +249,11 @@ export function ResultStep({
             {m.foot_width_mm !== null && (
               <span>
                 {translate("Width")}: ~{(m.foot_width_mm / 10).toFixed(1)} cm
+              </span>
+            )}
+            {m.ball_girth_mm != null && (
+              <span>
+                {translate("Ball girth")}: ~{(m.ball_girth_mm / 10).toFixed(1)} cm
               </span>
             )}
             {result.asymmetry && (
