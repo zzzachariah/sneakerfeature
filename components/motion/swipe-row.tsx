@@ -1,7 +1,7 @@
 "use client";
 
 import { animate, motion, useMotionValue, useReducedMotion } from "framer-motion";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/native/haptics";
 import { SPRING } from "@/lib/motion/constants";
@@ -36,8 +36,15 @@ export function SwipeRow({
   const reduce = useReducedMotion();
   const x = useMotionValue(0);
   const openRef = useRef(false);
+  // Only enable on touch (coarse) pointers so a desktop mouse never drags rows.
+  // Starts false → renders a plain row on the server + first client paint (no
+  // hydration mismatch), then upgrades on touch devices after mount.
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    setTouch(window.matchMedia("(pointer: coarse)").matches);
+  }, []);
 
-  if (reduce || actions.length === 0) {
+  if (reduce || !touch || actions.length === 0) {
     return <div className={className}>{children}</div>;
   }
 

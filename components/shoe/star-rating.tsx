@@ -77,7 +77,7 @@ export function StarRating({
                 aria-hidden
               />
               <span
-                className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden"
+                className="star-fill pointer-events-none absolute inset-y-0 left-0 overflow-hidden"
                 style={{ width: `${pct}%` }}
               >
                 <Star

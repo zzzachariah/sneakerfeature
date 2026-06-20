@@ -15,6 +15,7 @@ import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
 import { HapticsToggle } from "@/components/preferences/haptics-toggle";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
+import { SwipeRow } from "@/components/motion/swipe-row";
 
 export type DashboardComment = {
   id: string;
@@ -219,10 +220,19 @@ export function DashboardSlides(props: Props) {
                     ) as Route;
                     const deleting = props.deletingCompareId === item.id;
                     return (
-                      <div
+                      <SwipeRow
                         key={item.id}
-                        className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm"
+                        className="rounded-2xl"
+                        actions={[
+                          {
+                            label: translate("Delete"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            tone: "danger",
+                            onAction: () => props.onDeleteCompare(item.id)
+                          }
+                        ]}
                       >
+                      <div className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate font-medium">{item.title}</p>
@@ -254,6 +264,7 @@ export function DashboardSlides(props: Props) {
                           </div>
                         </div>
                       </div>
+                      </SwipeRow>
                     );
                   })
                 )}

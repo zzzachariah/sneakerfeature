@@ -1193,9 +1193,15 @@ html[data-native-platform="ios"] [data-download-entry] {
   100% { transform: scale(1); }
 }
 .count-pop { animation: countPop 560ms var(--ease); }
+
+/* Star rating: the gold fill glides to the hovered/selected value instead of
+   snapping (components/shoe/star-rating.tsx). */
+.star-fill { transition: width 160ms var(--ease); }
+
 @media (prefers-reduced-motion: reduce) {
   .scan-line { animation: none; opacity: 0; }
   .count-pop { animation: none; }
+  .star-fill { transition: none; }
 }
 
 /* Safe-area utility (iOS + Android edge-to-edge). Uses the floored --safe-bottom
