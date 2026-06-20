@@ -114,7 +114,9 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             />
           </div>
           {chips.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+            // Clear the bottom-right "Why?" button (absolute, always visible on
+            // mobile) so chips never slide underneath it.
+            <div className={`mt-1.5 flex flex-wrap gap-1 ${hasReasons ? "pr-10" : ""}`}>
               {chips.map((c) => (
                 <span
                   key={c.key}
