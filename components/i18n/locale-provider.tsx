@@ -569,6 +569,12 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "saved ratings & compares, synced": "评分与对比云端同步",
   "sign in to save this compare to your account.": "登录后即可把这次对比保存到你的账号。",
   "log in to save": "登录并保存",
+
+  // Homepage scene collections
+  "guards: speed & grip": "后卫：提速与抓地",
+  "big-man protection": "内线：保护与稳定",
+  "lightweight & quick": "轻量快速",
+  "top rated": "高分精选",
   "your personalized feed": "你的个性化推荐",
   "your player avatar": "你的球员形象",
   "edit your player profile": "编辑你的球员档案",

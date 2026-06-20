@@ -20,6 +20,8 @@ type Props = {
   compareEnabled?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Extra classes on the outer <li> — e.g. fixed width for horizontal rails. */
+  className?: string;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -33,7 +35,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect }: Props) {
+export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const [whyOpen, setWhyOpen] = useState(false);
@@ -62,7 +64,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
   const hasReasons = reasons && reasons.length > 0;
 
   return (
-    <li className="group relative">
+    <li className={`group relative ${className ?? ""}`}>
       <Link
         href={href}
         prefetch
