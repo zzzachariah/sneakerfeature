@@ -10,6 +10,7 @@ import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { haptics } from "@/lib/native/haptics";
 import { nativeCameraAvailable, pickPhotoFile } from "@/lib/native/camera";
+import { BgRemovedImg } from "@/components/shoe/bg-removed-img";
 
 const MAX_BYTES = 6 * 1024 * 1024;
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
@@ -166,8 +167,7 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
             >
               {preview ? (
                 <span className="aspect-square w-40 overflow-hidden rounded-lg border border-[rgb(var(--muted)/0.45)] bg-white">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={preview} alt={translate("Selected image preview")} className="h-full w-full object-contain" />
+                  <BgRemovedImg src={preview} alt={translate("Selected image preview")} className="h-full w-full object-contain" />
                 </span>
               ) : (
                 <UploadCloud className="h-8 w-8" />

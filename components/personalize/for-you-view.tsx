@@ -24,6 +24,7 @@ import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
 import { haptics } from "@/lib/native/haptics";
 import type { DigestCompareShoe, DigestRecommendation } from "@/lib/personalize/digest";
+import { BgRemovedImg } from "@/components/shoe/bg-removed-img";
 
 export type ForYouShoe = { id: string; name: string; slug: string; image: string | null; brand: string };
 
@@ -261,8 +262,7 @@ function ShoeThumb({
 }) {
   if (shoe.image) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <BgRemovedImg
         src={shoe.image}
         alt={shoe.name}
         loading="lazy"
