@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { verifyHumanToken } from "@/lib/human-verify";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  const verified = verifyHumanToken(parsed.data.verificationToken, "forgot-password");
+  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
   if (!verified.success) {
     return NextResponse.json({ ok: false, message: verified.message ?? "Human verification failed." }, { status: 400 });
   }
