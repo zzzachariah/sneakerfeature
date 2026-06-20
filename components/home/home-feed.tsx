@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
-import { SearchX, X } from "lucide-react";
+import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { SearchX, SlidersHorizontal, X } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,11 @@ import { useLocalShoes } from "@/lib/local/use-local-shoes";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
+import { ShoeFacets } from "@/components/home/shoe-facets";
+import { EMPTY_FACETS, facetCount, matchesFacets, type FacetState } from "@/lib/filters/shoe-facets";
+
+const INITIAL_VISIBLE = 48;
+const VISIBLE_STEP = 36;
 
 export function HomeFeed({
   shoes: initialShoes,
@@ -44,6 +49,11 @@ export function HomeFeed({
   const [selected, setSelected] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState(false);
   const [revealed, setRevealed] = useState(active);
+  const [facets, setFacets] = useState<FacetState>(EMPTY_FACETS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const activeFacetCount = facetCount(facets);
 
   useEffect(() => {
     if (!active) return;
@@ -82,7 +92,10 @@ export function HomeFeed({
   const filtered = useMemo(() => {
     const list = scored
       .map((entry) => ({ ...entry, searchScore: rankShoeMatch(entry.shoe, query) }))
-      .filter(({ shoe, searchScore }) => searchScore >= 0 && (brand === "all" || shoe.brand === brand));
+      .filter(
+        ({ shoe, searchScore }) =>
+          searchScore >= 0 && (brand === "all" || shoe.brand === brand) && matchesFacets(shoe, facets)
+      );
 
     return list.sort((a, b) => {
       if (query.trim() && b.searchScore !== a.searchScore) return b.searchScore - a.searchScore;
@@ -97,9 +110,38 @@ export function HomeFeed({
       if (av !== bv) return bv - av;
       return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
     });
-  }, [scored, query, brand, mode]);
+  }, [scored, query, brand, mode, facets]);
 
   const brands = Array.from(new Set(shoes.map((s) => s.brand)));
+
+  // Progressive rendering: reset the window whenever the result set changes.
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE);
+  }, [query, brand, mode, facets]);
+
+  // Grow the window as the sentinel nears the viewport. Re-runs on each grow so
+  // it keeps filling until the sentinel leaves range or every shoe is shown;
+  // falls back to rendering everything where IntersectionObserver is missing, so
+  // nothing is ever hidden.
+  useEffect(() => {
+    if (visibleCount >= filtered.length) return;
+    const node = sentinelRef.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisibleCount(filtered.length);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((c) => Math.min(filtered.length, c + VISIBLE_STEP));
+        }
+      },
+      { rootMargin: "800px 0px" }
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [visibleCount, filtered.length]);
 
   function runSearch(e?: FormEvent) {
     e?.preventDefault();
@@ -221,6 +263,24 @@ export function HomeFeed({
             </Button>
             <button
               type="button"
+              onClick={() => setFiltersOpen((v) => !v)}
+              aria-expanded={filtersOpen}
+              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium leading-none transition md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] ${
+                filtersOpen || activeFacetCount > 0
+                  ? "border-[rgb(var(--brand)/0.6)] text-[rgb(var(--brand))]"
+                  : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))]"
+              }`}
+            >
+              <SlidersHorizontal className="h-4 w-4 md:h-3.5 md:w-3.5" />
+              {translate("Filters")}
+              {activeFacetCount > 0 && (
+                <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1 text-[0.62rem] font-semibold tabular-nums text-[rgb(var(--brand-contrast))]">
+                  {activeFacetCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 setCompareMode((v) => {
                   if (v) setSelected([]);
@@ -256,6 +316,10 @@ export function HomeFeed({
         </div>
         </div>
 
+          {filtersOpen && (
+            <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} />
+          )}
+
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center soft-text">
               <SearchX className="h-5 w-5" />
@@ -266,6 +330,7 @@ export function HomeFeed({
                   setSearchDraft("");
                   setQuery("");
                   setBrand("all");
+                  setFacets(EMPTY_FACETS);
                 }}
                 className="text-xs text-[rgb(var(--text))] underline-offset-2 hover:underline"
               >
@@ -273,19 +338,25 @@ export function HomeFeed({
               </button>
             </div>
           ) : (
-            <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {filtered.map(({ shoe, score, reasons }) => (
-                <ShoeCard
-                  key={shoe.id}
-                  shoe={shoe}
-                  matchScore={mode === "personalized" ? score : null}
-                  reasons={mode === "personalized" ? reasons : []}
-                  compareEnabled={compareMode}
-                  selected={selected.includes(shoe.id)}
-                  onToggleSelect={() => toggleSelect(shoe.id)}
-                />
-              ))}
-            </ul>
+            <>
+              <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                {filtered.slice(0, visibleCount).map(({ shoe, score, reasons }) => (
+                  <ShoeCard
+                    key={shoe.id}
+                    shoe={shoe}
+                    matchScore={mode === "personalized" ? score : null}
+                    reasons={mode === "personalized" ? reasons : []}
+                    showChips={mode === "personalized"}
+                    compareEnabled={compareMode}
+                    selected={selected.includes(shoe.id)}
+                    onToggleSelect={() => toggleSelect(shoe.id)}
+                  />
+                ))}
+              </ul>
+              {visibleCount < filtered.length && (
+                <div ref={sentinelRef} aria-hidden className="h-6 w-full" />
+              )}
+            </>
           )}
 
       <p className="mt-4 text-center text-[0.72rem] tracking-[0.02em] soft-text" style={revealStyle(320)}>
