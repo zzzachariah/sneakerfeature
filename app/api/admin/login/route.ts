@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { z } from "zod";
-import { verifyHumanToken } from "@/lib/human-verify";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  const verified = verifyHumanToken(parsed.data.verificationToken, "admin-login");
+  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
   if (!verified.success) {
     return NextResponse.json({ ok: false, message: verified.message ?? "Verification failed." }, { status: 400 });
   }
