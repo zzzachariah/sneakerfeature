@@ -596,6 +596,15 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "saved shoes": "已收藏球鞋",
   "no saved shoes yet. tap the heart on any shoe.": "还没有收藏的球鞋。点任意球鞋上的爱心即可收藏。",
   "sign in to save shoes.": "登录后即可收藏球鞋。",
+
+  // More performance facets + Quick Picker priority step
+  "bouncy": "弹跳出色",
+  "great court feel": "场地感出色",
+  "locked-in fit": "包裹锁定",
+  "balanced": "均衡",
+  "what matters most?": "最看重什么？",
+  "optional — we'll rank your matches by this.": "可选 —— 我们会据此为你排序。",
+  "use my saved profile": "沿用我的球员档案",
   "your personalized feed": "你的个性化推荐",
   "your player avatar": "你的球员形象",
   "edit your player profile": "编辑你的球员档案",
