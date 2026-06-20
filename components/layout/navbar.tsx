@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Download, Gavel, HelpCircle, Languages, Menu, Search, Sparkles, User } from "lucide-react";
+import { Check, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
@@ -275,7 +275,8 @@ export function Navbar() {
                 {[
                   { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use" },
                   { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy" },
-                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer" }
+                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer" },
+                  { href: "/announcements" as const, label: zh ? "公告" : "Announcements" }
                 ].map((l) => (
                   <Link
                     key={l.href}
@@ -427,9 +428,10 @@ export function Navbar() {
                 <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
 
                 {[
-                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use" },
-                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy" },
-                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer" }
+                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
+                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
+                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
+                  { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
                 ].map((l) => (
                   <Link
                     key={l.href}
@@ -437,7 +439,7 @@ export function Navbar() {
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
-                    <Gavel className="h-4 w-4 shrink-0" />
+                    <l.icon className="h-4 w-4 shrink-0" />
                     {l.label}
                   </Link>
                 ))}
