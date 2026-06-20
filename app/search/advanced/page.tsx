@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { getShoes } from "@/lib/data/shoes";
 import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
 import type { Metadata } from "next";
@@ -148,25 +149,27 @@ export default async function AdvancedSearchPage({
           </Card>
         )}
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <Stagger className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" gap={0.04}>
           {filtered.map((shoe) => (
-            <Card key={shoe.id} className="p-4">
-              <p className="text-xs soft-text">{shoe.brand}{shoe.category ? ` • ${shoe.category}` : ""}</p>
-              <h3 className="mt-1 font-semibold">{shoe.shoe_name}</h3>
-              <p className="mt-1 text-xs soft-text">
-                {shoe.player ?? <DynamicTranslatedText text="No player tag" />}
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {(shoe.spec.tags ?? []).slice(0, 3).map((tag) => <Badge key={tag}>{tag}</Badge>)}
-              </div>
-              <div className="mt-3">
-                <Link href={`/shoes/${shoe.slug}`} className="text-sm text-[rgb(var(--accent))] hover:underline">
-                  <DynamicTranslatedText text="Open detail" />
-                </Link>
-              </div>
-            </Card>
+            <StaggerItem key={shoe.id}>
+              <Card className="p-4">
+                <p className="text-xs soft-text">{shoe.brand}{shoe.category ? ` • ${shoe.category}` : ""}</p>
+                <h3 className="mt-1 font-semibold">{shoe.shoe_name}</h3>
+                <p className="mt-1 text-xs soft-text">
+                  {shoe.player ?? <DynamicTranslatedText text="No player tag" />}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(shoe.spec.tags ?? []).slice(0, 3).map((tag) => <Badge key={tag}>{tag}</Badge>)}
+                </div>
+                <div className="mt-3">
+                  <Link href={`/shoes/${shoe.slug}`} className="text-sm text-[rgb(var(--accent))] hover:underline">
+                    <DynamicTranslatedText text="Open detail" />
+                  </Link>
+                </div>
+              </Card>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </section>
     </main>
   );

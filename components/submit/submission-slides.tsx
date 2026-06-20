@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { HumanCheck } from "@/components/ui/human-check";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 
 export type SubmissionSlidesHandle = {
   goTo: (index: number) => void;
@@ -237,9 +238,9 @@ function FieldGrid({
 }) {
   const colsClass = cols === 3 ? "md:grid-cols-3" : cols === 2 ? "md:grid-cols-2" : "";
   return (
-    <div className={`grid gap-4 ${colsClass}`}>
+    <Stagger className={`grid gap-4 ${colsClass}`} gap={0.05}>
       {fields.map((f) => (
-        <div key={f.name}>
+        <StaggerItem key={f.name}>
           <label className="mb-1 flex items-center gap-2 text-xs soft-text">
             {f.required && (
               <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[rgb(var(--accent))]" />
@@ -252,8 +253,8 @@ function FieldGrid({
             placeholder={translate(f.label)}
             defaultValue={valueOf(f.name)}
           />
-        </div>
+        </StaggerItem>
       ))}
-    </div>
+    </Stagger>
   );
 }
