@@ -80,10 +80,11 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             alt={shoe.shoe_name}
             fallbackLabel={translate("No image")}
             variant="detail"
+            interactive
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (
-            <span className="num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
+            <span className="pop-in num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
               {matchScore}% {translate("match")}
             </span>
           )}

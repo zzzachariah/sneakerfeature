@@ -9,6 +9,8 @@ type ShoeImageProps = {
   fallbackLabel: string;
   variant?: "thumbnail" | "detail" | "suggestion" | "compare";
   className?: string;
+  /** When inside a `.group` (e.g. a card), gently zooms the image on hover/press. */
+  interactive?: boolean;
 };
 
 const VARIANT_CLASS: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
@@ -25,7 +27,7 @@ const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
   compare: 1.08
 };
 
-export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "" }: ShoeImageProps) {
+export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "", interactive = false }: ShoeImageProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const hasImage = Boolean(src) && !failed;
@@ -53,10 +55,11 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
-          className={cn("h-full w-full object-contain object-center", loaded ? "img-loaded" : "img-loading")}
+          className={cn("shoe-img h-full w-full object-contain object-center", interactive && "shoe-img--zoom", loaded ? "img-loaded" : "img-loading")}
           style={{
             backgroundColor: "#fff",
-            transform: `scale(${VARIANT_SCALE[variant]})`
+            // Drives both the fill-scale and the optional hover zoom (see globals.css).
+            ["--img-scale" as string]: VARIANT_SCALE[variant]
           }}
         />
       ) : (
