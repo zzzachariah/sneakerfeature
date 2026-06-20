@@ -63,6 +63,7 @@ export function HomeView({ shoes, shoesCount, brandsCount, initialQuery, forYou,
               initialQuery={initialQuery}
               pageScroll
               scrollHeader={<HomeFeedHeader shoesCount={shoesCount} brandsCount={brandsCount} />}
+              onCollapse={() => setBrowseOpen(false)}
             />
           ) : (
             <div>

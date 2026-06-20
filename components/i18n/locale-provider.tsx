@@ -605,6 +605,14 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "what matters most?": "最看重什么？",
   "optional — we'll rank your matches by this.": "可选 —— 我们会据此为你排序。",
   "use my saved profile": "沿用我的球员档案",
+
+  // Favorites toast + feed floating controls
+  "saved to your shoes": "已收藏该球鞋",
+  "removed from saved": "已取消收藏",
+  "couldn't update saved shoes": "操作失败，请重试",
+  "view": "查看",
+  "saved only": "只看收藏",
+  "feed controls": "列表操作",
   "your personalized feed": "你的个性化推荐",
   "your player avatar": "你的球员形象",
   "edit your player profile": "编辑你的球员档案",
