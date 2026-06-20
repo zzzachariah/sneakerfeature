@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ImageIcon, Check, X, ShieldCheck, ArrowRight, ExternalLink } from "lucide-react";
-import { BgRemovedImg } from "@/components/shoe/bg-removed-img";
 
 export type CorrectionRow = {
   id: string;
@@ -93,7 +92,8 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                 <figure className="flex flex-col items-center gap-1">
                   <div className="aspect-square w-full max-w-[10rem] overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.45)] bg-white">
                     {correction.currentImageUrl ? (
-                      <BgRemovedImg src={correction.currentImageUrl} alt="Current" className="h-full w-full object-contain" />
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={correction.currentImageUrl} alt="Current" className="h-full w-full object-contain" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-xs soft-text">No current image</div>
                     )}
@@ -105,7 +105,8 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
 
                 <figure className="flex flex-col items-center gap-1">
                   <div className="aspect-square w-full max-w-[10rem] overflow-hidden rounded-xl border border-emerald-400/50 bg-white">
-                    <BgRemovedImg src={correction.submittedImageUrl} alt="Suggested" className="h-full w-full object-contain" />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={correction.submittedImageUrl} alt="Suggested" className="h-full w-full object-contain" />
                   </div>
                   <figcaption className="text-[0.65rem] uppercase tracking-[0.12em] text-emerald-400">Suggested</figcaption>
                 </figure>

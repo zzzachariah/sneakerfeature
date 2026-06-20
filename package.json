@@ -25,7 +25,6 @@
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
     "@hookform/resolvers": "^3.9.0",
-    "@imgly/background-removal": "^1.7.0",
     "@next/bundle-analyzer": "^16.2.9",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
