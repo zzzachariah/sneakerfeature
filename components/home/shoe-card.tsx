@@ -80,7 +80,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (
-            <span className="absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
+            <span className="num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
               {matchScore}% {translate("match")}
             </span>
           )}
@@ -120,7 +120,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
               {chips.map((c) => (
                 <span
                   key={c.key}
-                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-medium leading-none tabular-nums"
+                  className="num-display inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-medium leading-none"
                   style={{ color: scoreColor(c.score), background: scoreColor(c.score, 0.12) }}
                 >
                   {translate(CHIP_LABEL[c.key])} {c.score}

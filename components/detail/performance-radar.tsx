@@ -165,7 +165,7 @@ function AxisLabel({
         {translate(axis.label)}
       </p>
       <span
-        className="text-sm font-semibold tabular-nums md:text-base"
+        className="num-display text-sm font-semibold md:text-base"
         style={{ color: scoreColor(clamped) }}
       >
         {clamped}

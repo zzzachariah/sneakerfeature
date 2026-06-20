@@ -189,8 +189,22 @@ a, button, [role="button"], label, input, select, textarea, summary {
 .dark body { background-image: none; }
 .dark .app-ambient-bg { background: none; }
 
+/* Geometric "instrument" display + numeric fonts (Geist). Wired in app/layout
+   via GeistSans/GeistMono .variable classes; falls back to the Apple system
+   stack so nothing breaks if the vars are ever absent. */
+.font-display {
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+.num-display {
+  font-family: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
 /* Typography scale */
 .t-display {
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   font-size: clamp(2.4rem, 8.5vw, 7rem);
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -200,6 +214,7 @@ a, button, [role="button"], label, input, select, textarea, summary {
   .t-display { line-height: 0.93; }
 }
 .t-display-sm {
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   font-size: clamp(1.5rem, 4.4vw, 3rem);
   font-weight: 800;
   letter-spacing: -0.036em;

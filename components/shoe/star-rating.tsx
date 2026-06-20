@@ -114,7 +114,7 @@ export function StarRating({
         )}
       </div>
       {showNumber && (
-        <span className={`tabular-nums ${sizes.text}`}>
+        <span className={`num-display ${sizes.text}`}>
           <span className="font-medium" style={{ color: starColor(previewValue) }}>
             {previewValue.toFixed(1)}
           </span>

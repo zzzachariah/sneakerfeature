@@ -103,7 +103,7 @@ function MetricRow({
       >
         <div className="flex items-center justify-end gap-3">
           <span
-            className={`text-[0.78rem] tabular-nums ${sA >= sB ? "font-semibold" : ""}`}
+            className={`num-display text-[0.78rem] ${sA >= sB ? "font-semibold" : ""}`}
             style={{ color: sA >= sB ? scoreColor(sA) : scoreColor(sA, 0.6) }}
           >
             {sA}
@@ -114,7 +114,7 @@ function MetricRow({
         <div className="flex items-center gap-3">
           <Bar score={sB} win={sB > sA} triggered={triggered} delay={delay + 80} />
           <span
-            className={`text-[0.78rem] tabular-nums ${sB >= sA ? "font-semibold" : ""}`}
+            className={`num-display text-[0.78rem] ${sB >= sA ? "font-semibold" : ""}`}
             style={{ color: sB >= sA ? scoreColor(sB) : scoreColor(sB, 0.6) }}
           >
             {sB}
@@ -147,7 +147,7 @@ function MetricRow({
               </span>
               <Bar score={score} win={isLeader} triggered={triggered} delay={delay + 80 + i * 40} />
               <span
-                className={`text-right text-[0.72rem] tabular-nums ${isLeader ? "font-semibold" : ""}`}
+                className={`num-display text-right text-[0.72rem] ${isLeader ? "font-semibold" : ""}`}
                 style={{ color: isLeader ? scoreColor(score) : scoreColor(score, 0.6) }}
               >
                 {score}
