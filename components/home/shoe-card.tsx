@@ -11,6 +11,7 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
 import { scoreColor } from "@/lib/score-tone";
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 
 type Props = {
   shoe: Shoe;
@@ -86,7 +87,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
               {matchScore}% {translate("match")}
             </span>
           )}
-          {compareEnabled && (
+          {compareEnabled ? (
             <label
               onClick={(e) => e.stopPropagation()}
               className="glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md"
@@ -102,6 +103,12 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
                 aria-label={translate("Compare")}
               />
             </label>
+          ) : (
+            <FavoriteButton
+              shoeId={shoe.id}
+              className="glass-lite absolute left-2 top-2 h-7 w-7 rounded-md opacity-90"
+              iconClassName="h-3.5 w-3.5"
+            />
           )}
         </div>
         <div className="p-3">

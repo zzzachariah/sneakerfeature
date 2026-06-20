@@ -590,6 +590,12 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "refine": "重新选择",
   "want a deeper pick? try the ai picker": "想要更深入的推荐？试试 AI 选鞋",
   "or try the free quick picker": "或试试免费的快速选鞋",
+
+  // Favorites / saved shoes ("save" already maps to 保存 above)
+  "saved": "已收藏",
+  "saved shoes": "已收藏球鞋",
+  "no saved shoes yet. tap the heart on any shoe.": "还没有收藏的球鞋。点任意球鞋上的爱心即可收藏。",
+  "sign in to save shoes.": "登录后即可收藏球鞋。",
   "your personalized feed": "你的个性化推荐",
   "your player avatar": "你的球员形象",
   "edit your player profile": "编辑你的球员档案",

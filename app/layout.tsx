@@ -27,6 +27,7 @@ import { AnnouncementModal } from "@/components/announce/announcement-modal";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
+import { FavoritesProvider } from "@/components/favorites/favorites-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
 import { Analytics } from "@vercel/analytics/next";
@@ -85,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
+              <FavoritesProvider>
               <RatingFocusProvider>
                 <PersonaProvider>
                   <TutorialProvider>
@@ -104,6 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </TutorialProvider>
                 </PersonaProvider>
               </RatingFocusProvider>
+              </FavoritesProvider>
             </AuthStateProvider>
             <CookieBanner />
             <AnalyticsGate />
