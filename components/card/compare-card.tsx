@@ -168,6 +168,7 @@ function ShoeCell({
           </svg>
           <span
             style={{
+              fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
               fontSize: 8.5,
               fontWeight: 600,
               textTransform: "uppercase",
@@ -215,6 +216,7 @@ function ShoeCell({
             >
               <span
                 style={{
+                  fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
                   fontSize: techLabelSize,
                   fontWeight: 600,
                   textTransform: "uppercase",
@@ -228,6 +230,7 @@ function ShoeCell({
               </span>
               <span
                 style={{
+                  fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
                   fontSize: techValueSize,
                   fontWeight: 600,
                   color: value ? "rgba(0,0,0,0.8)" : "rgba(0,0,0,0.3)",
@@ -270,6 +273,7 @@ export function CompareCard({ shoes }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <span
             style={{
+              fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
               fontSize: 11,
               fontWeight: 600,
               textTransform: "uppercase",

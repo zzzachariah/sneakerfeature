@@ -111,7 +111,7 @@ export default async function AdminPage() {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-semibold text-[rgb(var(--accent))]">
-              {counts.imageCorrections} new image correction{counts.imageCorrections === 1 ? "" : "s"} awaiting review
+              <span className="num-display">{counts.imageCorrections}</span> new image correction{counts.imageCorrections === 1 ? "" : "s"} awaiting review
             </span>
             <span className="mt-0.5 block text-sm soft-text">
               Users uploaded images to fix shoe photos — review and approve them.
@@ -134,7 +134,7 @@ export default async function AdminPage() {
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
                   <Icon className="h-5 w-5" />
                 </span>
-                <span className="text-3xl font-semibold leading-none tabular-nums">
+                <span className="num-display text-3xl font-semibold leading-none">
                   {card.count === null ? "—" : card.count.toLocaleString()}
                 </span>
               </div>

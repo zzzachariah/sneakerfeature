@@ -242,7 +242,7 @@ export function ResultStep({
           </div>
 
           {/* measurements */}
-          <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-[rgb(var(--text)/0.08)] pt-3 text-xs soft-text">
+          <div className="num-display flex flex-wrap gap-x-5 gap-y-1 border-t border-[rgb(var(--text)/0.08)] pt-3 text-xs soft-text">
             <span>
               {translate("Length")}: ~{(m.foot_length_mm / 10).toFixed(1)} cm
             </span>

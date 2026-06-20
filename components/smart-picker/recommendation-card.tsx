@@ -45,7 +45,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
     <div className={`surface-card premium-border flex flex-col overflow-hidden rounded-2xl p-3.5 transition hover:shadow-[0_10px_30px_rgb(var(--glass-shadow)/0.16)] ${className ?? ""}`}>
       <div className="flex gap-3">
         <div className="relative shrink-0">
-          <span className="absolute -left-1 -top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--text))] px-1 text-[0.7rem] font-bold text-[rgb(var(--bg))]">
+          <span className="num-display absolute -left-1 -top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--text))] px-1 text-[0.7rem] font-bold text-[rgb(var(--bg))]">
             {rank}
           </span>
           <Link href={href} target="_blank" rel="noopener noreferrer">
@@ -110,7 +110,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
           <ul className="space-y-1">
             {rec.references.map((ref, i) => (
               <li key={i} className="flex gap-1.5 text-[0.74rem] leading-snug">
-                <span className="shrink-0 soft-text">[{i + 1}]</span>
+                <span className="num-display shrink-0 soft-text">[{i + 1}]</span>
                 <a
                   href={ref.url}
                   target="_blank"

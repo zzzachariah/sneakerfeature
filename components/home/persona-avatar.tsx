@@ -3336,7 +3336,7 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
           </span>
         </div>
 
-        <div className={`${size === "sm" ? "text-[0.62rem]" : "text-[0.72rem]"} soft-text tabular-nums`}>
+        <div className={`num-display ${size === "sm" ? "text-[0.62rem]" : "text-[0.72rem]"} soft-text`}>
           {persona
             ? `${persona.height_cm} ${translate("cm")} · ${persona.weight_kg} ${translate("kg")}`
             : translate("Log in to personalize")}

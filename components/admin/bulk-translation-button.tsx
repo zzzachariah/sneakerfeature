@@ -156,11 +156,11 @@ export function BulkTranslationButton() {
       <div className="grid gap-2 text-sm sm:grid-cols-2">
         <p>
           <span className="soft-text">{translate("Untranslated shoes")}: </span>
-          <span className="font-semibold">{stats.pendingShoes}</span>
+          <span className="num-display font-semibold">{stats.pendingShoes}</span>
         </p>
         <p>
           <span className="soft-text">{translate("Total shoes")}: </span>
-          <span className="font-semibold">{stats.totalShoes}</span>
+          <span className="num-display font-semibold">{stats.totalShoes}</span>
         </p>
       </div>
 
@@ -195,16 +195,16 @@ export function BulkTranslationButton() {
       {(running || processed > 0) && (
         <div className="space-y-2 text-sm">
           <p>
-            {translate("Progress")}: {processed} / {total}
+            {translate("Progress")}: <span className="num-display">{processed} / {total}</span>
           </p>
           <div className="h-2 w-full rounded-full bg-[rgb(var(--muted)/0.35)]">
             <div className="h-2 rounded-full bg-[rgb(var(--accent))]" style={{ width: `${percent}%` }} />
           </div>
           <p>
-            {translate("Translated")}: {succeeded}
+            {translate("Translated")}: <span className="num-display">{succeeded}</span>
           </p>
           <p>
-            {translate("Failed")}: {failed}
+            {translate("Failed")}: <span className="num-display">{failed}</span>
           </p>
           {currentLabel ? (
             <p>

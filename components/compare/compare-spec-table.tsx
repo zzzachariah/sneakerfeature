@@ -37,7 +37,7 @@ export function CompareSpecTable({ shoes, active = true }: Props) {
   });
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg-elev)/0.45)]">
+    <div className="num-display overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg-elev)/0.45)]">
       {shoes.length === 2 ? (
         <PairedLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} />
       ) : (

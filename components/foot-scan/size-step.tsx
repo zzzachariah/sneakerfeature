@@ -191,7 +191,7 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
       </label>
 
       {resolvedLength !== null && (
-        <p className="text-xs soft-text">
+        <p className="num-display text-xs soft-text">
           {translate("Estimated foot length")}: ~{(resolvedLength / 10).toFixed(1)} cm
         </p>
       )}

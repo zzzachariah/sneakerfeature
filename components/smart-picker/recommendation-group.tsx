@@ -52,7 +52,7 @@ export function RecommendationGroup({ recommendations }: { recommendations: Reco
 
       {recommendations.length >= 2 && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.55)] px-3 py-2">
-          <span className="text-[0.78rem] soft-text">
+          <span className="num-display text-[0.78rem] soft-text">
             {recommendations.length > MAX_COMPARE
               ? `${translate("Pick up to 5 to compare")} · ${selected.length}/${MAX_COMPARE}`
               : `${translate("Selected")} ${selected.length}/${MAX_COMPARE}`}

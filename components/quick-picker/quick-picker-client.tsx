@@ -158,7 +158,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[0.92rem] font-semibold">{translate("Use my saved profile")}</span>
-                  <span className="block truncate text-[0.8rem] soft-text">{savedSummary}</span>
+                  <span className="num-display block truncate text-[0.8rem] soft-text">{savedSummary}</span>
                 </span>
                 <ArrowRight className="h-5 w-5 shrink-0 text-[rgb(var(--brand))]" />
               </button>

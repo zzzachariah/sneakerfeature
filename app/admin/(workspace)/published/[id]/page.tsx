@@ -299,7 +299,7 @@ export default function AdminPublishedDetailPage() {
           {(data.history ?? []).map((row: any) => (
             <div key={row.id} className="rounded-lg border border-[rgb(var(--muted)/0.35)] p-3">
               <div className="text-xs soft-text">
-                {new Date(row.created_at).toLocaleString()} • {row.action} • by{" "}
+                <span className="num-display">{new Date(row.created_at).toLocaleString()}</span> • {row.action} • by{" "}
                 {Array.isArray(row.profiles)
                   ? row.profiles[0]?.username
                   : row.profiles?.username ?? "unknown"}

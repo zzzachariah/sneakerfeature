@@ -126,7 +126,7 @@ function ShoePlinth({
       <p className="t-eyebrow mb-1 text-[0.6rem] sm:text-[0.67rem]">
         {shoe.brand}
         {shoe.release_year ? (
-          <span className="ml-2 text-[rgb(var(--subtext))]">· {shoe.release_year}</span>
+          <span className="num-display ml-2 text-[rgb(var(--subtext))]">· {shoe.release_year}</span>
         ) : null}
       </p>
       <h2 className="mb-2 text-[1rem] font-extrabold leading-tight tracking-[-0.025em] sm:mb-3 sm:text-[1.25rem] md:text-[1.5rem] lg:text-[1.75rem]">

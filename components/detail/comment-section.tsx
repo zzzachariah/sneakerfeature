@@ -236,7 +236,7 @@ export function CommentSection({
       <aside className="surface-card premium-border rounded-3xl p-5 md:p-6">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-medium">{translate("View discussion")}</h3>
-          <p className="text-xs soft-text">{comments.length} {translate(comments.length === 1 ? "comment" : "comments")}</p>
+          <p className="num-display text-xs soft-text">{comments.length} {translate(comments.length === 1 ? "comment" : "comments")}</p>
         </div>
 
         <div className="mt-4 space-y-3 md:max-h-[560px] md:overflow-auto md:pr-1">
@@ -261,7 +261,7 @@ export function CommentSection({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium">{comment.username}</p>
-                    <p className="text-xs soft-text">{new Date(comment.createdAt).toLocaleString()}</p>
+                    <p className="num-display text-xs soft-text">{new Date(comment.createdAt).toLocaleString()}</p>
                   </div>
                   {isOwn ? (
                     <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2 py-1 text-xs soft-text transition hover:border-red-300" onClick={() => deleteComment(comment.id)} aria-label={translate("Delete my comment")}>
@@ -322,14 +322,14 @@ export function CommentSection({
                     className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition active:scale-95 ${comment.myVote === "like" ? "border-emerald-400/80 bg-emerald-400/10 text-emerald-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-emerald-300/70"}`}
                     onClick={() => submitVote(comment.id, "like")}
                   >
-                    <ThumbsUp className="h-3.5 w-3.5" /> {comment.likes}
+                    <ThumbsUp className="h-3.5 w-3.5" /> <span className="num-display">{comment.likes}</span>
                   </button>
                   <button
                     type="button"
                     className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition active:scale-95 ${comment.myVote === "dislike" ? "border-rose-400/80 bg-rose-400/10 text-rose-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-rose-300/70"}`}
                     onClick={() => submitVote(comment.id, "dislike")}
                   >
-                    <ThumbsDown className="h-3.5 w-3.5" /> {comment.dislikes}
+                    <ThumbsDown className="h-3.5 w-3.5" /> <span className="num-display">{comment.dislikes}</span>
                   </button>
                 </div>
               </Reveal>

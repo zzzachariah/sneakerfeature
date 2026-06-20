@@ -44,5 +44,5 @@ export function AnimatedCounter({
     return controls.stop;
   }, [value, duration, reduced, motionValue]);
 
-  return <span className={className}>{display}</span>;
+  return <span className={`num-display ${className ?? ""}`.trim()}>{display}</span>;
 }

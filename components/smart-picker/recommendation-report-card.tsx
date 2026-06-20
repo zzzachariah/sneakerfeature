@@ -96,6 +96,7 @@ function ReportRadar({ recs }: { recs: RecommendationItem[] }) {
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize={11}
+            fontFamily='var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace'
             fontWeight={700}
             fill="rgba(0,0,0,0.62)"
             letterSpacing="0.14em"
@@ -113,7 +114,15 @@ function TechLine({ label, value }: { label: string; value: string | null }) {
   const { translate } = useLocale();
   if (!value) return null;
   return (
-    <div style={{ display: "flex", gap: 6, fontSize: 13, lineHeight: 1.35 }}>
+    <div
+      style={{
+        fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
+        display: "flex",
+        gap: 6,
+        fontSize: 13,
+        lineHeight: 1.35,
+      }}
+    >
       <span style={{ flexShrink: 0, fontWeight: 700, color: "rgb(var(--subtext))", minWidth: 92 }}>{translate(label)}</span>
       <span style={{ color: "rgb(var(--text))" }}>{value}</span>
     </div>
@@ -214,7 +223,7 @@ export function RecommendationReportCard({
                       strokeDasharray={style.dashArray}
                     />
                   </svg>
-                  <span style={{ flexShrink: 0, fontSize: 15, fontWeight: 800, color: "rgb(var(--text))" }}>{i + 1}.</span>
+                  <span style={{ flexShrink: 0, fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 15, fontWeight: 800, color: "rgb(var(--text))" }}>{i + 1}.</span>
                   <span
                     style={{
                       flex: 1,
@@ -231,7 +240,7 @@ export function RecommendationReportCard({
                   </span>
                   <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <StarRow value={rec.stars} size={15} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars.toFixed(1)}</span>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars.toFixed(1)}</span>
                   </span>
                 </div>
               );
@@ -263,6 +272,7 @@ export function RecommendationReportCard({
                     borderRadius: 999,
                     background: "rgb(var(--text))",
                     color: "rgb(var(--bg))",
+                    fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
                     fontSize: 13,
                     fontWeight: 800,
                     display: "flex",
@@ -292,7 +302,7 @@ export function RecommendationReportCard({
                   </span>
                   <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <StarRow value={rec.stars} size={16} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars.toFixed(1)}</span>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars.toFixed(1)}</span>
                   </span>
                 </div>
                 {rec.reason ? (
