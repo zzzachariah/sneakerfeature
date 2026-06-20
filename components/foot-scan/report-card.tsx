@@ -145,6 +145,7 @@ export const ReportCard = forwardRef<HTMLDivElement, { result: FootScanResult }>
           borderTop: "1px solid rgba(255,255,255,0.12)",
           display: "flex",
           gap: 24,
+          fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
           fontSize: 13,
           color: "rgba(255,255,255,0.7)"
         }}

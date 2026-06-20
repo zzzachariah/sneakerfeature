@@ -176,7 +176,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
     <div className="space-y-4">
       <Card className="flex flex-wrap items-center gap-2 p-4">
         <p className="text-sm soft-text">
-          {reviews.length} review(s) for this shoe. Content is stored in Chinese + English; the public band shows ready +
+          <span className="num-display">{reviews.length}</span> review(s) for this shoe. Content is stored in Chinese + English; the public band shows ready +
           published only.
         </p>
         <button

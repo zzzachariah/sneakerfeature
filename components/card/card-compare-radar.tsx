@@ -100,6 +100,7 @@ export function CardCompareRadar({ shoes, size = 520 }: Props) {
             textAnchor="middle"
             dominantBaseline="middle"
             fontSize={9.5}
+            fontFamily='var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace'
             fontWeight={600}
             fill="rgba(0,0,0,0.7)"
             letterSpacing="0.18em"

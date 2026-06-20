@@ -194,7 +194,7 @@ function Stat({ value, label, done }: { value: string; label: string; done: bool
       style={{ fontSize: "clamp(0.85rem, 1.15vw, 1.05rem)" }}
     >
       <span
-        className={`stat-underline font-bold tracking-[-0.02em] text-[rgb(var(--text))] tabular-nums ${
+        className={`num-display stat-underline font-bold tracking-[-0.02em] text-[rgb(var(--text))] ${
           done ? "is-complete" : ""
         }`}
       >

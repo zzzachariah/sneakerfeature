@@ -708,7 +708,7 @@ function ActivityCard({
       </div>
       <p className="leading-relaxed">{item.content}</p>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs soft-text">
-        <span>{new Date(item.created_at).toLocaleString()}</span>
+        <span className="num-display">{new Date(item.created_at).toLocaleString()}</span>
         <span aria-hidden>·</span>
         <span className="font-medium text-[rgb(var(--text)/0.85)]">{item.shoe_name}</span>
         {item.shoe_slug && (
@@ -723,10 +723,10 @@ function ActivityCard({
           </>
         )}
         <span aria-hidden>·</span>
-        <span className="inline-flex items-center gap-1">
+        <span className="num-display inline-flex items-center gap-1">
           <ThumbsUp className="h-3 w-3" /> {item.likes}
         </span>
-        <span className="inline-flex items-center gap-1">
+        <span className="num-display inline-flex items-center gap-1">
           <ThumbsDown className="h-3 w-3" /> {item.dislikes}
         </span>
       </div>

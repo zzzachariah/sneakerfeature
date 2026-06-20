@@ -163,6 +163,7 @@ export function SingleShoeCard({ shoe, axes }: Props) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <span
             style={{
+              fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
               fontSize: 11,
               fontWeight: 600,
               textTransform: "uppercase",
@@ -294,6 +295,7 @@ export function SingleShoeCard({ shoe, axes }: Props) {
               >
                 <span
                   style={{
+                    fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
                     fontSize: 9,
                     fontWeight: 600,
                     textTransform: "uppercase",
@@ -305,6 +307,7 @@ export function SingleShoeCard({ shoe, axes }: Props) {
                 </span>
                 <span
                   style={{
+                    fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
                     fontSize: 16,
                     fontWeight: 600,
                     color: value ? "rgb(var(--text))" : "rgba(0,0,0,0.35)",

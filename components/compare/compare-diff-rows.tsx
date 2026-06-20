@@ -241,7 +241,7 @@ function Verdict({ shoes, triggered }: { shoes: Shoe[]; triggered: boolean }) {
           {ranked.map((entry, i) => (
             <p key={i} className="text-[0.8rem] leading-[1.5] tracking-[-0.005em] text-[rgb(var(--text)/0.8)]">
               <strong className="text-[rgb(var(--text))]">{entry.name}</strong>{" "}
-              {translate("leads in")} {entry.metrics.length}{" "}
+              {translate("leads in")} <span className="num-display">{entry.metrics.length}</span>{" "}
               {entry.metrics.length === 1 ? translate("metric") : translate("metrics")}{" "}
               <span className="soft-text">({entry.metrics.join(", ")})</span>.
             </p>

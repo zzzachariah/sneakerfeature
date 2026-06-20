@@ -79,9 +79,9 @@ export default async function AdminPublishedPage({ searchParams }: { searchParam
               <tr key={shoe.id} className="border-t border-[rgb(var(--muted)/0.35)]">
                 <td className="px-3 py-3 font-medium">{shoe.shoe_name}</td>
                 <td className="px-3 py-3">{shoe.brand}</td>
-                <td className="px-3 py-3">{shoe.release_year ?? "—"}</td>
+                <td className="num-display px-3 py-3">{shoe.release_year ?? "—"}</td>
                 <td className="px-3 py-3"><span className="rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-1 text-xs">{shoe.is_published ? "published" : "unpublished"}</span></td>
-                <td className="px-3 py-3 text-xs soft-text">{new Date(shoe.updated_at).toLocaleString()}</td>
+                <td className="num-display px-3 py-3 text-xs soft-text">{new Date(shoe.updated_at).toLocaleString()}</td>
                 <td className="px-3 py-3"><Link href={`/admin/published/${shoe.id}`} className="text-[rgb(var(--accent))]">Edit record</Link></td>
               </tr>
             ))}

@@ -161,7 +161,7 @@ function AxisLabel({
       }}
       title={axis.rawText?.trim() ? axis.rawText : undefined}
     >
-      <p className="text-[0.5rem] font-semibold uppercase tracking-[0.14em] soft-text md:text-[0.55rem]">
+      <p className="num-display text-[0.5rem] font-semibold uppercase tracking-[0.14em] soft-text md:text-[0.55rem]">
         {translate(axis.label)}
       </p>
       <span
@@ -171,7 +171,7 @@ function AxisLabel({
         {clamped}
       </span>
       <span
-        className="hidden text-[0.65rem] md:inline"
+        className="num-display hidden text-[0.65rem] md:inline"
         style={{ color: scoreColor(clamped, 0.85) }}
       >
         {translate(axis.tier)}

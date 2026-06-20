@@ -243,8 +243,8 @@ export function BulkImageImportButton() {
   return (
     <div className="space-y-3 rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.55)] p-4">
       <div className="grid gap-2 text-sm sm:grid-cols-2">
-        <p><span className="soft-text">{translate("Missing approved images")}: </span><span className="font-semibold">{stats.missingApprovedImages}</span></p>
-        <p><span className="soft-text">{translate("Total shoes")}: </span><span className="font-semibold">{stats.totalShoes}</span></p>
+        <p><span className="soft-text">{translate("Missing approved images")}: </span><span className="num-display font-semibold">{stats.missingApprovedImages}</span></p>
+        <p><span className="soft-text">{translate("Total shoes")}: </span><span className="num-display font-semibold">{stats.totalShoes}</span></p>
       </div>
 
       <div className="space-y-2 rounded-xl border border-[rgb(var(--muted)/0.35)] p-3">
@@ -321,14 +321,14 @@ export function BulkImageImportButton() {
                       : translate("Failed")
             }
           </p>
-          <p>{translate("Progress")}: {displayJob.processed_count} / {displayJob.total_count}</p>
+          <p>{translate("Progress")}: <span className="num-display">{displayJob.processed_count} / {displayJob.total_count}</span></p>
           <div className="h-2 w-full rounded-full bg-[rgb(var(--muted)/0.35)]">
             <div className="h-2 rounded-full bg-[rgb(var(--accent))]" style={{ width: `${progressPercent}%` }} />
           </div>
-          <p>{translate("Imported and approved")}: {displayJob.success_count}</p>
-          <p>{translate("Skipped")}: {displayJob.skip_count}</p>
-          <p>{translate("Failed")}: {displayJob.failure_count}</p>
-          <p>{translate("Unprocessed")}: {Math.max(0, displayJob.total_count - displayJob.processed_count)}</p>
+          <p>{translate("Imported and approved")}: <span className="num-display">{displayJob.success_count}</span></p>
+          <p>{translate("Skipped")}: <span className="num-display">{displayJob.skip_count}</span></p>
+          <p>{translate("Failed")}: <span className="num-display">{displayJob.failure_count}</span></p>
+          <p>{translate("Unprocessed")}: <span className="num-display">{Math.max(0, displayJob.total_count - displayJob.processed_count)}</span></p>
           {displayJob.current_shoe_label ? <p>{translate("Current shoe")}: {displayJob.current_shoe_label}</p> : null}
         </div>
       ) : (

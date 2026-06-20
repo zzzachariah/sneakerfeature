@@ -188,7 +188,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
                   <div className="flex items-center justify-between gap-3">
                     <p className="font-medium transition group-hover:text-[rgb(var(--accent))]">{rec.name}</p>
                     {typeof rec.stars === "number" ? (
-                      <span className="inline-flex items-center gap-1 text-xs soft-text">
+                      <span className="num-display inline-flex items-center gap-1 text-xs soft-text">
                         <Star className="h-3.5 w-3.5 fill-current text-amber-400" /> {rec.stars.toFixed(1)}
                       </span>
                     ) : null}

@@ -135,7 +135,7 @@ export default async function AdvancedSearchPage({
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <DynamicTranslatedText as="div" text="Results" className="text-lg font-semibold" />
-          <p className="text-xs soft-text">{filtered.length} match{filtered.length === 1 ? "" : "es"}</p>
+          <p className="text-xs soft-text"><span className="num-display">{filtered.length}</span> match{filtered.length === 1 ? "" : "es"}</p>
         </div>
 
         {filtered.length === 0 && (

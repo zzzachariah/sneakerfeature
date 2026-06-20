@@ -210,7 +210,7 @@ function OverviewSection({
     <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-10">
       <div className="order-2 max-w-2xl md:order-1">
         <p className="t-eyebrow">
-          <span data-field-key="brand">{shoe.brand}</span> · {shoe.release_year ?? "TBD"}
+          <span data-field-key="brand">{shoe.brand}</span> · <span className="num-display">{shoe.release_year ?? "TBD"}</span>
         </p>
 
         <h1 data-field-key="shoe_name" className="t-display-sm mt-2 text-[rgb(var(--text))] md:mt-3">
@@ -440,7 +440,7 @@ function PerformanceSection({
       </Reveal>
 
       <Stagger
-        className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2"
+        className="num-display mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2"
         gap={0.04}
       >
         {items.map((it) => (
