@@ -62,31 +62,61 @@ export function AnnouncementModal() {
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    // Cache-bust + no-store so a freshly published announcement shows up without
-    // waiting on any CDN/static caching.
-    fetch(`/announcement.json?ts=${Date.now()}`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((a: Announcement | null) => {
+    // Tracks the last id we've already processed in this session — keeps the
+    // poll loop from re-opening for the same announcement and avoids fighting
+    // dismissal state for frequency "always" (which intentionally has no
+    // storage-side memory).
+    let lastSeenId: string | null = null;
+
+    const check = async () => {
+      if (cancelled) return;
+      try {
+        // Cache-bust + no-store so a freshly published announcement shows up
+        // without waiting on any CDN/static caching.
+        const res = await fetch(`/announcement.json?ts=${Date.now()}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const a = (await res.json()) as Announcement | null;
         if (cancelled || !a || !a.enabled || !a.id) return;
         if (isExpired(a.expiresAt)) return;
+        if (a.id === lastSeenId) return;
         const freq: Frequency = a.frequency ?? "once";
         try {
-          if (seenStore(freq)?.getItem(SEEN_KEY) === a.id) return;
+          if (seenStore(freq)?.getItem(SEEN_KEY) === a.id) {
+            lastSeenId = a.id;
+            return;
+          }
         } catch {
           /* storage blocked (private mode) — just show it */
         }
+        lastSeenId = a.id;
         setData(a);
+        if (timer) clearTimeout(timer);
         // Small delay so it doesn't fight the first-run language / cookie flows.
         timer = setTimeout(() => {
           if (!cancelled) setOpen(true);
         }, 400);
-      })
-      .catch(() => {
-        /* offline / no announcement — show nothing */
-      });
+      } catch {
+        /* offline / fetch failed — try again on the next poll */
+      }
+    };
+
+    // First check immediately on mount, then keep checking in the background so
+    // a long-open tab will pick up newly published announcements without a
+    // reload. Browsers throttle setInterval in hidden tabs, so we also re-check
+    // on visibilitychange to wake up cleanly after sleep / tab switches.
+    check();
+    const POLL_MS = 5 * 60 * 1000;
+    const interval = window.setInterval(check, POLL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
