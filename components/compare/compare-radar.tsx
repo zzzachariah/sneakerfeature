@@ -114,7 +114,7 @@ export function CompareRadar({ shoes, active }: Props) {
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize={9}
-              fontFamily="inherit"
+              fontFamily='var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace'
               fontWeight={500}
               fill="rgb(var(--subtext) / 0.9)"
               letterSpacing="0.14em"
@@ -156,7 +156,7 @@ export function CompareRadar({ shoes, active }: Props) {
                   strokeDasharray={style.dashArray}
                 />
               </svg>
-              <span className={`text-[0.7rem] transition-colors ${active ? "text-[rgb(var(--text))]" : "soft-text"}`}>
+              <span className={`num-display text-[0.7rem] transition-colors ${active ? "text-[rgb(var(--text))]" : "soft-text"}`}>
                 {shoe.shoe_name}
               </span>
             </button>
