@@ -1,6 +1,10 @@
-// A template re-mounts on every navigation, so this wrapper replays its enter
-// animation each time — giving a gentle screen-switch transition. Opacity only
-// (no transform) so it never breaks sticky/fixed descendants on the page.
+import { PageTransition } from "@/components/motion/page-transition";
+
+// A template re-mounts on every navigation, so <PageTransition> replays its enter
+// animation each time — an iOS-style directional slide on phones / the app, a
+// restrained fade on desktop. The slide is driven by a CSS animation (not an inline
+// transform) so it leaves no residual transform at rest, keeping sticky/fixed
+// descendants intact.
 export default function Template({ children }: { children: React.ReactNode }) {
-  return <div className="route-enter">{children}</div>;
+  return <PageTransition>{children}</PageTransition>;
 }

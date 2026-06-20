@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, UserCircle } from "lucide-react";
+import { haptics } from "@/lib/native/haptics";
+import { EASE } from "@/lib/motion/constants";
 import type { Shoe } from "@/lib/types";
 import {
   POSITIONS,
@@ -49,7 +52,10 @@ function Chip({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        haptics.selection();
+        onClick();
+      }}
       aria-pressed={active}
       className={`rounded-xl border px-4 py-2.5 text-sm font-medium leading-none transition duration-150 active:scale-95 ${
         active
@@ -65,7 +71,18 @@ function Chip({
 export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const { translate } = useLocale();
   const { persona: savedPersona } = usePersona();
+  const reduce = useReducedMotion();
   const [step, setStep] = useState(0); // 0..3 = questions, 4 = results
+  const [dir, setDir] = useState(1); // slide direction: +1 forward, -1 back
+  const go = (next: number) => {
+    setDir(next >= step ? 1 : -1);
+    setStep(next);
+  };
+  const stepVariants = {
+    enter: (d: number) => ({ x: reduce ? 0 : d >= 0 ? 36 : -36, opacity: 0 }),
+    center: { x: 0, opacity: 1 },
+    exit: (d: number) => ({ x: reduce ? 0 : d >= 0 ? -36 : 36, opacity: 0 })
+  };
   const [positions, setPositions] = useState<Position[]>([]);
   const [skill, setSkill] = useState<SkillLevel | null>(null);
   const [height, setHeight] = useState(185);
@@ -100,7 +117,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
     setHeight(savedPersona.height_cm);
     setWeight(savedPersona.weight_kg);
     setFlatFoot(savedPersona.flat_foot);
-    setStep(STEP_COUNT - 1); // jump to the priority step; results are one tap away
+    go(STEP_COUNT - 1); // jump to the priority step; results are one tap away
   }
 
   const togglePos = (p: Position) =>
@@ -147,7 +164,17 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               </button>
             )}
 
-            <div className="surface-card premium-border rounded-2xl p-5 md:p-7">
+            <div className="surface-card premium-border overflow-hidden rounded-2xl p-5 md:p-7">
+              <AnimatePresence mode="wait" custom={dir} initial={false}>
+                <motion.div
+                  key={step}
+                  custom={dir}
+                  variants={stepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  transition={{ duration: 0.26, ease: EASE }}
+                >
               {step === 0 && (
                 <div>
                   <h2 className="mb-1 text-lg font-semibold">{translate("What position do you play?")}</h2>
@@ -237,12 +264,14 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                   </div>
                 </div>
               )}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
             <div className="mt-5 flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => setStep((s) => Math.max(0, s - 1))}
+                onClick={() => go(Math.max(0, step - 1))}
                 disabled={step === 0}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] px-4 py-2.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -250,7 +279,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               </button>
               <button
                 type="button"
-                onClick={() => setStep((s) => s + 1)}
+                onClick={() => go(step + 1)}
                 disabled={!canNext}
                 className="inline-flex items-center gap-1.5 rounded-xl bg-[rgb(var(--text))] px-5 py-2.5 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -274,7 +303,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                 )}
                 <button
                   type="button"
-                  onClick={() => setStep(0)}
+                  onClick={() => go(0)}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3.5 py-2 text-sm font-medium transition hover:border-[rgb(var(--text)/0.35)]"
                 >
                   <RotateCcw className="h-4 w-4" /> {translate("Refine")}
@@ -283,8 +312,8 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
             </div>
 
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {results.map(({ shoe, score, reasons }) => (
-                <ShoeCard key={shoe.id} shoe={shoe} matchScore={score} reasons={reasons} showChips />
+              {results.map(({ shoe, score, reasons }, i) => (
+                <ShoeCard key={shoe.id} shoe={shoe} matchScore={score} reasons={reasons} showChips index={i} />
               ))}
             </ul>
 

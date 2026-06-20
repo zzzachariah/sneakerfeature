@@ -15,6 +15,7 @@ type Props = {
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
+  className?: string;
 };
 
 function ProsCons({ label, items, tone }: { label: string; items: string[]; tone: "pro" | "con" }) {
@@ -35,13 +36,13 @@ function ProsCons({ label, items, tone }: { label: string; items: string[]; tone
   );
 }
 
-export function RecommendationCard({ rec, rank, selected, disabled, onToggle }: Props) {
+export function RecommendationCard({ rec, rank, selected, disabled, onToggle, className }: Props) {
   const { translate } = useLocale();
   const href = `/shoes/${rec.slug}` as Route;
   const hasProsCons = rec.pros.length > 0 || rec.cons.length > 0;
 
   return (
-    <div className="surface-card premium-border flex flex-col overflow-hidden rounded-2xl p-3.5 transition hover:shadow-[0_10px_30px_rgb(var(--glass-shadow)/0.16)]">
+    <div className={`surface-card premium-border flex flex-col overflow-hidden rounded-2xl p-3.5 transition hover:shadow-[0_10px_30px_rgb(var(--glass-shadow)/0.16)] ${className ?? ""}`}>
       <div className="flex gap-3">
         <div className="relative shrink-0">
           <span className="absolute -left-1 -top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--text))] px-1 text-[0.7rem] font-bold text-[rgb(var(--bg))]">

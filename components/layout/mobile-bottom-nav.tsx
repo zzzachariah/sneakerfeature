@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { GitCompare, Home, Plus, Shield, Sparkles, UserCircle } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
 
 type Tab = {
   href: "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin";
@@ -64,6 +66,7 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { isAdmin, signedIn } = useAuthState();
   const { translate } = useLocale();
+  const reduce = useReducedMotion();
 
   const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
   const activeIdx = tabs.findIndex((t) => t.match(pathname));
@@ -86,14 +89,22 @@ export function MobileBottomNav() {
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
+                onClick={() => haptics.selection()}
                 className={`group relative flex h-[52px] w-[52px] select-none flex-col items-center justify-center gap-[3px] rounded-2xl transition-colors duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   active ? "text-[rgb(var(--text))]" : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
                 }`}
               >
-                {/* No dot / no background slab. The active screen is shown by
-                    simply darkening its icon + label to the full text colour
-                    (the inactive tabs stay muted). */}
-                <span className="relative inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.9]">
+                {/* A soft highlight pill slides between tabs (shared layoutId) to
+                    mark the active screen — on top of the existing colour shift. */}
+                {active && !reduce ? (
+                  <motion.span
+                    layoutId="mobile-nav-active"
+                    aria-hidden
+                    className="absolute inset-x-0.5 inset-y-1 -z-0 rounded-2xl bg-[rgb(var(--text)/0.08)]"
+                    transition={{ type: "spring", stiffness: 480, damping: 38 }}
+                  />
+                ) : null}
+                <span className="relative z-10 inline-flex h-6 w-6 items-center justify-center transition-transform duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-active:scale-[0.9]">
                   <Icon className="h-[20px] w-[20px]" strokeWidth={active ? 2.5 : 1.8} />
                   {showSignedDot && !active ? (
                     <span
@@ -103,7 +114,7 @@ export function MobileBottomNav() {
                   ) : null}
                 </span>
                 <span
-                  className={`relative text-[0.6rem] leading-none tracking-[0.02em] transition-[font-weight] ${
+                  className={`relative z-10 text-[0.6rem] leading-none tracking-[0.02em] transition-[font-weight] ${
                     active ? "font-semibold" : "font-medium"
                   }`}
                 >

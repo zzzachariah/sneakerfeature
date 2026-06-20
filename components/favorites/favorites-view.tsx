@@ -39,8 +39,8 @@ export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: bo
         </div>
       ) : (
         <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-          {shoes.map((shoe) => (
-            <ShoeCard key={shoe.id} shoe={shoe} />
+          {shoes.map((shoe, i) => (
+            <ShoeCard key={shoe.id} shoe={shoe} index={i} />
           ))}
         </ul>
       )}

@@ -14,6 +14,8 @@ import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
 import { HapticsToggle } from "@/components/preferences/haptics-toggle";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
+import { SwipeRow } from "@/components/motion/swipe-row";
 
 export type DashboardComment = {
   id: string;
@@ -153,9 +155,13 @@ export function DashboardSlides(props: Props) {
             ) : activityFeed.length === 0 ? (
               <p className="text-sm soft-text">{translate("No activity yet.")}</p>
             ) : (
-              activityFeed.map((item) => (
-                <ActivityCard key={`${item.kind}-${item.id}`} item={item} translate={translate} />
-              ))
+              <Stagger className="space-y-3">
+                {activityFeed.map((item) => (
+                  <StaggerItem key={`${item.kind}-${item.id}`}>
+                    <ActivityCard item={item} translate={translate} />
+                  </StaggerItem>
+                ))}
+              </Stagger>
             )}
           </div>
         </div>
@@ -214,10 +220,19 @@ export function DashboardSlides(props: Props) {
                     ) as Route;
                     const deleting = props.deletingCompareId === item.id;
                     return (
-                      <div
+                      <SwipeRow
                         key={item.id}
-                        className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm"
+                        className="rounded-2xl"
+                        actions={[
+                          {
+                            label: translate("Delete"),
+                            icon: <Trash2 className="h-4 w-4" />,
+                            tone: "danger",
+                            onAction: () => props.onDeleteCompare(item.id)
+                          }
+                        ]}
                       >
+                      <div className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="truncate font-medium">{item.title}</p>
@@ -249,6 +264,7 @@ export function DashboardSlides(props: Props) {
                           </div>
                         </div>
                       </div>
+                      </SwipeRow>
                     );
                   })
                 )}
@@ -640,11 +656,11 @@ function OverviewSlide({
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatTile label={translate("My comments")} value={commentsCount} loading={loading} />
-        <StatTile label={translate("Liked comments")} value={likedCount} loading={loading} />
-        <StatTile label={translate("Disliked comments")} value={dislikedCount} loading={loading} />
-      </div>
+      <Stagger className="grid gap-4 md:grid-cols-3" gap={0.07}>
+        <StaggerItem><StatTile label={translate("My comments")} value={commentsCount} loading={loading} /></StaggerItem>
+        <StaggerItem><StatTile label={translate("Liked comments")} value={likedCount} loading={loading} /></StaggerItem>
+        <StaggerItem><StatTile label={translate("Disliked comments")} value={dislikedCount} loading={loading} /></StaggerItem>
+      </Stagger>
     </div>
   );
 }

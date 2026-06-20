@@ -5,6 +5,7 @@ import Link from "next/link";
 import { GitCompare } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { RecommendationCard } from "@/components/smart-picker/recommendation-card";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { MAX_COMPARE, type RecommendationItem } from "@/lib/ai/types";
 import type { Route } from "next";
 
@@ -30,18 +31,24 @@ export function RecommendationGroup({ recommendations }: { recommendations: Reco
 
   return (
     <div className="space-y-2">
-      <div className="grid items-stretch gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+      <Stagger
+        className="grid items-stretch gap-2.5"
+        style={{ gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}
+        gap={0.06}
+      >
         {recommendations.map((rec, i) => (
-          <RecommendationCard
-            key={rec.shoe_id}
-            rec={rec}
-            rank={i + 1}
-            selected={selected.includes(rec.shoe_id)}
-            disabled={atLimit}
-            onToggle={() => toggle(rec.shoe_id)}
-          />
+          <StaggerItem key={rec.shoe_id} className="flex flex-col">
+            <RecommendationCard
+              rec={rec}
+              rank={i + 1}
+              selected={selected.includes(rec.shoe_id)}
+              disabled={atLimit}
+              onToggle={() => toggle(rec.shoe_id)}
+              className="flex-1"
+            />
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
       {recommendations.length >= 2 && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.55)] px-3 py-2">

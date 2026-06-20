@@ -12,6 +12,7 @@ import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
 import { scoreColor } from "@/lib/score-tone";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
+import { Reveal } from "@/components/motion/reveal";
 
 type Props = {
   shoe: Shoe;
@@ -23,6 +24,12 @@ type Props = {
   onToggleSelect?: () => void;
   /** Extra classes on the outer <li> — e.g. fixed width for horizontal rails. */
   className?: string;
+  /**
+   * When provided, the card reveals (fade + rise) as it scrolls into view, with a
+   * stagger derived from its position — used by grids/rails (favorites, search,
+   * collections). Omit in virtualized feeds where rows mount/unmount on scroll.
+   */
+  index?: number;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -36,7 +43,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className }: Props) {
+export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className, index }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const [whyOpen, setWhyOpen] = useState(false);
@@ -64,8 +71,8 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
 
   const hasReasons = reasons && reasons.length > 0;
 
-  return (
-    <li className={`group relative ${className ?? ""}`}>
+  const body = (
+    <>
       <Link
         href={href}
         prefetch
@@ -80,10 +87,11 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             alt={shoe.shoe_name}
             fallbackLabel={translate("No image")}
             variant="detail"
+            interactive
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (
-            <span className="num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
+            <span className="pop-in num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
               {matchScore}% {translate("match")}
             </span>
           )}
@@ -174,6 +182,16 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
           </ul>
         </div>
       )}
-    </li>
+    </>
   );
+
+  const outerClass = `group relative ${className ?? ""}`;
+  if (index != null) {
+    return (
+      <Reveal as="li" index={index} className={outerClass}>
+        {body}
+      </Reveal>
+    );
+  }
+  return <li className={outerClass}>{body}</li>;
 }

@@ -77,11 +77,14 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 export function ShoeFacets({
   shoes,
   facets,
-  onChange
+  onChange,
+  bare = false
 }: {
   shoes: Shoe[];
   facets: FacetState;
   onChange: (next: FacetState) => void;
+  /** Drop the glass panel chrome — used inside the mobile filter bottom sheet. */
+  bare?: boolean;
 }) {
   const { translate } = useLocale();
   const available = useMemo(() => availableFacets(shoes), [shoes]);
@@ -93,7 +96,7 @@ export function ShoeFacets({
   const perfFlags = PERF_FLAGS.filter((f) => f !== "light" || available.hasWeight);
 
   return (
-    <div className="glass glass-clip mb-3 rounded-2xl p-4">
+    <div className={bare ? "" : "glass glass-clip mb-3 rounded-2xl p-4"}>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {categories.length > 0 && (
           <Group title={translate("Position")}>

@@ -275,19 +275,34 @@ a, button, [role="button"], label, input, select, textarea, summary {
   will-change: transform, opacity;
 }
 
-/* Route/screen transition — content fades in on navigation. Opacity only (no
-   transform) so it never breaks sticky/fixed descendants. */
+/* Route/screen transition — see components/motion/page-transition.tsx. The fade
+   variant is opacity-only (never breaks sticky/fixed). The directional slide ends
+   on `transform: none`, and the class is removed on animationend, so no residual
+   transform lingers to break fixed descendants once the page has settled. */
 @keyframes routeEnter {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-.route-enter {
-  animation: routeEnter 240ms cubic-bezier(0.22, 1, 0.36, 1);
+@keyframes routeSlideFwd {
+  from { opacity: 0; transform: translate3d(26px, 0, 0); }
+  to   { opacity: 1; transform: none; }
 }
+@keyframes routeSlideBack {
+  from { opacity: 0; transform: translate3d(-26px, 0, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.route-enter { animation: routeEnter 240ms var(--ease); }
+.route-anim { will-change: transform, opacity; }
+.route-anim--fade { animation: routeEnter var(--dur-base) var(--ease) both; }
+.route-anim--fwd  { animation: routeSlideFwd var(--dur-slow) var(--ease) both; }
+.route-anim--back { animation: routeSlideBack var(--dur-slow) var(--ease) both; }
 
 @media (prefers-reduced-motion: reduce) {
   .nav-pop,
-  .route-enter {
+  .route-enter,
+  .route-anim--fade,
+  .route-anim--fwd,
+  .route-anim--back {
     animation: none;
   }
 }
@@ -882,6 +897,19 @@ html[data-native-platform="ios"] [data-download-entry] {
 .img-loading { opacity: 0; }
 .img-loaded { animation: imgFadeIn var(--dur-slow) var(--ease) both; }
 
+/* Shoe image fill-scale (moved off an inline transform). The per-variant fill zoom
+   lives in --img-scale; the optional --zoom modifier adds a gentle hover/press
+   magnify when the image sits inside a card (.group). */
+.shoe-img { transform: scale(var(--img-scale, 1)); }
+.shoe-img--zoom { transition: transform 480ms var(--ease); will-change: transform; }
+.group:hover .shoe-img--zoom { transform: scale(calc(var(--img-scale, 1) * 1.05)); }
+.group:active .shoe-img--zoom { transform: scale(calc(var(--img-scale, 1) * 1.02)); }
+@media (prefers-reduced-motion: reduce) {
+  .shoe-img--zoom { transition: none; }
+  .group:hover .shoe-img--zoom,
+  .group:active .shoe-img--zoom { transform: scale(var(--img-scale, 1)); }
+}
+
 /* Popover / small overlay entrance */
 .pop-in { animation: revealPop 180ms var(--ease) both; }
 
@@ -1133,6 +1161,48 @@ html[data-native-platform="ios"] [data-download-entry] {
   scrollbar-width: none;
 }
 .chip-scroll::-webkit-scrollbar { display: none; }
+
+/* Horizontal rail edge fade — the content dissolves into the page at both ends so
+   a half-scrolled rail reads as "more to the side" instead of a hard clip. */
+.rail-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+
+/* Foot-scan live-capture: a brand-tinted scanning line sweeps the viewport so the
+   camera feels like it's actively measuring; the self-timer count pops each tick. */
+@keyframes scanSweep {
+  0%   { top: 0%;   opacity: 0; }
+  12%  { opacity: 0.9; }
+  88%  { opacity: 0.9; }
+  100% { top: 100%; opacity: 0; }
+}
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(var(--brand) / 0.9), transparent);
+  box-shadow: 0 0 12px rgb(var(--brand) / 0.55);
+  animation: scanSweep 2.6s var(--ease) infinite;
+}
+@keyframes countPop {
+  0%   { transform: scale(1.5); opacity: 0.35; }
+  60%  { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1); }
+}
+.count-pop { animation: countPop 560ms var(--ease); }
+
+/* Star rating: the gold fill glides to the hovered/selected value instead of
+   snapping (components/shoe/star-rating.tsx). */
+.star-fill { transition: width 160ms var(--ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-line { animation: none; opacity: 0; }
+  .count-pop { animation: none; }
+  .star-fill { transition: none; }
+}
 
 /* Safe-area utility (iOS + Android edge-to-edge). Uses the floored --safe-bottom
    so it clears the Android gesture bar too, not just the iOS home indicator. */
