@@ -1308,26 +1308,31 @@ html[data-skin="clean"] {
   --glass-brightness: 1;
 }
 
-/* Regular surfaces (cards, list items, popovers, chips) → solid card. */
+/* Regular surfaces (cards, list items, popovers, chips) → instrument panel:
+   crisp 1px hairline + a faint lit top edge, flatter than the soft Apple drop
+   shadow. iOS keeps the real Liquid Glass (it has no data-skin). */
 html[data-skin="clean"] :where(.glass, .liquid-glass, .glass-lite, .glass-refract) {
   background-color: rgb(var(--bg-elev));
-  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  border: 1px solid rgb(var(--glass-stroke) / 0.75);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow:
-    0 1px 2px rgb(var(--shadow) / 0.05),
-    0 8px 22px -14px rgb(var(--shadow) / 0.16);
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.05),
+    0 1px 2px rgb(var(--shadow) / 0.06),
+    0 6px 16px -12px rgb(var(--shadow) / 0.14);
 }
 
-/* Elevated surfaces (modals, sheets, auth cards, dropdown panels) → deeper lift. */
+/* Elevated surfaces (modals, sheets, auth cards, dropdown panels) → crisper,
+   tighter lift (no big soft blur). */
 html[data-skin="clean"] :where(.glass-strong, .liquid-glass-strong, .glass-card, .nav-dropdown-panel) {
   background-color: rgb(var(--bg-elev));
-  border: 1px solid rgb(var(--glass-stroke-soft) / 0.65);
+  border: 1px solid rgb(var(--glass-stroke) / 0.85);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow:
-    0 4px 14px -6px rgb(var(--shadow) / 0.14),
-    0 24px 48px -28px rgb(var(--shadow) / 0.3);
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.06),
+    0 2px 8px -3px rgb(var(--shadow) / 0.2),
+    0 18px 40px -26px rgb(var(--shadow) / 0.3);
 }
 
 /* Glass button variant (components/ui/button.tsx) → solid secondary button. */
@@ -1338,6 +1343,7 @@ html[data-skin="clean"] :where(.glass-interactive) {
 }
 html[data-skin="clean"] .glass-interactive:hover {
   background-color: rgb(var(--bg-elev));
+  box-shadow: 0 0 0 1px rgb(var(--brand) / 0.18);
 }
 
 /* Drop every lensed-edge ring / inner-glow pseudo element. */
@@ -1388,4 +1394,34 @@ html[data-skin="clean"] :where(.glass-tabbar) {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow: 0 10px 28px -14px rgb(var(--shadow) / 0.22);
+}
+
+/* ── Instrument skin accents (clean skin only — iOS Liquid Glass untouched) ──
+   The §2 "technical instrument" energy, kept restrained: tighten the oversized
+   premium-card radius, give panel surfaces a crisp hairline, and add a faint
+   basketball-orange glow on lift/keyboard-focus (the "active state"). */
+html[data-skin="clean"] :where(.glass-card) {
+  border-radius: 16px;
+}
+html[data-skin="clean"] :where(.surface-card) {
+  border: 1px solid rgb(var(--glass-stroke) / 0.65);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.04),
+    0 1px 2px rgb(var(--shadow) / 0.05);
+}
+html[data-skin="clean"] .premium-hover-lift:hover {
+  border-color: rgb(var(--brand) / 0.4);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-highlight) / 0.4),
+    0 0 0 1px rgb(var(--brand) / 0.12),
+    0 16px 40px -22px rgb(var(--brand) / 0.18);
+}
+html[data-skin="clean"] :where(a, button, [role="button"]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgb(var(--brand) / 0.5);
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-skin="clean"] .premium-hover-lift:hover {
+    transform: none;
+  }
 }
