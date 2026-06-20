@@ -24,9 +24,41 @@
 --     + ZERO activity + your own id excluded. Any account that ever logged in or
 --     did anything at all is left untouched.
 --
--- 分两步运行：先跑【脚本一】预览确认，再跑【脚本二】删除。
--- Two parts: run PART 1 (preview) first, eyeball the numbers, then run PART 2.
+-- 运行顺序：PART 0 先确认/补回你自己的账号 → PART 1 预览要删多少 → PART 2 删除。
+-- Order: PART 0 (find/restore your own account) → PART 1 (preview) → PART 2 (delete).
 -- ============================================================================
+
+
+-- ╔══════════════════════════════════════════════════════════════════════════╗
+-- ║ 脚本零 / PART 0 — 先确认你的账号还在不在，不在就补回来                     ║
+-- ║ PART 0 — check whether your account still has a profile row; restore it    ║
+-- ║ if missing. (You can still log in via auth.users even with NO profile row.)║
+-- ╚══════════════════════════════════════════════════════════════════════════╝
+
+-- 0a. 关键诊断：你的 auth 用户有没有对应的 profiles 行？
+--     Key diagnosis: does your auth user have a matching profiles row?
+--     读结果：profile_id 有值 = profile 还在（只是被 110 万垃圾淹没，PART 1a 能查到）；
+--             profile_id 为 NULL = profile 丢了 / 从未建过，跑 0b 补回来。
+select u.id            as auth_user_id,
+       u.email,
+       u.created_at    as auth_created_at,
+       u.last_sign_in_at,
+       p.id            as profile_id,   -- NULL = 没有 profile 行
+       p.username,
+       p.role
+from auth.users u
+left join public.profiles p on p.id = u.id
+where u.email ilike 'zzzachariah9828@gmail.com';   -- 👈 你自己的邮箱
+
+-- 0b. 仅当 0a 的 profile_id 是 NULL 时才运行：把你的 profile 补回来并设为 admin。
+--     Run ONLY if 0a showed profile_id = NULL: recreate your profile as admin.
+--     用户名必须唯一；若 'zachariah' 已被占用就换一个。幂等：已存在则只修正 role。
+-- insert into public.profiles (id, username, email, role)
+-- select u.id, 'zachariah', u.email, 'admin'         -- 👈 改成你想要的用户名
+-- from auth.users u
+-- where u.email ilike 'zzzachariah9828@gmail.com'     -- 👈 你自己的邮箱
+-- on conflict (id) do update
+--   set role = 'admin', email = excluded.email;
 
 
 -- ╔══════════════════════════════════════════════════════════════════════════╗
@@ -34,12 +66,13 @@
 -- ║ PART 1 — preview only (read-only, changes nothing). 整段一起运行。        ║
 -- ╚══════════════════════════════════════════════════════════════════════════╝
 
--- 1a. 找到你自己的账号，记下 id（下面 PART 2 要把它列入保护名单）。
---     Find YOUR OWN account and copy its id (you'll protect it in PART 2).
---     把邮箱换成你自己的；这里预填了登录上下文里的邮箱作为示例。
+-- 1a. 在 profiles 里找到你自己的账号，记下 id（PART 2 会把它列入保护名单）。
+--     若这里查不到、但 PART 0a 显示 auth 里有你 → 你的 profile 丢了，先跑 0b 补回来。
+--     Find YOUR OWN profile row and copy its id (protected in PART 2). If this
+--     returns nothing but PART 0a found you in auth, your profile is missing — run 0b.
 select id, username, email, role, created_at
 from public.profiles
-where email ilike 'mathilde_aperiamov@mail.com';   -- 👈 改成你自己的邮箱/用户名
+where email ilike 'zzzachariah9828@gmail.com';   -- 👈 你自己的邮箱/用户名
 
 -- 1b. 看注册量按小时分布，确认攻击爆发的时间窗（应能看到 6/20 凌晨的尖峰）。
 --     Registrations per hour — confirm the attack burst window.
@@ -120,7 +153,7 @@ create index on spam_suspects (id);
 select p.id, p.username, p.email
 from public.profiles p
 join spam_suspects s on s.id = p.id
-where p.email ilike 'mathilde_aperiamov@mail.com';   -- 👈 你自己的邮箱
+where p.email ilike 'zzzachariah9828@gmail.com';   -- 👈 你自己的邮箱
 
 -- 3) 分批删除 auth.users（每批 5000，避免长事务/超时）。
 --    级联会自动删掉对应的 profiles 和该用户的所有内容。
@@ -160,4 +193,4 @@ select
 
 -- 你的账号应该还在：
 select id, username, email, role from public.profiles
-where email ilike 'mathilde_aperiamov@mail.com';   -- 👈 你自己的邮箱
+where email ilike 'zzzachariah9828@gmail.com';   -- 👈 你自己的邮箱
