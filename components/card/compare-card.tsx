@@ -7,6 +7,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useTranslatedText } from "@/components/i18n/use-translated-text";
 import { pickLocalized } from "@/components/i18n/localized-field";
 import { proxiedImageSrc } from "@/lib/card/proxy-image";
+import { BgRemovedImg } from "@/components/shoe/bg-removed-img";
 import type { Shoe } from "@/lib/types";
 
 type Props = {
@@ -127,8 +128,7 @@ function ShoeCell({
           }}
         />
         {shoe.image_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <BgRemovedImg
             src={proxiedImageSrc(shoe.image_url)}
             alt=""
             crossOrigin="anonymous"

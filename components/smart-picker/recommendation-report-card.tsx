@@ -4,6 +4,7 @@ import { CardFrame } from "@/components/card/card-frame";
 import { getLineStyle } from "@/components/compare/compare-metrics";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { proxiedImageSrc } from "@/lib/card/proxy-image";
+import { BgRemovedImg } from "@/components/shoe/bg-removed-img";
 import type { RecommendationItem } from "@/lib/ai/types";
 
 // A shareable spec sheet won't fit more than this many shoes legibly, and the
@@ -273,8 +274,7 @@ export function RecommendationReportCard({
                   {i + 1}
                 </span>
                 {rec.image_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <BgRemovedImg
                     src={proxiedImageSrc(rec.image_url)}
                     alt=""
                     crossOrigin="anonymous"
