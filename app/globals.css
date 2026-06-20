@@ -1162,6 +1162,13 @@ html[data-native-platform="ios"] [data-download-entry] {
 }
 .chip-scroll::-webkit-scrollbar { display: none; }
 
+/* Horizontal rail edge fade — the content dissolves into the page at both ends so
+   a half-scrolled rail reads as "more to the side" instead of a hard clip. */
+.rail-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
+}
+
 /* Safe-area utility (iOS + Android edge-to-edge). Uses the floored --safe-bottom
    so it clears the Android gesture bar too, not just the iOS home indicator. */
 .safe-pb {

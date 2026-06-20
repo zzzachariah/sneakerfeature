@@ -26,7 +26,7 @@ export function HomeCollections({ collections, shoes }: { collections: HomeColle
             <h3 className="font-display mb-2 text-[0.95rem] font-semibold tracking-[-0.01em]">
               {translate(collection.title)}
             </h3>
-            <ul className="chip-scroll flex gap-3 overflow-x-auto pb-2">
+            <ul className="chip-scroll rail-fade flex gap-3 overflow-x-auto pb-2">
               {items.map((shoe) => (
                 <ShoeCard key={shoe.id} shoe={shoe} className="w-[150px] shrink-0 snap-start md:w-[168px]" />
               ))}
