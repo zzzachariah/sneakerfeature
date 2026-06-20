@@ -362,9 +362,12 @@ export function CaptureStep({
                 </span>
               </div>
             )}
+            {mode === "live" && <span aria-hidden className="scan-line" />}
             {count > 0 && (
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-7xl font-bold text-white drop-shadow-lg">{count}</span>
+                <span key={count} className="count-pop text-7xl font-bold text-white drop-shadow-lg">
+                  {count}
+                </span>
               </div>
             )}
           </>

@@ -9,6 +9,7 @@ import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeCard } from "@/components/home/shoe-card";
@@ -30,6 +31,21 @@ import { FeedFab } from "@/components/home/feed-fab";
 
 const INITIAL_VISIBLE = 48;
 const VISIBLE_STEP = 36;
+
+// Tracks the phone breakpoint so filters open as a native-feeling bottom sheet on
+// phones and stay as an inline panel on desktop. Defaults to false (desktop) for
+// SSR; resolves after mount (filters are closed initially, so no visible jump).
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767.98px)");
+    const sync = () => setMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return mobile;
+}
 
 export function HomeFeed({
   shoes: initialShoes,
@@ -77,6 +93,7 @@ export function HomeFeed({
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const activeFacetCount = facetCount(facets);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!active) return;
@@ -360,8 +377,19 @@ export function HomeFeed({
         </div>
         </div>
 
-          {filtersOpen && (
+          {/* Desktop: inline filter panel. Phones: a draggable bottom sheet. */}
+          {filtersOpen && !isMobile && (
             <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} />
+          )}
+          {isMobile && (
+            <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
+              <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} bare />
+              <div className="mt-5">
+                <Button className="w-full" onClick={() => setFiltersOpen(false)}>
+                  {translate("Show results")} · {filtered.length}
+                </Button>
+              </div>
+            </BottomSheet>
           )}
 
           {filtered.length === 0 ? (

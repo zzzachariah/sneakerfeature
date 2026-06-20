@@ -1169,6 +1169,35 @@ html[data-native-platform="ios"] [data-download-entry] {
   mask-image: linear-gradient(to right, transparent 0, #000 18px, #000 calc(100% - 18px), transparent 100%);
 }
 
+/* Foot-scan live-capture: a brand-tinted scanning line sweeps the viewport so the
+   camera feels like it's actively measuring; the self-timer count pops each tick. */
+@keyframes scanSweep {
+  0%   { top: 0%;   opacity: 0; }
+  12%  { opacity: 0.9; }
+  88%  { opacity: 0.9; }
+  100% { top: 100%; opacity: 0; }
+}
+.scan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgb(var(--brand) / 0.9), transparent);
+  box-shadow: 0 0 12px rgb(var(--brand) / 0.55);
+  animation: scanSweep 2.6s var(--ease) infinite;
+}
+@keyframes countPop {
+  0%   { transform: scale(1.5); opacity: 0.35; }
+  60%  { transform: scale(1);   opacity: 1; }
+  100% { transform: scale(1); }
+}
+.count-pop { animation: countPop 560ms var(--ease); }
+@media (prefers-reduced-motion: reduce) {
+  .scan-line { animation: none; opacity: 0; }
+  .count-pop { animation: none; }
+}
+
 /* Safe-area utility (iOS + Android edge-to-edge). Uses the floored --safe-bottom
    so it clears the Android gesture bar too, not just the iOS home indicator. */
 .safe-pb {
