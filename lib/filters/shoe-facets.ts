@@ -1,6 +1,9 @@
 import type { Shoe } from "@/lib/types";
 import {
+  getBounceScore,
+  getCourtFeelScore,
   getCushioningFeelScore,
+  getFitScore,
   getStabilityScore,
   getTractionScore
 } from "@/lib/shoe-scoring";
@@ -12,7 +15,7 @@ import { parseShoeWeightOz } from "@/lib/match/score";
 
 export type CategoryBucket = "guard" | "wing" | "big" | "all";
 export type EraBucket = "pre2010" | "2010s" | "2020s";
-export type PerfFlag = "traction" | "cushion" | "stable" | "light";
+export type PerfFlag = "traction" | "cushion" | "bounce" | "court" | "stable" | "fit" | "light";
 
 export type FacetState = {
   categories: CategoryBucket[]; // OR within the group
@@ -25,7 +28,7 @@ export const EMPTY_FACETS: FacetState = { categories: [], eras: [], minStars: 0,
 
 export const CATEGORY_BUCKETS: CategoryBucket[] = ["guard", "wing", "big", "all"];
 export const ERA_BUCKETS: EraBucket[] = ["pre2010", "2010s", "2020s"];
-export const PERF_FLAGS: PerfFlag[] = ["traction", "cushion", "stable", "light"];
+export const PERF_FLAGS: PerfFlag[] = ["traction", "cushion", "bounce", "court", "stable", "fit", "light"];
 
 // Mirrors the bucketing used by the personalization engine (lib/match/score.ts)
 // so "Guard" here means the same thing it does for match scoring.
@@ -50,7 +53,10 @@ export function eraBucket(shoe: Shoe): EraBucket | null {
 const PERF_PREDICATES: Record<PerfFlag, (shoe: Shoe) => boolean> = {
   traction: (s) => getTractionScore(s.spec.traction ?? "") >= 85,
   cushion: (s) => getCushioningFeelScore(s.spec.cushioning_feel ?? "") >= 85,
+  bounce: (s) => getBounceScore(s.spec.bounce ?? "") >= 85,
+  court: (s) => getCourtFeelScore(s.spec.court_feel ?? "") >= 85,
   stable: (s) => getStabilityScore(s.spec.stability ?? "") >= 85,
+  fit: (s) => getFitScore(s.spec.fit ?? "") >= 85,
   light: (s) => {
     const oz = parseShoeWeightOz(s.weight);
     return oz != null && oz <= 12;
@@ -97,7 +103,10 @@ export function buildFacetIndex(shoes: Shoe[]): Map<string, FacetIndexEntry> {
       perf: {
         traction: PERF_PREDICATES.traction(s),
         cushion: PERF_PREDICATES.cushion(s),
+        bounce: PERF_PREDICATES.bounce(s),
+        court: PERF_PREDICATES.court(s),
         stable: PERF_PREDICATES.stable(s),
+        fit: PERF_PREDICATES.fit(s),
         light: PERF_PREDICATES.light(s)
       }
     });

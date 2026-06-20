@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, ArrowRight, RotateCcw, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, RotateCcw, Sparkles, UserCircle } from "lucide-react";
 import type { Shoe } from "@/lib/types";
 import {
   POSITIONS,
@@ -18,10 +18,24 @@ import {
   type Persona
 } from "@/lib/persona/types";
 import { computeMatchScore, getMatchReasons } from "@/lib/match/score";
+import { scoreFor, type MetricKey } from "@/components/compare/compare-metrics";
 import { ShoeCard } from "@/components/home/shoe-card";
+import { usePersona } from "@/components/preferences/persona-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-const STEP_COUNT = 3;
+const STEP_COUNT = 4; // position, skill, build, priority
+
+// Optional "what matters most" weighting — blends into the match score so the
+// list leans toward the dimension the player cares about.
+const PRIORITY_OPTIONS: { key: MetricKey | null; label: string }[] = [
+  { key: null, label: "Balanced" },
+  { key: "traction", label: "Grip" },
+  { key: "cushioning_feel", label: "Cushion" },
+  { key: "court_feel", label: "Court" },
+  { key: "bounce", label: "Bounce" },
+  { key: "stability", label: "Stable" },
+  { key: "fit", label: "Fit" }
+];
 
 function Chip({
   active,
@@ -50,31 +64,54 @@ function Chip({
 
 export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const { translate } = useLocale();
-  const [step, setStep] = useState(0); // 0..2 = questions, 3 = results
+  const { persona: savedPersona } = usePersona();
+  const [step, setStep] = useState(0); // 0..3 = questions, 4 = results
   const [positions, setPositions] = useState<Position[]>([]);
   const [skill, setSkill] = useState<SkillLevel | null>(null);
   const [height, setHeight] = useState(185);
   const [weight, setWeight] = useState(80);
   const [flatFoot, setFlatFoot] = useState(false);
+  const [priority, setPriority] = useState<MetricKey | null>(null);
 
-  const persona = useMemo<Persona | null>(() => {
+  const personaInput = useMemo<Persona | null>(() => {
     if (positions.length < 1 || !skill) return null;
     return { positions, skill_level: skill, flat_foot: flatFoot, height_cm: height, weight_kg: weight };
   }, [positions, skill, flatFoot, height, weight]);
 
   const results = useMemo(() => {
-    if (step < STEP_COUNT || !persona) return [];
+    if (step < STEP_COUNT || !personaInput) return [];
     return shoes
-      .map((shoe) => ({ shoe, score: computeMatchScore(persona, shoe), reasons: getMatchReasons(persona, shoe) }))
-      .sort((a, b) => b.score - a.score)
+      .map((shoe) => {
+        const score = computeMatchScore(personaInput, shoe);
+        const reasons = getMatchReasons(personaInput, shoe);
+        // Blend the chosen priority dimension into the ranking (keep the match%
+        // as the headline number; just re-order toward what the player wants).
+        const rank = priority ? Math.round(score * 0.6 + scoreFor(shoe, priority) * 0.4) : score;
+        return { shoe, score, reasons, rank };
+      })
+      .sort((a, b) => b.rank - a.rank)
       .slice(0, 12);
-  }, [step, persona, shoes]);
+  }, [step, personaInput, priority, shoes]);
+
+  function applySavedProfile() {
+    if (!savedPersona) return;
+    setPositions(savedPersona.positions);
+    setSkill(savedPersona.skill_level);
+    setHeight(savedPersona.height_cm);
+    setWeight(savedPersona.weight_kg);
+    setFlatFoot(savedPersona.flat_foot);
+    setStep(STEP_COUNT - 1); // jump to the priority step; results are one tap away
+  }
 
   const togglePos = (p: Position) =>
     setPositions((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : prev.length >= 2 ? prev : [...prev, p]));
 
   const canNext = step === 0 ? positions.length >= 1 : step === 1 ? Boolean(skill) : true;
   const top3 = results.slice(0, 3).map((r) => r.shoe.id);
+
+  const savedSummary = savedPersona
+    ? `${savedPersona.positions.join(" / ")} · ${translate(SKILL_LEVEL_LABEL[savedPersona.skill_level])} · ${savedPersona.height_cm}cm · ${savedPersona.weight_kg}kg`
+    : "";
 
   return (
     <main className="container-shell has-mobile-nav-pad py-8 md:py-12">
@@ -92,6 +129,23 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                 style={{ width: `${((step + 1) / STEP_COUNT) * 100}%` }}
               />
             </div>
+
+            {step === 0 && savedPersona && (
+              <button
+                type="button"
+                onClick={applySavedProfile}
+                className="mb-4 flex w-full items-center gap-3 rounded-2xl border border-[rgb(var(--brand)/0.35)] bg-[rgb(var(--brand)/0.08)] p-4 text-left transition hover:border-[rgb(var(--brand)/0.55)] active:scale-[0.995]"
+              >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--brand))] text-[rgb(var(--brand-contrast))]">
+                  <UserCircle className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[0.92rem] font-semibold">{translate("Use my saved profile")}</span>
+                  <span className="block truncate text-[0.8rem] soft-text">{savedSummary}</span>
+                </span>
+                <ArrowRight className="h-5 w-5 shrink-0 text-[rgb(var(--brand))]" />
+              </button>
+            )}
 
             <div className="surface-card premium-border rounded-2xl p-5 md:p-7">
               {step === 0 && (
@@ -162,6 +216,24 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                         {translate("Yes")}
                       </Chip>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {step === 3 && (
+                <div>
+                  <h2 className="mb-1 text-lg font-semibold">{translate("What matters most?")}</h2>
+                  <p className="mb-4 text-sm soft-text">{translate("Optional — we'll rank your matches by this.")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {PRIORITY_OPTIONS.map((opt) => (
+                      <Chip
+                        key={opt.label}
+                        active={priority === opt.key}
+                        onClick={() => setPriority(opt.key)}
+                      >
+                        {translate(opt.label)}
+                      </Chip>
+                    ))}
                   </div>
                 </div>
               )}

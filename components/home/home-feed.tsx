@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import type { Route } from "next";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { SearchX, SlidersHorizontal, X } from "lucide-react";
 import { Shoe } from "@/lib/types";
@@ -22,6 +24,9 @@ import {
   matchesIndexed,
   type FacetState
 } from "@/lib/filters/shoe-facets";
+import { useFavorites } from "@/components/favorites/favorites-provider";
+import { useAuthState } from "@/components/auth/auth-state-provider";
+import { FeedFab } from "@/components/home/feed-fab";
 
 const INITIAL_VISIBLE = 48;
 const VISIBLE_STEP = 36;
@@ -32,7 +37,8 @@ export function HomeFeed({
   active = true,
   scrollContainerAttr = false,
   pageScroll = false,
-  scrollHeader
+  scrollHeader,
+  onCollapse
 }: {
   shoes: Shoe[];
   initialQuery?: string;
@@ -42,10 +48,18 @@ export function HomeFeed({
       the filter bar pins under the navbar instead of the container top. */
   pageScroll?: boolean;
   scrollHeader?: ReactNode;
+  /** When provided, a floating control to collapse the feed appears (home). */
+  onCollapse?: () => void;
 }) {
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
   const { mode, setMode } = useHomeMode();
+  const { favorites } = useFavorites();
+  const { signedIn } = useAuthState();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [fabVisible, setFabVisible] = useState(false);
   // Render the SSR list (keeps personalization); keep an offline IndexedDB copy
   // of the public catalog in sync, and fall back to it when there's no server data.
   const shoes = useLocalShoes(initialShoes);
@@ -105,6 +119,7 @@ export function HomeFeed({
         ({ shoe, searchScore }) =>
           searchScore >= 0 &&
           (brand === "all" || shoe.brand === brand) &&
+          (!onlyFavorites || favorites.has(shoe.id)) &&
           matchesIndexed(facetIndex.get(shoe.id), facets)
       );
 
@@ -121,7 +136,25 @@ export function HomeFeed({
       if (av !== bv) return bv - av;
       return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
     });
-  }, [scored, query, brand, mode, facets, facetIndex]);
+  }, [scored, query, brand, mode, facets, facetIndex, onlyFavorites, favorites]);
+
+  // Floating feed control: appears once the player has scrolled down into the
+  // list (home only). Threshold-based so it's stable, not flickery.
+  useEffect(() => {
+    if (!onCollapse) return;
+    const onScroll = () => setFabVisible(window.scrollY > 320);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [onCollapse]);
+
+  function onToggleFavorites() {
+    if (!signedIn) {
+      router.push(`/login?next=${encodeURIComponent(pathname)}` as Route);
+      return;
+    }
+    setOnlyFavorites((v) => !v);
+  }
 
   const brands = Array.from(new Set(shoes.map((s) => s.brand)));
 
@@ -342,6 +375,7 @@ export function HomeFeed({
                   setQuery("");
                   setBrand("all");
                   setFacets(EMPTY_FACETS);
+                  setOnlyFavorites(false);
                 }}
                 className="text-xs text-[rgb(var(--text))] underline-offset-2 hover:underline"
               >
@@ -387,6 +421,22 @@ export function HomeFeed({
             <Button className="w-full sm:w-auto">{translate("Compare now")}</Button>
           </Link>
         </div>
+      )}
+
+      {onCollapse && (
+        <FeedFab
+          visible={fabVisible && !(compareMode && selected.length > 1)}
+          compareMode={compareMode}
+          onlyFavorites={onlyFavorites}
+          onCollapse={onCollapse}
+          onToggleCompare={() =>
+            setCompareMode((v) => {
+              if (v) setSelected([]);
+              return !v;
+            })
+          }
+          onToggleFavorites={onToggleFavorites}
+        />
       )}
     </section>
   );

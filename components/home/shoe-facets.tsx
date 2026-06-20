@@ -29,7 +29,10 @@ const ERA_LABEL: Record<EraBucket, string> = {
 const PERF_LABEL: Record<PerfFlag, string> = {
   traction: "Great traction",
   cushion: "Plush cushioning",
+  bounce: "Bouncy",
+  court: "Great court feel",
   stable: "Stable",
+  fit: "Locked-in fit",
   light: "Lightweight"
 };
 const RATING_OPTIONS = [3, 4, 4.5];
