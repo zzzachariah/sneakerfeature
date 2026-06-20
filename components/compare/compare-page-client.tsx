@@ -14,6 +14,8 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
+import { SignInValue } from "@/components/auth/sign-in-value";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 
 const MAX_SHOES = 5;
 const MAX_CARD_SHOES = 4;
@@ -32,6 +34,7 @@ function defaultSaveTitle(shoes: Shoe[]) {
 
 export function ComparePageClient({ selected, allShoes }: Props) {
   const { translate } = useLocale();
+  const { signedIn, loaded: authLoaded } = useAuthState();
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -197,6 +200,12 @@ export function ComparePageClient({ selected, allShoes }: Props) {
     }
   }
 
+  function goLoginToSave() {
+    const ids = localShoes.map((s) => s.id).join(",");
+    const next = ids ? `/compare?ids=${ids}` : "/compare";
+    router.push(`/login?next=${encodeURIComponent(next)}` as Route);
+  }
+
   return (
     <main>
       {localShoes.length === 0 ? (
@@ -253,32 +262,49 @@ export function ComparePageClient({ selected, allShoes }: Props) {
       />
 
       <Modal open={saveOpen} onClose={() => (saveBusy ? null : setSaveOpen(false))} title="Save this compare">
-        <div className="space-y-4">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
-              {translate("Title")}
-            </label>
-            <Input
-              value={saveTitle}
-              onChange={(e) => setSaveTitle(e.target.value)}
-              maxLength={80}
-              placeholder={translate("e.g. Guards 2024")}
-              autoFocus
-            />
+        {authLoaded && !signedIn ? (
+          <div className="space-y-4">
+            <p className="text-sm text-[rgb(var(--text)/0.82)]">
+              {translate("Sign in to save this compare to your account.")}
+            </p>
+            <SignInValue />
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setSaveOpen(false)}>
+                {translate("Cancel")}
+              </Button>
+              <Button type="button" onClick={goLoginToSave}>
+                {translate("Log in to save")}
+              </Button>
+            </div>
           </div>
-          <p className="text-xs soft-text">
-            {translate("Saving")}: {localShoes.map((s) => s.shoe_name).join(", ")}
-          </p>
-          {saveMessage ? <FeedbackMessage message={saveMessage} isError={saveError} /> : null}
-          <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setSaveOpen(false)} disabled={saveBusy}>
-              {translate("Cancel")}
-            </Button>
-            <Button type="button" onClick={handleSave} disabled={saveBusy}>
-              {saveBusy ? translate("Saving...") : translate("Save")}
-            </Button>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
+                {translate("Title")}
+              </label>
+              <Input
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
+                maxLength={80}
+                placeholder={translate("e.g. Guards 2024")}
+                autoFocus
+              />
+            </div>
+            <p className="text-xs soft-text">
+              {translate("Saving")}: {localShoes.map((s) => s.shoe_name).join(", ")}
+            </p>
+            {saveMessage ? <FeedbackMessage message={saveMessage} isError={saveError} /> : null}
+            <div className="flex items-center justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setSaveOpen(false)} disabled={saveBusy}>
+                {translate("Cancel")}
+              </Button>
+              <Button type="button" onClick={handleSave} disabled={saveBusy}>
+                {saveBusy ? translate("Saving...") : translate("Save")}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </Modal>
     </main>
   );

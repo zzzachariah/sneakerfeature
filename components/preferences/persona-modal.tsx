@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { SignInValue } from "@/components/auth/sign-in-value";
 import {
   HEIGHT_MAX,
   HEIGHT_MIN,
@@ -188,7 +189,8 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
     <Modal open={open} onClose={onClose} title="Set up your player profile">
       {!isLoggedIn ? (
         <div className="space-y-4">
-          <p className="text-sm soft-text">{translate("Sign in to set up your player profile.")}</p>
+          <p className="text-sm text-[rgb(var(--text)/0.82)]">{translate("Sign in to set up your player profile.")}</p>
+          <SignInValue />
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="ghost" type="button" onClick={onClose}>
               {translate("Cancel")}
