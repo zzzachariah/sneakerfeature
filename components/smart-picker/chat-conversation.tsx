@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Download, History, Plus, Sparkles, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
@@ -77,6 +79,17 @@ export function ChatConversation({
   const isEmpty = !loadingMessages && messages.length === 0;
   const headerTitle = activeTitle?.trim() || translate("Smart Picker");
   const lastMessage = messages[messages.length - 1];
+  const reduce = useReducedMotion();
+  // Bubble entrance — plays once on mount (keyed by message id), so it doesn't
+  // replay while the assistant turn streams its content in.
+  const bubbleIn = (x: number) =>
+    reduce
+      ? {}
+      : {
+          initial: { opacity: 0, y: 6, x },
+          animate: { opacity: 1, y: 0, x: 0 },
+          transition: { duration: 0.3, ease: EASE }
+        };
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
@@ -176,9 +189,12 @@ export function ChatConversation({
             if (message.role === "user") {
               return (
                 <div key={message.id} className="flex justify-end">
-                  <div className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[rgb(var(--text))] px-3.5 py-2 text-sm text-[rgb(var(--bg))]">
+                  <motion.div
+                    {...bubbleIn(12)}
+                    className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-br-md bg-[rgb(var(--text))] px-3.5 py-2 text-sm text-[rgb(var(--bg))]"
+                  >
                     {message.content}
-                  </div>
+                  </motion.div>
                 </div>
               );
             }
@@ -196,9 +212,12 @@ export function ChatConversation({
                 {/* The clean answer. Code/JSON the relay sometimes emits is filtered
                     server-side, so it never reaches this bubble or the timeline. */}
                 {message.content && (
-                  <div className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm">
+                  <motion.div
+                    {...bubbleIn(-12)}
+                    className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm"
+                  >
                     {message.content}
-                  </div>
+                  </motion.div>
                 )}
 
                 {message.recommendations && message.recommendations.length > 0 && (

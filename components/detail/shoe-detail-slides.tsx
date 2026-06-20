@@ -21,6 +21,7 @@ import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { Reveal } from "@/components/motion/reveal";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
+import { Parallax } from "@/components/motion/parallax";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { cn } from "@/lib/utils";
 import type { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
@@ -273,13 +274,17 @@ function OverviewSection({
       </div>
 
       <div className="order-1 flex flex-col items-center gap-3 md:order-2">
-        <div className="w-full max-w-[220px] rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-4 shadow-cinematic sm:max-w-[260px] md:max-w-xs md:p-6">
-          <ShoeImage
-            src={reviewImage}
-            alt={`${shoe.brand} ${shoe.shoe_name}`}
-            fallbackLabel={translate("No image")}
-            variant="detail"
-          />
+        <div className="shimmer-on-hover shimmer-on-hover-inverse w-full max-w-[220px] overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-4 shadow-cinematic sm:max-w-[260px] md:max-w-xs md:p-6">
+          {/* Parallax drifts the shot WITHIN the (overflow-hidden) card, so the card
+              box never moves and nothing around it shifts. */}
+          <Parallax distance={16}>
+            <ShoeImage
+              src={reviewImage}
+              alt={`${shoe.brand} ${shoe.shoe_name}`}
+              fallbackLabel={translate("No image")}
+              variant="detail"
+            />
+          </Parallax>
         </div>
         {/* Image moderation status is operational noise for regular users: only
             admins (who act on it) see pending/approved/rejected. Everyone still
