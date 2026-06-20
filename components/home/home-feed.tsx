@@ -15,7 +15,13 @@ import { usePersona } from "@/components/preferences/persona-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
 import { ShoeFacets } from "@/components/home/shoe-facets";
-import { EMPTY_FACETS, facetCount, matchesFacets, type FacetState } from "@/lib/filters/shoe-facets";
+import {
+  EMPTY_FACETS,
+  facetCount,
+  buildFacetIndex,
+  matchesIndexed,
+  type FacetState
+} from "@/lib/filters/shoe-facets";
 
 const INITIAL_VISIBLE = 48;
 const VISIBLE_STEP = 36;
@@ -43,6 +49,9 @@ export function HomeFeed({
   // Render the SSR list (keeps personalization); keep an offline IndexedDB copy
   // of the public catalog in sync, and fall back to it when there's no server data.
   const shoes = useLocalShoes(initialShoes);
+  // Precompute facet data (incl. the regex-scored performance flags) once per
+  // catalog, so filtering stays cheap on every keystroke / facet toggle.
+  const facetIndex = useMemo(() => buildFacetIndex(shoes), [shoes]);
   const [searchDraft, setSearchDraft] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const [brand, setBrand] = useState("all");
@@ -94,7 +103,9 @@ export function HomeFeed({
       .map((entry) => ({ ...entry, searchScore: rankShoeMatch(entry.shoe, query) }))
       .filter(
         ({ shoe, searchScore }) =>
-          searchScore >= 0 && (brand === "all" || shoe.brand === brand) && matchesFacets(shoe, facets)
+          searchScore >= 0 &&
+          (brand === "all" || shoe.brand === brand) &&
+          matchesIndexed(facetIndex.get(shoe.id), facets)
       );
 
     return list.sort((a, b) => {
@@ -110,7 +121,7 @@ export function HomeFeed({
       if (av !== bv) return bv - av;
       return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
     });
-  }, [scored, query, brand, mode, facets]);
+  }, [scored, query, brand, mode, facets, facetIndex]);
 
   const brands = Array.from(new Set(shoes.map((s) => s.brand)));
 

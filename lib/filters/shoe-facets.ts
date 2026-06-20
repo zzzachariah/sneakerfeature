@@ -77,6 +77,45 @@ export function facetCount(f: FacetState): number {
   return f.categories.length + f.eras.length + (f.minStars > 0 ? 1 : 0) + f.perf.length;
 }
 
+// Per-shoe precomputed facet data. The performance predicates run the regex
+// scoring engine, so we compute them ONCE per catalog (buildFacetIndex) and let
+// the feed filter against the cheap booleans on every keystroke / toggle.
+export type FacetIndexEntry = {
+  category: CategoryBucket | null;
+  era: EraBucket | null;
+  stars: number;
+  perf: Record<PerfFlag, boolean>;
+};
+
+export function buildFacetIndex(shoes: Shoe[]): Map<string, FacetIndexEntry> {
+  const map = new Map<string, FacetIndexEntry>();
+  for (const s of shoes) {
+    map.set(s.id, {
+      category: categoryBucket(s),
+      era: eraBucket(s),
+      stars: s.finalStars ?? 0,
+      perf: {
+        traction: PERF_PREDICATES.traction(s),
+        cushion: PERF_PREDICATES.cushion(s),
+        stable: PERF_PREDICATES.stable(s),
+        light: PERF_PREDICATES.light(s)
+      }
+    });
+  }
+  return map;
+}
+
+export function matchesIndexed(entry: FacetIndexEntry | undefined, f: FacetState): boolean {
+  if (!entry) return true;
+  if (f.categories.length && (!entry.category || !f.categories.includes(entry.category))) return false;
+  if (f.eras.length && (!entry.era || !f.eras.includes(entry.era))) return false;
+  if (f.minStars > 0 && entry.stars < f.minStars) return false;
+  for (const flag of f.perf) {
+    if (!entry.perf[flag]) return false;
+  }
+  return true;
+}
+
 /** Which buckets actually exist in the catalog, so the UI never shows a chip
  *  that can only ever return zero results. */
 export function availableFacets(shoes: Shoe[]) {
