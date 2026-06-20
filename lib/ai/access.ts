@@ -1,6 +1,5 @@
 import { cache } from "react";
 import { getCurrentProfile } from "@/lib/data/auth";
-import { isSmartPickerPublicEnabled } from "@/lib/admin/settings";
 
 export type SmartPickerContext = {
   userId: string;
@@ -8,17 +7,11 @@ export type SmartPickerContext = {
   isAdmin: boolean;
 };
 
-// Returns context if the current user can use Smart Picker:
-//   - Admins always pass.
-//   - Non-admins pass only when the `smart_picker_public_enabled` flag is on.
-// Returns null in every other case (no session, not allowed).
+// Smart Picker is open to any signed-in user — chats and credits are per-user,
+// and the credits system bounds AI usage. Admins are always allowed. Signed-out
+// visitors get null, and the page/API prompt them to log in.
 export const getSmartPickerContext = cache(async function getSmartPickerContext(): Promise<SmartPickerContext | null> {
   const profile = await getCurrentProfile();
   if (!profile) return null;
-  if (profile.role === "admin") {
-    return { userId: profile.id, username: profile.username, isAdmin: true };
-  }
-  const enabled = await isSmartPickerPublicEnabled();
-  if (!enabled) return null;
-  return { userId: profile.id, username: profile.username, isAdmin: false };
+  return { userId: profile.id, username: profile.username, isAdmin: profile.role === "admin" };
 });
