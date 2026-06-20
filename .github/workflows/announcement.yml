@@ -2,10 +2,13 @@ name: Publish Announcement
 
 # Fill in the form below (Actions → Publish Announcement → Run workflow) to show
 # a site-wide popup to every visitor. It writes public/announcement.json on the
-# default branch; the deploy makes it live on the website AND inside the iOS /
-# Android apps (they load the live site — no rebuild needed).
+# default branch (and appends to public/announcements-history.json so the
+# /announcements page keeps a permanent record); the deploy makes it live on the
+# website AND inside the iOS / Android apps (they load the live site — no
+# rebuild needed).
 #
-# To take the popup down again, run it once with "enabled" unchecked.
+# To take the popup down before its duration is up, run it once with "enabled"
+# unchecked. Past announcements stay archived on /announcements either way.
 
 on:
   workflow_dispatch:
@@ -14,8 +17,19 @@ on:
         description: "Show the popup? (uncheck to take it down)"
         type: boolean
         default: true
+      duration:
+        description: "Auto-hide after (measured from publish time)"
+        type: choice
+        default: 1 week
+        options:
+          - 1 day
+          - 3 days
+          - 1 week
+          - 2 weeks
+          - 1 month
+          - forever
       frequency:
-        description: "How often each visitor sees it"
+        description: "How often each visitor sees it during that window"
         type: choice
         default: once
         options:
@@ -63,12 +77,13 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
 
-      - name: Write public/announcement.json
+      - name: Build announcement JSON
         # Inputs are passed through env (never interpolated into the script) and
         # the JSON is assembled with jq --arg, so quotes/newlines/special chars
         # in the text can't break the file or inject shell.
         env:
           ENABLED: ${{ inputs.enabled }}
+          DURATION: ${{ inputs.duration }}
           FREQUENCY: ${{ inputs.frequency }}
           DISMISSIBLE: ${{ inputs.dismissible }}
           TITLE: ${{ inputs.title }}
@@ -80,12 +95,32 @@ jobs:
           BUTTON_LABEL_ZH: ${{ inputs.button_label_zh }}
         run: |
           set -euo pipefail
+
           ID="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_RUN_NUMBER}"
+          PUBLISHED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          # Translate the human-readable duration choice into seconds, then into
+          # an absolute UTC expiry timestamp. "forever" → empty → null in JSON.
+          case "${DURATION:-forever}" in
+            "1 day")   SECS=86400 ;;
+            "3 days")  SECS=259200 ;;
+            "1 week")  SECS=604800 ;;
+            "2 weeks") SECS=1209600 ;;
+            "1 month") SECS=2592000 ;;  # 30 days, calendar-agnostic
+            *)         SECS=0 ;;        # forever / unrecognized
+          esac
+          if [ "$SECS" -gt 0 ]; then
+            EXPIRES_AT="$(date -u -d "@$(( $(date -u +%s) + SECS ))" +%Y-%m-%dT%H:%M:%SZ)"
+          else
+            EXPIRES_AT=""
+          fi
+
           jq -n \
             --arg id "$ID" \
             --argjson enabled "${ENABLED:-false}" \
-            --argjson dismissible "${DISMISSIBLE:-true}" \
+            --arg duration "${DURATION:-forever}" \
             --arg frequency "${FREQUENCY:-once}" \
+            --argjson dismissible "${DISMISSIBLE:-true}" \
             --arg title "$TITLE" \
             --arg body "$BODY" \
             --arg buttonLabel "$BUTTON_LABEL" \
@@ -93,11 +128,16 @@ jobs:
             --arg titleZh "$TITLE_ZH" \
             --arg bodyZh "$BODY_ZH" \
             --arg buttonLabelZh "$BUTTON_LABEL_ZH" \
+            --arg publishedAt "$PUBLISHED_AT" \
+            --arg expiresAt "$EXPIRES_AT" \
             '{
               id: $id,
               enabled: $enabled,
+              duration: $duration,
               frequency: $frequency,
               dismissible: $dismissible,
+              publishedAt: $publishedAt,
+              expiresAt: (if $expiresAt == "" then null else $expiresAt end),
               title: $title,
               body: $body,
               buttonLabel: $buttonLabel,
@@ -106,23 +146,46 @@ jobs:
               bodyZh: $bodyZh,
               buttonLabelZh: $buttonLabelZh
             }' > public/announcement.json
+
           echo "Wrote public/announcement.json:"
           cat public/announcement.json
+
+          # Only archive real publishes — a takedown (enabled=false) overwrites
+          # the active file but does not add a row to /announcements history.
+          if [ "${ENABLED:-false}" = "true" ]; then
+            HISTORY="public/announcements-history.json"
+            [ -f "$HISTORY" ] || echo "[]" > "$HISTORY"
+
+            # Newest-first list. Prepend the freshly-built entry to whatever is
+            # already on disk and write atomically to a tmp file.
+            jq --slurpfile entry public/announcement.json '$entry + .' "$HISTORY" > "$HISTORY.tmp"
+            mv "$HISTORY.tmp" "$HISTORY"
+
+            echo "Appended to $HISTORY (entry count: $(jq 'length' "$HISTORY"))"
+          else
+            echo "Takedown — skipping history append."
+          fi
 
       - name: Commit & deploy
         env:
           TITLE: ${{ inputs.title }}
+          ENABLED: ${{ inputs.enabled }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/announcement.json
+          git add public/announcement.json public/announcements-history.json
           if git diff --staged --quiet; then
             echo "No changes to publish."
             exit 0
           fi
-          git commit -m "Publish announcement: ${TITLE}"
+          if [ "${ENABLED:-false}" = "true" ]; then
+            MSG="Publish announcement: ${TITLE}"
+          else
+            MSG="Take down announcement"
+          fi
+          git commit -m "$MSG"
           # Push to the default branch (what deploys to production), matching the
           # checkout above — independent of which branch this was dispatched from.
           git push origin "HEAD:${DEFAULT_BRANCH}"

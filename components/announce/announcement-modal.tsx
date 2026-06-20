@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight, Megaphone, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -15,8 +16,10 @@ import { useLocale } from "@/components/i18n/locale-provider";
 //   - "once"    → shown once per user, ever (localStorage).      [default]
 //   - "session" → shown once per app/tab open (sessionStorage).
 //   - "always"  → shown on every page load.
-// Publishing a new announcement always gets a fresh `id`, so it re-pops for
-// everyone regardless of the previous one being dismissed.
+// `expiresAt` is an absolute hard cap — past it, the popup never shows again
+// regardless of `frequency`. Publishing a new announcement always gets a fresh
+// `id`, so it re-pops for everyone regardless of the previous one being
+// dismissed.
 type Frequency = "once" | "session" | "always";
 
 type Announcement = {
@@ -24,6 +27,8 @@ type Announcement = {
   enabled?: boolean;
   frequency?: Frequency;
   dismissible?: boolean;
+  publishedAt?: string | null;
+  expiresAt?: string | null;
   title?: string;
   body?: string;
   buttonLabel?: string;
@@ -42,6 +47,13 @@ function seenStore(freq: Frequency): Storage | null {
   return null; // "always" — never remember
 }
 
+function isExpired(expiresAt: string | null | undefined): boolean {
+  if (!expiresAt) return false;
+  const t = Date.parse(expiresAt);
+  if (Number.isNaN(t)) return false;
+  return Date.now() >= t;
+}
+
 export function AnnouncementModal() {
   const { locale } = useLocale();
   const [data, setData] = useState<Announcement | null>(null);
@@ -56,6 +68,7 @@ export function AnnouncementModal() {
       .then((r) => (r.ok ? r.json() : null))
       .then((a: Announcement | null) => {
         if (cancelled || !a || !a.enabled || !a.id) return;
+        if (isExpired(a.expiresAt)) return;
         const freq: Frequency = a.frequency ?? "once";
         try {
           if (seenStore(freq)?.getItem(SEEN_KEY) === a.id) return;
@@ -110,12 +123,21 @@ export function AnnouncementModal() {
           </button>
         ) : null}
 
+        <div className="flex items-center gap-2 pr-8">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-[rgb(var(--text)/0.06)] text-[rgb(var(--text)/0.75)]">
+            <Megaphone className="h-3.5 w-3.5" aria-hidden />
+          </span>
+          <span className="t-eyebrow">{zh ? "公告" : "Announcement"}</span>
+        </div>
+
         {title ? (
-          <h2 className="pr-8 text-xl font-semibold tracking-[0.01em]">{title}</h2>
+          <h2 className="mt-3 pr-8 text-[1.55rem] font-semibold leading-[1.18] tracking-[-0.018em]">
+            {title}
+          </h2>
         ) : null}
 
         {body ? (
-          <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-[rgb(var(--text)/0.75)]">
+          <p className="mt-3 whitespace-pre-line text-[0.95rem] leading-[1.65] text-[rgb(var(--text)/0.78)]">
             {body}
           </p>
         ) : null}
@@ -128,8 +150,20 @@ export function AnnouncementModal() {
             className="mt-6 inline-flex h-11 items-center justify-center gap-2 self-start rounded-xl bg-[rgb(var(--text))] px-5 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
           >
             {buttonLabel}
+            {isExternal ? <ArrowUpRight className="h-4 w-4" aria-hidden /> : null}
           </a>
         ) : null}
+
+        <div className="mt-6 flex items-center justify-between border-t border-[rgb(var(--glass-stroke-soft)/0.5)] pt-4">
+          <Link
+            href="/announcements"
+            onClick={close}
+            className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--text)/0.6)] underline-offset-4 transition hover:text-[rgb(var(--text))] hover:underline"
+          >
+            {zh ? "查看历史公告" : "View past announcements"}
+            <ArrowUpRight className="h-3 w-3" aria-hidden />
+          </Link>
+        </div>
       </div>
     </Modal>
   );
