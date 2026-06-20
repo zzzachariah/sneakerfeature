@@ -8,7 +8,6 @@ import { pickLocalized } from "@/components/i18n/localized-field";
 import type { RadarAxis } from "@/components/detail/performance-radar";
 import { proxiedImageSrc } from "@/lib/card/proxy-image";
 import { storyExcerpt } from "@/lib/card/story-excerpt";
-import { BgRemovedImg } from "@/components/shoe/bg-removed-img";
 import type { Shoe } from "@/lib/types";
 
 type Props = {
@@ -225,7 +224,8 @@ export function SingleShoeCard({ shoe, axes }: Props) {
                   filter: "blur(8px)",
                 }}
               />
-              <BgRemovedImg
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src={proxiedImageSrc(shoe.image_url)}
                 alt=""
                 crossOrigin="anonymous"
