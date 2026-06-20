@@ -29,10 +29,51 @@ function hasAuthCookie(request: NextRequest) {
     .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
 }
 
+// API paths that legitimately receive cross-origin POSTs (webhooks / cron
+// hits from Vercel + Supabase). Each handler independently verifies its
+// own signature / bearer secret, so they're exempt from the Origin check.
+function isCrossOriginAllowedApi(pathname: string) {
+  return (
+    pathname.startsWith("/api/auth/send-email-hook") ||
+    pathname.startsWith("/api/cron/")
+  );
+}
+
+// Internally safe HTTP methods — these can never mutate state, so an Origin
+// header (which browsers strip on simple cross-site reads anyway) isn't
+// required.
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+// Reject browser-initiated mutating requests that didn't originate from our
+// own site. Server-to-server callers don't send Origin; we allow those
+// through (auth + signature checks live in the route handlers).
+function isCsrfBlocked(request: NextRequest): boolean {
+  if (SAFE_METHODS.has(request.method)) return false;
+  const origin = request.headers.get("origin");
+  if (!origin) return false; // non-browser caller; route handler verifies auth
+  let originHost: string;
+  try {
+    originHost = new URL(origin).host;
+  } catch {
+    return true;
+  }
+  return originHost !== request.nextUrl.host;
+}
+
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  if (pathname.startsWith("/api/") || isPublicPath(pathname)) {
+  if (pathname.startsWith("/api/")) {
+    if (!isCrossOriginAllowedApi(pathname) && isCsrfBlocked(request)) {
+      return NextResponse.json(
+        { ok: false, message: "Cross-origin request rejected." },
+        { status: 403 }
+      );
+    }
+    return NextResponse.next({ request });
+  }
+
+  if (isPublicPath(pathname)) {
     return NextResponse.next({ request });
   }
 
@@ -47,7 +88,15 @@ export function middleware(request: NextRequest) {
 
   if (loggedIn && isAuthPage(pathname)) {
     const nextParam = request.nextUrl.searchParams.get("next");
-    const destination = nextParam && nextParam.startsWith("/") ? nextParam : "/dashboard";
+    // Must start with a single "/" — reject protocol-relative ("//evil.com")
+    // and absolute URLs, both of which browsers would otherwise resolve to a
+    // different origin (open-redirect vector).
+    const safe =
+      nextParam !== null &&
+      nextParam.startsWith("/") &&
+      !nextParam.startsWith("//") &&
+      !nextParam.startsWith("/\\");
+    const destination = safe ? nextParam : "/dashboard";
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
@@ -55,5 +104,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"]
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"]
 };
