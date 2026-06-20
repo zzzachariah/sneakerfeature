@@ -14,11 +14,11 @@ export function HomeFeedHeader({ shoesCount, brandsCount }: { shoesCount: number
       </h2>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[rgb(var(--subtext))]">
         <span>
-          <span className="font-bold tabular-nums text-[rgb(var(--text))]">{shoesCount}</span> {translate("shoes indexed")}
+          <span className="num-display font-bold text-[rgb(var(--text))]">{shoesCount}</span> {translate("shoes indexed")}
         </span>
         <span className="text-[rgb(var(--muted)/0.9)]">·</span>
         <span>
-          <span className="font-bold tabular-nums text-[rgb(var(--text))]">{brandsCount}</span>{" "}
+          <span className="num-display font-bold text-[rgb(var(--text))]">{brandsCount}</span>{" "}
           {translate("brands represented")}
         </span>
         <span className="text-[rgb(var(--muted)/0.9)]">·</span>

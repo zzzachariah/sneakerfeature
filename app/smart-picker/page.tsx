@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getSmartPickerContext } from "@/lib/ai/access";
 import { SmartPickerClient } from "@/components/smart-picker/smart-picker-client";
-import { UnderDevelopment } from "@/components/smart-picker/under-development";
+import { SmartPickerSignedOut } from "@/components/smart-picker/signed-out";
 
 export const metadata: Metadata = {
   title: "Smart Picker | sneakerfeature",
@@ -9,11 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default async function SmartPickerPage() {
-  // Access is granted when:
-  //   - the viewer is an admin (always), OR
-  //   - the `smart_picker_public_enabled` flag is on (admin-controlled in
-  //     /admin overview). Otherwise non-admins see the placeholder.
+  // Open to any signed-in user (see getSmartPickerContext). Signed-out visitors
+  // get a sign-in prompt with a link to the free Quick Picker.
   const ctx = await getSmartPickerContext();
-  if (!ctx) return <UnderDevelopment />;
+  if (!ctx) return <SmartPickerSignedOut />;
   return <SmartPickerClient />;
 }

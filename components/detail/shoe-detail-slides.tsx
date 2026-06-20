@@ -7,6 +7,7 @@ import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { CommentSection } from "@/components/detail/comment-section";
 import { BloggerReviewsSlideBody } from "@/components/detail/blogger-reviews-slide";
 import { ImageCorrectionButton } from "@/components/detail/image-correction-button";
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { PerformanceRadar, type RadarAxis } from "@/components/detail/performance-radar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -258,6 +259,12 @@ function OverviewSection({
             <Share2 className="mr-1.5 h-3.5 w-3.5" />
             {translate("Share card")}
           </Button>
+          <FavoriteButton
+            shoeId={shoe.id}
+            showLabel
+            iconClassName="h-3.5 w-3.5"
+            className="rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-2 text-sm font-medium transition hover:border-[rgb(var(--text)/0.35)]"
+          />
           <Link href={`/submit/correction/${shoe.id}`}>
             <Button variant="ghost">{translate("Submit correction")}</Button>
           </Link>

@@ -11,6 +11,7 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
 import { scoreColor } from "@/lib/score-tone";
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 
 type Props = {
   shoe: Shoe;
@@ -20,6 +21,8 @@ type Props = {
   compareEnabled?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Extra classes on the outer <li> — e.g. fixed width for horizontal rails. */
+  className?: string;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -33,7 +36,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect }: Props) {
+export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const [whyOpen, setWhyOpen] = useState(false);
@@ -62,7 +65,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
   const hasReasons = reasons && reasons.length > 0;
 
   return (
-    <li className="group relative">
+    <li className={`group relative ${className ?? ""}`}>
       <Link
         href={href}
         prefetch
@@ -80,11 +83,11 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (
-            <span className="absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
+            <span className="num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
               {matchScore}% {translate("match")}
             </span>
           )}
-          {compareEnabled && (
+          {compareEnabled ? (
             <label
               onClick={(e) => e.stopPropagation()}
               className="glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md"
@@ -100,6 +103,12 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
                 aria-label={translate("Compare")}
               />
             </label>
+          ) : (
+            <FavoriteButton
+              shoeId={shoe.id}
+              className="glass-lite absolute left-2 top-2 h-7 w-7 rounded-md opacity-90"
+              iconClassName="h-3.5 w-3.5"
+            />
           )}
         </div>
         <div className="p-3">
@@ -120,7 +129,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
               {chips.map((c) => (
                 <span
                   key={c.key}
-                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-medium leading-none tabular-nums"
+                  className="num-display inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-medium leading-none"
                   style={{ color: scoreColor(c.score), background: scoreColor(c.score, 0.12) }}
                 >
                   {translate(CHIP_LABEL[c.key])} {c.score}

@@ -1,5 +1,6 @@
 import { HomeView } from "@/components/home/home-view";
 import { getForYouData } from "@/lib/personalize/for-you-data";
+import { buildCollections } from "@/lib/home/collections";
 import { getShoes } from "@/lib/data/shoes";
 import type { Metadata } from "next";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
@@ -32,6 +33,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const shoes = await getShoes();
   const brands = new Set(shoes.map((s) => s.brand)).size;
   const forYou = await getForYouData(shoes);
+  const collections = buildCollections(shoes);
 
   return (
     <main>
@@ -57,6 +59,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         brandsCount={brands}
         initialQuery={q ?? ""}
         forYou={forYou}
+        collections={collections}
       />
     </main>
   );

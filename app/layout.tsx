@@ -1,5 +1,7 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { ServiceWorkerRegister } from "@/components/native/service-worker-register";
@@ -25,6 +27,7 @@ import { AnnouncementModal } from "@/components/announce/announcement-modal";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
+import { FavoritesProvider } from "@/components/favorites/favorites-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
 import { Analytics } from "@vercel/analytics/next";
@@ -70,7 +73,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
         <ThemeInitScript />
         <SkinInitScript />
@@ -83,6 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
+              <FavoritesProvider>
               <RatingFocusProvider>
                 <PersonaProvider>
                   <TutorialProvider>
@@ -102,6 +106,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </TutorialProvider>
                 </PersonaProvider>
               </RatingFocusProvider>
+              </FavoritesProvider>
             </AuthStateProvider>
             <CookieBanner />
             <AnalyticsGate />

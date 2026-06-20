@@ -569,6 +569,33 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "saved ratings & compares, synced": "评分与对比云端同步",
   "sign in to save this compare to your account.": "登录后即可把这次对比保存到你的账号。",
   "log in to save": "登录并保存",
+
+  // Homepage scene collections
+  "guards: speed & grip": "后卫：提速与抓地",
+  "big-man protection": "内线：保护与稳定",
+  "lightweight & quick": "轻量快速",
+  "top rated": "高分精选",
+
+  // Quick Picker (free, deterministic 30-second wizard)
+  "quick picker": "快速选鞋",
+  "find your pair in 30 seconds": "30 秒找到你的那双",
+  "answer 3 quick questions — no account needed.": "回答 3 个问题，无需登录。",
+  "what position do you play?": "你打什么位置？",
+  "pick up to 2": "最多选 2 个",
+  "your skill level?": "你的水平？",
+  "your build": "你的身材",
+  "see my picks": "查看推荐",
+  "your top matches": "为你匹配的最佳球鞋",
+  "compare top 3": "对比前 3 双",
+  "refine": "重新选择",
+  "want a deeper pick? try the ai picker": "想要更深入的推荐？试试 AI 选鞋",
+  "or try the free quick picker": "或试试免费的快速选鞋",
+
+  // Favorites / saved shoes ("save" already maps to 保存 above)
+  "saved": "已收藏",
+  "saved shoes": "已收藏球鞋",
+  "no saved shoes yet. tap the heart on any shoe.": "还没有收藏的球鞋。点任意球鞋上的爱心即可收藏。",
+  "sign in to save shoes.": "登录后即可收藏球鞋。",
   "your personalized feed": "你的个性化推荐",
   "your player avatar": "你的球员形象",
   "edit your player profile": "编辑你的球员档案",

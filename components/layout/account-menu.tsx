@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -132,6 +132,16 @@ export function AccountMenu({ className }: { className?: string }) {
                 >
                   <LayoutDashboard className="h-4 w-4" />
                   {translate("Dashboard")}
+                </Link>
+
+                <Link
+                  href="/favorites"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Heart className="h-4 w-4" />
+                  {translate("Saved shoes")}
                 </Link>
 
                 {isAdmin && (
