@@ -59,9 +59,13 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: "#0a0a0a",
   viewportFit: "cover",
-  // Stop iOS from auto-zooming when a login/modal input is focused.
-  maximumScale: 1,
-  userScalable: false,
+  // Pinch-zoom stays enabled for accessibility (WCAG 1.4.4 — low-vision users
+  // must be able to magnify). The reason zoom used to be locked was iOS
+  // auto-zooming on input focus; that's prevented the right way instead — form
+  // fields are kept ≥16px on mobile (see globals.css @layer base) so iOS never
+  // triggers the focus zoom.
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

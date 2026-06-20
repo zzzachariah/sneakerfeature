@@ -6,6 +6,7 @@ import type { Route } from "next";
 import { Star, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { clampUserStars, STAR_MAX } from "@/lib/star-rating";
+import { starColor } from "@/lib/score-tone";
 
 type Size = "sm" | "md" | "lg";
 
@@ -113,9 +114,11 @@ export function StarRating({
         )}
       </div>
       {showNumber && (
-        <span className={`tabular-nums soft-text ${sizes.text}`}>
-          {previewValue.toFixed(1)}
-          {showCount ? ` (${count})` : ""}
+        <span className={`tabular-nums ${sizes.text}`}>
+          <span className="font-medium" style={{ color: starColor(previewValue) }}>
+            {previewValue.toFixed(1)}
+          </span>
+          {showCount ? <span className="soft-text">{` (${count})`}</span> : null}
         </span>
       )}
       {interactive && userRating !== null && onClear && (

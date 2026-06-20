@@ -19,6 +19,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { SignInValue } from "@/components/auth/sign-in-value";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
 import { haptics } from "@/lib/native/haptics";
@@ -142,6 +143,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
               ? translate("Browse a few shoes and your weekly picks will appear here.")
               : translate("Sign in and browse a few shoes to unlock personalized weekly picks.")}
           </p>
+          {!signedIn && <SignInValue className="w-full max-w-xs" />}
           <TapLink
             href={signedIn ? "/" : "/login"}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))]"

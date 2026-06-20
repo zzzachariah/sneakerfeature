@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { SignInValue } from "@/components/auth/sign-in-value";
 import { DIM_KEYS, DIM_LABELS, type DimKey, type RatingFocus } from "@/lib/star-rating";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
 
@@ -81,7 +82,8 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
     <Modal open={open} onClose={onClose} title="Pick playstyle">
       {!isLoggedIn ? (
         <div className="space-y-4">
-          <p className="text-sm soft-text">{translate("Sign in to pick playstyle")}</p>
+          <p className="text-sm text-[rgb(var(--text)/0.82)]">{translate("Sign in to pick playstyle")}</p>
+          <SignInValue />
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button variant="ghost" type="button" onClick={onClose}>
               {translate("Cancel")}

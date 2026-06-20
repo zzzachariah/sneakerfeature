@@ -3,28 +3,51 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Info } from "lucide-react";
 import type { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
+import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
+import { scoreColor } from "@/lib/score-tone";
 
 type Props = {
   shoe: Shoe;
   matchScore?: number | null;
   reasons?: string[];
+  showChips?: boolean;
   compareEnabled?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
 };
 
-export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, onToggleSelect }: Props) {
+// Compact metric labels for the personalized-mode card chips (the full
+// METRICS labels / dictionary entries are too long for a 2-col mobile card).
+const CHIP_LABEL: Record<MetricKey, string> = {
+  cushioning_feel: "Cushion",
+  court_feel: "Court",
+  bounce: "Bounce",
+  stability: "Stable",
+  traction: "Grip",
+  fit: "Fit"
+};
+
+export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const [whyOpen, setWhyOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement | null>(null);
   const href = `/shoes/${shoe.slug}` as Route;
+
+  // Top two performance dimensions, shown only in personalized mode so default
+  // browsing stays clean. Computed for the few visible cards only.
+  const chips = useMemo(() => {
+    if (!showChips) return [];
+    return METRICS.map((m) => ({ key: m.key, score: scoreFor(shoe, m.key) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2);
+  }, [shoe, showChips]);
 
   useEffect(() => {
     if (!whyOpen) return;
@@ -90,6 +113,21 @@ export function ShoeCard({ shoe, matchScore, reasons, compareEnabled, selected, 
               count={shoe.userRatingCount ?? 0}
             />
           </div>
+          {chips.length > 0 && (
+            // Clear the bottom-right "Why?" button (absolute, always visible on
+            // mobile) so chips never slide underneath it.
+            <div className={`mt-1.5 flex flex-wrap gap-1 ${hasReasons ? "pr-10" : ""}`}>
+              {chips.map((c) => (
+                <span
+                  key={c.key}
+                  className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-medium leading-none tabular-nums"
+                  style={{ color: scoreColor(c.score), background: scoreColor(c.score, 0.12) }}
+                >
+                  {translate(CHIP_LABEL[c.key])} {c.score}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </Link>
 
