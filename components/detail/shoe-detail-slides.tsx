@@ -20,6 +20,7 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { Reveal } from "@/components/motion/reveal";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { cn } from "@/lib/utils";
 import type { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
@@ -427,13 +428,18 @@ function PerformanceSection({
     <div>
       <SectionHeading eyebrow={translate("Analysis")} title={translate("Performance profile")} />
 
-      <Card className="mx-auto mt-6 max-w-xl p-5 md:p-8">
-        <PerformanceRadar axes={radarAxes} />
-      </Card>
+      <Reveal>
+        <Card className="mx-auto mt-6 max-w-xl p-5 md:p-8">
+          <PerformanceRadar axes={radarAxes} />
+        </Card>
+      </Reveal>
 
-      <div className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
+      <Stagger
+        className="mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2"
+        gap={0.04}
+      >
         {items.map((it) => (
-          <div
+          <StaggerItem
             key={it.field}
             className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev)/0.5)] p-4"
           >
@@ -446,9 +452,9 @@ function PerformanceSection({
             >
               {it.value?.trim() ? it.value : translate("Not yet added")}
             </p>
-          </div>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
     </div>
   );
 }

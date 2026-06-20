@@ -14,6 +14,7 @@ import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
 import { HapticsToggle } from "@/components/preferences/haptics-toggle";
+import { Stagger, StaggerItem } from "@/components/motion/stagger";
 
 export type DashboardComment = {
   id: string;
@@ -153,9 +154,13 @@ export function DashboardSlides(props: Props) {
             ) : activityFeed.length === 0 ? (
               <p className="text-sm soft-text">{translate("No activity yet.")}</p>
             ) : (
-              activityFeed.map((item) => (
-                <ActivityCard key={`${item.kind}-${item.id}`} item={item} translate={translate} />
-              ))
+              <Stagger className="space-y-3">
+                {activityFeed.map((item) => (
+                  <StaggerItem key={`${item.kind}-${item.id}`}>
+                    <ActivityCard item={item} translate={translate} />
+                  </StaggerItem>
+                ))}
+              </Stagger>
             )}
           </div>
         </div>
@@ -640,11 +645,11 @@ function OverviewSlide({
         )}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatTile label={translate("My comments")} value={commentsCount} loading={loading} />
-        <StatTile label={translate("Liked comments")} value={likedCount} loading={loading} />
-        <StatTile label={translate("Disliked comments")} value={dislikedCount} loading={loading} />
-      </div>
+      <Stagger className="grid gap-4 md:grid-cols-3" gap={0.07}>
+        <StaggerItem><StatTile label={translate("My comments")} value={commentsCount} loading={loading} /></StaggerItem>
+        <StaggerItem><StatTile label={translate("Liked comments")} value={likedCount} loading={loading} /></StaggerItem>
+        <StaggerItem><StatTile label={translate("Disliked comments")} value={dislikedCount} loading={loading} /></StaggerItem>
+      </Stagger>
     </div>
   );
 }
