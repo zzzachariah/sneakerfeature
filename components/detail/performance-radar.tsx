@@ -2,6 +2,7 @@
 
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView, useProgress } from "@/components/motion/use-progress";
+import { scoreColor } from "@/lib/score-tone";
 
 export type RadarAxis = {
   label: string;
@@ -163,8 +164,18 @@ function AxisLabel({
       <p className="text-[0.5rem] font-semibold uppercase tracking-[0.14em] soft-text md:text-[0.55rem]">
         {translate(axis.label)}
       </p>
-      <span className="text-sm font-semibold text-[rgb(var(--text))] md:text-base">{clamped}</span>
-      <span className="hidden text-[0.65rem] soft-text md:inline">{translate(axis.tier)}</span>
+      <span
+        className="text-sm font-semibold tabular-nums md:text-base"
+        style={{ color: scoreColor(clamped) }}
+      >
+        {clamped}
+      </span>
+      <span
+        className="hidden text-[0.65rem] md:inline"
+        style={{ color: scoreColor(clamped, 0.85) }}
+      >
+        {translate(axis.tier)}
+      </span>
     </div>
   );
 }

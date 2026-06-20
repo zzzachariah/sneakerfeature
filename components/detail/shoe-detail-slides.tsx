@@ -273,17 +273,22 @@ function OverviewSection({
             variant="detail"
           />
         </div>
-        <div className="text-center text-sm">
-          {hasPendingImage ? (
-            <p className="font-medium text-amber-400">{translate("Image pending review")}</p>
-          ) : imageState.approved ? (
-            <p className="font-medium text-emerald-400">{translate("Image approved")}</p>
-          ) : imageState.latestRejected ? (
-            <p className="font-medium text-rose-400">{translate("Image rejected")}</p>
-          ) : (
-            <p className="font-medium soft-text">{translate("No image")}</p>
-          )}
-        </div>
+        {/* Image moderation status is operational noise for regular users: only
+            admins (who act on it) see pending/approved/rejected. Everyone still
+            sees "No image", since that explains why the slot is empty. */}
+        {(isAdmin || (!hasPendingImage && !imageState.approved && !imageState.latestRejected)) && (
+          <div className="text-center text-sm">
+            {hasPendingImage ? (
+              <p className="font-medium text-amber-400">{translate("Image pending review")}</p>
+            ) : imageState.approved ? (
+              <p className="font-medium text-emerald-400">{translate("Image approved")}</p>
+            ) : imageState.latestRejected ? (
+              <p className="font-medium text-rose-400">{translate("Image rejected")}</p>
+            ) : (
+              <p className="font-medium soft-text">{translate("No image")}</p>
+            )}
+          </div>
+        )}
 
         {!isAdmin && <ImageCorrectionButton shoeId={shoe.id} isLoggedIn={isLoggedIn} />}
 

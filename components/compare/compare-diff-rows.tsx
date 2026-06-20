@@ -4,6 +4,7 @@ import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView } from "@/components/motion/use-progress";
 import { METRICS, MetricKey, scoreFor } from "@/components/compare/compare-metrics";
+import { scoreColor } from "@/lib/score-tone";
 
 type Props = {
   shoes: Shoe[];
@@ -101,7 +102,10 @@ function MetricRow({
         }}
       >
         <div className="flex items-center justify-end gap-3">
-          <span className={`text-[0.78rem] ${sA >= sB ? "font-semibold text-[rgb(var(--text))]" : "soft-text"}`}>
+          <span
+            className={`text-[0.78rem] tabular-nums ${sA >= sB ? "font-semibold" : ""}`}
+            style={{ color: sA >= sB ? scoreColor(sA) : scoreColor(sA, 0.6) }}
+          >
             {sA}
           </span>
           <Bar score={sA} win={sA > sB} right triggered={triggered} delay={delay + 80} />
@@ -109,7 +113,10 @@ function MetricRow({
         <span className="text-center text-[0.62rem] uppercase tracking-[0.16em] soft-text">{label}</span>
         <div className="flex items-center gap-3">
           <Bar score={sB} win={sB > sA} triggered={triggered} delay={delay + 80} />
-          <span className={`text-[0.78rem] ${sB >= sA ? "font-semibold text-[rgb(var(--text))]" : "soft-text"}`}>
+          <span
+            className={`text-[0.78rem] tabular-nums ${sB >= sA ? "font-semibold" : ""}`}
+            style={{ color: sB >= sA ? scoreColor(sB) : scoreColor(sB, 0.6) }}
+          >
             {sB}
           </span>
         </div>
@@ -140,9 +147,8 @@ function MetricRow({
               </span>
               <Bar score={score} win={isLeader} triggered={triggered} delay={delay + 80 + i * 40} />
               <span
-                className={`text-right text-[0.72rem] tabular-nums ${
-                  isLeader ? "font-semibold text-[rgb(var(--text))]" : "soft-text"
-                }`}
+                className={`text-right text-[0.72rem] tabular-nums ${isLeader ? "font-semibold" : ""}`}
+                style={{ color: isLeader ? scoreColor(score) : scoreColor(score, 0.6) }}
               >
                 {score}
               </span>
@@ -176,7 +182,7 @@ function Bar({
         className="h-full rounded-full"
         style={{
           width: triggered ? `${Math.max(2, score)}%` : "0%",
-          background: win ? "rgb(var(--text))" : "rgb(var(--subtext) / 0.42)",
+          background: win ? scoreColor(score) : scoreColor(score, 0.4),
           marginLeft: right ? "auto" : undefined,
           transition: "width 500ms cubic-bezier(0.22, 1, 0.36, 1)",
           transitionDelay: `${delay}ms`

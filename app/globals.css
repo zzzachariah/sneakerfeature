@@ -15,6 +15,17 @@
   --shadow: 17 17 17;
   --success: 16 185 129;
   --error: 239 68 68;
+  /* Brand accent — basketball orange. ONLY on primary CTA / active state.
+     Additive: --accent stays monochrome so nothing else shifts. */
+  --brand: 234 76 16;
+  --brand-contrast: 255 255 255;
+  /* Performance score semantic scale. Mapped from a 0–100 score via
+     lib/score-tone.ts, whose buckets mirror getPerformanceLabel(). Tuned a
+     little deeper here for contrast on the light background. */
+  --score-elite: 5 150 105;
+  --score-high: 101 163 13;
+  --score-mid: 202 138 4;
+  --score-low: 234 88 12;
   /* glass & stroke tokens keep legacy names but now map to the monochrome set */
   --glass-bg: 255 255 255;
   --glass-bg-strong: 251 251 253;
@@ -88,6 +99,13 @@ html[data-native-platform="android"] {
   --shadow: 0 0 0;
   --success: 52 211 153;
   --error: 248 113 113;
+  /* Brand accent + score scale — brighter for the near-black surface. */
+  --brand: 255 110 64;
+  --brand-contrast: 12 12 14;
+  --score-elite: 52 211 153;
+  --score-high: 163 230 53;
+  --score-mid: 250 204 21;
+  --score-low: 251 146 60;
   --glass-bg: 18 18 20;
   --glass-bg-strong: 15 15 17;
   --glass-stroke: 54 54 60;
@@ -716,6 +734,19 @@ html[data-native-platform="ios"] [data-download-entry] {
   }
 }
 
+/* Accessibility: pinch-zoom is enabled (viewport userScalable=true) without iOS
+   firing its focus auto-zoom. iOS only auto-zooms when the focused field's font
+   is < 16px, so floor every mobile form control at 16px. Unlayered on purpose so
+   it wins over Tailwind text-sm/text-xs utilities (which live in @layer
+   utilities); desktop keeps its smaller, denser sizes. */
+@media (max-width: 767.98px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 .feedback {
   border-radius: 0.85rem;
   border: 1px solid rgb(var(--muted) / 0.58);
@@ -964,7 +995,8 @@ html[data-native-platform="ios"] [data-download-entry] {
 .float-input {
   height: 52px;
   padding: 18px 14px 6px 14px;
-  font-size: 0.95rem;
+  /* 16px floor too — auth inputs are focus targets, so keep iOS from zooming. */
+  font-size: 1rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
