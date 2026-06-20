@@ -107,15 +107,15 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
       {toast && (
         <div
           key={toast.key}
-          className="pointer-events-none fixed left-1/2 z-50 flex -translate-x-1/2 justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-4"
           style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 20px)" }}
           aria-live="polite"
         >
-          <div className="glass glass-rim pop-in shadow-lift pointer-events-auto flex max-w-[92vw] items-center gap-3 rounded-full px-4 py-2.5">
+          <div className="glass glass-rim pop-in shadow-lift pointer-events-auto flex max-w-full items-center gap-2.5 rounded-2xl px-4 py-2.5">
             <Heart
-              className={`h-4 w-4 ${toast.added ? "fill-[rgb(var(--brand))] text-[rgb(var(--brand))]" : "text-[rgb(var(--subtext))]"}`}
+              className={`h-4 w-4 shrink-0 ${toast.added ? "fill-[rgb(var(--brand))] text-[rgb(var(--brand))]" : "text-[rgb(var(--subtext))]"}`}
             />
-            <span className="truncate text-sm font-medium">{translate(toast.message)}</span>
+            <span className="text-sm font-medium leading-snug">{translate(toast.message)}</span>
             {toast.href && (
               <Link
                 href={toast.href as Route}
