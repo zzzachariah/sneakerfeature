@@ -13,6 +13,10 @@ import {
   Wallet,
   Settings2,
   Footprints,
+  Users,
+  MessageSquare,
+  BarChart3,
+  ScrollText,
   type LucideIcon
 } from "lucide-react";
 
@@ -76,18 +80,52 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Reported comments",
         icon: Flag,
         match: (p) => p.startsWith("/admin/reports")
+      },
+      {
+        href: "/admin/comments",
+        label: "Comments",
+        icon: MessageSquare,
+        match: (p) => p.startsWith("/admin/comments")
       }
     ]
   },
   {
-    label: "Operations",
+    label: "People",
     items: [
+      {
+        href: "/admin/users",
+        label: "Members",
+        icon: Users,
+        match: (p) => p.startsWith("/admin/users")
+      },
       {
         href: "/admin/credits",
         label: "Credits & balances",
         icon: Wallet,
         match: (p) => p.startsWith("/admin/credits")
+      }
+    ]
+  },
+  {
+    label: "Insights",
+    items: [
+      {
+        href: "/admin/analytics",
+        label: "Analytics",
+        icon: BarChart3,
+        match: (p) => p.startsWith("/admin/analytics")
       },
+      {
+        href: "/admin/audit",
+        label: "Audit log",
+        icon: ScrollText,
+        match: (p) => p.startsWith("/admin/audit")
+      }
+    ]
+  },
+  {
+    label: "System",
+    items: [
       {
         href: "/admin/settings",
         label: "Site settings",
