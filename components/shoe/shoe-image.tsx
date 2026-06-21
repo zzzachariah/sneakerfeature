@@ -45,7 +45,7 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
 
   return (
     <div
-      className={`mx-auto overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.42)] bg-[rgb(var(--bg-elev)/0.85)] ${VARIANT_CLASS[variant]} ${className}`}
+      className={`shoe-stage mx-auto overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.42)] ${VARIANT_CLASS[variant]} ${className}`}
     >
       {hasImage ? (
         <img
@@ -57,8 +57,10 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
           onError={() => setFailed(true)}
           className={cn("shoe-img h-full w-full object-contain object-center", interactive && "shoe-img--zoom", loaded ? "img-loaded" : "img-loading")}
           style={{
-            backgroundColor: "#fff",
-            // Drives both the fill-scale and the optional hover zoom (see globals.css).
+            // No backdrop color: background-removed PNGs float on the adaptive
+            // .shoe-stage (see globals.css). Originals that still have a white
+            // plate simply render that plate over the stage — degrades cleanly.
+            // Drives both the fill-scale and the optional hover zoom.
             ["--img-scale" as string]: VARIANT_SCALE[variant]
           }}
         />
