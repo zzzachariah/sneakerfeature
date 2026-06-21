@@ -5,11 +5,18 @@ import {
   ClipboardCheck,
   Library,
   Megaphone,
+  Flag,
   ImagePlus,
   Wallet,
   Settings2,
   ChevronRight,
   Bell,
+  Users,
+  MessageSquare,
+  BarChart3,
+  ScrollText,
+  Heart,
+  Star,
   type LucideIcon
 } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
@@ -25,33 +32,68 @@ type MetricCard = {
   count: number | null;
 };
 
+type ToolCard = {
+  href: Route;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+};
+
+type StatTile = { label: string; value: number | null; icon: LucideIcon };
+
 async function loadCounts() {
   const admin = createAdminClient();
-  if (!admin) {
-    return { pending: null, imageCorrections: null, published: null, bloggerReviews: null, balances: null };
-  }
-  const [pending, imageCorrections, published, bloggerReviews, balances] = await Promise.all([
-    admin
-      .from("user_submissions")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["pending", "normalized", "draft"]),
-    admin.from("image_corrections").select("id", { count: "exact", head: true }).eq("status", "pending"),
-    admin.from("shoes").select("id", { count: "exact", head: true }).eq("is_published", true),
-    admin.from("blogger_reviews").select("id", { count: "exact", head: true }),
-    admin.from("ai_credits").select("user_id", { count: "exact", head: true })
-  ]);
+  const empty = {
+    pending: null,
+    imageCorrections: null,
+    published: null,
+    bloggerReviews: null,
+    balances: null,
+    reports: null,
+    members: null,
+    comments: null,
+    favorites: null,
+    ratings: null
+  };
+  if (!admin) return empty;
+  const head = { count: "exact" as const, head: true };
+  const [pending, imageCorrections, published, bloggerReviews, balances, reports, members, comments, favorites, ratings] =
+    await Promise.all([
+      admin.from("user_submissions").select("id", head).in("status", ["pending", "normalized", "draft"]),
+      admin.from("image_corrections").select("id", head).eq("status", "pending"),
+      admin.from("shoes").select("id", head).eq("is_published", true),
+      admin.from("blogger_reviews").select("id", head),
+      admin.from("ai_credits").select("user_id", head),
+      admin.from("comment_reports").select("id", head).eq("status", "open"),
+      admin.from("profiles").select("id", head),
+      admin.from("comments").select("id", head),
+      admin.from("favorites").select("shoe_id", head),
+      admin.from("shoe_ratings").select("id", head)
+    ]);
   return {
     pending: pending.count ?? 0,
     imageCorrections: imageCorrections.count ?? 0,
     published: published.count ?? 0,
     bloggerReviews: bloggerReviews.count ?? 0,
-    balances: balances.count ?? 0
+    balances: balances.count ?? 0,
+    reports: reports.count ?? 0,
+    members: members.count ?? 0,
+    comments: comments.count ?? 0,
+    favorites: favorites.count ?? 0,
+    ratings: ratings.count ?? 0
   };
 }
 
 export default async function AdminPage() {
   const admin = await requireAdminPageContext();
   const counts = await loadCounts();
+
+  const stats: StatTile[] = [
+    { label: "Members", value: counts.members, icon: Users },
+    { label: "Comments", value: counts.comments, icon: MessageSquare },
+    { label: "Favorites", value: counts.favorites, icon: Heart },
+    { label: "Ratings", value: counts.ratings, icon: Star }
+  ];
 
   const metrics: MetricCard[] = [
     {
@@ -67,6 +109,13 @@ export default async function AdminPage() {
       description: "User-uploaded image fixes — approve to update the shoe's image.",
       icon: ImagePlus,
       count: counts.imageCorrections
+    },
+    {
+      href: "/admin/reports",
+      label: "Reported comments",
+      description: "Open moderation reports — delete or dismiss flagged comments.",
+      icon: Flag,
+      count: counts.reports
     },
     {
       href: "/admin/published",
@@ -91,6 +140,33 @@ export default async function AdminPage() {
     }
   ];
 
+  const tools: ToolCard[] = [
+    {
+      href: "/admin/analytics",
+      label: "Analytics",
+      description: "Engagement metrics and your most popular shoes.",
+      icon: BarChart3
+    },
+    {
+      href: "/admin/users",
+      label: "Members",
+      description: "Search the directory and manage admin access.",
+      icon: Users
+    },
+    {
+      href: "/admin/comments",
+      label: "Comments",
+      description: "Browse and moderate the latest comments.",
+      icon: MessageSquare
+    },
+    {
+      href: "/admin/audit",
+      label: "Audit log",
+      description: "Every admin action across the system.",
+      icon: ScrollText
+    }
+  ];
+
   return (
     <main className="container-shell space-y-6 py-6">
       <AdminPageHeader
@@ -99,6 +175,23 @@ export default async function AdminPage() {
         icon={Home}
         actions={<AdminLogoutButton />}
       />
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((s) => {
+          const Icon = s.icon;
+          return (
+            <div key={s.label} className="surface-card premium-border rounded-2xl p-4">
+              <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
+                <Icon className="h-4 w-4" />
+              </span>
+              <p className="num-display mt-3 text-2xl font-semibold leading-none">
+                {s.value === null ? "—" : s.value.toLocaleString()}
+              </p>
+              <p className="mt-1 text-sm soft-text">{s.label}</p>
+            </div>
+          );
+        })}
+      </section>
 
       {counts.imageCorrections ? (
         <Link
@@ -146,6 +239,33 @@ export default async function AdminPage() {
             </Link>
           );
         })}
+      </section>
+
+      <section className="space-y-2">
+        <p className="px-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] soft-text">Insights &amp; tools</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tools.map((card) => {
+            const Icon = card.icon;
+            return (
+              <Link
+                key={card.href}
+                href={card.href}
+                className="surface-card premium-border group flex items-center gap-3 rounded-2xl p-4 transition hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
+              >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-semibold">{card.label}</span>
+                    <ChevronRight className="h-4 w-4 shrink-0 soft-text transition group-hover:translate-x-0.5 group-hover:text-[rgb(var(--accent))]" />
+                  </span>
+                  <span className="mt-1 block text-sm soft-text">{card.description}</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <Link
