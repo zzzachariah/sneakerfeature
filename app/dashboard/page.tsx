@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   DashboardSlides,
@@ -23,6 +24,7 @@ type VoteRow = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [signedIn, setSignedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export default function DashboardPage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [deleteMessage, setDeleteMessage] = useState("");
   const [deleteError, setDeleteError] = useState(false);
+  const [deleteDone, setDeleteDone] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -349,7 +352,12 @@ export default function DashboardPage() {
       const data = await response.json().catch(() => ({ ok: false }));
 
       if (response.ok && data.ok) {
-        // The account is gone — clear the local session and leave the User Center.
+        // The account is gone — clear the local session, then show an explicit
+        // success confirmation. We deliberately do NOT hard-redirect here: a
+        // `window.location` reload of the dynamic home page left the WebView
+        // blank while it refetched (reported by App Review as "failed to load
+        // content"). The user returns home from the confirmation via a soft
+        // navigation that shows the app's loading UI instead.
         const supabase = createClient();
         if (supabase) {
           try {
@@ -365,7 +373,9 @@ export default function DashboardPage() {
             /* ignore cache clear failures */
           }
         }
-        window.location.href = "/";
+        setDeleteError(false);
+        setDeleteMessage(data.message ?? "Your account has been permanently deleted.");
+        setDeleteDone(true);
         return;
       }
 
@@ -377,6 +387,14 @@ export default function DashboardPage() {
     } finally {
       setDeletingAccount(false);
     }
+  }
+
+  function finishDelete() {
+    // Soft client navigation: keeps the React shell mounted and shows the app's
+    // loading UI (app/loading.tsx) while the signed-out home page streams in,
+    // instead of the blank WebView a hard reload would leave during the fetch.
+    router.replace("/");
+    router.refresh();
   }
 
   return (
@@ -421,7 +439,9 @@ export default function DashboardPage() {
       deletingAccount={deletingAccount}
       deleteMessage={deleteMessage}
       deleteError={deleteError}
+      deleteDone={deleteDone}
       onDeleteAccount={deleteAccount}
+      onDeleteFinish={finishDelete}
     />
   );
 }

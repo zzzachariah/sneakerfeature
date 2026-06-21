@@ -226,6 +226,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "failed to delete account.": "删除账户失败。",
   "password is incorrect.": "密码不正确。",
   "your account has been permanently deleted.": "您的账户已被永久删除。",
+  "back to home": "返回首页",
   "permanently delete your account and all associated data — your profile, comments, reactions, submissions, and saved comparisons. this cannot be undone.":
     "永久删除您的账户及所有相关数据——包括个人资料、评论、点赞/点踩、投稿和已保存的对比。此操作无法撤销。",
   "this will permanently delete your account and everything tied to it. this action cannot be undone.":
