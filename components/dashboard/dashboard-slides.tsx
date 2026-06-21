@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useMemo, useState } from "react";
-import { AlertTriangle, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
@@ -89,7 +89,9 @@ type Props = {
   deletingAccount: boolean;
   deleteMessage: string;
   deleteError: boolean;
+  deleteDone: boolean;
   onDeleteAccount: () => void;
+  onDeleteFinish: () => void;
 };
 
 const SECTION_OFFSET = { scrollMarginTop: "var(--top-nav-h)" } as const;
@@ -396,7 +398,9 @@ export function DashboardSlides(props: Props) {
                   deleting={props.deletingAccount}
                   message={props.deleteMessage}
                   isError={props.deleteError}
+                  done={props.deleteDone}
                   onConfirm={props.onDeleteAccount}
+                  onFinish={props.onDeleteFinish}
                   translate={translate}
                 />
               </>
@@ -416,7 +420,9 @@ function DeleteAccountSection({
   deleting,
   message,
   isError,
+  done,
   onConfirm,
+  onFinish,
   translate
 }: {
   password: string;
@@ -426,13 +432,17 @@ function DeleteAccountSection({
   deleting: boolean;
   message: string;
   isError: boolean;
+  done: boolean;
   onConfirm: () => void;
+  onFinish: () => void;
   translate: (s: string) => string;
 }) {
   const [open, setOpen] = useState(false);
 
   function close() {
-    if (deleting) return;
+    // Once the account is gone the dashboard behind the dialog is stale, so the
+    // dialog can't be dismissed back to it — the only way out is "Back to home".
+    if (deleting || done) return;
     setOpen(false);
     onPasswordChange("");
   }
@@ -457,51 +467,69 @@ function DeleteAccountSection({
         {translate("Delete account")}
       </Button>
 
-      <Modal open={open} onClose={close} title="Delete account">
-        <div className="space-y-4">
-          <p className="text-sm leading-relaxed soft-text">
-            {translate(
-              "This will permanently delete your account and everything tied to it. This action cannot be undone."
-            )}
-          </p>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
-              {translate("Enter your password to confirm")}
-            </label>
-            <div className="relative">
-              <Input
-                value={password}
-                onChange={(e) => onPasswordChange(e.target.value)}
-                type={show ? "text" : "password"}
-                placeholder={translate("Your password")}
-                autoComplete="current-password"
-                className="pr-10"
-              />
-              <button
+      <Modal open={open} onClose={close} dismissible={!deleting && !done} title="Delete account">
+        {done ? (
+          // Success state. The account is deleted and the session is gone, so we
+          // never bounce straight into a fresh full-page reload (which left a
+          // blank WebView while the home page fetched). Instead we confirm the
+          // result here and let the user return home via a soft navigation.
+          <div className="space-y-5 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/15 text-green-400">
+              <CheckCircle2 className="h-6 w-6" />
+            </div>
+            <p className="text-sm leading-relaxed soft-text">
+              {message || translate("Your account has been permanently deleted.")}
+            </p>
+            <Button type="button" className="w-full" onClick={onFinish}>
+              {translate("Back to home")}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed soft-text">
+              {translate(
+                "This will permanently delete your account and everything tied to it. This action cannot be undone."
+              )}
+            </p>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.18em] soft-text">
+                {translate("Enter your password to confirm")}
+              </label>
+              <div className="relative">
+                <Input
+                  value={password}
+                  onChange={(e) => onPasswordChange(e.target.value)}
+                  type={show ? "text" : "password"}
+                  placeholder={translate("Your password")}
+                  autoComplete="current-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={onToggleShow}
+                  aria-label={show ? translate("Hide password") : translate("Show password")}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-[rgb(var(--subtext))] transition hover:text-[rgb(var(--text))]"
+                >
+                  {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            {message && <FeedbackMessage message={message} isError={isError} />}
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={close} disabled={deleting}>
+                {translate("Cancel")}
+              </Button>
+              <Button
                 type="button"
-                onClick={onToggleShow}
-                aria-label={show ? translate("Hide password") : translate("Show password")}
-                className="absolute inset-y-0 right-0 flex items-center px-3 text-[rgb(var(--subtext))] transition hover:text-[rgb(var(--text))]"
+                className="w-full border-red-600 bg-red-600 text-white hover:bg-red-500 sm:w-auto"
+                onClick={onConfirm}
+                disabled={deleting || !password}
               >
-                {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
+                {deleting ? translate("Deleting...") : translate("Delete my account")}
+              </Button>
             </div>
           </div>
-          {message && <FeedbackMessage message={message} isError={isError} />}
-          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="ghost" className="w-full sm:w-auto" onClick={close} disabled={deleting}>
-              {translate("Cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full border-red-600 bg-red-600 text-white hover:bg-red-500 sm:w-auto"
-              onClick={onConfirm}
-              disabled={deleting || !password}
-            >
-              {deleting ? translate("Deleting...") : translate("Delete my account")}
-            </Button>
-          </div>
-        </div>
+        )}
       </Modal>
     </section>
   );
