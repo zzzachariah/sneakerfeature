@@ -29,7 +29,7 @@
 // them unless you pass --force. Reversible: history is kept in shoe_images.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { extname, join } from "node:path";
 import { randomUUID } from "node:crypto";
@@ -92,11 +92,16 @@ try {
   throw new Error("sharp not installed. Run `npm install` (it is in devDependencies).");
 }
 
-// --- temp workspace ----------------------------------------------------------
-const WORK = join(tmpdir(), "bgremove");
+// --- workspace ---------------------------------------------------------------
+// Intermediate downloads + rembg output go in a per-run RANDOM temp dir created
+// with mkdtemp (0700, unpredictable name) so files in the shared os temp dir
+// can't be pre-created/hijacked by another local user. Previews (the dry-run
+// artifacts you inspect) live in a stable, gitignored dir at the repo root so
+// they're easy to find and re-open.
+const WORK = mkdtempSync(join(tmpdir(), "bgremove-"));
 const IN_DIR = join(WORK, "in");
 const OUT_DIR = join(WORK, "out");
-const PREVIEW_DIR = join(WORK, "preview");
+const PREVIEW_DIR = join(process.cwd(), "bgremove-preview");
 for (const d of [IN_DIR, OUT_DIR, PREVIEW_DIR]) mkdirSync(d, { recursive: true });
 
 // --- types -------------------------------------------------------------------
@@ -279,6 +284,8 @@ async function main() {
   console.log(`Errored:           ${stats.errored}`);
   if (!APPLY) console.log(`\nReview previews in ${PREVIEW_DIR}, then re-run with --apply to go live.`);
   else console.log(`\nDone. Trigger a redeploy (or wait for ISR) so the site picks up the new images.`);
+
+  rmSync(WORK, { recursive: true, force: true });
 }
 
 main().catch((error) => {

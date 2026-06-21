@@ -48,8 +48,8 @@ npm run images:nobg -- --slug nike-foo   # one shoe
 npm run images:nobg -- --limit 5    # first 5 only
 ```
 
-Inspect the previews (path is printed at the end, e.g. `/tmp/bgremove/preview`).
-When happy, go live:
+Inspect the previews — they're written to `bgremove-preview/` at the repo root
+(gitignored; the exact path is printed at the end). When happy, go live:
 
 ```bash
 npm run images:nobg -- --apply           # upload + swap the live image

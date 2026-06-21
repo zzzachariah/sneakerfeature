@@ -6,6 +6,9 @@ out/
 .env.local
 .DS_Store
 
+# Local background-removal dry-run previews (scripts/remove-backgrounds.mts)
+bgremove-preview/
+
 # Electron desktop wrapper
 electron/dist/
 electron/node_modules/
