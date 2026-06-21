@@ -7,6 +7,7 @@ import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { CommentSection } from "@/components/detail/comment-section";
 import { BloggerReviewsSlideBody } from "@/components/detail/blogger-reviews-slide";
 import { ImageCorrectionButton } from "@/components/detail/image-correction-button";
+import { RemoveBackgroundButton } from "@/components/detail/remove-background-button";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { PerformanceRadar, type RadarAxis } from "@/components/detail/performance-radar";
 import { Badge } from "@/components/ui/badge";
@@ -334,6 +335,7 @@ function OverviewSection({
                 </Button>
               </>
             )}
+            <RemoveBackgroundButton shoeId={shoe.id} imageUrl={reviewImage} />
           </div>
         )}
 
