@@ -19,6 +19,13 @@
      Additive: --accent stays monochrome so nothing else shifts. */
   --brand: 234 76 16;
   --brand-contrast: 255 255 255;
+  /* Shoe presentation stage — adaptive backdrop so transparent cut-outs stay
+     clearly visible on BOTH themes: a near-white shoe won't wash out here, and
+     (in dark) a near-black shoe won't disappear. --hi = radial-gradient center,
+     --lo = its edge, --shoe-shadow = the alpha-following contact shadow. */
+  --shoe-stage-hi: 255 255 255;
+  --shoe-stage-lo: 230 230 235;
+  --shoe-shadow: 17 17 17;
   /* Performance score semantic scale. Mapped from a 0–100 score via
      lib/score-tone.ts, whose buckets mirror getPerformanceLabel(). Tuned a
      little deeper here for contrast on the light background. */
@@ -102,6 +109,9 @@ html[data-native-platform="android"] {
   /* Brand accent + score scale — brighter for the near-black surface. */
   --brand: 255 110 64;
   --brand-contrast: 12 12 14;
+  --shoe-stage-hi: 38 38 43;
+  --shoe-stage-lo: 20 20 23;
+  --shoe-shadow: 0 0 0;
   --score-elite: 52 211 153;
   --score-high: 163 230 53;
   --score-mid: 250 204 21;
@@ -135,6 +145,9 @@ html[data-native-platform="android"] {
     --shadow: 0 0 0;
     --success: 52 211 153;
     --error: 248 113 113;
+    --shoe-stage-hi: 38 38 43;
+    --shoe-stage-lo: 20 20 23;
+    --shoe-shadow: 0 0 0;
     --glass-bg: 18 18 20;
     --glass-bg-strong: 15 15 17;
     --glass-stroke: 54 54 60;
@@ -900,7 +913,18 @@ html[data-native-platform="ios"] [data-download-entry] {
 /* Shoe image fill-scale (moved off an inline transform). The per-variant fill zoom
    lives in --img-scale; the optional --zoom modifier adds a gentle hover/press
    magnify when the image sits inside a card (.group). */
-.shoe-img { transform: scale(var(--img-scale, 1)); }
+/* Adaptive stage behind every shoe. A mid-tone radial gradient (not the flat
+   page bg) guarantees edge contrast for both very light and very dark shoes, so
+   transparent cut-outs read clearly on either theme without a boxy white plate. */
+.shoe-stage {
+  background: radial-gradient(118% 118% at 50% 16%, rgb(var(--shoe-stage-hi)) 0%, rgb(var(--shoe-stage-lo)) 72%);
+}
+/* drop-shadow follows the alpha silhouette of the cut-out — GPU-composited, so
+   it costs nothing like the reverted per-tile WASM remover did. It lifts the
+   shoe off the stage; the dark theme adds a faint light rim so a black shoe
+   still separates from the charcoal stage. */
+.shoe-img { transform: scale(var(--img-scale, 1)); filter: drop-shadow(0 5px 9px rgb(var(--shoe-shadow) / 0.26)); }
+.dark .shoe-img { filter: drop-shadow(0 5px 10px rgb(var(--shoe-shadow) / 0.5)) drop-shadow(0 0 1px rgb(255 255 255 / 0.16)); }
 .shoe-img--zoom { transition: transform 480ms var(--ease); will-change: transform; }
 .group:hover .shoe-img--zoom { transform: scale(calc(var(--img-scale, 1) * 1.05)); }
 .group:active .shoe-img--zoom { transform: scale(calc(var(--img-scale, 1) * 1.02)); }
