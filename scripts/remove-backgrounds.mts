@@ -160,26 +160,20 @@ async function alphaCoverage(png: Buffer): Promise<number> {
   return total ? opaque / total : 0;
 }
 
-// Trim the transparent margin, then re-center the shoe in a square canvas with a
-// small even margin so every shoe is framed consistently (never upscaled).
+// Scale the whole cut-out proportionally to fit a square canvas (contain = pad,
+// never crop) and add an even transparent margin. No trim/extract step, so the
+// shoe is never clipped — sharp's trim() can mis-detect the content box (e.g.
+// when the shoe reaches the image edge) and slice a chunk off the shoe.
 async function finalizePng(rawPng: Buffer): Promise<Buffer> {
   const margin = Math.round(SIZE * 0.06);
   const inner = SIZE - margin * 2;
   const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-  const build = async (trim: boolean) => {
-    let pipe = sharp(rawPng).ensureAlpha();
-    if (trim) pipe = pipe.trim();
-    const fitted = await pipe.resize(inner, inner, { fit: "contain", background: transparent, withoutEnlargement: true }).toBuffer();
-    return sharp(fitted)
-      .extend({ top: margin, bottom: margin, left: margin, right: margin, background: transparent })
-      .png({ compressionLevel: 9 })
-      .toBuffer();
-  };
-  try {
-    return await build(true);
-  } catch {
-    return await build(false); // uniform image → trim() can fail; fall back
-  }
+  return sharp(rawPng)
+    .ensureAlpha()
+    .resize(inner, inner, { fit: "contain", background: transparent })
+    .extend({ top: margin, bottom: margin, left: margin, right: margin, background: transparent })
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 }
 
 async function uploadAndSwap(row: ApprovedImage, png: Buffer) {
