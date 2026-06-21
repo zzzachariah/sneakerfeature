@@ -352,9 +352,9 @@ export function CaptureStep({
             <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
             <FootOverlay view={config.view} side={side} />
             {mode === "live" && (
-              <div className="absolute left-1/2 top-3 -translate-x-1/2">
+              <div className="absolute inset-x-3 top-3 flex justify-center">
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur ${
+                  className={`max-w-full rounded-xl px-3 py-1 text-center text-xs font-medium leading-snug backdrop-blur ${
                     tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
                   }`}
                 >
@@ -374,9 +374,11 @@ export function CaptureStep({
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <FootOverlay view={config.view} side={side} />
-            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-black/55 px-3 py-1 text-xs font-medium text-white">
+          <div className="absolute inset-x-0 bottom-3 flex justify-center px-3">
+            <span className="max-w-full rounded-xl bg-black/55 px-3 py-1 text-center text-xs font-medium leading-snug text-white">
               {translate("Take a photo, then line it up with the outline")}
             </span>
+          </div>
           </div>
         )}
       </div>
