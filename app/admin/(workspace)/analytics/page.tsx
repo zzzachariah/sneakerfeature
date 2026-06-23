@@ -1,5 +1,16 @@
 import Link from "next/link";
-import { BarChart3, Users, Eye, Heart, Star, MessageSquare, type LucideIcon } from "lucide-react";
+import {
+  BarChart3,
+  Compass,
+  Eye,
+  Footprints,
+  Heart,
+  MessageSquare,
+  Star,
+  UserCircle2,
+  Users,
+  type LucideIcon
+} from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Card } from "@/components/ui/card";
@@ -24,19 +35,36 @@ export default async function AdminAnalyticsPage() {
   if (!db) return <Card className="p-5">Service-role client is not configured.</Card>;
 
   const head = { count: "exact" as const, head: true };
-  const [users, users7d, users30d, publishedShoes, totalShoes, comments, ratings, favorites, viewRowsRes, favRowsRes] =
-    await Promise.all([
-      db.from("profiles").select("id", head),
-      db.from("profiles").select("id", head).gte("created_at", sinceISO(7)),
-      db.from("profiles").select("id", head).gte("created_at", sinceISO(30)),
-      db.from("shoes").select("id", head).eq("is_published", true),
-      db.from("shoes").select("id", head),
-      db.from("comments").select("id", head),
-      db.from("shoe_ratings").select("id", head),
-      db.from("favorites").select("shoe_id", head),
-      db.from("shoe_views").select("shoe_id, view_count").limit(MAX_AGG_ROWS),
-      db.from("favorites").select("shoe_id").limit(MAX_AGG_ROWS)
-    ]);
+  const [
+    users,
+    users7d,
+    users30d,
+    publishedShoes,
+    totalShoes,
+    comments,
+    ratings,
+    favorites,
+    viewRowsRes,
+    favRowsRes,
+    personaCount,
+    ratingFocusCount,
+    footScannedCount
+  ] = await Promise.all([
+    db.from("profiles").select("id", head),
+    db.from("profiles").select("id", head).gte("created_at", sinceISO(7)),
+    db.from("profiles").select("id", head).gte("created_at", sinceISO(30)),
+    db.from("shoes").select("id", head).eq("is_published", true),
+    db.from("shoes").select("id", head),
+    db.from("comments").select("id", head),
+    db.from("shoe_ratings").select("id", head),
+    db.from("favorites").select("shoe_id", head),
+    db.from("shoe_views").select("shoe_id, view_count").limit(MAX_AGG_ROWS),
+    db.from("favorites").select("shoe_id").limit(MAX_AGG_ROWS),
+    // Personalization adoption: how many members have each profile piece set.
+    db.from("profiles").select("id", head).not("persona", "is", null),
+    db.from("profiles").select("id", head).not("rating_focus", "is", null),
+    db.from("profiles").select("id", head).not("foot_profile", "is", null)
+  ]);
 
   const viewRows = (viewRowsRes.data ?? []) as { shoe_id: string; view_count: number | null }[];
   const favRows = (favRowsRes.data ?? []) as { shoe_id: string }[];
@@ -118,11 +146,73 @@ export default async function AdminAnalyticsPage() {
         })}
       </section>
 
+      <PersonalizationAdoption
+        totalMembers={users.count ?? 0}
+        persona={personaCount.count ?? 0}
+        ratingFocus={ratingFocusCount.count ?? 0}
+        footProfile={footScannedCount.count ?? 0}
+      />
+
       <section className="grid gap-4 lg:grid-cols-2">
         <TopShoeList title="Most viewed shoes" unit="views" shoes={topViewedShoes} />
         <TopShoeList title="Most favorited shoes" unit="favorites" shoes={topFavShoes} />
       </section>
     </div>
+  );
+}
+
+function PersonalizationAdoption({
+  totalMembers,
+  persona,
+  ratingFocus,
+  footProfile
+}: {
+  totalMembers: number;
+  persona: number;
+  ratingFocus: number;
+  footProfile: number;
+}) {
+  const tiles: { label: string; icon: LucideIcon; count: number }[] = [
+    { label: "Persona set", icon: UserCircle2, count: persona },
+    { label: "Rating focus set", icon: Compass, count: ratingFocus },
+    { label: "Foot profile on file", icon: Footprints, count: footProfile }
+  ];
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-base font-semibold">Personalization adoption</h2>
+        <p className="text-xs soft-text">
+          out of <span className="num-display font-semibold">{totalMembers.toLocaleString()}</span> members
+        </p>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        {tiles.map((t) => {
+          const pct = totalMembers > 0 ? Math.min(100, (t.count / totalMembers) * 100) : 0;
+          const Icon = t.icon;
+          return (
+            <div
+              key={t.label}
+              className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--bg-elev)/0.55)] p-3"
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <Icon className="h-4 w-4 text-[rgb(var(--accent))]" />
+                <span className="font-medium">{t.label}</span>
+              </div>
+              <div className="mt-2 flex items-baseline gap-2">
+                <span className="num-display text-xl font-semibold">{t.count.toLocaleString()}</span>
+                <span className="text-xs soft-text">{pct.toFixed(1)}%</span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[rgb(var(--text)/0.08)]">
+                <div
+                  className="h-full rounded-full bg-[rgb(var(--accent))]"
+                  style={{ width: `${pct.toFixed(1)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
   );
 }
 
