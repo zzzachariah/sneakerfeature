@@ -180,6 +180,7 @@ export function HomeHero({
             dimmed={!isLoggedIn || !persona}
             onClick={handleAvatarClick}
             size="md"
+            loggedIn={isLoggedIn}
           />
         </div>
       </div>

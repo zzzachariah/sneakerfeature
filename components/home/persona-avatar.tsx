@@ -15,6 +15,11 @@ type Props = {
   dimmed?: boolean;
   onClick?: () => void;
   size?: "sm" | "md";
+  // True when the viewer is signed in. Lets the caption distinguish "not signed
+  // in" (→ "Log in to personalize") from "signed in but no persona yet"
+  // (→ "Set up your player profile"). Without this the avatar kept saying
+  // "Log in to personalize" even after the user signed in.
+  loggedIn?: boolean;
 };
 
 const SKILL_PIPS: Record<SkillLevel, number> = {
@@ -2753,8 +2758,13 @@ function Decorations({ kind, dimmed }: { kind?: Decoration; dimmed?: boolean }) 
 // ───────────────────────────────────────────────────────────────
 // Main component
 // ───────────────────────────────────────────────────────────────
-export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }: Props) {
+export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md", loggedIn = false }: Props) {
   const { translate } = useLocale();
+  // Single source of truth for the empty-state caption + aria-label so every
+  // label flips together when the viewer signs in.
+  const emptyLabel = loggedIn
+    ? translate("Set up your player profile")
+    : translate("Log in to personalize");
 
   // SSR-safe: idle on server, randomize on mount. The renderer reads from
   // `activePose` (the resolved RuntimePose for the current action + frameIdx).
@@ -3173,7 +3183,7 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
       viewBox={`0 0 ${SVG_W} ${SVG_H}`}
       width="100%"
       style={{ maxWidth: figureWidth, height: "auto" }}
-      aria-label={persona ? translate("Your player avatar") : translate("Log in to personalize")}
+      aria-label={persona ? translate("Your player avatar") : emptyLabel}
     >
       <defs>
         <radialGradient id="pa-spotlight" cx="50%" cy="50%" r="50%">
@@ -3304,7 +3314,7 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
       `}</style>
 
       {onClick ? (
-        <button type="button" onClick={onClick} className={figureClass} aria-label={persona ? translate("Edit your player profile") : translate("Log in to personalize")}>
+        <button type="button" onClick={onClick} className={figureClass} aria-label={persona ? translate("Edit your player profile") : emptyLabel}>
           {figure}
         </button>
       ) : (
@@ -3339,7 +3349,7 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md" }:
         <div className={`num-display ${size === "sm" ? "text-[0.62rem]" : "text-[0.72rem]"} soft-text`}>
           {persona
             ? `${persona.height_cm} ${translate("cm")} · ${persona.weight_kg} ${translate("kg")}`
-            : translate("Log in to personalize")}
+            : emptyLabel}
         </div>
 
         <div className="mt-1 flex items-center gap-2">

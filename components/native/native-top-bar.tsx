@@ -94,6 +94,7 @@ export function NativeTopBar() {
           { key: "lang:zh", label: "中文", checked: locale === "zh" }
         ]
       },
+      { key: "nav:/announcements", label: zh ? "公告" : "Announcements", symbol: "megaphone" },
       {
         key: "legal",
         label: zh ? "法律信息" : "Legal",
