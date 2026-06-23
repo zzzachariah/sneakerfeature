@@ -106,8 +106,19 @@ function formatDate(iso: string | null | undefined): string {
   }).format(new Date(t));
 }
 
-export function AnnouncementsManager({ initialItems }: { initialItems: AnnouncementRecord[] }) {
+export function AnnouncementsManager({
+  initialItems,
+  initialReads = {},
+  memberCount = 0,
+}: {
+  initialItems: AnnouncementRecord[];
+  /** Per-announcement read counts, pre-loaded server-side. */
+  initialReads?: Record<string, number>;
+  /** Total member count, denominator for the reach % column. */
+  memberCount?: number;
+}) {
   const [items, setItems] = useState(initialItems);
+  const [reads, setReads] = useState<Record<string, number>>(initialReads);
   const [editing, setEditing] = useState<AnnouncementRecord | "new" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -119,9 +130,14 @@ export function AnnouncementsManager({ initialItems }: { initialItems: Announcem
   }, [items]);
 
   async function refresh() {
-    const res = await fetch("/api/admin/announcements", { cache: "no-store" });
-    const json = await res.json();
-    if (json?.ok && Array.isArray(json.items)) setItems(json.items);
+    const [listRes, readsRes] = await Promise.all([
+      fetch("/api/admin/announcements", { cache: "no-store" }),
+      fetch("/api/admin/announcements/reads", { cache: "no-store" }),
+    ]);
+    const listJson = await listRes.json();
+    if (listJson?.ok && Array.isArray(listJson.items)) setItems(listJson.items);
+    const readsJson = await readsRes.json().catch(() => null);
+    if (readsJson?.ok && readsJson.reads) setReads(readsJson.reads);
   }
 
   async function toggleEnabled(item: AnnouncementRecord) {
@@ -198,95 +214,154 @@ export function AnnouncementsManager({ initialItems }: { initialItems: Announcem
         </div>
       )}
 
-      <ol className="space-y-3">
-        {items.length === 0 ? (
-          <Card className="p-6 text-center text-sm soft-text">
-            Nothing published yet. Hit <strong>New announcement</strong> to create one.
-          </Card>
-        ) : (
-          items.map((item) => {
-            const expired = isExpired(item.expiresAt);
-            const isLive = item.id === activeId;
-            return (
-              <li key={item.id}>
-                <Card className="p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {isLive ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-600">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Live
-                          </span>
-                        ) : !item.enabled ? (
-                          <span className="rounded-full bg-[rgb(var(--text)/0.06)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--text)/0.55)]">
-                            Disabled
-                          </span>
-                        ) : expired ? (
-                          <span className="rounded-full bg-[rgb(var(--text)/0.06)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--text)/0.55)]">
-                            Expired
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-[rgb(var(--accent)/0.18)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--accent))]">
-                            Queued
-                          </span>
+      {items.length === 0 ? (
+        <Card className="p-6 text-center text-sm soft-text">
+          Nothing published yet. Hit <strong>New announcement</strong> to create one.
+        </Card>
+      ) : (
+        <Card className="overflow-hidden p-0">
+          {/* Desktop / tablet — compact table. Reads + reach show how many
+              unique viewers (logged-in deduped by user id, anon by
+              localStorage uuid) have seen each one. */}
+          <div className="hidden overflow-x-auto md:block">
+            <table className="w-full text-sm">
+              <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
+                <tr>
+                  <th className="px-4 py-2.5">Title</th>
+                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5">Frequency</th>
+                  <th className="px-3 py-2.5">Reads</th>
+                  <th className="px-3 py-2.5">Reach</th>
+                  <th className="px-3 py-2.5">Published</th>
+                  <th className="px-3 py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item) => {
+                  const expired = isExpired(item.expiresAt);
+                  const isLive = item.id === activeId;
+                  const readCount = reads[item.id] ?? 0;
+                  const reach = memberCount > 0 ? Math.min(100, (readCount / memberCount) * 100) : 0;
+                  return (
+                    <tr key={item.id} className="border-t border-[rgb(var(--muted)/0.35)] align-top">
+                      <td className="max-w-xs px-4 py-3">
+                        <div className="truncate font-medium">
+                          {item.title || item.titleZh || <span className="soft-text">(no title)</span>}
+                        </div>
+                        {item.body && (
+                          <div className="mt-0.5 truncate text-xs soft-text">{item.body}</div>
                         )}
-                        <span className="text-[0.7rem] uppercase tracking-[0.12em] soft-text">
+                      </td>
+                      <td className="px-3 py-3">
+                        <StatusPill isLive={isLive} enabled={item.enabled} expired={expired} />
+                      </td>
+                      <td className="px-3 py-3 text-xs soft-text">
+                        <div>{item.frequency}</div>
+                        <div className="mt-0.5 opacity-70">{item.duration}</div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span className="num-display font-semibold">{readCount.toLocaleString()}</span>
+                      </td>
+                      <td className="px-3 py-3">
+                        <ReachBar percent={reach} />
+                      </td>
+                      <td className="num-display whitespace-nowrap px-3 py-3 text-xs soft-text">
+                        {formatDate(item.publishedAt)}
+                        {item.expiresAt ? (
+                          <div className="mt-0.5 opacity-70">expires {formatDate(item.expiresAt)}</div>
+                        ) : (
+                          <div className="mt-0.5 opacity-70">no expiry</div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex shrink-0 items-center justify-end gap-1.5">
+                          <IconButton
+                            label={item.enabled ? "Take down" : "Re-enable"}
+                            busy={busyId === item.id}
+                            onClick={() => toggleEnabled(item)}
+                            icon={item.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                          />
+                          <IconButton
+                            label="Edit"
+                            onClick={() => setEditing(item)}
+                            icon={<Pencil className="h-4 w-4" />}
+                          />
+                          <IconButton
+                            label="Delete"
+                            busy={busyId === item.id}
+                            onClick={() => remove(item)}
+                            icon={<Trash2 className="h-4 w-4" />}
+                            tone="danger"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile — same data as cards (table is unreadable in a 360px viewport). */}
+          <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
+            {items.map((item) => {
+              const expired = isExpired(item.expiresAt);
+              const isLive = item.id === activeId;
+              const readCount = reads[item.id] ?? 0;
+              const reach = memberCount > 0 ? Math.min(100, (readCount / memberCount) * 100) : 0;
+              return (
+                <li key={item.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <StatusPill isLive={isLive} enabled={item.enabled} expired={expired} />
+                        <span className="text-[0.65rem] uppercase tracking-[0.12em] soft-text">
                           {item.frequency} · {item.duration}
                         </span>
                       </div>
                       <h3 className="mt-1.5 truncate text-base font-semibold tracking-tight">
                         {item.title || item.titleZh || <span className="soft-text">(no title)</span>}
                       </h3>
-                      {item.body && (
-                        <p className="mt-1 line-clamp-2 text-sm soft-text">{item.body}</p>
-                      )}
-                      <p className="mt-2 text-xs soft-text">
-                        Published {formatDate(item.publishedAt)}
-                        {item.expiresAt ? ` · expires ${formatDate(item.expiresAt)}` : " · no expiry"}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleEnabled(item)}
-                        disabled={busyId === item.id}
-                        title={item.enabled ? "Take down" : "Re-enable"}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text)/0.7)] transition hover:bg-[rgb(var(--text)/0.06)] disabled:opacity-50"
-                      >
-                        {busyId === item.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : item.enabled ? (
-                          <Eye className="h-4 w-4" />
-                        ) : (
-                          <EyeOff className="h-4 w-4" />
+                      {item.body && <p className="mt-1 line-clamp-2 text-sm soft-text">{item.body}</p>}
+                      <div className="mt-2 flex items-center gap-2 text-xs soft-text">
+                        <Eye className="h-3 w-3" />
+                        <span className="num-display font-semibold text-[rgb(var(--text))]">
+                          {readCount.toLocaleString()}
+                        </span>
+                        <span>reads</span>
+                        {memberCount > 0 && (
+                          <span className="opacity-70">· {Math.round(reach)}% of members</span>
                         )}
-                      </button>
-                      <button
-                        type="button"
+                      </div>
+                      <p className="mt-1.5 text-xs soft-text">Published {formatDate(item.publishedAt)}</p>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-center gap-1.5">
+                      <IconButton
+                        label={item.enabled ? "Take down" : "Re-enable"}
+                        busy={busyId === item.id}
+                        onClick={() => toggleEnabled(item)}
+                        icon={item.enabled ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                      />
+                      <IconButton
+                        label="Edit"
                         onClick={() => setEditing(item)}
-                        title="Edit"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text)/0.7)] transition hover:bg-[rgb(var(--text)/0.06)]"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </button>
-                      <button
-                        type="button"
+                        icon={<Pencil className="h-4 w-4" />}
+                      />
+                      <IconButton
+                        label="Delete"
+                        busy={busyId === item.id}
                         onClick={() => remove(item)}
-                        disabled={busyId === item.id}
-                        title="Delete"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-red-500/30 text-red-600 transition hover:bg-red-500/10 disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        icon={<Trash2 className="h-4 w-4" />}
+                        tone="danger"
+                      />
                     </div>
                   </div>
-                </Card>
-              </li>
-            );
-          })
-        )}
-      </ol>
+                </li>
+              );
+            })}
+          </ol>
+        </Card>
+      )}
 
       {editing && (
         <AnnouncementEditor
@@ -589,5 +664,91 @@ function LabeledTextarea({
         className="mt-1 w-full resize-y rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.65)] px-3 py-2 text-sm placeholder:text-[rgb(var(--text)/0.35)]"
       />
     </label>
+  );
+}
+
+function StatusPill({
+  isLive,
+  enabled,
+  expired,
+}: {
+  isLive: boolean;
+  enabled: boolean;
+  expired: boolean;
+}) {
+  if (isLive) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-600">
+        <CheckCircle2 className="h-3 w-3" />
+        Live
+      </span>
+    );
+  }
+  if (!enabled) {
+    return (
+      <span className="rounded-full bg-[rgb(var(--text)/0.06)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--text)/0.55)]">
+        Disabled
+      </span>
+    );
+  }
+  if (expired) {
+    return (
+      <span className="rounded-full bg-[rgb(var(--text)/0.06)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--text)/0.55)]">
+        Expired
+      </span>
+    );
+  }
+  return (
+    <span className="rounded-full bg-[rgb(var(--accent)/0.18)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--accent))]">
+      Queued
+    </span>
+  );
+}
+
+function ReachBar({ percent }: { percent: number }) {
+  const pct = Math.max(0, Math.min(100, percent));
+  return (
+    <div className="flex w-28 items-center gap-2">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[rgb(var(--text)/0.08)]">
+        <div
+          className="h-full rounded-full bg-[rgb(var(--accent))]"
+          style={{ width: `${pct.toFixed(1)}%` }}
+        />
+      </div>
+      <span className="num-display w-10 shrink-0 text-right text-[0.7rem] tabular-nums soft-text">
+        {pct < 1 ? pct.toFixed(1) : Math.round(pct)}%
+      </span>
+    </div>
+  );
+}
+
+function IconButton({
+  label,
+  icon,
+  onClick,
+  busy,
+  tone,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  busy?: boolean;
+  tone?: "danger";
+}) {
+  const tonal =
+    tone === "danger"
+      ? "border-red-500/30 text-red-600 hover:bg-red-500/10"
+      : "border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text)/0.7)] hover:bg-[rgb(var(--text)/0.06)]";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      title={label}
+      aria-label={label}
+      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition disabled:opacity-50 ${tonal}`}
+    >
+      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
+    </button>
   );
 }

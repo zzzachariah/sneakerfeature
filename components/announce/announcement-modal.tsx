@@ -42,6 +42,7 @@ type Announcement = {
 };
 
 const SEEN_KEY = "sf-announcement-seen";
+const CLIENT_ID_KEY = "sf-client-id";
 
 function seenStore(freq: Frequency): Storage | null {
   if (typeof window === "undefined") return null;
@@ -55,6 +56,25 @@ function isExpired(expiresAt: string | null | undefined): boolean {
   const t = Date.parse(expiresAt);
   if (Number.isNaN(t)) return false;
   return Date.now() >= t;
+}
+
+/** Stable per-browser id so the admin "reach" count can dedupe anonymous
+ * viewers. Stored in localStorage; cleared on browser/cookie reset. Falls
+ * back to a noisy in-memory id when localStorage is unavailable. */
+function getOrCreateClientId(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const existing = window.localStorage.getItem(CLIENT_ID_KEY);
+    if (existing) return existing;
+    const fresh =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    window.localStorage.setItem(CLIENT_ID_KEY, fresh);
+    return fresh;
+  } catch {
+    return "";
+  }
 }
 
 export function AnnouncementModal() {
@@ -100,6 +120,18 @@ export function AnnouncementModal() {
         timer = setTimeout(() => {
           if (!cancelled) setOpen(true);
         }, 400);
+        // Fire-and-forget: tell the server this viewer saw this announcement
+        // so the admin reach counter can dedupe by (user|client) per id. The
+        // endpoint is idempotent — re-posts from the same viewer are ignored.
+        const clientId = getOrCreateClientId();
+        fetch(`/api/announcements/${encodeURIComponent(a.id)}/view`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ clientId }),
+          keepalive: true,
+        }).catch(() => {
+          /* network error — view count will be off by one, not fatal */
+        });
       } catch {
         /* offline / fetch failed — try again on the next poll */
       }
