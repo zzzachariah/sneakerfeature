@@ -11,6 +11,7 @@ export function Modal({
   children,
   dismissible = true,
   zIndexClass = "z-50",
+  maxWidthClass = "max-w-lg",
 }: {
   open: boolean;
   onClose: () => void;
@@ -18,6 +19,9 @@ export function Modal({
   children: React.ReactNode;
   dismissible?: boolean;
   zIndexClass?: string;
+  /** Tailwind max-width class for the dialog. Defaults to `max-w-lg`; larger
+   * editors (bilingual forms, etc.) can opt into `max-w-2xl` / `max-w-3xl`. */
+  maxWidthClass?: string;
 }) {
   const { translate } = useLocale();
   useBodyScrollLock(open);
@@ -51,7 +55,7 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
-            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full max-w-lg flex-col rounded-3xl"
+            className={`glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full ${maxWidthClass} flex-col rounded-3xl`}
             initial={{ y: 16, opacity: 0, scale: 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 8, opacity: 0, scale: 0.985 }}

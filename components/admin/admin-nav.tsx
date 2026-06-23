@@ -86,6 +86,12 @@ const NAV_GROUPS: NavGroup[] = [
         label: "Comments",
         icon: MessageSquare,
         match: (p) => p.startsWith("/admin/comments")
+      },
+      {
+        href: "/admin/announcements",
+        label: "Announcements",
+        icon: Megaphone,
+        match: (p) => p.startsWith("/admin/announcements")
       }
     ]
   },

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { AnnouncementsHistory, type HistoryEntry } from "./announcements-client";
+import { listAnnouncements } from "@/lib/announcements/store";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
+
+// Always render fresh so newly-published announcements show up immediately.
+export const dynamic = "force-dynamic";
 
 const title = "Announcements | Sneaker Feature";
 const description =
@@ -27,18 +29,23 @@ export const metadata: Metadata = {
   },
 };
 
-async function loadHistory(): Promise<HistoryEntry[]> {
-  const file = path.join(process.cwd(), "public", "announcements-history.json");
-  try {
-    const raw = await fs.readFile(file, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as HistoryEntry[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default async function AnnouncementsPage() {
-  const items = await loadHistory();
+  const rows = await listAnnouncements();
+  const items: HistoryEntry[] = rows.map((r) => ({
+    id: r.id,
+    publishedAt: r.publishedAt,
+    expiresAt: r.expiresAt,
+    duration: r.duration,
+    frequency: r.frequency,
+    dismissible: r.dismissible,
+    enabled: r.enabled,
+    title: r.title,
+    body: r.body,
+    buttonLabel: r.buttonLabel,
+    buttonUrl: r.buttonUrl,
+    titleZh: r.titleZh,
+    bodyZh: r.bodyZh,
+    buttonLabelZh: r.buttonLabelZh,
+  }));
   return <AnnouncementsHistory items={items} />;
 }
