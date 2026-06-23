@@ -6,11 +6,14 @@ import { ArrowUpRight, Megaphone, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-// Site-wide announcement popup. Content is published by the "Publish
-// Announcement" GitHub Action (.github/workflows/announcement.yml), which writes
-// public/announcement.json on main and triggers a deploy. Because the iOS /
-// Android apps are thin shells that load the live site, the same popup reaches
-// web + both apps with no rebuild.
+// Site-wide announcement popup. Content is published either from
+// /admin/announcements (writes to the `announcements` table) or — for
+// back-compat — by the "Publish Announcement" GitHub Action
+// (.github/workflows/announcement.yml), which writes public/announcement.json.
+// The popup polls /api/announcements/active which prefers the DB and falls
+// back to the static JSON file so legacy publishes keep showing up. Because
+// the iOS / Android apps are thin shells that load the live site, the same
+// popup reaches web + both apps with no rebuild.
 //
 // `frequency` controls how often a given announcement (keyed by `id`) reappears:
 //   - "once"    → shown once per user, ever (localStorage).      [default]
@@ -72,8 +75,10 @@ export function AnnouncementModal() {
       if (cancelled) return;
       try {
         // Cache-bust + no-store so a freshly published announcement shows up
-        // without waiting on any CDN/static caching.
-        const res = await fetch(`/announcement.json?ts=${Date.now()}`, { cache: "no-store" });
+        // without waiting on any CDN/static caching. The endpoint reads the
+        // DB first and falls back to public/announcement.json so legacy
+        // GitHub-Action publishes keep working.
+        const res = await fetch(`/api/announcements/active?ts=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) return;
         const a = (await res.json()) as Announcement | null;
         if (cancelled || !a || !a.enabled || !a.id) return;
