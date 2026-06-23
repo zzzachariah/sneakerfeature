@@ -164,6 +164,12 @@ export default async function AdminPage() {
       label: "Audit log",
       description: "Every admin action across the system.",
       icon: ScrollText
+    },
+    {
+      href: "/admin/announcements",
+      label: "Announcements",
+      description: "Edit the live popup or publish a new site-wide announcement.",
+      icon: Megaphone
     }
   ];
 

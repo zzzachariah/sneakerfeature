@@ -6,11 +6,14 @@ import { ArrowUpRight, Megaphone, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-// Site-wide announcement popup. Content is published by the "Publish
-// Announcement" GitHub Action (.github/workflows/announcement.yml), which writes
-// public/announcement.json on main and triggers a deploy. Because the iOS /
-// Android apps are thin shells that load the live site, the same popup reaches
-// web + both apps with no rebuild.
+// Site-wide announcement popup. Content is managed two ways:
+//   1. The /admin/announcements page (preferred) writes directly to Supabase.
+//   2. The "Publish Announcement" GitHub Action still writes
+//      public/announcement.json for backward compat — it's used as the seed/
+//      fallback when the DB has no record yet.
+// We fetch through /api/announcement which prefers the DB and falls back to
+// the JSON file. The iOS/Android Capacitor shells load the live site, so any
+// change reaches web + both apps within one poll cycle, no rebuild.
 //
 // `frequency` controls how often a given announcement (keyed by `id`) reappears:
 //   - "once"    → shown once per user, ever (localStorage).      [default]
@@ -73,7 +76,7 @@ export function AnnouncementModal() {
       try {
         // Cache-bust + no-store so a freshly published announcement shows up
         // without waiting on any CDN/static caching.
-        const res = await fetch(`/announcement.json?ts=${Date.now()}`, { cache: "no-store" });
+        const res = await fetch(`/api/announcement?ts=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) return;
         const a = (await res.json()) as Announcement | null;
         if (cancelled || !a || !a.enabled || !a.id) return;

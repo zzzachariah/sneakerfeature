@@ -902,6 +902,21 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "ios build is on the way. in the meantime, use the web version.":
     "iOS 版正在路上。在此期间，可使用网页版。",
   "continue on web": "继续用网页版",
+  "or continue on web": "或继续使用网页版",
+  "requires a us app store account.": "需要美区 App Store 账号。",
+  "i don't have a us app store account": "我没有美国 App Store 账号",
+  "shared us app store account": "共用美区 Apple ID",
+  "use this account to download": "用这个账号下载 App",
+  "sign in via settings → apple account → media & purchases (not icloud!), then open the app store and download sneakerfeature.":
+    "在「设置 → Apple 账户 → 媒体与购买项目」中登录（不要登录 iCloud！），然后打开 App Store 下载 sneakerfeature。",
+  "apple id": "Apple ID",
+  "important:": "请注意：",
+  "do not sign this account into icloud or replace your own apple id. only sign in under settings → apple account → media & purchases so it's used for app store downloads only.":
+    "不要把这个账号登入 iCloud 或替换掉你自己的 Apple ID。仅在「设置 → Apple 账户 → 媒体与购买项目」里登录，仅用于 App Store 下载。",
+  "how to install on ios": "iOS 安装方法",
+  "tap get it on the app store and install from there.": "点击「前往 App Store 下载」按钮，在 App Store 里安装。",
+  "if your apple id isn't us, switch storefronts or use the shared account.":
+    "如果你的 Apple ID 不是美区，切换地区，或使用上方提供的共用账号。",
 
   // Notifications — personalized push opt-out
   "notifications": "通知",

@@ -70,6 +70,12 @@ const NAV_GROUPS: NavGroup[] = [
         match: (p) => p.startsWith("/admin/blogger-reviews")
       },
       {
+        href: "/admin/announcements",
+        label: "Announcements",
+        icon: Megaphone,
+        match: (p) => p.startsWith("/admin/announcements")
+      },
+      {
         href: "/admin/image-corrections",
         label: "Image corrections",
         icon: ImagePlus,

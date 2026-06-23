@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { AnnouncementsHistory, type HistoryEntry } from "./announcements-client";
+import { getAnnouncementHistory } from "@/lib/admin/announcements";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
+
+// The history list is admin-editable, so don't cache the page output between
+// requests — a fresh edit in /admin/announcements should reach /announcements
+// on the next visit, not on the next deploy.
+export const dynamic = "force-dynamic";
 
 const title = "Announcements | Sneaker Feature";
 const description =
@@ -27,18 +31,7 @@ export const metadata: Metadata = {
   },
 };
 
-async function loadHistory(): Promise<HistoryEntry[]> {
-  const file = path.join(process.cwd(), "public", "announcements-history.json");
-  try {
-    const raw = await fs.readFile(file, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as HistoryEntry[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default async function AnnouncementsPage() {
-  const items = await loadHistory();
+  const items = (await getAnnouncementHistory()) as HistoryEntry[];
   return <AnnouncementsHistory items={items} />;
 }
