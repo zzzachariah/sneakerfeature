@@ -127,7 +127,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
             squeezing it beside the greeting pushed it off-screen on phones). The
             frosted-glass card is a light glassmorphism touch. */}
         <div className="glass mt-4 overflow-hidden rounded-2xl p-3">
-          <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" />
+          <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" loggedIn={isLoggedIn} />
         </div>
       </motion.header>
 
