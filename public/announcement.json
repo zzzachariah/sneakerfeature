@@ -1,16 +1,16 @@
 {
-  "id": "20260620-192922-1",
+  "id": "20260623-062931-2",
   "enabled": true,
-  "duration": "1 week",
+  "duration": "1 month",
   "frequency": "once",
   "dismissible": true,
-  "publishedAt": "2026-06-20T19:29:22Z",
-  "expiresAt": "2026-06-27T19:29:22Z",
-  "title": "Site Under Attack",
-  "body": "From June 18th to 21st, sneakerfeature was under attack from an unknown source. Over 1M spam users were created. The root cause is largely due to the delete of Cloudflare Human test. The function was added and the spam users are successfully deleted. If you are a user who registered using an Outlook email between Jun.18th to Jun.21st, you may have to register again. If you did this, for one, thank you for reminding me of some flaws; for another, FUCK YOU.",
-  "buttonLabel": "",
-  "buttonUrl": "",
-  "titleZh": "遭恶意攻击",
-  "bodyZh": "六月十八日到六月二十一日，网站产生了超过一百万假用户。代码层面允许这个行为的原因是我关闭了cloudflare验证。该功能已经重新启动。如果你在十八号到二十一号期间用outlook邮箱创建了账号，非常抱歉，你可能需要重新创建。其他用户不会受到任何影响。如果你是这一切的始作俑者，一方面感谢你让我发现了网站的缺陷。另外，去你妈的。",
-  "buttonLabelZh": ""
+  "publishedAt": "2026-06-23T06:29:31Z",
+  "expiresAt": "2026-07-23T06:29:31Z",
+  "title": "Android App Available",
+  "body": "The Android App is now available",
+  "buttonLabel": "Go to Download Page",
+  "buttonUrl": "/download",
+  "titleZh": "Android App Available",
+  "bodyZh": "The Android App is now available",
+  "buttonLabelZh": "Go to Download Page"
 }

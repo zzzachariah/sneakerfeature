@@ -1,5 +1,21 @@
 [
   {
+    "id": "20260623-062931-2",
+    "enabled": true,
+    "duration": "1 month",
+    "frequency": "once",
+    "dismissible": true,
+    "publishedAt": "2026-06-23T06:29:31Z",
+    "expiresAt": "2026-07-23T06:29:31Z",
+    "title": "Android App Available",
+    "body": "The Android App is now available",
+    "buttonLabel": "Go to Download Page",
+    "buttonUrl": "/download",
+    "titleZh": "Android App Available",
+    "bodyZh": "The Android App is now available",
+    "buttonLabelZh": "Go to Download Page"
+  },
+  {
     "id": "20260620-192922-1",
     "enabled": true,
     "duration": "1 week",
