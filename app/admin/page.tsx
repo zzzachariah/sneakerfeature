@@ -30,6 +30,8 @@ type MetricCard = {
   description: string;
   icon: LucideIcon;
   count: number | null;
+  /** When true, the card pops with the accent treatment regardless of count. */
+  pinTop?: boolean;
 };
 
 type ToolCard = {
@@ -95,27 +97,33 @@ export default async function AdminPage() {
     { label: "Ratings", value: counts.ratings, icon: Star }
   ];
 
+  // Cards that need attention (non-zero pending count) bubble to the top so a
+  // glance at the home screen surfaces what needs action — best for thumb-first
+  // navigation on mobile.
   const metrics: MetricCard[] = [
     {
       href: "/admin/review",
       label: "Submission review",
       description: "Pending in the queue — open to normalize and publish.",
       icon: ClipboardCheck,
-      count: counts.pending
+      count: counts.pending,
+      pinTop: (counts.pending ?? 0) > 0
     },
     {
       href: "/admin/image-corrections",
       label: "Image corrections",
       description: "User-uploaded image fixes — approve to update the shoe's image.",
       icon: ImagePlus,
-      count: counts.imageCorrections
+      count: counts.imageCorrections,
+      pinTop: (counts.imageCorrections ?? 0) > 0
     },
     {
       href: "/admin/reports",
       label: "Reported comments",
       description: "Open moderation reports — delete or dismiss flagged comments.",
       icon: Flag,
-      count: counts.reports
+      count: counts.reports,
+      pinTop: (counts.reports ?? 0) > 0
     },
     {
       href: "/admin/published",
@@ -139,6 +147,10 @@ export default async function AdminPage() {
       count: counts.balances
     }
   ];
+
+  // Sort: actionable (pinTop) cards first, then everything else in declaration
+  // order. Within each group the relative order is preserved.
+  metrics.sort((a, b) => (b.pinTop ? 1 : 0) - (a.pinTop ? 1 : 0));
 
   const tools: ToolCard[] = [
     {
@@ -174,13 +186,18 @@ export default async function AdminPage() {
   ];
 
   return (
-    <main className="container-shell space-y-6 py-6">
-      <AdminPageHeader
-        title="Admin console"
-        description={`Signed in as ${admin.username}. Pick a section to manage.`}
-        icon={Home}
-        actions={<AdminLogoutButton />}
-      />
+    <main className="container-shell space-y-5 py-2 sm:py-6">
+      {/* Desktop-only header — on mobile the AdminMobileShell already renders
+          the username + page title in a sticky bar, so the inline header
+          would just duplicate that information. */}
+      <div className="hidden sm:block">
+        <AdminPageHeader
+          title="Admin console"
+          description={`Signed in as ${admin.username}. Pick a section to manage.`}
+          icon={Home}
+          actions={<AdminLogoutButton />}
+        />
+      </div>
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => {
@@ -220,28 +237,52 @@ export default async function AdminPage() {
         </Link>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-2">
+      {/* Metric cards: stacked + tap-friendly on mobile, 2-up grid on desktop. */}
+      <section className="grid gap-3 sm:grid-cols-2 sm:gap-4">
         {metrics.map((card) => {
           const Icon = card.icon;
+          const accent = card.pinTop;
           return (
             <Link
               key={card.href}
               href={card.href}
-              className="surface-card premium-border group flex flex-col rounded-2xl p-4 transition hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
+              className={`group relative flex flex-col rounded-2xl p-4 transition active:scale-[0.99] ${
+                accent
+                  ? "border border-[rgb(var(--accent)/0.5)] bg-[rgb(var(--accent)/0.08)] shadow-[0_8px_22px_-16px_rgb(var(--accent)/0.7)] hover:bg-[rgb(var(--accent)/0.14)]"
+                  : "surface-card premium-border hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
+              }`}
             >
-              <div className="flex items-start justify-between gap-3">
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
+              <div className="flex items-start gap-3">
+                <span
+                  className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${
+                    accent
+                      ? "bg-[rgb(var(--accent)/0.2)] text-[rgb(var(--accent))]"
+                      : "bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]"
+                  }`}
+                >
                   <Icon className="h-5 w-5" />
                 </span>
-                <span className="num-display text-3xl font-semibold leading-none">
-                  {card.count === null ? "—" : card.count.toLocaleString()}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`font-semibold ${accent ? "text-[rgb(var(--accent))]" : ""}`}>
+                      {card.label}
+                    </p>
+                    <span
+                      className={`num-display text-2xl font-semibold leading-none ${
+                        accent ? "text-[rgb(var(--accent))]" : ""
+                      }`}
+                    >
+                      {card.count === null ? "—" : card.count.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm soft-text">{card.description}</p>
+                </div>
               </div>
-              <div className="mt-3 flex items-center justify-between gap-2">
-                <p className="font-semibold">{card.label}</p>
-                <ChevronRight className="h-4 w-4 shrink-0 soft-text transition group-hover:translate-x-0.5 group-hover:text-[rgb(var(--accent))]" />
-              </div>
-              <p className="mt-1 text-sm soft-text">{card.description}</p>
+              <ChevronRight
+                className={`absolute right-4 top-1/2 hidden h-4 w-4 -translate-y-1/2 transition group-hover:translate-x-0.5 sm:block ${
+                  accent ? "text-[rgb(var(--accent))]" : "soft-text group-hover:text-[rgb(var(--accent))]"
+                }`}
+              />
             </Link>
           );
         })}
@@ -249,16 +290,16 @@ export default async function AdminPage() {
 
       <section className="space-y-2">
         <p className="px-1 text-[0.65rem] font-semibold uppercase tracking-[0.14em] soft-text">Insights &amp; tools</p>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
           {tools.map((card) => {
             const Icon = card.icon;
             return (
               <Link
                 key={card.href}
                 href={card.href}
-                className="surface-card premium-border group flex items-center gap-3 rounded-2xl p-4 transition hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
+                className="surface-card premium-border group flex items-center gap-3 rounded-2xl p-4 transition active:scale-[0.99] hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
               >
-                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
+                <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
                   <Icon className="h-5 w-5" />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -276,9 +317,9 @@ export default async function AdminPage() {
 
       <Link
         href="/admin/settings"
-        className="surface-card premium-border group flex items-center gap-3 rounded-2xl p-4 transition hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
+        className="surface-card premium-border group flex items-center gap-3 rounded-2xl p-4 transition active:scale-[0.99] hover:border-[rgb(var(--accent)/0.45)] hover:bg-[rgb(var(--muted)/0.12)]"
       >
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
           <Settings2 className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">

@@ -20,23 +20,21 @@ import {
   type LucideIcon
 } from "lucide-react";
 
-type NavItem = {
+export type AdminNavItem = {
   href: Route;
   label: string;
   icon: LucideIcon;
   match: (pathname: string) => boolean;
 };
 
-// Optional pending counts shown as a notification badge next to a nav item,
-// keyed by the item's href.
 export type AdminNavCounts = Partial<Record<string, number>>;
 
-type NavGroup = {
+export type AdminNavGroup = {
   label: string | null;
-  items: NavItem[];
+  items: AdminNavItem[];
 };
 
-const NAV_GROUPS: NavGroup[] = [
+export const NAV_GROUPS: AdminNavGroup[] = [
   {
     label: null,
     items: [
@@ -154,7 +152,26 @@ const NAV_GROUPS: NavGroup[] = [
   }
 ];
 
-export function AdminNav({ counts = {} }: { counts?: AdminNavCounts }) {
+/** Look up the nav item whose `match` predicate is satisfied by the current
+ * pathname. Used by the mobile top bar to show the current page name. */
+export function findActiveNavItem(pathname: string): AdminNavItem | null {
+  for (const group of NAV_GROUPS) {
+    for (const item of group.items) {
+      if (item.match(pathname)) return item;
+    }
+  }
+  return null;
+}
+
+export function AdminNav({
+  counts = {},
+  onNavigate
+}: {
+  counts?: AdminNavCounts;
+  /** Fired after the user taps a nav link. The mobile drawer uses this to
+   * close itself; on desktop it's a no-op. */
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname() ?? "";
 
   return (
@@ -174,6 +191,7 @@ export function AdminNav({ counts = {} }: { counts?: AdminNavCounts }) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={
                   active

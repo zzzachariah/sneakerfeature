@@ -72,7 +72,7 @@ export async function DELETE(
 
   const { id } = await params;
   try {
-    await deleteAnnouncement(id);
+    await deleteAnnouncement(id, ctx.userId);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[admin/announcements] delete failed", e);

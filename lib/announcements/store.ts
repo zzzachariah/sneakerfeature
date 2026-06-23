@@ -152,6 +152,89 @@ async function readStaticHistory(): Promise<AnnouncementRecord[]> {
 const SELECT_COLS =
   "id, enabled, duration, frequency, dismissible, published_at, expires_at, title, body, button_label, button_url, title_zh, body_zh, button_label_zh";
 
+// Announcements that the GitHub Action published live in static JSON files
+// (public/announcement.json + public/announcements-history.json). Those files
+// are part of the bundled deploy and the Vercel runtime can't mutate them, so
+// an admin "delete" on a file-backed entry can't remove it at the source.
+// Instead we record its id here, in the existing `app_settings` table, and
+// the read paths below filter the file results through this set.
+const LEGACY_DELETED_KEY = "deleted_legacy_announcement_ids";
+
+async function readDeletedLegacyIds(): Promise<Set<string>> {
+  const admin = createAdminClient();
+  if (!admin) return new Set();
+  const { data } = await admin
+    .from("app_settings")
+    .select("value")
+    .eq("key", LEGACY_DELETED_KEY)
+    .maybeSingle();
+  const raw = data?.value;
+  if (!Array.isArray(raw)) return new Set();
+  return new Set(raw.map((v) => String(v)));
+}
+
+async function addDeletedLegacyId(id: string, actorId: string): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Service-role client unavailable");
+  const existing = await readDeletedLegacyIds();
+  existing.add(id);
+  const { error } = await admin
+    .from("app_settings")
+    .upsert(
+      {
+        key: LEGACY_DELETED_KEY,
+        value: Array.from(existing),
+        updated_at: new Date().toISOString(),
+        updated_by: actorId,
+      },
+      { onConflict: "key" }
+    );
+  if (error) throw error;
+}
+
+/** Locate a file-backed (GitHub-Action-published) announcement by id. Used
+ * to support edit/delete of legacy entries: the admin UI hands us a legacy
+ * id and we resolve it against both the active file and the history file. */
+async function readLegacyById(id: string): Promise<AnnouncementRecord | null> {
+  const [history, active] = await Promise.all([readStaticHistory(), readStaticActive()]);
+  const fromHistory = history.find((h) => h.id === id);
+  if (fromHistory) return fromHistory;
+  if (active && active.id === id) return active;
+  return null;
+}
+
+/** Insert a legacy file entry as a real DB row, preserving its id so the
+ * announcement-modal "already seen" tracking on visitors' devices keeps
+ * working. Called the first time an admin edits a file-backed entry, after
+ * which it behaves like any other DB row. */
+async function importLegacyAnnouncement(
+  legacy: AnnouncementRecord,
+  actorId: string
+): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin) throw new Error("Service-role client unavailable");
+  const { error } = await admin.from("announcements").insert({
+    id: legacy.id,
+    enabled: legacy.enabled,
+    duration: legacy.duration,
+    frequency: legacy.frequency,
+    dismissible: legacy.dismissible,
+    published_at: legacy.publishedAt,
+    expires_at: legacy.expiresAt,
+    title: legacy.title,
+    body: legacy.body,
+    button_label: legacy.buttonLabel,
+    button_url: legacy.buttonUrl,
+    title_zh: legacy.titleZh,
+    body_zh: legacy.bodyZh,
+    button_label_zh: legacy.buttonLabelZh,
+    created_by: actorId,
+    updated_by: actorId,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw error;
+}
+
 /** Active = newest enabled, non-expired row. Falls back to the static JSON
  * file written by the GitHub Action so the legacy flow keeps working.
  */
@@ -169,13 +252,16 @@ export async function getActiveAnnouncement(): Promise<AnnouncementRecord | null
       if (!isExpired(rec.expiresAt)) return rec;
     }
   }
-  const fallback = await readStaticActive();
+  const [fallback, deleted] = await Promise.all([readStaticActive(), readDeletedLegacyIds()]);
+  if (fallback && fallback.id && deleted.has(fallback.id)) return null;
   if (fallback && fallback.enabled && !isExpired(fallback.expiresAt)) return fallback;
   return null;
 }
 
 /** Full history, newest first. Merges DB + static-file entries so historical
- * GitHub-Action-published rows keep showing on /announcements.
+ * GitHub-Action-published rows keep showing on /announcements. File entries
+ * whose id appears in `deleted_legacy_announcement_ids` are filtered out so
+ * an admin "delete" on a file-backed row genuinely hides it everywhere.
  */
 export async function listAnnouncements(): Promise<AnnouncementRecord[]> {
   const admin = createAdminClient();
@@ -189,9 +275,10 @@ export async function listAnnouncements(): Promise<AnnouncementRecord[]> {
       db = (data as Row[]).map(rowToRecord);
     }
   }
-  const fileEntries = await readStaticHistory();
+  const [fileEntries, deleted] = await Promise.all([readStaticHistory(), readDeletedLegacyIds()]);
   const seen = new Set(db.map((d) => d.id));
-  const merged = [...db, ...fileEntries.filter((f) => f.id && !seen.has(f.id))];
+  const fileExtras = fileEntries.filter((f) => f.id && !seen.has(f.id) && !deleted.has(f.id));
+  const merged = [...db, ...fileExtras];
   merged.sort((a, b) => {
     const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
     const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
@@ -255,6 +342,22 @@ export async function updateAnnouncement(
 ): Promise<AnnouncementRecord> {
   const admin = createAdminClient();
   if (!admin) throw new Error("Service-role client unavailable");
+
+  // The admin UI hands us an id from the merged list (DB + legacy file
+  // entries). If the row doesn't exist in the DB yet, look it up in the
+  // static files and import it on the fly — from then on every operation
+  // treats it as a normal DB row.
+  const { data: existingRow } = await admin
+    .from("announcements")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+  if (!existingRow) {
+    const legacy = await readLegacyById(id);
+    if (!legacy) throw new Error("Announcement not found.");
+    await importLegacyAnnouncement(legacy, actorId);
+  }
+
   // Edits keep the same id so visitors who already dismissed don't get
   // re-prompted. Toggling enabled off is a takedown.
   const patch: Record<string, unknown> = {
@@ -315,21 +418,36 @@ export async function updateAnnouncement(
   return rowToRecord(data as Row);
 }
 
-export async function deleteAnnouncement(id: string): Promise<void> {
+export async function deleteAnnouncement(id: string, actorId: string): Promise<void> {
   const admin = createAdminClient();
   if (!admin) throw new Error("Service-role client unavailable");
-  const { error } = await admin.from("announcements").delete().eq("id", id);
-  if (error) throw error;
+  const { data: dbRow } = await admin
+    .from("announcements")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+  if (dbRow) {
+    const { error } = await admin.from("announcements").delete().eq("id", id);
+    if (error) throw error;
+    return;
+  }
+  // No DB row — must be a legacy file entry. We can't mutate the JSON files
+  // at runtime (read-only on Vercel), so we record the id in app_settings;
+  // both read paths filter against this set so the entry truly disappears.
+  await addDeletedLegacyId(id, actorId);
 }
 
 export async function getAnnouncement(id: string): Promise<AnnouncementRecord | null> {
   const admin = createAdminClient();
-  if (!admin) return null;
-  const { data, error } = await admin
-    .from("announcements")
-    .select(SELECT_COLS)
-    .eq("id", id)
-    .maybeSingle();
-  if (error || !data) return null;
-  return rowToRecord(data as Row);
+  if (admin) {
+    const { data, error } = await admin
+      .from("announcements")
+      .select(SELECT_COLS)
+      .eq("id", id)
+      .maybeSingle();
+    if (!error && data) return rowToRecord(data as Row);
+  }
+  // Fall back to the static files so the admin UI can edit / delete
+  // GitHub-Action-published entries by their original id.
+  return readLegacyById(id);
 }
