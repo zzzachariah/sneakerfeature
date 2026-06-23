@@ -16,7 +16,7 @@ import { Capacitor } from "@capacitor/core";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { haptics } from "@/lib/native/haptics";
-import { useDeviceTilt, type TiltTarget } from "@/lib/foot-scan/orientation";
+import { useDeviceTilt, requestMotionPermission, type TiltTarget } from "@/lib/foot-scan/orientation";
 import { FOOT_SCAN_CONFIG } from "@/lib/foot-scan/config";
 import { assessImageQuality, frameSharpness, type QualityIssue } from "@/lib/foot-scan/image-quality";
 import { getCameraFovDeg } from "@/lib/native/foot-scan-native";
@@ -207,6 +207,9 @@ export function CaptureStep({
       // Native app (iOS): WKWebView's getUserMedia opens to a black frame the
       // first time unless the OS camera permission is already granted, so ask
       // up-front. If the user declines, fall back to the native photo picker.
+      // Also re-prompt the motion/orientation permission here as a backup, in
+      // case the user landed on the capture step without it being requested
+      // earlier — without it the live tilt/level guide can't show.
       if (Capacitor.isNativePlatform()) {
         const perm = await ensureCameraPermission();
         if (cancelled) return;
@@ -216,29 +219,80 @@ export function CaptureStep({
           return;
         }
         setPermissionBlocked(false);
+        // Fire-and-forget: iOS only honours this when called from a user
+        // gesture, but on subsequent steps the session-cached grant means it
+        // returns immediately. No-op elsewhere.
+        void requestMotionPermission();
       }
 
       if (!navigator.mediaDevices?.getUserMedia) {
         setMode("photo");
         return;
       }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false
-        });
-        if (cancelled) {
+
+      // iOS WKWebView quirk: the *first* getUserMedia call right after the OS
+      // camera permission flips to "granted" can return a stream whose video
+      // track produces no frames (the preview stays black). Retry a couple of
+      // times with a short delay — both on hard failures and on the silent
+      // "stream attached but videoWidth never becomes > 0" case — so the
+      // preview actually appears without the user having to back out and retake.
+      const maxAttempts = Capacitor.isNativePlatform() ? 3 : 1;
+      let lastError: unknown = null;
+      for (let i = 0; i < maxAttempts; i++) {
+        if (cancelled) return;
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" } },
+            audio: false
+          });
+          if (cancelled) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          const video = videoRef.current;
+          if (!video) {
+            stream.getTracks().forEach((t) => t.stop());
+            return;
+          }
+          streamRef.current = stream;
+          video.srcObject = stream;
+          await video.play().catch(() => {});
+          // Wait briefly for the first frame so we can fail over to the photo
+          // picker (or retry) when the WebView hands back a frame-less stream.
+          const ready = await new Promise<boolean>((resolve) => {
+            if (video.videoWidth > 0) return resolve(true);
+            const onMeta = () => {
+              cleanup();
+              resolve(video.videoWidth > 0);
+            };
+            const cleanup = () => {
+              video.removeEventListener("loadedmetadata", onMeta);
+              clearTimeout(timeout);
+            };
+            const timeout = setTimeout(() => {
+              cleanup();
+              resolve(video.videoWidth > 0);
+            }, 1200);
+            video.addEventListener("loadedmetadata", onMeta, { once: true });
+          });
+          if (cancelled) return;
+          if (ready) {
+            setMode("live");
+            return;
+          }
+          // Frame-less stream — tear down and try again.
           stream.getTracks().forEach((t) => t.stop());
-          return;
+          streamRef.current = null;
+          video.srcObject = null;
+          lastError = new Error("no frames");
+        } catch (err) {
+          lastError = err;
         }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-        }
-        setMode("live");
-      } catch {
-        if (!cancelled) setMode("photo");
+        if (i + 1 < maxAttempts) await sleep(400);
+      }
+      if (!cancelled) {
+        if (lastError) console.warn("[foot-scan] live preview unavailable", lastError);
+        setMode("photo");
       }
     }
     start();

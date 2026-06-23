@@ -144,12 +144,27 @@ npx cap open android
   - `NSCameraUsageDescription`（如「拍摄球鞋照片用于图片纠错」）
   - `NSPhotoLibraryUsageDescription`（如「从相册选择球鞋照片用于图片纠错」）
   代码里 `lib/native/camera.ts` 仅在原生 App 内启用；网页端继续用文件选择，**不需要这两条**。
-- **脚型测量（Foot Scan）相机权限**：测量脚的拍摄页（`components/foot-scan/capture-step.tsx`）
+- **脚型测量（Foot Scan）相机 + 水平仪权限**：测量脚的拍摄页（`components/foot-scan/capture-step.tsx`）
   在打开相机**之前**会先调 `lib/native/camera.ts` 的 `ensureCameraPermission()` 主动申请系统
-  相机权限。原因：iOS 的实时取景用的是 WKWebView 的 `getUserMedia`，**首次若系统相机权限还没授予，
-  预览会是一片黑、摄像头出不来**；安卓走原生拍照/相册选择器。提前弹一次系统授权框，相机才能正常出现；
-  用户拒绝时自动回退到「从相册选择」。要让它生效，原生工程仍需声明权限：
-  - **iOS**：`Info.plist` 的 `NSCameraUsageDescription`（与上面的图片纠错共用一条即可）。
+  相机 + 相册权限，并在 checklist 的「Start scanning」点击里同步调
+  `requestMotionPermission()` 弹陀螺仪授权。原因：iOS 的实时取景用的是 WKWebView 的
+  `getUserMedia`，**首次若系统相机权限还没授予，预览会是一片黑、摄像头出不来**；安卓走原生
+  拍照/相册选择器。提前弹一次系统授权框，相机才能正常出现；用户拒绝时自动回退到「从相册选择」。
+  要让它生效，原生工程**必须**声明用途文案，否则 iOS 会在调用瞬间杀掉 App（点拍照/相册秒闪退）：
+
+  - **iOS — `ios/App/App/Info.plist`** 必须包含以下四条 key（缺一项就闪退或权限永远弹不出来）：
+    | Key | 推荐文案 | 用途 |
+    |---|---|---|
+    | `NSCameraUsageDescription` | 用于拍摄脚型照片，离线计算尺码与楦型。 | 实时取景 + 拍照 + 深度扫描 |
+    | `NSPhotoLibraryUsageDescription` | 用于从相册选择脚型照片，离线计算尺码与楦型。 | `Camera.getPhoto({source: Photos})` |
+    | `NSPhotoLibraryAddUsageDescription` | 保存球鞋图片到你的相册。 | 写入相册（图片纠错 / 分享） |
+    | `NSMotionUsageDescription` | 用陀螺仪检测手机倾角，提示「水平 / 45° / 垂直」拍摄姿态。 | `DeviceOrientationEvent.requestPermission()`（水平仪权限） |
+
+    打开 `ios/App/App.xcworkspace` → 左侧 `App/App/Info.plist` → 右键 **Add Row** 把上面四条
+    都加进去（或 Source Code 模式直接贴 `<key>…</key><string>…</string>`）。改完 **Product →
+    Clean Build Folder** 再 Run。`Info.plist` 缺 `NSMotionUsageDescription` 时，iOS 会直接
+    *无声忽略* `DeviceOrientationEvent.requestPermission()`，水平仪授权永远不弹。
+
   - **Android**：`AndroidManifest.xml` 需有 `<uses-permission android:name="android.permission.CAMERA" />`
     （`@capacitor/camera` 已自带声明，`npx cap sync android` 后确认存在即可）。
 

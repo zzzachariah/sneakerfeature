@@ -25,6 +25,12 @@ export type CameraPermissionResult = "granted" | "denied" | "unavailable";
 // camera/photo picker. Surfacing the system dialog up-front means the camera
 // actually shows instead of a black screen.
 //
+// Also requests the photo-library permission so the "Photos" button in the
+// foot-scan capture step doesn't trigger a second prompt mid-action (and on
+// fresh installs without NSPhotoLibraryUsageDescription it would crash; the
+// up-front ask + try/catch makes that failure visible as a permission denial
+// instead of a hard crash inside the picker).
+//
 // On the web there is no native permission to manage (the browser prompts on
 // getUserMedia itself), so this resolves to "unavailable" and callers just
 // proceed with their existing flow.
@@ -33,8 +39,18 @@ export async function ensureCameraPermission(): Promise<CameraPermissionResult> 
   try {
     const { Camera } = await import("@capacitor/camera");
     let status = await Camera.checkPermissions();
-    if (status.camera === "prompt" || status.camera === "prompt-with-rationale") {
-      status = await Camera.requestPermissions({ permissions: ["camera"] });
+    const need: Array<"camera" | "photos"> = [];
+    if (status.camera === "prompt" || status.camera === "prompt-with-rationale") need.push("camera");
+    if (status.photos === "prompt" || status.photos === "prompt-with-rationale") need.push("photos");
+    if (need.length > 0) {
+      try {
+        status = await Camera.requestPermissions({ permissions: need });
+      } catch {
+        // If the request itself rejects (e.g. Info.plist missing a usage
+        // description) treat it as denied so callers can show a fallback
+        // instead of hanging.
+        return "denied";
+      }
     }
     return status.camera === "granted" || status.camera === "limited" ? "granted" : "denied";
   } catch {
