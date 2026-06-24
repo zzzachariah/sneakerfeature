@@ -151,7 +151,7 @@ jobs:
         with:
           name: sneakerfeature-android
           path: artifacts
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ startsWith(github.ref, 'refs/tags/mobile-v') && github.ref_name || format('mobile-v{0}', inputs.version) }}
           name: ${{ startsWith(github.ref, 'refs/tags/mobile-v') && github.ref_name || format('mobile-v{0}', inputs.version) }}
