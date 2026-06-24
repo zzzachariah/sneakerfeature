@@ -174,7 +174,7 @@ export function BulkTranslationButton() {
         <span>{translate("Re-translate all (overwrite existing Chinese)")}</span>
       </label>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button type="button" onClick={() => runLoop(forceRetranslate)} disabled={running || nothingToDo}>
           {running
             ? translate("Translating...")
