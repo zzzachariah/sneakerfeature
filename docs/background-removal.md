@@ -68,13 +68,24 @@ skip them unless you pass `--force`.
 | `--slug <slug>` | — | only this shoe |
 | `--limit <n>` | — | only the first N |
 | `--size <px>` | 1000 | output square size |
+| `--format webp\|png` | webp | upload format. WebP is 5-10× smaller than PNG at near-lossless quality, so uploads are much faster on slow networks |
+| `--concurrency <n>` | 2 | parallel workers. Each runs `download → rembg → upload` for one shoe; with N>1 the network parts overlap with the CPU-bound rembg step, so wall-clock time drops noticeably. Raise it if your CPU + bandwidth allow; back off to 1 if rembg starts OOM-ing |
+
+### Resilience
+
+Every Supabase Storage call (download/upload) and database write goes through a
+retry-with-exponential-backoff helper (1s → 2s → 4s → 8s, max 4 attempts), so a
+single network blip — the classic `fetch failed` — no longer abandons that
+shoe. The retry messages are printed inline; the run only counts a shoe as
+"errored" after every attempt has failed.
 
 ### Quality gate
 
 After each cut-out the script measures alpha coverage. If < 2% (rembg ate the
 shoe) or > 98.5% (nothing was removed), it **keeps the original** and reports the
-skip, so a bad cut never goes live. It also trims the transparent margin and
-re-centers each shoe in a padded square (never upscaling) so framing is uniform.
+skip, so a bad cut never goes live. The shoe is then scaled proportionally
+(contain-fit, never cropped) and re-centered in a padded square so framing is
+uniform.
 
 After `--apply`, trigger a redeploy (or wait for ISR) so the site picks up the
 new images.
