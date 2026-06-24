@@ -89,15 +89,15 @@ export default async function AdminBloggerReviewsPage({
       />
 
       <Card className="p-4">
-        <form className="flex flex-wrap items-center gap-2" method="GET">
-          <Input name="q" placeholder="Search shoe name or brand…" defaultValue={q} className="max-w-xs" />
+        <form className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center" method="GET">
+          <Input name="q" placeholder="Search shoe name or brand…" defaultValue={q} className="max-w-full md:max-w-xs" />
           <Button type="submit">Search</Button>
           {q && (
             <Link href="/admin/blogger-reviews" className="text-xs text-[rgb(var(--accent))]">
               Clear
             </Link>
           )}
-          <p className="ml-auto text-xs soft-text tabular-nums">
+          <p className="text-xs soft-text tabular-nums md:ml-auto">
             {total} shoe(s){q ? ` matching “${q}”` : ""}
             {total > 0 ? ` · showing ${rangeStart}–${rangeEnd}` : ""}
           </p>
@@ -105,7 +105,8 @@ export default async function AdminBloggerReviewsPage({
       </Card>
 
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
             <tr>
               <th className="px-3 py-2">Shoe</th>
@@ -159,6 +160,7 @@ export default async function AdminBloggerReviewsPage({
             })}
           </tbody>
         </table>
+        </div>
       </Card>
 
       {totalPages > 1 && (

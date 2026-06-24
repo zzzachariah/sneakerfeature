@@ -201,7 +201,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
           const busy = busyId === r.id;
           return (
             <Card key={r.id} className="space-y-3 p-4">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 min-w-0">
                 {r.platform === "youtube" ? (
                   <Youtube className="h-4 w-4 text-rose-400" />
                 ) : (
@@ -211,7 +211,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
                 <span className={`text-xs ${STATUS_STYLES[r.status] ?? ""}`}>● {r.status}</span>
                 <span className="text-xs soft-text">{r.is_published ? "published" : "hidden"}</span>
                 {!r.transcript && <span className="text-xs text-amber-400">no transcript</span>}
-                <a href={r.video_url} target="_blank" rel="noreferrer" className="ml-auto text-xs underline soft-text">
+                <a href={r.video_url} target="_blank" rel="noreferrer" className="text-xs underline soft-text sm:ml-auto">
                   open video
                 </a>
               </div>
@@ -252,7 +252,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <Button onClick={() => save(r.id)} disabled={busy}>
                   <Save className="mr-1 h-4 w-4" />
                   Save
@@ -275,7 +275,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
                 <button
                   onClick={() => remove(r.id)}
                   disabled={busy}
-                  className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2.5 py-1.5 text-xs text-rose-400 transition hover:border-rose-300/70 disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2.5 py-1.5 text-xs text-rose-400 transition hover:border-rose-300/70 disabled:opacity-50 sm:ml-auto"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete
