@@ -26,7 +26,6 @@
 import OpenAI from "openai";
 import {
   createPackyClient,
-  PACKY_MODEL,
   getPackyEnvReport,
   describePackyEnvProblem,
   describePackyError,
@@ -72,12 +71,14 @@ import {
 
 // A stronger vision model markedly helps the fine visual calls (toe boundaries,
 // instep doming, landmark placement). Set FOOT_SCAN_MODEL to the exact model
-// string your packyapi account exposes; falls back to PACKY_MODEL when unset.
+// string your packyapi account exposes; falls back to the pinned default below
+// when unset — intentionally independent of PACKY_MODEL so the recommender's
+// text model can change without touching foot scan accuracy.
 const VISION_MODEL =
   process.env.FOOT_SCAN_MODEL?.trim() ||
   process.env.PACKYAPI_VISION_MODEL?.trim() ||
   process.env.PACKY_API_VISION_MODEL?.trim() ||
-  PACKY_MODEL;
+  "claude-haiku-4-5-20251001";
 
 // Optional second vision model for an ensemble. When set, reads alternate
 // between the two models so correlated single-model errors wash out. Leaving it
