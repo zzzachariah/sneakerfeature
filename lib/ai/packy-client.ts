@@ -29,7 +29,7 @@ function baseURLNames(opts?: PackyClientOptions): readonly string[] {
   return [...(opts?.baseURLEnv ?? []), ...BASE_URL_NAMES];
 }
 
-export const PACKY_MODEL = "gpt-5.4";
+export const PACKY_MODEL = "deepseek-v4-pro";
 
 function normalizeBaseURL(raw: string): string {
   let s = raw.trim().replace(/\/+$/, "");
