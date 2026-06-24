@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Flag, Trash2, Check, ShieldCheck } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 export type ReportRow = {
   id: string;
@@ -39,16 +40,16 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
 
   return (
     <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <Flag className="h-5 w-5 text-[rgb(var(--accent))]" />
-        <h1 className="text-xl font-semibold">Reported comments</h1>
-        <span className="ml-auto rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-0.5 text-xs soft-text">
-          {reports.length} open
-        </span>
-      </header>
-      <p className="text-sm soft-text">
-        Reports are reviewed within 24 hours. Delete removes the comment for everyone; dismiss keeps it.
-      </p>
+      <AdminPageHeader
+        title="Reported comments"
+        description="Reports are reviewed within 24 hours. Delete removes the comment for everyone; dismiss keeps it."
+        icon={Flag}
+        actions={
+          <span className="rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-0.5 text-xs soft-text">
+            {reports.length} open
+          </span>
+        }
+      />
 
       {message && <p className="text-sm text-[rgb(var(--accent))]">{message}</p>}
 
@@ -71,7 +72,7 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
                 <span>{new Date(report.createdAt).toLocaleString()}</span>
               </div>
 
-              <blockquote className="mt-3 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-3 text-sm leading-6">
+              <blockquote className="mt-3 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-3 text-sm leading-6 break-words">
                 {report.commentExists ? report.commentContent : <em className="soft-text">(comment already deleted)</em>}
               </blockquote>
               <p className="mt-1 text-xs soft-text">author: @{report.authorUsername}</p>

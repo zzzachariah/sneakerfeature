@@ -3,10 +3,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Library } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 const shoeFields = [
   ["shoe_name", "Shoe name"],
@@ -95,12 +97,11 @@ export default function AdminPublishedDetailPage() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
-        <h2 className="text-lg font-semibold">Live record editing workspace</h2>
-        <p className="text-sm soft-text">
-          Edit full published data across shoes, specs, and story tables.
-        </p>
-      </Card>
+      <AdminPageHeader
+        title="Live record editing workspace"
+        description="Edit full published data across shoes, specs, and story tables."
+        icon={Library}
+      />
 
       <Card className="space-y-4 p-4">
         <section>

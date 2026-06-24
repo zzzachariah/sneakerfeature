@@ -125,10 +125,10 @@ export function CreditsClient() {
       </Card>
 
       <Card className="p-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold">All user balances</h2>
-          <input className="ml-auto rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1 text-sm" placeholder="Search username or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <button onClick={load} className="rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]">Refresh</button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+          <h2 className="truncate text-base font-semibold">All user balances</h2>
+          <input className="min-w-0 rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm sm:ml-auto sm:max-w-xs" placeholder="Search username or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <button onClick={load} className="shrink-0 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-2 text-xs hover:bg-[rgb(var(--muted)/0.25)]">Refresh</button>
         </div>
 
         {loading ? (
@@ -137,7 +137,7 @@ export function CreditsClient() {
           <p className="mt-3 text-sm soft-text">No balances.</p>
         ) : (
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[520px] text-sm">
               <thead className="text-left text-xs uppercase tracking-wider soft-text">
                 <tr className="border-b border-[rgb(var(--muted)/0.4)]">
                   <th className="px-2 py-2">User</th>

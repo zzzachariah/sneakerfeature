@@ -26,6 +26,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <main className="container-shell py-6">
+      {/* AdminMobileShell owns the page title on mobile (<lg). AdminPageHeader hides
+          its title row on mobile so it does not duplicate this bar — see
+          components/admin/admin-page-header.tsx. */}
       <AdminMobileShell username={admin.username} counts={navCounts} />
 
       <div className="grid gap-4 lg:grid-cols-[260px,1fr]">

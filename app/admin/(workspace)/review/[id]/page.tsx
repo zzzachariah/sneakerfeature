@@ -3,11 +3,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { ClipboardCheck } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 type SubmissionDetails = {
   submission: any;
@@ -206,13 +208,13 @@ export default function AdminSubmissionDetailPage() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
-        <h2 className="text-lg font-semibold">Submission review workspace</h2>
-        <p className="text-sm soft-text">
-          Left = original submission, middle = OpenAI normalized, right = final
-          admin-editable publish payload.
-        </p>
-        <div className="mt-2 text-xs soft-text">
+      <AdminPageHeader
+        title="Submission review workspace"
+        description="Left = original submission, middle = OpenAI normalized, right = final admin-editable publish payload."
+        icon={ClipboardCheck}
+      />
+      <div className="surface-card premium-border space-y-1 rounded-2xl p-4 text-xs soft-text">
+        <div>
           Submitted by{" "}
           {Array.isArray(data.submission.profiles)
             ? data.submission.profiles[0]?.username
@@ -220,7 +222,7 @@ export default function AdminSubmissionDetailPage() {
           • {new Date(data.submission.created_at).toLocaleString()} • status:{" "}
           {data.submission.status}
         </div>
-        <div className="mt-2 text-xs soft-text">
+        <div>
           Type: {submissionType === "correction" ? "Correction submission" : "New shoe submission"}
           {submissionType === "correction" && (
             <>
@@ -230,7 +232,7 @@ export default function AdminSubmissionDetailPage() {
             </>
           )}
         </div>
-      </Card>
+      </div>
 
       {submissionType === "correction" && targetSnapshot && (
         <Card className="p-4">
