@@ -1,11 +1,10 @@
 import OpenAI from "openai";
 
 // Accept both naming conventions so deployments configured either way work:
-//   PACKYAPI_*  (PACKYAPI_API_KEY / PACKYAPI_BASE_URL / PACKYAPI_MODEL)
-//   PACKY_API_* (PACKY_API_KEY    / PACKY_API_BASE_URL / PACKY_API_MODEL)
+//   PACKYAPI_*  (PACKYAPI_API_KEY / PACKYAPI_BASE_URL)
+//   PACKY_API_* (PACKY_API_KEY    / PACKY_API_BASE_URL)
 const API_KEY_NAMES = ["PACKYAPI_API_KEY", "PACKY_API_KEY"] as const;
 const BASE_URL_NAMES = ["PACKYAPI_BASE_URL", "PACKY_API_BASE_URL"] as const;
-const MODEL_NAMES = ["PACKYAPI_MODEL", "PACKY_API_MODEL"] as const;
 
 function readEnv(names: readonly string[]): string | undefined {
   for (const name of names) {
@@ -30,7 +29,7 @@ function baseURLNames(opts?: PackyClientOptions): readonly string[] {
   return [...(opts?.baseURLEnv ?? []), ...BASE_URL_NAMES];
 }
 
-export const PACKY_MODEL = readEnv(MODEL_NAMES) ?? "claude-haiku-4-5-20251001";
+export const PACKY_MODEL = "gpt-5.4";
 
 function normalizeBaseURL(raw: string): string {
   let s = raw.trim().replace(/\/+$/, "");
