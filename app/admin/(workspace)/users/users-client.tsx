@@ -80,8 +80,78 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
       {message && (
         <p className="border-b border-[rgb(var(--muted)/0.35)] px-3 py-2 text-sm text-[rgb(var(--accent))]">{message}</p>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-sm">
+
+      {/* Mobile: a stacked card list — every member's data is fully visible
+          without horizontal scroll. md+: the original table. */}
+      <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
+        {rows.map((row) => {
+          const isSelf = row.id === currentAdminId;
+          return (
+            <li key={row.id} className="p-4">
+              <Link
+                href={`/admin/users/${row.id}` as Route}
+                className="flex items-start justify-between gap-3 active:opacity-80"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate font-medium">{row.username}</span>
+                    <span
+                      className={
+                        row.role === "admin"
+                          ? "inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[rgb(var(--accent)/0.15)] px-1.5 py-0.5 text-[0.6rem] font-medium uppercase tracking-wide text-[rgb(var(--accent))]"
+                          : "inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[rgb(var(--muted)/0.45)] px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide"
+                      }
+                    >
+                      {row.role === "admin" && <ShieldCheck className="h-2.5 w-2.5" />}
+                      {row.role}
+                    </span>
+                  </div>
+                  <p className="truncate text-xs soft-text">{row.email}</p>
+                  <p className="mt-1.5 text-[0.7rem] soft-text">
+                    <span className="num-display">{row.comments}</span>c ·{" "}
+                    <span className="num-display">{row.ratings}</span>r ·{" "}
+                    <span className="num-display">{row.favorites}</span>f ·{" "}
+                    <span className="num-display">{row.submissions}</span>s
+                  </p>
+                  <p className="mt-0.5 text-[0.7rem] soft-text">
+                    active {relativeFromNow(row.lastActiveAt)} · joined{" "}
+                    {new Date(row.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <ChevronRight className="mt-1 h-4 w-4 shrink-0 soft-text" />
+              </Link>
+              {!isSelf && (
+                <button
+                  type="button"
+                  disabled={busy === row.id}
+                  onClick={() => changeRole(row)}
+                  className={
+                    row.role === "admin"
+                      ? "mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 py-2 text-xs text-rose-400 transition active:bg-rose-400/10 disabled:opacity-50"
+                      : "mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.6)] px-3 py-2 text-xs text-[rgb(var(--accent))] transition active:bg-[rgb(var(--accent)/0.1)] disabled:opacity-50"
+                  }
+                >
+                  {row.role === "admin" ? (
+                    <>
+                      <ShieldOff className="h-3.5 w-3.5" /> Demote
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="h-3.5 w-3.5" /> Make admin
+                    </>
+                  )}
+                </button>
+              )}
+            </li>
+          );
+        })}
+        {rows.length === 0 && (
+          <li className="p-6 text-center text-sm soft-text">No members match.</li>
+        )}
+      </ol>
+
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full text-sm">
           <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
             <tr>
               <th className="px-3 py-2">Member</th>

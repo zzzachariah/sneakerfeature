@@ -245,7 +245,7 @@ a, button, [role="button"], label, input, select, textarea, summary {
 }
 
 /* Layout */
-:root { --container-gutter: 18px; }
+:root { --container-gutter: 20px; }
 @media (min-width: 768px) {
   :root { --container-gutter: 32px; }
 }

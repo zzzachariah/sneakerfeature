@@ -63,31 +63,61 @@ export default async function AdminPublishedPage({ searchParams }: { searchParam
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
-            <tr>
-              <th className="px-3 py-2">Name</th>
-              <th className="px-3 py-2">Brand</th>
-              <th className="px-3 py-2">Release</th>
-              <th className="px-3 py-2">State</th>
-              <th className="px-3 py-2">Updated</th>
-              <th className="px-3 py-2">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data ?? []).map((shoe) => (
-              <tr key={shoe.id} className="border-t border-[rgb(var(--muted)/0.35)]">
-                <td className="px-3 py-3 font-medium">{shoe.shoe_name}</td>
-                <td className="px-3 py-3">{shoe.brand}</td>
-                <td className="num-display px-3 py-3">{shoe.release_year ?? "—"}</td>
-                <td className="px-3 py-3"><span className="rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-1 text-xs">{shoe.is_published ? "published" : "unpublished"}</span></td>
-                <td className="num-display px-3 py-3 text-xs soft-text">{new Date(shoe.updated_at).toLocaleString()}</td>
-                <td className="px-3 py-3"><Link href={`/admin/published/${shoe.id}`} className="text-[rgb(var(--accent))]">Edit record</Link></td>
+        {/* Mobile: stacked cards so every row's data is fully visible without
+            horizontal scroll. md+: the original table. */}
+        <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
+          {(data ?? []).map((shoe) => (
+            <li key={shoe.id} className="p-4">
+              <Link
+                href={`/admin/published/${shoe.id}`}
+                className="flex flex-col gap-2 active:opacity-80"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.12em]">
+                    {shoe.is_published ? "published" : "unpublished"}
+                  </span>
+                  <span className="text-[0.7rem] soft-text">{shoe.brand}</span>
+                  {shoe.release_year && (
+                    <span className="num-display text-[0.7rem] soft-text">· {shoe.release_year}</span>
+                  )}
+                </div>
+                <p className="font-medium leading-tight">{shoe.shoe_name}</p>
+                <p className="num-display text-xs soft-text">
+                  updated {new Date(shoe.updated_at).toLocaleString()}
+                </p>
+              </Link>
+            </li>
+          ))}
+          {(data ?? []).length === 0 && (
+            <li className="p-6 text-center text-sm soft-text">No records match.</li>
+          )}
+        </ol>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full text-sm">
+            <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
+              <tr>
+                <th className="px-3 py-2">Name</th>
+                <th className="px-3 py-2">Brand</th>
+                <th className="px-3 py-2">Release</th>
+                <th className="px-3 py-2">State</th>
+                <th className="px-3 py-2">Updated</th>
+                <th className="px-3 py-2">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(data ?? []).map((shoe) => (
+                <tr key={shoe.id} className="border-t border-[rgb(var(--muted)/0.35)]">
+                  <td className="px-3 py-3 font-medium">{shoe.shoe_name}</td>
+                  <td className="px-3 py-3">{shoe.brand}</td>
+                  <td className="num-display px-3 py-3">{shoe.release_year ?? "—"}</td>
+                  <td className="px-3 py-3"><span className="rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-1 text-xs">{shoe.is_published ? "published" : "unpublished"}</span></td>
+                  <td className="num-display px-3 py-3 text-xs soft-text">{new Date(shoe.updated_at).toLocaleString()}</td>
+                  <td className="px-3 py-3"><Link href={`/admin/published/${shoe.id}`} className="text-[rgb(var(--accent))]">Edit record</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Card>
     </div>

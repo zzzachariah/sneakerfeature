@@ -136,33 +136,65 @@ export function CreditsClient() {
         ) : rows.length === 0 ? (
           <p className="mt-3 text-sm soft-text">No balances.</p>
         ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
-              <thead className="text-left text-xs uppercase tracking-wider soft-text">
-                <tr className="border-b border-[rgb(var(--muted)/0.4)]">
-                  <th className="px-2 py-2">User</th>
-                  <th className="px-2 py-2">Balance</th>
-                  <th className="px-2 py-2">Updated</th>
-                  <th className="px-2 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.userId} className="border-b border-[rgb(var(--muted)/0.25)]">
-                    <td className="px-2 py-2">
-                      <div className="font-medium">{r.username ?? "—"}</div>
-                      <div className="text-xs soft-text">{r.email ?? ""}</div>
-                    </td>
-                    <td className="px-2 py-2 tabular-nums font-semibold">{r.balance}</td>
-                    <td className="px-2 py-2 text-xs soft-text">{new Date(r.updatedAt).toLocaleString()}</td>
-                    <td className="px-2 py-2">
-                      <Button variant="secondary" onClick={() => { setGrantUser(r.username ?? ""); }}>Pre-fill grant</Button>
-                    </td>
+          <>
+            {/* Mobile: stacked cards. md+: original table. */}
+            <ol className="mt-3 divide-y divide-[rgb(var(--muted)/0.25)] md:hidden">
+              {rows.map((r) => (
+                <li key={r.userId} className="py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{r.username ?? "—"}</div>
+                      <div className="truncate text-xs soft-text">{r.email ?? ""}</div>
+                      <div className="num-display mt-1 text-[0.7rem] soft-text">
+                        updated {new Date(r.updatedAt).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="num-display text-xl font-semibold tabular-nums">{r.balance}</div>
+                      <div className="text-[0.6rem] uppercase tracking-wide soft-text">credits</div>
+                    </div>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    onClick={() => {
+                      setGrantUser(r.username ?? "");
+                    }}
+                    className="mt-2 w-full"
+                  >
+                    Pre-fill grant
+                  </Button>
+                </li>
+              ))}
+            </ol>
+
+            <div className="mt-3 hidden overflow-x-auto md:block">
+              <table className="w-full text-sm">
+                <thead className="text-left text-xs uppercase tracking-wider soft-text">
+                  <tr className="border-b border-[rgb(var(--muted)/0.4)]">
+                    <th className="px-2 py-2">User</th>
+                    <th className="px-2 py-2">Balance</th>
+                    <th className="px-2 py-2">Updated</th>
+                    <th className="px-2 py-2"></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr key={r.userId} className="border-b border-[rgb(var(--muted)/0.25)]">
+                      <td className="px-2 py-2">
+                        <div className="font-medium">{r.username ?? "—"}</div>
+                        <div className="text-xs soft-text">{r.email ?? ""}</div>
+                      </td>
+                      <td className="px-2 py-2 tabular-nums font-semibold">{r.balance}</td>
+                      <td className="px-2 py-2 text-xs soft-text">{new Date(r.updatedAt).toLocaleString()}</td>
+                      <td className="px-2 py-2">
+                        <Button variant="secondary" onClick={() => { setGrantUser(r.username ?? ""); }}>Pre-fill grant</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </Card>
     </div>
