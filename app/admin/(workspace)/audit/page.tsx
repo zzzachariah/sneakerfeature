@@ -97,7 +97,7 @@ export default async function AdminAuditPage({
 
       <Card className="p-0 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[640px] text-sm">
             <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
               <tr>
                 <th className="px-3 py-2">When</th>

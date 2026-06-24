@@ -292,7 +292,7 @@ export function BulkImageImportButton() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Button type="button" onClick={startBulkImport} disabled={isBusy || Boolean(quantityError)}>
           {isRunning || isStopping ? translate("Bulk job in progress") : loading ? translate("Starting...") : translate("Generate images")}
         </Button>

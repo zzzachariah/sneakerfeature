@@ -57,7 +57,7 @@ export function DailyCheckinCreditsField({ initialCredits, maxCredits }: Props) 
       <p className="mt-1 text-xs soft-text">
         Credits each user receives once per 24h via the Smart Picker daily check-in. Set to 0 to disable claims.
       </p>
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-3 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
         <Input
           type="number"
           min={0}

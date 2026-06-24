@@ -63,7 +63,8 @@ export default async function AdminPublishedPage({ searchParams }: { searchParam
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
             <tr>
               <th className="px-3 py-2">Name</th>
@@ -87,6 +88,7 @@ export default async function AdminPublishedPage({ searchParams }: { searchParam
             ))}
           </tbody>
         </table>
+        </div>
       </Card>
     </div>
   );

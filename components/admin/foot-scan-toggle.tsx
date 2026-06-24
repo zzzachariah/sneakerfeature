@@ -39,7 +39,7 @@ export function FootScanToggle({ initialEnabled }: Props) {
 
   return (
     <div className="rounded-xl border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev)/0.55)] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-sm font-semibold">Foot Scan — public access</p>
           <p className="mt-1 text-xs soft-text">

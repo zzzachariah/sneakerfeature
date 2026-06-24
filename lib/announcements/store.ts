@@ -235,27 +235,52 @@ async function importLegacyAnnouncement(
   if (error) throw error;
 }
 
-/** Active = newest enabled, non-expired row. Falls back to the static JSON
- * file written by the GitHub Action so the legacy flow keeps working.
+/** Every currently-active announcement (enabled + not expired), newest first.
+ * Powers the multi-announcement card-stack popup: when more than one is live
+ * the modal swipes between them; when only one is live the modal collapses to
+ * its classic single-card layout. Merges DB rows with the static JSON fallback
+ * so legacy GitHub-Action publishes keep showing alongside DB entries, and
+ * filters out anything an admin "deleted" from the legacy file set.
  */
-export async function getActiveAnnouncement(): Promise<AnnouncementRecord | null> {
+export async function getActiveAnnouncements(): Promise<AnnouncementRecord[]> {
   const admin = createAdminClient();
+  let db: AnnouncementRecord[] = [];
   if (admin) {
     const { data, error } = await admin
       .from("announcements")
       .select(SELECT_COLS)
       .eq("enabled", true)
-      .order("published_at", { ascending: false })
-      .limit(1);
-    if (!error && Array.isArray(data) && data.length) {
-      const rec = rowToRecord(data[0] as Row);
-      if (!isExpired(rec.expiresAt)) return rec;
+      .order("published_at", { ascending: false });
+    if (!error && Array.isArray(data)) {
+      db = (data as Row[]).map(rowToRecord).filter((r) => !isExpired(r.expiresAt));
     }
   }
   const [fallback, deleted] = await Promise.all([readStaticActive(), readDeletedLegacyIds()]);
-  if (fallback && fallback.id && deleted.has(fallback.id)) return null;
-  if (fallback && fallback.enabled && !isExpired(fallback.expiresAt)) return fallback;
-  return null;
+  const merged = [...db];
+  if (
+    fallback &&
+    fallback.enabled &&
+    !isExpired(fallback.expiresAt) &&
+    fallback.id &&
+    !deleted.has(fallback.id) &&
+    !merged.some((m) => m.id === fallback.id)
+  ) {
+    merged.push(fallback);
+  }
+  merged.sort((a, b) => {
+    const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+    const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+    return tb - ta;
+  });
+  return merged;
+}
+
+/** Back-compat single-result helper: newest enabled, non-expired row. Use
+ * {@link getActiveAnnouncements} for the full live set that drives the
+ * card-stack popup. */
+export async function getActiveAnnouncement(): Promise<AnnouncementRecord | null> {
+  const list = await getActiveAnnouncements();
+  return list[0] ?? null;
 }
 
 /** Full history, newest first. Merges DB + static-file entries so historical

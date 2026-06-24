@@ -245,18 +245,16 @@ a, button, [role="button"], label, input, select, textarea, summary {
 }
 
 /* Layout */
+:root { --container-gutter: 18px; }
+@media (min-width: 768px) {
+  :root { --container-gutter: 32px; }
+}
 .container-shell,
 .shell {
   margin-inline: auto;
   width: 100%;
   max-width: 1320px;
-  padding-inline: 18px;
-}
-@media (min-width: 768px) {
-  .container-shell,
-  .shell {
-    padding-inline: 32px;
-  }
+  padding-inline: var(--container-gutter);
 }
 
 /* Reserves space for the fixed mobile bottom nav on regular scrollable pages.

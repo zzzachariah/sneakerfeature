@@ -186,18 +186,13 @@ export default async function AdminPage() {
   ];
 
   return (
-    <main className="container-shell space-y-5 py-2 sm:py-6">
-      {/* Desktop-only header — on mobile the AdminMobileShell already renders
-          the username + page title in a sticky bar, so the inline header
-          would just duplicate that information. */}
-      <div className="hidden sm:block">
-        <AdminPageHeader
-          title="Admin console"
-          description={`Signed in as ${admin.username}. Pick a section to manage.`}
-          icon={Home}
-          actions={<AdminLogoutButton />}
-        />
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        title="Admin console"
+        description={`Signed in as ${admin.username}. Pick a section to manage.`}
+        icon={Home}
+        actions={<AdminLogoutButton />}
+      />
 
       <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => {
@@ -332,6 +327,6 @@ export default async function AdminPage() {
           </span>
         </span>
       </Link>
-    </main>
+    </div>
   );
 }

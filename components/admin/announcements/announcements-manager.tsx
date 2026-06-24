@@ -124,10 +124,13 @@ export function AnnouncementsManager({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  const activeId = useMemo(() => {
-    const live = items.find((i) => i.enabled && !isExpired(i.expiresAt));
-    return live?.id ?? null;
-  }, [items]);
+  // Every enabled + non-expired announcement is "live" — the visitor popup
+  // shows them as a swipeable card stack when more than one is live at once.
+  const activeIds = useMemo(
+    () => new Set(items.filter((i) => i.enabled && !isExpired(i.expiresAt)).map((i) => i.id)),
+    [items]
+  );
+  const liveCount = activeIds.size;
 
   async function refresh() {
     const [listRes, readsRes] = await Promise.all([
@@ -183,13 +186,22 @@ export function AnnouncementsManager({
 
   return (
     <section className="space-y-4">
-      <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+      <Card className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-medium">Live popup</p>
+          <p className="text-sm font-medium">
+            Live popup{" "}
+            {liveCount > 0 && (
+              <span className="ml-1 inline-flex items-center rounded-full bg-[rgb(var(--accent)/0.15)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--accent))]">
+                {liveCount} live
+              </span>
+            )}
+          </p>
           <p className="mt-1 text-xs soft-text">
-            The newest enabled, non-expired announcement is what every visitor sees.
-            Editing keeps the same id so users who already dismissed it won&apos;t see it
-            again — flip <em>Re-publish</em> to bump it back into everyone&apos;s view.
+            Every enabled, non-expired announcement is shown to visitors. When more than
+            one is live at once, the popup turns into a swipeable card stack so users can
+            flip through and dismiss each independently. Editing keeps the same id so
+            users who already dismissed it won&apos;t see it again — flip{" "}
+            <em>Re-publish</em> to bump it back into everyone&apos;s view.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -239,7 +251,7 @@ export function AnnouncementsManager({
               <tbody>
                 {items.map((item) => {
                   const expired = isExpired(item.expiresAt);
-                  const isLive = item.id === activeId;
+                  const isLive = activeIds.has(item.id);
                   const readCount = reads[item.id] ?? 0;
                   const reach = memberCount > 0 ? Math.min(100, (readCount / memberCount) * 100) : 0;
                   return (
@@ -306,7 +318,7 @@ export function AnnouncementsManager({
           <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
             {items.map((item) => {
               const expired = isExpired(item.expiresAt);
-              const isLive = item.id === activeId;
+              const isLive = activeIds.has(item.id);
               const readCount = reads[item.id] ?? 0;
               const reach = memberCount > 0 ? Math.min(100, (readCount / memberCount) * 100) : 0;
               return (
@@ -454,7 +466,7 @@ function AnnouncementEditor({
       onClose={() => onClose(null)}
       title=""
       zIndexClass="z-[120]"
-      maxWidthClass="max-w-2xl"
+      maxWidthClass="max-w-full md:max-w-2xl"
     >
       <div className="relative flex max-h-[80vh] w-full flex-col overflow-hidden">
         <div className="flex items-center justify-between border-b border-[rgb(var(--glass-stroke-soft)/0.4)] pb-3">
@@ -746,7 +758,7 @@ function IconButton({
       disabled={busy}
       title={label}
       aria-label={label}
-      className={`inline-flex h-9 w-9 items-center justify-center rounded-lg border transition disabled:opacity-50 ${tonal}`}
+      className={`inline-flex h-10 w-10 md:h-9 md:w-9 items-center justify-center rounded-lg border transition disabled:opacity-50 ${tonal}`}
     >
       {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : icon}
     </button>

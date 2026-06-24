@@ -81,7 +81,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
         <p className="border-b border-[rgb(var(--muted)/0.35)] px-3 py-2 text-sm text-[rgb(var(--accent))]">{message}</p>
       )}
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
             <tr>
               <th className="px-3 py-2">Member</th>
@@ -126,7 +126,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                       {row.role}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-xs soft-text">
+                  <td className="px-3 py-3 text-xs soft-text whitespace-nowrap">
                     <span className="num-display">{row.comments}</span> comments ·{" "}
                     <span className="num-display">{row.ratings}</span> ratings ·{" "}
                     <span className="num-display">{row.favorites}</span> favs ·{" "}

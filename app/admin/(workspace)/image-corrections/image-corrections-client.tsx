@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ImageIcon, Check, X, ShieldCheck, ArrowRight, ExternalLink } from "lucide-react";
+import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 export type CorrectionRow = {
   id: string;
@@ -42,17 +43,16 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
 
   return (
     <div className="space-y-4">
-      <header className="flex items-center gap-2">
-        <ImageIcon className="h-5 w-5 text-[rgb(var(--accent))]" />
-        <h1 className="text-xl font-semibold">Image corrections</h1>
-        <span className="ml-auto rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-0.5 text-xs soft-text">
-          {corrections.length} pending
-        </span>
-      </header>
-      <p className="text-sm soft-text">
-        Users upload a photo they believe better represents a shoe. Approving replaces the shoe&apos;s live image
-        with the uploaded one; rejecting discards it.
-      </p>
+      <AdminPageHeader
+        title="Image corrections"
+        description="Users upload a photo they believe better represents a shoe. Approving replaces the shoe's live image with the uploaded one; rejecting discards it."
+        icon={ImageIcon}
+        actions={
+          <span className="rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-0.5 text-xs soft-text">
+            {corrections.length} pending
+          </span>
+        }
+      />
 
       {message && <p className="text-sm text-[rgb(var(--accent))]">{message}</p>}
 
@@ -88,7 +88,11 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                 )}
               </div>
 
-              <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+              {/* On mobile, two 160px squares + arrow + gaps exceed a 360px
+                  viewport's 324px content width, so the row stacks vertically
+                  and the arrow rotates to point downward. On sm+ it returns
+                  to the side-by-side before/after layout. */}
+              <div className="mt-3 grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr]">
                 <figure className="flex flex-col items-center gap-1">
                   <div className="aspect-square w-full max-w-[10rem] overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.45)] bg-white">
                     {correction.currentImageUrl ? (
@@ -101,7 +105,7 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                   <figcaption className="text-[0.65rem] uppercase tracking-[0.12em] soft-text">Current</figcaption>
                 </figure>
 
-                <ArrowRight className="h-5 w-5 soft-text" />
+                <ArrowRight className="h-5 w-5 rotate-90 soft-text sm:rotate-0" />
 
                 <figure className="flex flex-col items-center gap-1">
                   <div className="aspect-square w-full max-w-[10rem] overflow-hidden rounded-xl border border-emerald-400/50 bg-white">
