@@ -904,9 +904,13 @@ html[data-native-platform="ios"] [data-download-entry] {
   animation: revealUp var(--dur-slow) var(--ease) var(--reveal-delay, 0ms) both;
 }
 
-/* Image load fade-in (components/shoe/shoe-image.tsx) */
+/* Image load fade-in (components/shoe/shoe-image.tsx). The fade is short —
+   long enough to soften the snap, short enough that 6 images finishing within
+   ~150ms of each other read as one synchronized appearance instead of a chain.
+   Above-the-fold (priority) images use .img-loaded--instant and skip it. */
 .img-loading { opacity: 0; }
-.img-loaded { animation: imgFadeIn var(--dur-slow) var(--ease) both; }
+.img-loaded { animation: imgFadeIn var(--dur-base) var(--ease) both; }
+.img-loaded--instant { opacity: 1; animation: none; }
 
 /* Shoe image fill-scale (moved off an inline transform). The per-variant fill zoom
    lives in --img-scale; the optional --zoom modifier adds a gentle hover/press
@@ -948,7 +952,8 @@ html[data-native-platform="ios"] [data-download-entry] {
     animation: none !important;
   }
   .img-loading { opacity: 1; }
-  .img-loaded { animation: none; opacity: 1; }
+  .img-loaded,
+  .img-loaded--instant { animation: none; opacity: 1; }
 }
 
 /* Premium auth + dashboard utilities */

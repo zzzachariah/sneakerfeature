@@ -413,7 +413,7 @@ export function HomeFeed({
           ) : (
             <>
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {filtered.slice(0, visibleCount).map(({ shoe, score, reasons }) => (
+                {filtered.slice(0, visibleCount).map(({ shoe, score, reasons }, i) => (
                   <ShoeCard
                     key={shoe.id}
                     shoe={shoe}
@@ -423,6 +423,10 @@ export function HomeFeed({
                     compareEnabled={compareMode}
                     selected={selected.includes(shoe.id)}
                     onToggleSelect={() => toggleSelect(shoe.id)}
+                    // First two rows on every breakpoint (4-wide @lg, 3-wide
+                    // @md, 2-wide on phones) get above-the-fold treatment so
+                    // they appear in sync with the page, not one-by-one.
+                    priority={i < 8}
                   />
                 ))}
               </ul>

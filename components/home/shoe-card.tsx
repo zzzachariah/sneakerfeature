@@ -30,6 +30,12 @@ type Props = {
    * collections). Omit in virtualized feeds where rows mount/unmount on scroll.
    */
   index?: number;
+  /**
+   * Above-the-fold cards (first row of the home grid, detail-page suggestions
+   * sidebar, etc.) skip image lazy-loading + fade-in so the first paint shows
+   * its imagery synchronously instead of as a chain.
+   */
+  priority?: boolean;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -43,7 +49,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className, index }: Props) {
+export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className, index, priority }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const [whyOpen, setWhyOpen] = useState(false);
@@ -88,6 +94,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             fallbackLabel={translate("No image")}
             variant="detail"
             interactive
+            priority={priority}
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (

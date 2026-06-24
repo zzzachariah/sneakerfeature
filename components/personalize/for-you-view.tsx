@@ -23,6 +23,7 @@ import { SignInValue } from "@/components/auth/sign-in-value";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
 import { haptics } from "@/lib/native/haptics";
+import { sizedImageSrc } from "@/lib/card/sized-image";
 import type { DigestCompareShoe, DigestRecommendation } from "@/lib/personalize/digest";
 
 export type ForYouShoe = { id: string; name: string; slug: string; image: string | null; brand: string };
@@ -253,19 +254,27 @@ function TapLink({ href, className, children }: { href: string; className?: stri
 function ShoeThumb({
   shoe,
   className,
-  fit = "cover"
+  fit = "cover",
+  priority = false,
+  pixelWidth = 192
 }: {
   shoe: ForYouShoe;
   className?: string;
   fit?: "cover" | "contain";
+  /** Above-the-fold (podium #1): eager + high fetch priority. */
+  priority?: boolean;
+  /** CSS-px width hint for CDN-side sizing. */
+  pixelWidth?: number;
 }) {
   if (shoe.image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={shoe.image}
+        src={sizedImageSrc(shoe.image, pixelWidth)}
         alt={shoe.name}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        {...({ fetchPriority: priority ? "high" : "auto" } as { fetchPriority: "high" | "auto" })}
         className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className ?? ""}`}
       />
     );
@@ -292,7 +301,7 @@ function PodiumItem({ shoe, rank, rankLabel }: { shoe: ForYouShoe; rank: 1 | 2 |
             tall ? "border-[rgb(var(--accent)/0.55)]" : "border-[rgb(var(--muted)/0.45)]"
           }`}
         >
-          <ShoeThumb shoe={shoe} fit="contain" className={tall ? "h-28 w-full" : "h-24 w-full"} />
+          <ShoeThumb shoe={shoe} fit="contain" className={tall ? "h-28 w-full" : "h-24 w-full"} priority={rank === 1} pixelWidth={tall ? 256 : 192} />
         </div>
         <span className={`inline-flex items-center gap-1 text-xs font-bold ${medal}`}>
           <Trophy className="h-3 w-3" /> {rankLabel}

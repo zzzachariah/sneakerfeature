@@ -284,6 +284,7 @@ function OverviewSection({
               alt={`${shoe.brand} ${shoe.shoe_name}`}
               fallbackLabel={translate("No image")}
               variant="detail"
+              priority
             />
           </Parallax>
         </div>

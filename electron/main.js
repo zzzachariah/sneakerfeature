@@ -152,6 +152,12 @@ if (!gotLock) {
     }
   });
 
+  // Roomier persistent HTTP cache (500MB) so shoe imagery survives across
+  // launches instead of being evicted by the default. Must be set BEFORE
+  // `app.ready` — Chromium reads it at session init. Pure config; zero
+  // regression surface (no request path or header changes).
+  app.commandLine.appendSwitch("disk-cache-size", String(500 * 1024 * 1024));
+
   app.whenReady().then(() => {
     buildApplicationMenu();
     createWindow();
