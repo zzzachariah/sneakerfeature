@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Shield, ShieldOff, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import type { Route } from "next";
+import { ChevronRight, Shield, ShieldOff, ShieldCheck } from "lucide-react";
 import { confirmDialog } from "@/components/native/native-menu";
 import { Card } from "@/components/ui/card";
 
@@ -15,7 +17,25 @@ export type UserRow = {
   ratings: number;
   favorites: number;
   submissions: number;
+  lastActiveAt: string | null;
 };
+
+function relativeFromNow(iso: string | null): string {
+  if (!iso) return "never";
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return "never";
+  const diff = Date.now() - t;
+  const day = 86_400_000;
+  const days = Math.floor(diff / day);
+  if (days < 1) {
+    const hours = Math.floor(diff / 3_600_000);
+    if (hours < 1) return "just now";
+    return `${hours}h ago`;
+  }
+  if (days < 30) return `${days}d ago`;
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+  return `${Math.floor(days / 365)}y ago`;
+}
 
 export function UsersClient({ initialRows, currentAdminId }: { initialRows: UserRow[]; currentAdminId: string }) {
   const [rows, setRows] = useState<UserRow[]>(initialRows);
@@ -67,6 +87,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
               <th className="px-3 py-2">Member</th>
               <th className="px-3 py-2">Role</th>
               <th className="px-3 py-2">Activity</th>
+              <th className="px-3 py-2">Last active</th>
               <th className="px-3 py-2">Joined</th>
               <th className="px-3 py-2 text-right">Action</th>
             </tr>
@@ -75,10 +96,23 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
             {rows.map((row) => {
               const isSelf = row.id === currentAdminId;
               return (
-                <tr key={row.id} className="border-t border-[rgb(var(--muted)/0.35)] align-top">
+                <tr
+                  key={row.id}
+                  className="border-t border-[rgb(var(--muted)/0.35)] align-top transition hover:bg-[rgb(var(--text)/0.04)]"
+                >
                   <td className="px-3 py-3">
-                    <div className="font-medium">{row.username}</div>
-                    <div className="text-xs soft-text">{row.email}</div>
+                    <Link
+                      href={`/admin/users/${row.id}` as Route}
+                      className="group flex items-center gap-1.5"
+                    >
+                      <span>
+                        <span className="block font-medium underline-offset-2 group-hover:underline">
+                          {row.username}
+                        </span>
+                        <span className="block text-xs soft-text">{row.email}</span>
+                      </span>
+                      <ChevronRight className="h-3.5 w-3.5 shrink-0 soft-text transition group-hover:translate-x-0.5 group-hover:text-[rgb(var(--text))]" />
+                    </Link>
                   </td>
                   <td className="px-3 py-3">
                     <span
@@ -97,6 +131,9 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                     <span className="num-display">{row.ratings}</span> ratings ·{" "}
                     <span className="num-display">{row.favorites}</span> favs ·{" "}
                     <span className="num-display">{row.submissions}</span> subs
+                  </td>
+                  <td className="num-display whitespace-nowrap px-3 py-3 text-xs soft-text">
+                    {relativeFromNow(row.lastActiveAt)}
                   </td>
                   <td className="num-display whitespace-nowrap px-3 py-3 text-xs soft-text">
                     {new Date(row.createdAt).toLocaleDateString()}
@@ -132,7 +169,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-8 text-center text-sm soft-text">
+                <td colSpan={6} className="px-3 py-8 text-center text-sm soft-text">
                   No members match.
                 </td>
               </tr>

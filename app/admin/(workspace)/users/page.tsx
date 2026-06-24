@@ -44,20 +44,36 @@ export default async function AdminUsersPage({
   const ratingsBy = new Map<string, number>();
   const favoritesBy = new Map<string, number>();
   const submissionsBy = new Map<string, number>();
+  const lastActiveBy = new Map<string, string>();
+  const updateLastActive = (uid: string, ts: string | null | undefined) => {
+    if (!ts) return;
+    const prev = lastActiveBy.get(uid);
+    if (!prev || prev < ts) lastActiveBy.set(uid, ts);
+  };
   if (ids.length) {
-    const [c, r, f, s] = await Promise.all([
-      db.from("comments").select("user_id").in("user_id", ids),
-      db.from("shoe_ratings").select("user_id").in("user_id", ids),
-      db.from("favorites").select("user_id").in("user_id", ids),
-      db.from("user_submissions").select("user_id").in("user_id", ids)
+    const [c, r, f, s, v] = await Promise.all([
+      db.from("comments").select("user_id, created_at").in("user_id", ids),
+      db.from("shoe_ratings").select("user_id, created_at").in("user_id", ids),
+      db.from("favorites").select("user_id, created_at").in("user_id", ids),
+      db.from("user_submissions").select("user_id, created_at").in("user_id", ids),
+      db.from("shoe_views").select("user_id, last_viewed_at").in("user_id", ids)
     ]);
-    const tally = (input: { user_id: string }[] | null, map: Map<string, number>) => {
-      for (const row of input ?? []) map.set(row.user_id, (map.get(row.user_id) ?? 0) + 1);
+    const tally = (
+      input: { user_id: string; created_at?: string | null }[] | null,
+      map: Map<string, number>
+    ) => {
+      for (const row of input ?? []) {
+        map.set(row.user_id, (map.get(row.user_id) ?? 0) + 1);
+        updateLastActive(row.user_id, row.created_at ?? undefined);
+      }
     };
-    tally(c.data as { user_id: string }[] | null, commentsBy);
-    tally(r.data as { user_id: string }[] | null, ratingsBy);
-    tally(f.data as { user_id: string }[] | null, favoritesBy);
-    tally(s.data as { user_id: string }[] | null, submissionsBy);
+    tally(c.data as { user_id: string; created_at: string }[] | null, commentsBy);
+    tally(r.data as { user_id: string; created_at: string }[] | null, ratingsBy);
+    tally(f.data as { user_id: string; created_at: string }[] | null, favoritesBy);
+    tally(s.data as { user_id: string; created_at: string }[] | null, submissionsBy);
+    for (const row of (v.data ?? []) as { user_id: string; last_viewed_at: string }[]) {
+      updateLastActive(row.user_id, row.last_viewed_at);
+    }
   }
 
   const rows: UserRow[] = profiles.map((p) => ({
@@ -69,7 +85,8 @@ export default async function AdminUsersPage({
     comments: commentsBy.get(p.id) ?? 0,
     ratings: ratingsBy.get(p.id) ?? 0,
     favorites: favoritesBy.get(p.id) ?? 0,
-    submissions: submissionsBy.get(p.id) ?? 0
+    submissions: submissionsBy.get(p.id) ?? 0,
+    lastActiveAt: lastActiveBy.get(p.id) ?? null
   }));
 
   return (
