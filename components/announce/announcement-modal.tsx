@@ -347,7 +347,7 @@ function SingleAnnouncementBody({
           type="button"
           onClick={onDismiss}
           aria-label={zh ? "关闭" : "Close"}
-          className="absolute -right-1 -top-1 inline-flex h-8 w-8 items-center justify-center rounded-full text-[rgb(var(--text)/0.5)] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))]"
+          className="absolute -right-1 -top-1 inline-flex h-10 w-10 items-center justify-center rounded-full text-[rgb(var(--text)/0.5)] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] sm:h-9 sm:w-9"
         >
           <X className="h-4 w-4" />
         </button>
@@ -524,7 +524,7 @@ function CardStackBody({
           type="button"
           onClick={() => go(-1)}
           aria-label={zh ? "上一条" : "Previous"}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.6)] text-[rgb(var(--text)/0.7)] transition hover:border-[rgb(var(--glass-stroke-soft))] hover:text-[rgb(var(--text))]"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.6)] text-[rgb(var(--text)/0.7)] transition hover:border-[rgb(var(--glass-stroke-soft))] hover:text-[rgb(var(--text))] sm:h-9 sm:w-9"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -551,7 +551,7 @@ function CardStackBody({
           type="button"
           onClick={() => go(1)}
           aria-label={zh ? "下一条" : "Next"}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.6)] text-[rgb(var(--text)/0.7)] transition hover:border-[rgb(var(--glass-stroke-soft))] hover:text-[rgb(var(--text))]"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.6)] text-[rgb(var(--text)/0.7)] transition hover:border-[rgb(var(--glass-stroke-soft))] hover:text-[rgb(var(--text))] sm:h-9 sm:w-9"
         >
           <ChevronRight className="h-4 w-4" />
         </button>
