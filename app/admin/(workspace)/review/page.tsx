@@ -89,8 +89,62 @@ export default async function AdminReviewPage({ searchParams }: { searchParams: 
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-full md:min-w-[760px] text-sm">
+        {/* Mobile: each submission as a stacked card — no horizontal scroll. */}
+        <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
+          {rows.map((row: any) => {
+            const shoeName = row.raw_payload?.shoe_name ?? "—";
+            const rowBrand = row.raw_payload?.brand ?? "";
+            const submitterName = Array.isArray(row.profiles)
+              ? row.profiles[0]?.username
+              : row.profiles?.username ?? "unknown";
+            const isCorrection = row.submission_type === "correction";
+            const correctionTarget = isCorrection
+              ? Array.isArray(row.shoes)
+                ? row.shoes[0]?.shoe_name
+                : row.shoes?.shoe_name ?? row.target_shoe_id ?? "unknown"
+              : null;
+            return (
+              <li key={row.id} className="p-4">
+                <Link
+                  href={`/admin/review/${row.id}`}
+                  className="flex flex-col gap-2 active:opacity-80"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={
+                        isCorrection
+                          ? "rounded-full bg-[rgb(var(--accent)/0.16)] px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.12em] text-[rgb(var(--accent))]"
+                          : "rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.12em]"
+                      }
+                    >
+                      {isCorrection ? "Correction" : "New shoe"}
+                    </span>
+                    <span className="rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-0.5 text-[0.65rem] uppercase tracking-[0.12em]">
+                      {row.status}
+                    </span>
+                  </div>
+                  <p className="font-medium leading-tight">{shoeName}</p>
+                  <p className="text-xs soft-text">
+                    {rowBrand && <span>{rowBrand} · </span>}
+                    @{submitterName}
+                  </p>
+                  {isCorrection && correctionTarget && (
+                    <p className="text-xs soft-text">target: {correctionTarget}</p>
+                  )}
+                  <p className="num-display text-[0.7rem] soft-text">
+                    {new Date(row.created_at).toLocaleString()}
+                  </p>
+                </Link>
+              </li>
+            );
+          })}
+          {rows.length === 0 && (
+            <li className="p-6 text-center text-sm soft-text">No submissions match current filters.</li>
+          )}
+        </ol>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full text-sm">
             <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
               <tr>
                 <th className="px-3 py-2">Submitted</th>

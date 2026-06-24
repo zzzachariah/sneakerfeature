@@ -96,8 +96,28 @@ export default async function AdminAuditPage({
       </Card>
 
       <Card className="p-0 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
+        {/* Mobile: each event as a stacked card — no horizontal scroll. */}
+        <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
+          {rows.map((row) => (
+            <li key={row.id} className="p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-[rgb(var(--muted)/0.45)] px-2 py-0.5 text-[0.7rem]">{row.action}</span>
+                <span className="text-[0.65rem] uppercase tracking-wide soft-text">{row.target_type}</span>
+              </div>
+              <p className="mt-1.5 break-words text-sm font-medium">{targetLabel(row)}</p>
+              <p className="num-display mt-1 text-[0.7rem] soft-text">
+                @{actorName(row)} · {new Date(row.created_at).toLocaleString()}
+              </p>
+              {row.note && <p className="mt-1.5 break-words text-xs soft-text">{row.note}</p>}
+            </li>
+          ))}
+          {rows.length === 0 && (
+            <li className="p-6 text-center text-sm soft-text">No audit events match.</li>
+          )}
+        </ol>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full text-sm">
             <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
               <tr>
                 <th className="px-3 py-2">When</th>
