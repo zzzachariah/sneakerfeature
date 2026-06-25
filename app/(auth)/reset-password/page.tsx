@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { DUR, EASE } from "@/lib/motion/constants";
 import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
@@ -13,13 +14,12 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const stagger = {
   animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } }
 };
 const fadeUp = {
   initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.42, ease } }
+  animate: { opacity: 1, y: 0, transition: { duration: DUR.slow, ease: EASE } }
 };
 
 // How long to wait for the recovery session (from the URL code) before treating
@@ -28,6 +28,7 @@ const READY_TIMEOUT_MS = 8000;
 
 export default function ResetPasswordPage() {
   const { translate } = useLocale();
+  const reduce = useReducedMotion();
   const router = useRouter();
   const supabaseRef = useRef<ReturnType<typeof createClient>>(null);
   const [status, setStatus] = useState<"checking" | "ready" | "invalid">("checking");
@@ -138,7 +139,7 @@ export default function ResetPasswordPage() {
       subheading="Choose a new password for your account."
     >
       <motion.div
-        initial="initial"
+        initial={reduce ? false : "initial"}
         animate="animate"
         variants={stagger}
         className="glass-card mx-auto w-full max-w-md space-y-5 p-5 md:p-8"
@@ -202,7 +203,7 @@ export default function ResetPasswordPage() {
             </motion.div>
 
             <motion.div variants={fadeUp}>
-              <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: 0.18, ease }}>
+              <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: DUR.fast, ease: EASE }}>
                 <Button
                   type="submit"
                   className="shimmer-on-hover group h-11 w-full text-[0.95rem]"
@@ -225,7 +226,7 @@ export default function ResetPasswordPage() {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2, ease }}
+                  transition={{ duration: DUR.base, ease: EASE }}
                 >
                   <SneakerLoader compact label="Updating your password" />
                 </motion.div>
@@ -236,7 +237,7 @@ export default function ResetPasswordPage() {
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.24, ease }}
+                  transition={{ duration: DUR.base, ease: EASE }}
                 >
                   <FeedbackMessage message={message} isError={error} />
                 </motion.div>

@@ -14,7 +14,7 @@ export function Dropdown({ label, options, onSelect }: { label: string; options:
       {open && (
         <div className="glass glass-rim liquid-interactive absolute right-0 z-20 mt-2 w-44 rounded-xl p-1">
           {options.map((option) => (
-            <button key={option} className="w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--accent)/0.08)]" onClick={() => { onSelect(option); setOpen(false); }}>
+            <button key={option} className="w-full rounded-lg px-3 py-2 text-left text-sm transition-colors duration-[var(--dur-base)] hover:bg-[rgb(var(--text)/0.06)] focus-visible:bg-[rgb(var(--text)/0.10)] focus-visible:outline-none active:bg-[rgb(var(--text)/0.12)]" onClick={() => { onSelect(option); setOpen(false); }}>
               {option}
             </button>
           ))}

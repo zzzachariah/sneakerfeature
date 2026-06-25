@@ -49,7 +49,7 @@ export function SmartPickerToggle({ initialEnabled }: Props) {
           </p>
           <p className="mt-2 text-xs">
             Current status:{" "}
-            <span className={enabled ? "font-semibold text-emerald-600" : "font-semibold text-amber-600"}>
+            <span className={enabled ? "font-semibold text-emerald-600 dark:text-emerald-400" : "font-semibold text-amber-600 dark:text-amber-400"}>
               {enabled ? "ON — open to all users" : "OFF — admins only"}
             </span>
           </p>

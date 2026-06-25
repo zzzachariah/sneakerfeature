@@ -65,7 +65,7 @@ export function AnnouncementsHistory({ items }: { items: HistoryEntry[] }) {
         </header>
 
         {items.length === 0 ? (
-          <section className="surface-card premium-border mt-8 flex flex-col items-center gap-3 rounded-3xl p-10 text-center">
+          <section className="surface-card premium-border ios-glass-announce-empty relative mt-8 flex flex-col items-center gap-3 rounded-3xl p-10 text-center">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-[rgb(var(--text)/0.06)] text-[rgb(var(--text)/0.7)]">
               <Megaphone className="h-5 w-5" aria-hidden />
             </span>

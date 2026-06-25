@@ -62,7 +62,7 @@ export function HumanCheck({ action, onToken }: Props) {
         if (container && !widgetId.current) {
           widgetId.current = window.turnstile.render(container, {
             sitekey: siteKey,
-            theme: "dark",
+            theme: "auto",
             action,
             callback: (token: string) => onToken(token),
             "error-callback": () => setFailed(true),
@@ -92,7 +92,7 @@ export function HumanCheck({ action, onToken }: Props) {
 
   if (!siteKey) {
     return (
-      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+      <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-200">
         {translate("Turnstile is not configured. Demo verification mode is active.")}
         <button type="button" className="ml-2 underline" onClick={() => onToken("demo-token")}>
           {translate("Use demo token")}
@@ -103,7 +103,7 @@ export function HumanCheck({ action, onToken }: Props) {
 
   if (failed) {
     return (
-      <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+      <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-200">
         {translate("Verification failed to load. Check your network or try again.")}
         <button
           type="button"

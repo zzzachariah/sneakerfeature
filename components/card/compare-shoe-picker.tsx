@@ -61,7 +61,7 @@ export function CompareShoePicker({ open, shoes, max, onCancel, onConfirm }: Pro
       <div
         role="dialog"
         aria-modal
-        className="surface-card premium-border flex w-full max-w-xl flex-col overflow-hidden rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
+        className="surface-card premium-border ios-glass-compare-picker flex w-full max-w-xl flex-col overflow-hidden rounded-3xl shadow-[0_30px_72px_rgb(var(--glass-shadow)/0.42)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3 px-6 pt-6">

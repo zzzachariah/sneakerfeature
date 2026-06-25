@@ -46,7 +46,7 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
   });
 
   return (
-    <div className={`grid items-start gap-x-3 gap-y-8 sm:gap-x-6 sm:gap-y-10 ${gridClass}`}>
+    <div className={`grid items-start gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-12 ${gridClass}`}>
       {count === 2 ? (
         <>
           <ShoePlinth {...plinthProps(shoes[0])} />
@@ -108,7 +108,7 @@ function ShoePlinth({
       <div className="relative mb-3 flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-3 py-4 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] sm:min-h-[160px] sm:mb-5 sm:px-4 sm:py-6 md:min-h-[240px] md:px-10 md:py-14">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100"
+          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100 motion-reduce:transition-none"
           style={{
             background:
               "radial-gradient(60% 60% at 50% 40%, rgb(var(--text)/0.06), transparent 70%)"
@@ -119,11 +119,11 @@ function ShoePlinth({
           alt={shoe.shoe_name}
           fallbackLabel={translateLabel("No image")}
           variant="compare"
-          className="relative w-full max-w-[18rem] transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]"
+          className="relative w-full max-w-[18rem] transition-transform duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none"
         />
       </div>
 
-      <p className="t-eyebrow mb-1 text-[0.6rem] sm:text-[0.67rem]">
+      <p className="t-eyebrow mb-1">
         {shoe.brand}
         {shoe.release_year ? (
           <span className="num-display ml-2 text-[rgb(var(--subtext))]">· {shoe.release_year}</span>

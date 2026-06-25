@@ -161,7 +161,7 @@ function AxisLabel({
       }}
       title={axis.rawText?.trim() ? axis.rawText : undefined}
     >
-      <p className="num-display text-[0.5rem] font-semibold uppercase tracking-[0.14em] soft-text md:text-[0.55rem]">
+      <p className="num-display text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--text)/0.85)] md:text-[0.65rem]">
         {translate(axis.label)}
       </p>
       <span

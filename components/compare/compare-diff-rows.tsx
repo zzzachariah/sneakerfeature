@@ -63,7 +63,7 @@ function MultiHeader({ shoes }: { shoes: Shoe[] }) {
   return (
     <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[rgb(var(--muted)/0.25)] pb-3">
       {shoes.map((shoe, i) => (
-        <span key={shoe.id} className="text-[0.7rem] tracking-[-0.01em]">
+        <span key={shoe.id} className="text-[0.72rem] tracking-[-0.01em]">
           <span className="font-bold text-[rgb(var(--text))]">{shoe.shoe_name}</span>
           {i < shoes.length - 1 ? <span className="ml-3 soft-text">·</span> : null}
         </span>
@@ -240,7 +240,7 @@ function Verdict({ shoes, triggered }: { shoes: Shoe[]; triggered: boolean }) {
         <div className="space-y-1.5">
           {ranked.map((entry, i) => (
             <p key={i} className="text-[0.8rem] leading-[1.5] tracking-[-0.005em] text-[rgb(var(--text)/0.8)]">
-              <strong className="text-[rgb(var(--text))]">{entry.name}</strong>{" "}
+              <strong className="tracking-[-0.01em] text-[rgb(var(--text))]">{entry.name}</strong>{" "}
               {translate("leads in")} <span className="num-display">{entry.metrics.length}</span>{" "}
               {entry.metrics.length === 1 ? translate("metric") : translate("metrics")}{" "}
               <span className="soft-text">({entry.metrics.join(", ")})</span>.

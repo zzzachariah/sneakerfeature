@@ -569,7 +569,7 @@ export function TutorialOverlay() {
           <button
             type="button"
             onClick={awaitUserAction ? openActionModal : next}
-            className="shimmer-on-hover relative inline-flex h-8 items-center justify-center gap-1 overflow-hidden rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold tracking-[-0.005em] text-[rgb(var(--bg))] transition-[transform,box-shadow] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-[1px] hover:shadow-[0_8px_20px_rgb(var(--shadow)/0.35)]"
+            className="shimmer-on-hover relative inline-flex h-8 items-center justify-center gap-1 overflow-hidden rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold tracking-[-0.005em] text-[rgb(var(--bg))] transition-[transform,box-shadow] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-[1px] hover:shadow-[0_8px_20px_rgb(var(--shadow)/0.35)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:hover:shadow-none"
           >
             <span className="relative z-10 inline-flex items-center gap-1">
               {awaitUserAction

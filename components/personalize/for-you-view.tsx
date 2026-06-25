@@ -107,8 +107,9 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       variants={container}
       initial="hidden"
       animate="show"
-      className="mx-auto w-full max-w-3xl px-5 py-8 sm:py-12"
+      className="container-shell py-8 sm:py-12"
     >
+      <div className="mx-auto w-full max-w-3xl">
       {/* 1. Greeting + player avatar */}
       <motion.header variants={item}>
         <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
@@ -223,6 +224,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       {recentShoes.length > 0 ? (
         <ContinueBrowsing recentShoes={recentShoes} translate={translate} />
       ) : null}
+      </div>
     </motion.div>
   );
 }
@@ -279,13 +281,13 @@ function ShoeThumb({
 
 function PodiumItem({ shoe, rank, rankLabel }: { shoe: ForYouShoe; rank: 1 | 2 | 3; rankLabel: string }) {
   const tall = rank === 1;
-  const medal = rank === 1 ? "text-amber-400" : rank === 2 ? "text-slate-300" : "text-amber-700";
+  const medal = rank === 1 ? "text-amber-500 dark:text-amber-400" : rank === 2 ? "text-[rgb(var(--subtext))]" : "text-amber-700 dark:text-amber-500";
   return (
     <TapLink href={`/shoes/${shoe.slug}`} className="block">
       <div className="flex flex-col items-center gap-1.5">
         {/* Crown sits ABOVE the image; the fixed-height slot keeps all 3 aligned. */}
         <div className="flex h-5 items-end justify-center">
-          {rank === 1 ? <Crown className="h-5 w-5 text-amber-400" /> : null}
+          {rank === 1 ? <Crown className="h-5 w-5 text-amber-500 dark:text-amber-400" /> : null}
         </div>
         <div
           className={`w-full overflow-hidden rounded-2xl border bg-[rgb(var(--bg-elev)/0.5)] ${
@@ -297,7 +299,7 @@ function PodiumItem({ shoe, rank, rankLabel }: { shoe: ForYouShoe; rank: 1 | 2 |
         <span className={`inline-flex items-center gap-1 text-xs font-bold ${medal}`}>
           <Trophy className="h-3 w-3" /> {rankLabel}
         </span>
-        <p className="line-clamp-2 text-center text-[11px] font-medium leading-tight">{shoe.name}</p>
+        <p className="line-clamp-2 min-h-[2.5em] text-center text-[11px] font-medium leading-tight">{shoe.name}</p>
       </div>
     </TapLink>
   );
@@ -390,7 +392,7 @@ function ContinueBrowsing({
                   setPage((p) => Math.max(0, p - 1));
                 }}
                 aria-label={translate("Previous page")}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)] disabled:cursor-not-allowed disabled:opacity-50 md:h-9 md:w-9"
               >
                 <ChevronLeft className="h-4 w-4" />
               </button>
@@ -405,7 +407,7 @@ function ContinueBrowsing({
                   setPage((p) => Math.min(pageCount - 1, p + 1));
                 }}
                 aria-label={translate("Next page")}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)] disabled:cursor-not-allowed disabled:opacity-40"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)] disabled:cursor-not-allowed disabled:opacity-50 md:h-9 md:w-9"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>

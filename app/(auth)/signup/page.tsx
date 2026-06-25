@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { DUR, EASE } from "@/lib/motion/constants";
 import { ArrowRight } from "lucide-react";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
@@ -18,13 +19,12 @@ import { useLocale } from "@/components/i18n/locale-provider";
 
 const CLIENT_TIMEOUT_MS = 12000;
 
-const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const stagger = {
   animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } }
 };
 const fadeUp = {
   initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.42, ease } }
+  animate: { opacity: 1, y: 0, transition: { duration: DUR.slow, ease: EASE } }
 };
 
 function devLog(step: string, payload?: unknown) {
@@ -92,6 +92,7 @@ function useTiltHandlers() {
 
 export default function SignupPage() {
   const { locale, translate } = useLocale();
+  const reduce = useReducedMotion();
   const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [verificationToken, setVerificationToken] = useState("");
   const [message, setMessage] = useState("");
@@ -210,7 +211,7 @@ export default function SignupPage() {
           onSubmit={onSubmit}
           onPointerMove={tilt.onMove}
           onPointerLeave={tilt.onLeave}
-          initial="initial"
+          initial={reduce ? false : "initial"}
           animate="animate"
           variants={stagger}
           className={`glass-card tilt-3d mx-auto w-full max-w-md space-y-5 p-5 md:p-8 ${gateOpen ? "pointer-events-none select-none opacity-60" : ""}`}
@@ -260,7 +261,7 @@ export default function SignupPage() {
           </motion.div>
 
           <motion.div variants={fadeUp}>
-            <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: 0.18, ease }}>
+            <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: DUR.fast, ease: EASE }}>
               <Button type="submit" className="shimmer-on-hover group h-11 w-full text-[0.95rem]" disabled={submitting || !agreed}>
                 <span className="relative z-10 inline-flex items-center gap-2">
                   {submitting ? translate("Creating account...") : translate("Create account")}
@@ -279,7 +280,7 @@ export default function SignupPage() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2, ease }}
+                transition={{ duration: DUR.base, ease: EASE }}
               >
                 <SneakerLoader compact label="Creating your account" />
               </motion.div>
@@ -290,7 +291,7 @@ export default function SignupPage() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.24, ease }}
+                transition={{ duration: DUR.base, ease: EASE }}
               >
                 <FeedbackMessage message={message} isError={error} />
               </motion.div>

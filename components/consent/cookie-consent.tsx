@@ -137,7 +137,7 @@ export function CookieBanner() {
           </p>
           <div className="flex shrink-0 items-center gap-2">
             <Button
-              variant="ghost"
+              variant="secondary"
               className="px-4 text-[0.85rem]"
               onClick={() => setConsent("rejected")}
             >

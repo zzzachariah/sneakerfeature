@@ -535,6 +535,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   // Persona / personalized recommendations
   "sneaker database": "球鞋信息库",
   "browse all": "浏览全部",
+  "browse all shoes": "浏览全部球鞋",
   "personalized": "个性化推荐",
   "recommended for you": "为你推荐",
   "why?": "为什么?",

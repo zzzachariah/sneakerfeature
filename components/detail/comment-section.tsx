@@ -236,7 +236,7 @@ export function CommentSection({
       <aside className="surface-card premium-border rounded-3xl p-5 md:p-6">
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-medium">{translate("View discussion")}</h3>
-          <p className="num-display text-xs soft-text">{comments.length} {translate(comments.length === 1 ? "comment" : "comments")}</p>
+          <p className="text-xs soft-text"><span className="num-display">{comments.length}</span> {translate(comments.length === 1 ? "comment" : "comments")}</p>
         </div>
 
         <div className="mt-4 space-y-3 md:max-h-[560px] md:overflow-auto md:pr-1">
@@ -248,9 +248,12 @@ export function CommentSection({
             </>
           )}
           {!loading && comments.length === 0 && (
-            <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] p-5 text-center">
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] p-6 text-center">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[rgb(var(--text)/0.06)] text-[rgb(var(--text)/0.7)]">
+                <MessageSquareText className="h-5 w-5" aria-hidden />
+              </span>
               <p className="text-sm font-medium">{translate("No discussion yet")}</p>
-              <p className="mt-1 text-xs soft-text">{translate("Be the first to share how this shoe performs on court.")}</p>
+              <p className="text-xs soft-text">{translate("Be the first to share how this shoe performs on court.")}</p>
             </div>
           )}
 
@@ -264,21 +267,21 @@ export function CommentSection({
                     <p className="num-display text-xs soft-text">{new Date(comment.createdAt).toLocaleString()}</p>
                   </div>
                   {isOwn ? (
-                    <button type="button" className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2 py-1 text-xs soft-text transition hover:border-red-300" onClick={() => deleteComment(comment.id)} aria-label={translate("Delete my comment")}>
+                    <button type="button" className="inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2 py-1 text-xs soft-text transition hover:border-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]" onClick={() => deleteComment(comment.id)} aria-label={translate("Delete my comment")}>
                       <Trash2 className="h-3.5 w-3.5" /> {translate("Delete")}
                     </button>
                   ) : userId ? (
                     <div className="relative">
                       <button
                         type="button"
-                        className="inline-flex items-center rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 text-xs soft-text transition hover:border-[rgb(var(--text)/0.45)]"
+                        className="inline-flex min-h-[44px] min-w-[44px] md:min-h-[36px] md:min-w-[36px] items-center justify-center rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 text-xs soft-text transition hover:border-[rgb(var(--text)/0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
                         onClick={() => openCommentMenu(comment)}
                         aria-label={translate("More")}
                       >
                         <MoreHorizontal className="h-3.5 w-3.5" />
                       </button>
                       {menuOpenId === comment.id && (
-                        <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev))] p-1 shadow-lg">
+                        <div className="nav-dropdown-panel absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-xl p-1">
                           {reportOpenId === comment.id ? (
                             (["spam", "harassment", "inappropriate", "other"] as const).map((reason) => (
                               <button
@@ -301,7 +304,7 @@ export function CommentSection({
                               </button>
                               <button
                                 type="button"
-                                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-rose-400 transition hover:bg-rose-400/10"
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-rose-500 transition hover:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-400/10"
                                 onClick={() => blockUser(comment.userId)}
                               >
                                 <Ban className="h-3.5 w-3.5" /> {translate("Block user")}
@@ -319,14 +322,14 @@ export function CommentSection({
                 <div className="mt-3 flex items-center gap-2 text-xs">
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition active:scale-95 ${comment.myVote === "like" ? "border-emerald-400/80 bg-emerald-400/10 text-emerald-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-emerald-300/70"}`}
+                    className={`inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${comment.myVote === "like" ? "border-emerald-400/80 bg-emerald-400/10 text-emerald-600 dark:text-emerald-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-emerald-300/70"}`}
                     onClick={() => submitVote(comment.id, "like")}
                   >
                     <ThumbsUp className="h-3.5 w-3.5" /> <span className="num-display">{comment.likes}</span>
                   </button>
                   <button
                     type="button"
-                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 transition active:scale-95 ${comment.myVote === "dislike" ? "border-rose-400/80 bg-rose-400/10 text-rose-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-rose-300/70"}`}
+                    className={`inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${comment.myVote === "dislike" ? "border-rose-400/80 bg-rose-400/10 text-rose-500 dark:text-rose-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-rose-300/70"}`}
                     onClick={() => submitVote(comment.id, "dislike")}
                   >
                     <ThumbsDown className="h-3.5 w-3.5" /> <span className="num-display">{comment.dislikes}</span>

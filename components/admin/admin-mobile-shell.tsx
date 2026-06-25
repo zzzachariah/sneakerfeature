@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { DUR, SPRING_SOFT } from "@/lib/motion/constants";
 import { Menu, Shield, X } from "lucide-react";
 import { AdminNav, type AdminNavCounts, findActiveNavItem } from "@/components/admin/admin-nav";
 import { AdminLogoutButton } from "@/components/admin/admin-logout-button";
@@ -20,6 +21,7 @@ export function AdminMobileShell({
   counts: AdminNavCounts;
 }) {
   const [open, setOpen] = useState(false);
+  const reduce = useReducedMotion();
   const pathname = usePathname() ?? "";
   const active = findActiveNavItem(pathname);
 
@@ -44,14 +46,14 @@ export function AdminMobileShell({
   return (
     <>
       <div
-        className="surface-card premium-border sticky top-0 z-30 mx-[calc(-1*var(--container-gutter))] mb-3 flex items-center gap-3 rounded-none px-[var(--container-gutter)] py-3 lg:hidden"
+        className="surface-card premium-border ios-glass-admin-shell-bar sticky top-0 z-30 mx-[calc(-1*var(--container-gutter))] mb-3 flex items-center gap-3 rounded-none px-[var(--container-gutter)] py-3 lg:hidden"
         style={{ top: "var(--safe-top, 0px)" }}
       >
         <button
           type="button"
           aria-label="Open admin navigation"
           onClick={() => setOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--bg-elev)/0.8)] text-[rgb(var(--text))] transition active:scale-95"
+          className="inline-flex h-11 w-11 md:h-10 md:w-10 items-center justify-center rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--bg-elev)/0.8)] text-[rgb(var(--text))] transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
         >
           <Menu className="h-5 w-5" />
         </button>
@@ -63,7 +65,7 @@ export function AdminMobileShell({
             {active?.label ?? "Admin"}
           </p>
         </div>
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
+        <span aria-hidden="true" className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
           <Shield className="h-4 w-4" />
         </span>
       </div>
@@ -76,7 +78,7 @@ export function AdminMobileShell({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.22 }}
+            transition={{ duration: reduce ? 0 : DUR.base }}
             onClick={() => setOpen(false)}
           >
             <motion.aside
@@ -84,10 +86,10 @@ export function AdminMobileShell({
               role="dialog"
               aria-label="Admin navigation"
               onClick={(e) => e.stopPropagation()}
-              initial={{ x: "-100%" }}
+              initial={{ x: reduce ? 0 : "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", stiffness: 360, damping: 36 }}
+              exit={{ x: reduce ? 0 : "-100%", opacity: reduce ? 0 : 1 }}
+              transition={reduce ? { duration: 0.16 } : SPRING_SOFT}
               className="glass-strong glass-rim absolute inset-y-0 left-0 flex w-[85vw] max-w-[340px] flex-col"
               style={{
                 paddingTop: "max(1rem, var(--safe-top))",
@@ -109,7 +111,7 @@ export function AdminMobileShell({
                   type="button"
                   aria-label="Close menu"
                   onClick={() => setOpen(false)}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text)/0.6)] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))]"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[rgb(var(--text)/0.7)] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
                 >
                   <X className="h-4 w-4" />
                 </button>

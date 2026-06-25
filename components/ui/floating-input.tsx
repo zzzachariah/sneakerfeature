@@ -44,7 +44,7 @@ export const FloatingInput = React.forwardRef<HTMLInputElement, Props>(
             onChange?.(event);
           }}
           className={cn(
-            "liquid-interactive float-input w-full rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.9)] text-[rgb(var(--text))] outline-none transition duration-200 hover:border-[rgb(var(--text)/0.35)] focus:border-[rgb(var(--text)/0.6)] focus:ring-2 focus:ring-[rgb(var(--text)/0.12)]",
+            "liquid-interactive float-input w-full rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.9)] text-[rgb(var(--text))] outline-none transition duration-200 hover:border-[rgb(var(--text)/0.35)] focus:border-[rgb(var(--text)/0.6)] focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.32)]",
             className
           )}
           {...rest}

@@ -12,6 +12,7 @@ import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { PerformanceRadar, type RadarAxis } from "@/components/detail/performance-radar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
@@ -241,7 +242,7 @@ function OverviewSection({
 
         {shoe.dimStars ? (
           <div className="mt-4 max-w-md rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.4)] p-3">
-            <p className="mb-2 text-[0.65rem] uppercase tracking-[0.14em] soft-text">{translate("By dimension")}</p>
+            <p className="t-eyebrow mb-2">{translate("By dimension")}</p>
             <DimRatingList stars={shoe.dimStars} size="sm" />
           </div>
         ) : null}
@@ -266,7 +267,7 @@ function OverviewSection({
             shoeId={shoe.id}
             showLabel
             iconClassName="h-3.5 w-3.5"
-            className="rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-2 text-sm font-medium transition hover:border-[rgb(var(--text)/0.35)]"
+            className="min-h-[44px] md:min-h-[36px] rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] px-4 py-2 text-sm font-medium transition hover:border-[rgb(var(--text)/0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)]"
           />
           <Link href={`/submit/correction/${shoe.id}`}>
             <Button variant="ghost">{translate("Submit correction")}</Button>
@@ -293,11 +294,11 @@ function OverviewSection({
         {(isAdmin || (!hasPendingImage && !imageState.approved && !imageState.latestRejected)) && (
           <div className="text-center text-sm">
             {hasPendingImage ? (
-              <p className="font-medium text-amber-400">{translate("Image pending review")}</p>
+              <p className="font-medium text-amber-600 dark:text-amber-400">{translate("Image pending review")}</p>
             ) : imageState.approved ? (
-              <p className="font-medium text-emerald-400">{translate("Image approved")}</p>
+              <p className="font-medium text-[rgb(var(--success))]">{translate("Image approved")}</p>
             ) : imageState.latestRejected ? (
-              <p className="font-medium text-rose-400">{translate("Image rejected")}</p>
+              <p className="font-medium text-[rgb(var(--error))]">{translate("Image rejected")}</p>
             ) : (
               <p className="font-medium soft-text">{translate("No image")}</p>
             )}
@@ -342,13 +343,13 @@ function OverviewSection({
         {isAdmin && (
           <div className="flex w-full max-w-xs flex-col gap-2">
             <div className="flex gap-2">
-              <input
+              <Input
                 type="url"
                 value={pasteUrl}
                 onChange={(event) => onPasteUrlChange(event.target.value)}
                 placeholder={translate("Paste image URL")}
                 disabled={imageActionLoading !== null || previewUpload !== null}
-                className="flex-1 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] px-3 py-2 text-sm text-[rgb(var(--text))] placeholder:soft-text disabled:opacity-50"
+                className="flex-1"
               />
               <Button
                 type="button"
@@ -448,9 +449,9 @@ function PerformanceSection({
         {items.map((it) => (
           <StaggerItem
             key={it.field}
-            className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev)/0.5)] p-4"
+            className="rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)] p-4"
           >
-            <p className="text-[0.82rem] font-semibold uppercase tracking-[0.1em] text-[rgb(var(--text)/0.7)]">
+            <p className="t-eyebrow">
               {translate(it.label)}
             </p>
             <p
@@ -505,7 +506,7 @@ function StorySection({
           )}
 
           {sourceText ? (
-            <p className="border-t border-[rgb(var(--muted)/0.4)] pt-3 text-xs soft-text md:pt-4 md:text-sm">
+            <p className="border-t border-[rgb(var(--muted)/0.45)] pt-3 text-xs soft-text md:pt-4 md:text-sm">
               {translate("Source")}:{" "}
               {storySourceUrl ? (
                 <a
@@ -527,7 +528,7 @@ function StorySection({
           <p className="mt-4 text-[0.95rem] leading-7 soft-text md:mt-6 md:text-base md:leading-8">
             {translate("No editorial story yet.")}
           </p>
-          <div className="mt-4 rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text md:mt-5 md:p-4 md:text-sm">
+          <div className="mt-4 rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text md:mt-5 md:p-4 md:text-sm">
             {translate(
               "Source/evidence: Seed dataset + community validation pipeline. Admin review required before promotion to official records."
             )}
@@ -568,7 +569,7 @@ function RelatedSection({ related }: Props) {
             <Link
               href={`/shoes/${item.slug}`}
               data-field-key="shoe_name"
-              className="block rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
+              className="block rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
             >
               {item.shoe_name}
             </Link>

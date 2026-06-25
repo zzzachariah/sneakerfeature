@@ -109,7 +109,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
           <motion.div
             role="dialog"
             aria-modal
-            className="glass-strong glass-rim relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl"
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl"
             initial={{ y: 24, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 24, opacity: 0, scale: 0.98 }}
@@ -127,7 +127,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-lg border border-[rgb(var(--muted)/0.5)] p-2 soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))]"
+                className="relative tap-44 rounded-lg border border-[rgb(var(--muted)/0.5)] p-2 soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
                 aria-label={translate("Close")}
               >
                 <X className="h-4 w-4" />
@@ -183,7 +183,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
                           onClick={() => togglePending(shoe.id)}
                           aria-pressed={checked}
                           disabled={disabled}
-                          className={`group flex w-full items-center gap-3 py-3 text-left transition ${
+                          className={`group flex w-full items-center gap-3 py-3 text-left transition focus-visible:outline-none focus-visible:bg-[rgb(var(--surface)/0.55)] ${
                             disabled ? "cursor-not-allowed opacity-40" : "hover:bg-[rgb(var(--surface)/0.4)]"
                           }`}
                         >

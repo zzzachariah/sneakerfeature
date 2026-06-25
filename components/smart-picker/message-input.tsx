@@ -42,7 +42,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
   };
 
   return (
-    <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg)/0.66)] p-3 backdrop-blur-[26px] backdrop-saturate-[180%]">
+    <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg)/0.66)] p-3 backdrop-blur-[26px] backdrop-saturate-[180%] ios-glass-composer-bar">
       <div className="surface-card premium-border rounded-2xl p-2.5 transition focus-within:shadow-[0_0_0_3px_rgb(var(--text)/0.07)]">
         <textarea
           value={text}
@@ -50,7 +50,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
           onKeyDown={onKeyDown}
           rows={2}
           placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
-          className="w-full resize-none bg-transparent px-1.5 py-1 text-sm outline-none placeholder:text-[rgb(var(--subtext)/0.7)]"
+          className="w-full resize-none bg-transparent px-1.5 py-1 text-base md:text-sm outline-none placeholder:text-[rgb(var(--subtext)/0.7)]"
         />
 
         <div className="mt-1.5 flex items-center justify-between gap-2">
@@ -62,7 +62,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
                 onClick={() => adjust(-1)}
                 disabled={count <= 1}
                 aria-label={translate("Decrease")}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[rgb(var(--text)/0.08)] disabled:opacity-40"
+                className="tap-44 relative inline-flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[rgb(var(--text)/0.08)] disabled:opacity-50"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
@@ -72,7 +72,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
                 onClick={() => adjust(1)}
                 disabled={count >= MAX_RECOMMENDATIONS}
                 aria-label={translate("Increase")}
-                className="inline-flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[rgb(var(--text)/0.08)] disabled:opacity-40"
+                className="tap-44 relative inline-flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[rgb(var(--text)/0.08)] disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
@@ -85,7 +85,7 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
             onClick={submit}
             disabled={!isReady}
             aria-label={sending ? translate("AI is thinking…") : translate("Send")}
-            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform ${
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
               sending
                 ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
                 : isReady

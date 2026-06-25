@@ -56,7 +56,7 @@ export function AuthShell({
           </p>
 
           <div className="mt-4 flex items-center gap-5">
-            <div className="glass glass-rim relative rounded-2xl p-5">
+            <div className="glass glass-rim glass-clip relative rounded-2xl p-5">
               <SneakerLoader label="sneakerfeature" />
             </div>
             <div className="space-y-1">

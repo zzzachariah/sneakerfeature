@@ -408,7 +408,7 @@ export function CaptureStep({
             {mode === "live" && (
               <div className="absolute left-1/2 top-3 -translate-x-1/2">
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur ${
+                  className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur-md ${
                     tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
                   }`}
                 >
@@ -437,7 +437,7 @@ export function CaptureStep({
 
       {/* enable-level (advisory only; iOS needs a gesture) */}
       {mode === "live" && tilt.supported && tilt.permission !== "granted" && tilt.permission !== "unsupported" && (
-        <button onClick={() => tilt.requestPermission()} className="text-xs text-[rgb(var(--subtext))] underline">
+        <button onClick={() => tilt.requestPermission()} className="tap-44 relative self-start rounded text-xs text-[rgb(var(--subtext))] underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]">
           {translate("Enable the level guide")}
         </button>
       )}
@@ -454,7 +454,7 @@ export function CaptureStep({
 
       {/* camera permission was denied — explain how to recover */}
       {permissionBlocked && (mode === "photo" || mode === "starting") && (
-        <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
+        <p className="rounded-xl bg-amber-500/12 px-3 py-2 text-xs text-amber-600 dark:text-amber-400">
           {translate("Camera access is off. Turn it on in Settings to use the camera, or pick a photo from your library.")}
         </p>
       )}

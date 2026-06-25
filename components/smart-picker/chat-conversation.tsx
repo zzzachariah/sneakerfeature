@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Download, History, Plus, Sparkles, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { EASE } from "@/lib/motion/constants";
+import { DUR, EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
@@ -88,13 +88,13 @@ export function ChatConversation({
       : {
           initial: { opacity: 0, y: 6, x },
           animate: { opacity: 1, y: 0, x: 0 },
-          transition: { duration: 0.3, ease: EASE }
+          transition: { duration: DUR.slow, ease: EASE }
         };
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
       {/* Mobile header */}
-      <div className="flex items-center justify-between gap-2 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-3 py-2 md:hidden">
+      <div className="flex items-center justify-between gap-2 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-[var(--container-gutter)] py-2 md:hidden">
         {/* Conversation history — anchored dropdown popover (not a full-screen takeover). */}
         <div ref={historyRef} className="relative shrink-0">
           <button
@@ -103,7 +103,7 @@ export function ChatConversation({
             aria-label={translate("Conversations")}
             aria-haspopup="menu"
             aria-expanded={historyOpen}
-            className="inline-flex h-9 items-center gap-1 rounded-full px-2 hover:bg-[rgb(var(--text)/0.08)]"
+            className="tap-44 relative inline-flex h-9 items-center gap-1 rounded-full px-2 transition-colors hover:bg-[rgb(var(--text)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
           >
             <History className="h-5 w-5" />
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
@@ -129,7 +129,7 @@ export function ChatConversation({
           {creditsLoaded ? (
             <>{unlimited ? "∞" : balance} {translate("credits")}</>
           ) : (
-            <span aria-hidden className="inline-block h-3.5 w-12 animate-pulse rounded bg-[rgb(var(--muted)/0.5)]" />
+            <span aria-hidden className="skeleton inline-block h-3.5 w-12" />
           )}
           {creditsLoaded && (
             <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
@@ -138,7 +138,7 @@ export function ChatConversation({
       </div>
 
       {/* Desktop header */}
-      <div className="hidden items-center justify-between gap-3 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-6 py-3 md:flex">
+      <div className="hidden items-center justify-between gap-3 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-[var(--container-gutter)] py-3 md:flex">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)]">
             <Sparkles className="h-4 w-4 text-[rgb(var(--subtext))]" />
@@ -153,7 +153,7 @@ export function ChatConversation({
           {creditsLoaded ? (
             <>{unlimited ? "∞" : balance} {translate("credits")}</>
           ) : (
-            <span aria-hidden className="inline-block h-3.5 w-12 animate-pulse rounded bg-[rgb(var(--muted)/0.5)]" />
+            <span aria-hidden className="skeleton inline-block h-3.5 w-12" />
           )}
           {creditsLoaded && (
             <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
@@ -161,7 +161,7 @@ export function ChatConversation({
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 md:px-6">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-[var(--container-gutter)] py-4">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
           {/* Loading a past conversation from history — animated spinner while it fetches. */}
           {loadingMessages && (
@@ -232,7 +232,7 @@ export function ChatConversation({
                           recs: message.recommendations ?? []
                         })
                       }
-                      className="inline-flex h-8 self-start items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)]"
+                      className="relative tap-44 inline-flex h-8 self-start items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
                     >
                       <Download className="h-3.5 w-3.5" />
                       {translate("Download report")}

@@ -191,7 +191,7 @@ export function ComparePageClient({ selected, allShoes }: Props) {
       setTimeout(() => {
         setSaveOpen(false);
         setSaveMessage("");
-      }, 900);
+      }, 1600);
     } catch (error) {
       setSaveError(true);
       setSaveMessage(error instanceof Error ? error.message : "Failed to save.");
@@ -300,7 +300,7 @@ export function ComparePageClient({ selected, allShoes }: Props) {
                 {translate("Cancel")}
               </Button>
               <Button type="button" onClick={handleSave} disabled={saveBusy}>
-                {saveBusy ? translate("Saving...") : translate("Save")}
+                {saveBusy ? translate("Saving...") : saveError ? translate("Try again") : translate("Save")}
               </Button>
             </div>
           </div>
@@ -312,21 +312,17 @@ export function ComparePageClient({ selected, allShoes }: Props) {
 
 function EmptyState({ onOpenAdd, translate }: { onOpenAdd: () => void; translate: (value: string) => string }) {
   return (
-    <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-[rgb(var(--muted)/0.6)] bg-[rgb(var(--bg-elev)/0.36)] px-8 py-14 text-center">
-      <p className="t-eyebrow mb-3">{translate("Nothing to compare yet")}</p>
-      <h2 className="mb-2 text-2xl font-semibold tracking-[-0.02em]">
+    <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-[rgb(var(--muted)/0.6)] bg-[rgb(var(--bg-elev)/0.36)] px-8 py-12 text-center">
+      <p className="t-eyebrow mb-2">{translate("Nothing to compare yet")}</p>
+      <h2 className="mb-3 text-2xl font-semibold tracking-[-0.02em]">
         {translate("Build your head-to-head")}
       </h2>
       <p className="mb-6 text-sm soft-text">
         {translate("Add up to five shoes and see their radar, diff, and full spec sheet side by side.")}
       </p>
-      <button
-        type="button"
-        onClick={onOpenAdd}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-4 py-2 text-sm font-semibold text-[rgb(var(--bg))] transition hover:shadow-[0_8px_24px_rgb(var(--shadow)/0.3)]"
-      >
+      <Button onClick={onOpenAdd} className="gap-2">
         <Plus className="h-4 w-4" /> {translate("Add shoe")}
-      </button>
+      </Button>
     </div>
   );
 }

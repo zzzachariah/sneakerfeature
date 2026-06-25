@@ -588,7 +588,7 @@ function StackCard({
   const isExternal = /^https?:\/\//i.test(buttonUrl);
 
   return (
-    <div className="surface-card premium-border relative flex w-full flex-col overflow-hidden rounded-2xl p-5">
+    <div className="surface-card premium-border ios-glass-announce-stack-card relative flex w-full flex-col overflow-hidden rounded-2xl p-5">
       {dismissible ? (
         <button
           type="button"

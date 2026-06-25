@@ -32,7 +32,7 @@ export function Tooltip({
         className={cn(
           "pointer-events-none absolute top-1/2 z-[80] -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[0.72rem] font-medium text-[rgb(var(--text))]",
           "nav-dropdown-panel opacity-0 scale-95",
-          "transition-[opacity,transform] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+          "transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:duration-0",
           "group-hover/nav-tip:translate-x-0 group-hover/nav-tip:scale-100 group-hover/nav-tip:opacity-100",
           "group-[:has(:focus-visible)]/nav-tip:translate-x-0 group-[:has(:focus-visible)]/nav-tip:scale-100 group-[:has(:focus-visible)]/nav-tip:opacity-100",
           side === "left"

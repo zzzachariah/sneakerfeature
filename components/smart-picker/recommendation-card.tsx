@@ -19,8 +19,8 @@ type Props = {
 };
 
 function ProsCons({ label, items, tone }: { label: string; items: string[]; tone: "pro" | "con" }) {
-  const dot = tone === "pro" ? "bg-emerald-500" : "bg-rose-400";
-  const labelColor = tone === "pro" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-500 dark:text-rose-400";
+  const dot = tone === "pro" ? "bg-[rgb(var(--success))]" : "bg-[rgb(var(--error))]";
+  const labelColor = tone === "pro" ? "text-[rgb(var(--success))]" : "text-[rgb(var(--error))]";
   return (
     <section>
       <p className={`mb-1 text-[0.66rem] font-semibold uppercase tracking-[0.12em] ${labelColor}`}>{label}</p>
@@ -72,7 +72,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
             </Link>
             <label
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-[rgb(var(--text)/0.05)] px-1.5 py-1"
+              className="relative tap-44 inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-[rgb(var(--text)/0.05)] px-1.5 py-1"
               title={translate("Add to compare")}
             >
               <input
@@ -80,7 +80,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
                 checked={selected}
                 disabled={disabled && !selected}
                 onChange={onToggle}
-                className="h-3.5 w-3.5 accent-[rgb(var(--text))] disabled:opacity-40"
+                className="h-3.5 w-3.5 accent-[rgb(var(--text))] disabled:opacity-50"
                 aria-label={translate("Add to compare")}
               />
             </label>
@@ -127,8 +127,8 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
       )}
 
       {rec.radar.length > 0 && (
-        <div className="mt-2.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 pb-3 pt-2.5">
-          <p className="mb-1 text-center text-[0.62rem] font-semibold uppercase tracking-[0.18em] soft-text">
+        <div className="mt-2.5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-2.5">
+          <p className="mb-1 text-center text-[0.66rem] font-semibold uppercase tracking-[0.12em] soft-text">
             {translate("Performance")}
           </p>
           <div className="mx-auto w-full max-w-[230px]">

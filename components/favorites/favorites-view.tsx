@@ -5,6 +5,7 @@ import type { Route } from "next";
 import type { Shoe } from "@/lib/types";
 import { ShoeCard } from "@/components/home/shoe-card";
 import { SignInValue } from "@/components/auth/sign-in-value";
+import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: boolean }) {
@@ -17,24 +18,18 @@ export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: bo
       </h1>
 
       {!signedIn ? (
-        <div className="surface-card premium-border mx-auto max-w-sm rounded-2xl p-6 text-left">
+        <div className="surface-card premium-border ios-glass-favorites-empty relative mx-auto max-w-sm rounded-2xl p-6 text-left">
           <p className="mb-3 text-sm text-[rgb(var(--text)/0.82)]">{translate("Sign in to save shoes.")}</p>
           <SignInValue />
-          <Link
-            href={"/login?next=/favorites" as Route}
-            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[rgb(var(--text))] px-4 py-2.5 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
-          >
-            {translate("Log in")}
+          <Link href={"/login?next=/favorites" as Route} className="mt-5 block">
+            <Button className="w-full rounded-xl">{translate("Log in")}</Button>
           </Link>
         </div>
       ) : shoes.length === 0 ? (
-        <div className="surface-card premium-border mx-auto max-w-md rounded-2xl p-8 text-center">
+        <div className="surface-card premium-border ios-glass-favorites-empty relative mx-auto max-w-md rounded-2xl p-8 text-center">
           <p className="mb-4 text-sm soft-text">{translate("No saved shoes yet. Tap the heart on any shoe.")}</p>
-          <Link
-            href={"/" as Route}
-            className="inline-flex items-center justify-center rounded-xl bg-[rgb(var(--text))] px-4 py-2.5 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
-          >
-            {translate("Browse shoes")}
+          <Link href={"/" as Route} className="block">
+            <Button className="w-full rounded-xl">{translate("Browse shoes")}</Button>
           </Link>
         </div>
       ) : (

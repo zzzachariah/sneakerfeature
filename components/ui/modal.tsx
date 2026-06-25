@@ -1,8 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useId } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+import { DUR, EASE } from "@/lib/motion/constants";
 
 export function Modal({
   open,
@@ -24,7 +26,18 @@ export function Modal({
   maxWidthClass?: string;
 }) {
   const { translate } = useLocale();
+  const titleId = useId();
+  const reduce = useReducedMotion();
   useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (!open || !dismissible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, dismissible, onClose]);
 
   return (
     <AnimatePresence>
@@ -55,15 +68,18 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
             className={`glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full ${maxWidthClass} flex-col rounded-3xl`}
-            initial={{ y: 16, opacity: 0, scale: 0.985 }}
+            initial={{ y: reduce ? 0 : 16, opacity: 0, scale: reduce ? 1 : 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 8, opacity: 0, scale: 0.985 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            exit={{ y: reduce ? 0 : 8, opacity: 0, scale: reduce ? 1 : 0.985 }}
+            transition={{ duration: reduce ? 0 : DUR.slow, ease: EASE }}
             onClick={(e) => e.stopPropagation()}
           >
             {title ? (
-              <h2 className="shrink-0 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-6 pt-6 pb-4 text-lg font-semibold tracking-[0.01em]">
+              <h2 id={titleId} className="shrink-0 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-6 pt-6 pb-4 text-lg font-semibold tracking-[0.01em]">
                 {translate(title)}
               </h2>
             ) : null}

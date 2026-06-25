@@ -51,7 +51,7 @@ export function CheckinBadge({ canClaim, dailyAmount, onClaim, size = "sm" }: Pr
       aria-busy={busy}
       aria-label={translate("Claim daily bonus")}
       title={`${translate("Claim daily bonus")} (+${dailyAmount} ${translate("credits")})`}
-      className={`inline-flex items-center rounded-full border border-amber-400/60 bg-gradient-to-br from-amber-200/40 to-amber-500/30 font-semibold text-amber-700 shadow-[0_0_0_2px_rgb(251_191_36_/_0.15)] transition hover:from-amber-200/60 hover:to-amber-500/50 hover:shadow-[0_0_0_3px_rgb(251_191_36_/_0.25)] dark:text-amber-200 ${sizeClasses} ${busy ? "opacity-60" : "animate-[pulse_2.4s_ease-in-out_infinite]"} cursor-pointer select-none`}
+      className={`inline-flex items-center rounded-full border border-amber-400/60 bg-gradient-to-br from-amber-200/40 to-amber-500/30 font-semibold text-amber-700 shadow-[0_0_0_2px_rgb(251_191_36_/_0.15)] transition hover:from-amber-200/60 hover:to-amber-500/50 hover:shadow-[0_0_0_3px_rgb(251_191_36_/_0.25)] dark:text-amber-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${sizeClasses} ${busy ? "opacity-60" : "animate-[pulse_2.4s_ease-in-out_infinite]"} cursor-pointer select-none`}
     >
       {busy ? <Loader2 className={`${iconSize} animate-spin`} /> : <Coins className={iconSize} />}
       +{dailyAmount}

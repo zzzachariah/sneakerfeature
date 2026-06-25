@@ -62,16 +62,16 @@ function PairedLayout({
     <div>
       {/* Mobile header (<md) — single row with both shoe names */}
       <div className="grid grid-cols-2 gap-3 border-b border-[rgb(var(--muted)/0.18)] bg-[rgb(var(--surface)/0.4)] px-4 py-3 md:hidden">
-        <span className="truncate text-[0.7rem] font-semibold text-[rgb(var(--text)/0.85)]">{shoes[0].shoe_name}</span>
-        <span className="truncate text-right text-[0.7rem] font-semibold text-[rgb(var(--text)/0.85)]">
+        <span className="truncate text-[0.72rem] tracking-[-0.01em] font-semibold text-[rgb(var(--text)/0.85)]">{shoes[0].shoe_name}</span>
+        <span className="truncate text-right text-[0.72rem] tracking-[-0.01em] font-semibold text-[rgb(var(--text)/0.85)]">
           {shoes[1].shoe_name}
         </span>
       </div>
       {/* Desktop header (md+) */}
       <div className="hidden grid-cols-3 gap-4 border-b border-[rgb(var(--muted)/0.18)] bg-[rgb(var(--surface)/0.4)] px-6 py-3 md:grid">
-        <span className="text-[0.7rem] font-semibold text-[rgb(var(--text)/0.85)]">{shoes[0].shoe_name}</span>
+        <span className="text-[0.72rem] tracking-[-0.01em] font-semibold text-[rgb(var(--text)/0.85)]">{shoes[0].shoe_name}</span>
         <span className="t-eyebrow text-center">{translate("Spec")}</span>
-        <span className="text-right text-[0.7rem] font-semibold text-[rgb(var(--text)/0.85)]">
+        <span className="text-right text-[0.72rem] tracking-[-0.01em] font-semibold text-[rgb(var(--text)/0.85)]">
           {shoes[1].shoe_name}
         </span>
       </div>
@@ -127,7 +127,7 @@ function ColumnLayout({
         >
           <span className="t-eyebrow">{translate("Spec")}</span>
           {shoes.map((shoe) => (
-            <span key={shoe.id} className="text-[0.7rem] font-semibold text-[rgb(var(--text)/0.85)]">
+            <span key={shoe.id} className="text-[0.72rem] tracking-[-0.01em] font-semibold text-[rgb(var(--text)/0.85)]">
               {shoe.shoe_name}
             </span>
           ))}

@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Route } from "next";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { SearchX, SlidersHorizontal, X } from "lucide-react";
+import { ChevronUp, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
+import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
 
 const INITIAL_VISIBLE = 48;
 const VISIBLE_STEP = 36;
@@ -94,6 +96,17 @@ export function HomeFeed({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const activeFacetCount = facetCount(facets);
   const isMobile = useIsMobile();
+  // iOS-app only: collapse the search/filter toolbar by default, expose a
+  // glassy "Browse all shoes" entry pill that expands it, and a "Collapse"
+  // button to fold it back. Web and Android are unaffected — `isIosNative`
+  // starts false (so SSR / first paint matches web) and flips on mount inside
+  // the Capacitor iOS shell. iPad / large iOS keeps the desktop toolbar (the
+  // entry pill is `md:hidden` and the toolbar bar still lays out at md+), so
+  // we additionally gate on `isMobile` to make iPad behave like desktop.
+  const isIosNative = useIsIosNative();
+  const collapseEnabled = isIosNative && isMobile;
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolbarVisible = !collapseEnabled || toolsOpen;
 
   useEffect(() => {
     if (!active) return;
@@ -217,13 +230,17 @@ export function HomeFeed({
     setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
-  const revealStyle = (delay: number): React.CSSProperties => ({
-    opacity: revealed ? 1 : 0,
-    transform: revealed ? "none" : "translateY(14px)",
-    transition: "opacity 520ms cubic-bezier(0.22,1,0.36,1),transform 520ms cubic-bezier(0.22,1,0.36,1)",
-    transitionDelay: `${delay}ms`
-  });
+  const revealStyle = (delay: number): React.CSSProperties =>
+    reduce
+      ? { opacity: 1, transform: "none" }
+      : ({
+          opacity: revealed ? 1 : 0,
+          transform: revealed ? "none" : "translateY(14px)",
+          transition: "opacity 320ms var(--ease), transform 320ms var(--ease)",
+          transitionDelay: `${delay}ms`
+        });
 
+  const reduce = useReducedMotion();
   const personalizedDisabled = !persona;
 
   return (
@@ -241,20 +258,53 @@ export function HomeFeed({
                 // (right). On phones the field + button float on their own pill
                 // backgrounds — NO full-width frosted band wrapping them (it read
                 // as an ugly rectangle). The desktop filter bar keeps its bar.
-                "sticky top-[var(--top-nav-h)] z-30 mb-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[26px] md:backdrop-saturate-[180%]"
-              : "sticky top-0 z-10 -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.3)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[26px] md:backdrop-saturate-[180%]"
+                "sticky top-[var(--top-nav-h)] z-30 mb-3 py-2 md:-mx-[var(--container-gutter)] md:px-[var(--container-gutter)] md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.55)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[var(--glass-blur-md)] md:backdrop-saturate-[var(--glass-saturate)]"
+              : "sticky top-0 z-10 -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.55)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[var(--glass-blur-md)] md:backdrop-saturate-[var(--glass-saturate)]"
           }
           style={revealStyle(0)}
         >
-        <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end">
+        {collapseEnabled && !toolsOpen && (
+          <button
+            type="button"
+            onClick={() => setToolsOpen(true)}
+            aria-expanded={false}
+            className="glass glass-rim glass-clip glass-interactive relative flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
+          >
+            <Search className="h-4 w-4" />
+            {translate("Browse all shoes")}
+          </button>
+        )}
+        {collapseEnabled && toolsOpen && (
+          // Floating collapse pill: pinned to the sticky toolbar's top-right
+          // corner so it stays visible as the user scrolls. The toolbar wrapper
+          // reserves right padding so the Filters / Search button doesn't sit
+          // under it.
+          <button
+            type="button"
+            onClick={() => setToolsOpen(false)}
+            aria-label={translate("Collapse")}
+            className="glass glass-rim glass-clip glass-interactive absolute right-2 top-1.5 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:right-[calc(var(--container-gutter)+0.5rem)]"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        )}
+        <div
+          className={`flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end${
+            collapseEnabled && toolsOpen ? " pr-12" : ""
+          }`}
+          style={toolbarVisible ? undefined : { display: "none" }}
+        >
           <div
+            role="group"
+            aria-label={translate("Feed mode")}
             className="hidden md:inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]"
             data-tutorial="home-mode-toggle"
           >
             <button
               type="button"
               onClick={() => setMode("browse")}
-              className="px-3 py-1.5 text-[0.78rem] font-medium transition"
+              aria-pressed={mode === "browse"}
+              className="px-3 py-1.5 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgb(var(--text)/0.25)]"
               style={{
                 background: mode === "browse" ? "rgb(var(--text)/0.92)" : "transparent",
                 color: mode === "browse" ? "rgb(var(--bg))" : "rgb(var(--subtext))"
@@ -272,7 +322,9 @@ export function HomeFeed({
                 setMode("personalized");
               }}
               disabled={personalizedDisabled && !isLoggedIn}
-              className="border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1.5 text-[0.78rem] font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
+              aria-pressed={mode === "personalized"}
+              aria-disabled={personalizedDisabled}
+              className="border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1.5 text-[0.78rem] font-medium transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgb(var(--text)/0.25)]"
               style={{
                 background: mode === "personalized" ? "rgb(var(--text)/0.92)" : "transparent",
                 color: mode === "personalized" ? "rgb(var(--bg))" : "rgb(var(--subtext))"
@@ -288,7 +340,7 @@ export function HomeFeed({
           >
             <Select
               wrapperClassName="hidden md:block"
-              className="md:w-auto md:text-[0.77rem]"
+              className="md:w-auto md:text-[0.78rem]"
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
             >
@@ -302,14 +354,14 @@ export function HomeFeed({
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
+                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.78rem] md:shadow-none ios-glass-search-pill"
               />
               {searchDraft.trim().length > 0 && (
                 <button
                   type="button"
                   onClick={clearSearch}
                   aria-label={translate("Clear search")}
-                  className="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--muted)/0.35)] hover:text-[rgb(var(--text))] md:h-6 md:w-6"
+                  className="tap-44 absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--muted)/0.35)] hover:text-[rgb(var(--text))] md:h-6 md:w-6"
                 >
                   <X className="h-4 w-4 md:h-3.5 md:w-3.5" />
                 </button>
@@ -318,7 +370,7 @@ export function HomeFeed({
             <Button
               type="submit"
               variant="secondary"
-              className="h-11 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] md:shadow-none"
+              className="h-11 rounded-full px-4 text-sm shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:rounded-lg md:px-3 md:text-[0.78rem] md:shadow-none"
             >
               {translate("Search")}
             </Button>
@@ -326,9 +378,9 @@ export function HomeFeed({
               type="button"
               onClick={() => setFiltersOpen((v) => !v)}
               aria-expanded={filtersOpen}
-              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium leading-none transition md:h-9 md:rounded-lg md:px-3 md:text-[0.77rem] ${
+              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium leading-none transition md:h-9 md:rounded-lg md:px-3 md:text-[0.78rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
                 filtersOpen || activeFacetCount > 0
-                  ? "border-[rgb(var(--brand)/0.6)] text-[rgb(var(--brand))]"
+                  ? "bg-[rgb(var(--brand)/0.08)] border-[rgb(var(--brand)/0.6)] text-[rgb(var(--brand))]"
                   : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))]"
               }`}
             >
@@ -348,7 +400,7 @@ export function HomeFeed({
                   return !v;
                 });
               }}
-              className={`hidden md:inline-flex h-9 items-center justify-center rounded-md border px-3 text-[0.77rem] font-medium leading-none transition ${
+              className={`hidden md:inline-flex h-9 items-center justify-center rounded-md border px-3 text-[0.78rem] font-medium leading-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
                 compareMode
                   ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
                   : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)]"
@@ -360,14 +412,14 @@ export function HomeFeed({
               (selected.length > 1 ? (
                 <Link
                   href={`/compare?ids=${selected.join(",")}`}
-                  className="hidden md:inline-flex h-9 items-center justify-center rounded-md border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.77rem] font-semibold leading-none text-[rgb(var(--bg))] transition hover:opacity-90"
+                  className="hidden md:inline-flex h-9 items-center justify-center rounded-md border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold leading-none text-[rgb(var(--bg))] transition hover:opacity-90"
                 >
                   {translate("Compare")} ({selected.length})
                 </Link>
               ) : (
                 <span
                   aria-disabled="true"
-                  className="hidden md:inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.77rem] font-medium leading-none text-[rgb(var(--subtext))] opacity-60"
+                  className="hidden md:inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium leading-none text-[rgb(var(--subtext)/0.7)]"
                 >
                   {translate("Compare")}
                   {selected.length === 1 ? ` (${selected.length})` : ""}
@@ -393,9 +445,12 @@ export function HomeFeed({
           )}
 
           {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center soft-text">
-              <SearchX className="h-5 w-5" />
-              <p>{translate("No sneakers match this search.")}</p>
+            <div className="surface-card premium-border mx-auto mt-4 flex max-w-sm flex-col items-center gap-3 rounded-2xl p-8 text-center">
+              <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--text)/0.06)]">
+                <SearchX className="h-6 w-6 text-[rgb(var(--subtext))]" aria-hidden />
+              </span>
+              <p className="text-sm font-medium text-[rgb(var(--text))]">{translate("No sneakers match this search.")}</p>
+              <p className="text-xs soft-text">{translate("Try broader keywords or remove one filter.")}</p>
               <button
                 type="button"
                 onClick={() => {
@@ -405,7 +460,7 @@ export function HomeFeed({
                   setFacets(EMPTY_FACETS);
                   setOnlyFavorites(false);
                 }}
-                className="text-xs text-[rgb(var(--text))] underline-offset-2 hover:underline"
+                className="mt-1 inline-flex min-h-[44px] items-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] px-4 text-sm font-medium tracking-[-0.01em] text-[rgb(var(--text))] transition hover:border-[rgb(var(--text)/0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] md:min-h-[36px]"
               >
                 {translate("Clear filters")}
               </button>
@@ -432,15 +487,17 @@ export function HomeFeed({
             </>
           )}
 
-      <p className="mt-4 text-center text-[0.72rem] tracking-[0.02em] soft-text" style={revealStyle(320)}>
-        {translate("Showing")} {filtered.length} {translate("of")} {shoes.length}
-      </p>
+      {filtered.length > 0 && (
+        <p className="mt-4 text-center text-[0.72rem] tracking-[0.02em] tabular-nums soft-text" style={revealStyle(320)}>
+          {translate("Showing")} {filtered.length} {translate("of")} {shoes.length}
+        </p>
+      )}
       </div>
 
       {compareMode && selected.length > 1 && (
         <div
-          className="glass-strong glass-rim sticky flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between md:hidden"
-          style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 16px)" }}
+          className="glass-strong glass-rim glass-clip sticky flex flex-col gap-2 rounded-2xl p-3 sm:flex-row sm:items-center sm:justify-between md:hidden"
+          style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 20px)" }}
         >
           <p className="text-sm">
             {selected.length} {translate("shoes selected for compare")}

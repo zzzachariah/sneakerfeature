@@ -41,7 +41,7 @@ const CONF_STYLE: Record<Confidence, string> = {
 function ConfBadge({ level }: { level: Confidence }) {
   const { translate } = useLocale();
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${CONF_STYLE[level]}`}>
+    <span className={`rounded-full px-2 py-0.5 text-[0.67rem] font-medium ${CONF_STYLE[level]}`}>
       {translate(CONFIDENCE_LABEL[level])}
     </span>
   );
@@ -64,7 +64,7 @@ function ScaleBar({ value, average, leftLabel, rightLabel }: { value: number; av
           style={{ left: `${value * 100}%` }}
         />
       </div>
-      <div className="mt-1 flex justify-between text-[10px] soft-text">
+      <div className="mt-1 flex justify-between text-[0.67rem] soft-text">
         <span>{translate(leftLabel)}</span>
         <span>{translate(rightLabel)}</span>
       </div>
@@ -185,7 +185,7 @@ export function ResultStep({
             <p className="font-medium">{translate("Some shots were low quality")}</p>
             <p className="text-xs soft-text">{translate("Re-taking them will improve accuracy.")}</p>
           </div>
-          <Button variant="secondary" className="!min-h-[32px] px-2 text-xs" onClick={() => onRetake(result.needs_retake.map((r) => r.view))}>
+          <Button variant="secondary" className="px-3 text-xs" onClick={() => onRetake(result.needs_retake.map((r) => r.view))}>
             {translate("Re-take")}
           </Button>
         </div>
@@ -234,7 +234,7 @@ export function ResultStep({
               {TOE_ORDER.map((t: ToeShape) => (
                 <span
                   key={t}
-                  className={`rounded-md px-1 py-1 text-center text-[10px] capitalize ${
+                  className={`rounded-md px-1 py-1 text-center text-[0.67rem] capitalize ${
                     t === p.traits.toe_shape
                       ? "bg-[rgb(var(--text))] font-semibold text-[rgb(var(--bg))]"
                       : "bg-[rgb(var(--text)/0.06)] text-[rgb(var(--subtext))]"
@@ -283,7 +283,7 @@ export function ResultStep({
               </span>
             )}
           </div>
-          <span className="text-[10px] text-[rgb(var(--subtext)/0.7)]">sneakerfeature · {translate("Foot Scan")}</span>
+          <span className="text-[0.67rem] text-[rgb(var(--subtext)/0.7)]">sneakerfeature · {translate("Foot Scan")}</span>
         </div>
       </Card>
       </div>
@@ -338,7 +338,7 @@ export function ResultStep({
         </Button>
       </div>
       {saveState === "error" && (
-        <p className="text-xs text-red-500">{translate("Could not save. Please try again.")}</p>
+        <p className="text-xs text-[rgb(var(--error))]">{translate("Could not save. Please try again.")}</p>
       )}
 
       {/* off-screen polished card used for Save image / Share */}

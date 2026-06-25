@@ -68,7 +68,7 @@ export function LegalPageLayout({ doc }: { doc: BilingualLegalDoc }) {
         {/* Body */}
         <article className="surface-card premium-border mt-6 space-y-8 rounded-3xl p-6 md:space-y-10 md:p-10">
           {d.sections.map((s) => (
-            <section key={s.id} id={s.id} className="scroll-mt-24">
+            <section key={s.id} id={s.id} style={{ scrollMarginTop: "var(--top-nav-h)" }}>
               <h2 className="text-lg font-semibold tracking-[-0.01em] md:text-xl">
                 {s.heading}
               </h2>
