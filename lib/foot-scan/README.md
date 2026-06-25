@@ -54,8 +54,12 @@ A physical reference (A4 / card) was rejected as too much user burden. Instead:
 Every threshold lives in [`config.ts`](./config.ts) (`FOOT_SCAN_CONFIG`) — width
 bands, hallux/AHI bands, IMU tolerances, quality thresholds, sampling. Env vars:
 `FOOT_SCAN_API_KEY` (required), `FOOT_SCAN_MODEL` (defaults to
-`claude-haiku-4-5-20251001`), `FOOT_SCAN_SAMPLES`, `FOOT_SCAN_TEMPERATURE`. The
-packyapi base URL is hardcoded to `https://www.packyapi.com/v1`.
+`claude-haiku-4-5-20251001`), `FOOT_SCAN_SAMPLES`, `FOOT_SCAN_TEMPERATURE`.
+
+The foot scan calls packyapi's Anthropic-native gateway
+(`https://www.packyapi.com/v1/messages`, hardcoded) — NOT the OpenAI-compatible
+route that Smart Picker uses. The FOOT_SCAN_API_KEY must therefore be a packyapi
+token with the `anthropic` entitlement; an `openai`-only token will 403.
 
 ### Where the default bands come from (and their limits)
 
