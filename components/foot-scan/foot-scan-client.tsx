@@ -137,14 +137,22 @@ export function FootScanClient() {
       });
       const data = await res.json();
       if (!data?.ok) {
-        setErrorMsg(data?.message ?? translate("Analysis failed."));
+        const message = data?.message ?? translate("Analysis failed.");
+        const detail = typeof data?.detail === "string" ? data.detail : null;
+        console.error("[foot-scan] /api/foot-scan returned failure", {
+          httpStatus: res.status,
+          message,
+          detail
+        });
+        setErrorMsg(detail ? `${message}\n${detail}` : message);
         setStep("error");
         return;
       }
       setResult(data.result as FootScanResult);
       setScanId(data.scanId ?? null);
       setStep("result");
-    } catch {
+    } catch (e) {
+      console.error("[foot-scan] /api/foot-scan request threw", e);
       setErrorMsg(translate("Network error. Please try again."));
       setStep("error");
     }
@@ -251,7 +259,7 @@ export function FootScanClient() {
 
       {step === "error" && (
         <div className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="text-sm text-red-500">{errorMsg}</p>
+          <p className="whitespace-pre-line text-sm text-red-500">{errorMsg}</p>
           <Button variant="secondary" onClick={() => setStep("size")}>
             {translate("Try again")}
           </Button>

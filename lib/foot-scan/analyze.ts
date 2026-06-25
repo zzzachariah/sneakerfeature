@@ -248,7 +248,8 @@ async function runSample(
   content: OpenAI.Chat.Completions.ChatCompletionContentPart[],
   temperature: number,
   model: string,
-  hasOther: boolean
+  hasOther: boolean,
+  index: number
 ): Promise<SampleResult> {
   // The relay does not lift an OpenAI `system` turn into Anthropic's system
   // field, so everything rides in a single user turn.
@@ -258,6 +259,7 @@ async function runSample(
     messages: [{ role: "user" as const, content }]
   };
 
+  const t0 = Date.now();
   let raw: string;
   try {
     let completion;
@@ -268,6 +270,7 @@ async function runSample(
       // forward it. Retry once without it so a model upgrade can't break the
       // call — self-consistency then relies on the model's own default variance.
       if (e instanceof OpenAI.APIError && e.status === 400) {
+        console.warn("[foot-scan] sample retrying without temperature", { index, model, status: e.status });
         completion = await client.chat.completions.create(base);
       } else {
         throw e;
@@ -275,13 +278,21 @@ async function runSample(
     }
     raw = completion.choices[0]?.message?.content ?? "";
   } catch (e) {
-    return { ok: false, error: describePackyError(e) };
+    const error = describePackyError(e);
+    console.error("[foot-scan] sample API call failed", { index, model, durationMs: Date.now() - t0, error });
+    return { ok: false, error };
   }
 
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(extractJson(raw)) as Record<string, unknown>;
   } catch {
+    console.error("[foot-scan] sample JSON parse failed", {
+      index,
+      model,
+      durationMs: Date.now() - t0,
+      rawPreview: raw.slice(0, 300)
+    });
     return { ok: false, error: raw.slice(0, 300) };
   }
 
@@ -336,14 +347,27 @@ async function runSample(
 // --- Public entry point ----------------------------------------------------
 
 export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutcome> {
+  const envReport = getPackyEnvReport(FOOT_SCAN_CLIENT_ENV);
   const client = createPackyClient(FOOT_SCAN_CLIENT_ENV);
   if (!client) {
+    const detail = describePackyEnvProblem(envReport, FOOT_SCAN_CLIENT_ENV);
+    console.error("[foot-scan] Packy client not configured", { envReport, detail });
     return {
       ok: false,
       error: "AI service is not configured.",
-      detail: describePackyEnvProblem(getPackyEnvReport(FOOT_SCAN_CLIENT_ENV), FOOT_SCAN_CLIENT_ENV)
+      detail
     };
   }
+  console.info("[foot-scan] analyze start", {
+    primaryModel: VISION_MODEL,
+    ensembleModel: VISION_MODEL_2 || null,
+    sampleCount: SAMPLE_COUNT,
+    maxSamples: MAX_SAMPLES,
+    temperature: SAMPLE_TEMPERATURE,
+    envReport,
+    priorCount: input.priors?.length ?? 0,
+    hasOther: Boolean(input.images.top_other)
+  });
 
   const language = input.locale === "zh" ? "Simplified Chinese" : "English";
   const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
@@ -374,21 +398,40 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
   const runBatch = (n: number, startIndex: number) =>
     Promise.all(
       Array.from({ length: n }, (_, i) =>
-        runSample(client, content, temperature, models[(startIndex + i) % models.length], hasOther)
+        runSample(
+          client,
+          content,
+          temperature,
+          models[(startIndex + i) % models.length],
+          hasOther,
+          startIndex + i
+        )
       )
     );
 
+  // Collect successes; keep ALL error strings so the final failure detail shows
+  // every distinct reason, not just the last one (which often masks a transient
+  // success-then-fail mix).
+  const allErrors: string[] = [];
   const collect = (results: SampleResult[], into: Sample[]) => {
     let err = "";
     for (const r of results) {
       if (r.ok) into.push(r.sample);
-      else err = r.error;
+      else {
+        err = r.error;
+        allErrors.push(r.error);
+      }
     }
     return err;
   };
 
   const samples: Sample[] = [];
   let lastError = collect(await runBatch(SAMPLE_COUNT, 0), samples);
+  console.info("[foot-scan] initial batch done", {
+    requested: SAMPLE_COUNT,
+    succeeded: samples.length,
+    failed: SAMPLE_COUNT - samples.length
+  });
 
   // Adaptive top-up: if the first reads disagree on the width ratio (the headline
   // metric), spend a few more reads to settle it — but only up to maxCount.
@@ -397,12 +440,22 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     const spread = ratios.length >= 2 ? Math.max(...ratios) - Math.min(...ratios) : 0;
     if (spread > FOOT_SCAN_CONFIG.sampling.expandRatioSpread) {
       const extra = MAX_SAMPLES - samples.length;
+      console.info("[foot-scan] adaptive top-up triggered", { spread, extra, totalAfter: samples.length + extra });
       lastError = collect(await runBatch(extra, samples.length), samples) || lastError;
     }
   }
 
   if (!samples.length) {
-    return { ok: false, error: "Analysis request failed.", detail: lastError || undefined };
+    const detail = allErrors.length
+      ? `All ${allErrors.length} read(s) failed. Errors: ${Array.from(new Set(allErrors)).join(" | ")}`
+      : lastError || undefined;
+    console.error("[foot-scan] all samples failed", {
+      attempts: allErrors.length,
+      primaryModel: VISION_MODEL,
+      ensembleModel: VISION_MODEL_2 || null,
+      uniqueErrors: Array.from(new Set(allErrors))
+    });
+    return { ok: false, error: "Analysis request failed.", detail };
   }
 
   const sizes = {
