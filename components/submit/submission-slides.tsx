@@ -184,7 +184,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
               />
             </div>
           </div>
-          <div className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)] p-3">
+          <div className="relative ios-glass-submit-humancheck rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)] p-3">
             <HumanCheck action="submission" onToken={onToken} />
           </div>
           <div className="flex flex-col items-stretch gap-3 pt-1 sm:flex-row sm:items-center">

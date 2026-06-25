@@ -327,7 +327,7 @@ function PlatformTile({
       }}
       whileHover={reduce ? undefined : { y: -3, scale: 1.015 }}
       whileTap={reduce ? undefined : { scale: 0.98 }}
-      className={`group relative overflow-hidden rounded-3xl border p-6 text-left transition-colors ${
+      className={`group relative overflow-hidden rounded-3xl border p-6 text-left transition-colors ios-glass-platform-tile ${
         recommended
           ? "border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--bg-elev)/0.96)]"
           : "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.92)] hover:border-[rgb(var(--text)/0.22)]"
@@ -830,7 +830,7 @@ function PrimaryCTA({
 
 function Steps({ title, steps }: { title: string; steps: string[] }) {
   return (
-    <div className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--bg-elev)/0.6)] p-4">
+    <div className="relative ios-glass-download-steps rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--bg-elev)/0.6)] p-4">
       <h4 className="text-[0.7rem] font-semibold uppercase tracking-[0.14em] text-[rgb(var(--text)/0.55)]">
         {title}
       </h4>
