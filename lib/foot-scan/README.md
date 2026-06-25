@@ -15,10 +15,9 @@ guided shot                   vision model reads each photo and POINTS at
  ├ blur/exposure pre-check      ├ weighted per-point median over N reads → one
  └ clean canvas re-encode       │   consensus set (drops degenerate reads)
         │                       ├ adaptive top-up reads when they disagree
-        ▼                       ├ optional 2-model ensemble (FOOT_SCAN_MODEL_2)
-   POST images + tilt           ├ IMU de-tilt + gross-angle gate (geometry.ts)
-   (+ recent scans as priors)   ├ width W/L, hallux d/h, instep AHI (geometry.ts)
-                                ├ anatomical-plausibility + divergence checks
+        ▼                       ├ IMU de-tilt + gross-angle gate (geometry.ts)
+   POST images + tilt           ├ width W/L, hallux d/h, instep AHI (geometry.ts)
+   (+ recent scans as priors)   ├ anatomical-plausibility + divergence checks
                                 ├ cross-session fusion + L/R corroboration
                                 └ classify + confidence (classify.ts/config.ts)
 ```
@@ -53,9 +52,10 @@ A physical reference (A4 / card) was rejected as too much user burden. Instead:
 ## Tuning
 
 Every threshold lives in [`config.ts`](./config.ts) (`FOOT_SCAN_CONFIG`) — width
-bands, hallux/AHI bands, IMU tolerances, quality thresholds, sampling. Env
-overrides: `FOOT_SCAN_MODEL`, `FOOT_SCAN_MODEL_2` (ensemble), `FOOT_SCAN_SAMPLES`,
-`FOOT_SCAN_TEMPERATURE`, `FOOT_SCAN_API_KEY` / `FOOT_SCAN_BASE_URL`.
+bands, hallux/AHI bands, IMU tolerances, quality thresholds, sampling. Env vars:
+`FOOT_SCAN_API_KEY` (required), `FOOT_SCAN_MODEL` (defaults to
+`claude-haiku-4-5-20251001`), `FOOT_SCAN_SAMPLES`, `FOOT_SCAN_TEMPERATURE`. The
+packyapi base URL is hardcoded to `https://www.packyapi.com/v1`.
 
 ### Where the default bands come from (and their limits)
 
