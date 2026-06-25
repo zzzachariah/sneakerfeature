@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getFootScanContext } from "@/lib/foot-scan/access";
 import { analyzeFootScan } from "@/lib/foot-scan/analyze";
-import { listScans, saveScan } from "@/lib/foot-scan/store";
+import { buildFootProfile, listScans, saveFootProfile, saveScan } from "@/lib/foot-scan/store";
 
 // Node runtime (OpenAI SDK + Supabase admin); never cached — per-user and
 // side-effecting.
@@ -112,13 +113,29 @@ export async function POST(request: Request) {
 
   // Store derived results (never the photos) for history; non-fatal if it fails.
   const scanId = await saveScan(ctx.userId, outcome.result);
+
+  // Auto-promote to the player profile when the scan is actually usable —
+  // skip on results that are about to trigger the "all photos unusable, please
+  // retake" gate, so we don't overwrite a good prior profile with garbage.
+  const usable =
+    outcome.result.primary.measurements.width_ratio !== null &&
+    outcome.result.needs_retake.length < 3;
+  let profileSaved = false;
+  if (usable) {
+    const profile = buildFootProfile(outcome.result, new Date().toISOString());
+    profileSaved = await saveFootProfile(ctx.userId, profile);
+    if (profileSaved) revalidatePath("/", "layout");
+  }
+
   console.info("[foot-scan] analysis ok", {
     userId: ctx.userId,
     durationMs: Date.now() - t0,
     scanId,
+    profileSaved,
+    usable,
     widthClass: outcome.result.primary.traits.width,
     widthRatio: outcome.result.primary.measurements.width_ratio,
     widthConf: outcome.result.primary.confidence.width
   });
-  return NextResponse.json({ ok: true, result: outcome.result, scanId });
+  return NextResponse.json({ ok: true, result: outcome.result, scanId, profileSaved });
 }

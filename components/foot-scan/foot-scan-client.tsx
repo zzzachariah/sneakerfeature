@@ -4,7 +4,7 @@
 //   checklist → size anchor → guided capture (3-4 shots) → analyse → report.
 
 import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { getDepthSupport } from "@/lib/native/foot-scan-native";
@@ -70,7 +70,15 @@ const SHOTS: Record<ViewId, ShotConfig> = {
   }
 };
 
-type Step = "checklist" | "size" | "capture" | "analyzing" | "result" | "error" | "depth_beta";
+type Step =
+  | "checklist"
+  | "size"
+  | "capture"
+  | "analyzing"
+  | "result"
+  | "retake_required"
+  | "error"
+  | "depth_beta";
 
 export function FootScanClient() {
   const { translate, locale } = useLocale();
@@ -82,6 +90,7 @@ export function FootScanClient() {
   const [metas, setMetas] = useState<Partial<Record<ViewId, CaptureMeta>>>({});
   const [result, setResult] = useState<FootScanResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
   // Depth-sensor capability for the Beta high-precision path (false until proven
   // — web / no native plugin / unsupported device all stay false).
@@ -148,9 +157,21 @@ export function FootScanClient() {
         setStep("error");
         return;
       }
-      setResult(data.result as FootScanResult);
+      const r = data.result as FootScanResult;
+      setResult(r);
       setScanId(data.scanId ?? null);
-      setStep("result");
+      setProfileSaved(Boolean(data.profileSaved));
+      // Full-fail gate: if the model couldn't extract a usable width OR every
+      // view was flagged as bad quality, we never show the report card — the
+      // numbers would be guesses. Send the user straight back to capture.
+      const totalViews = Object.values(caps).filter(Boolean).length;
+      const noWidth = r.primary.measurements.width_ratio === null;
+      const allBad = r.needs_retake.length >= totalViews;
+      if (noWidth || allBad) {
+        setStep("retake_required");
+      } else {
+        setStep("result");
+      }
     } catch (e) {
       console.error("[foot-scan] /api/foot-scan request threw", e);
       setErrorMsg(translate("Network error. Please try again."));
@@ -185,8 +206,20 @@ export function FootScanClient() {
     setMetas({});
     setResult(null);
     setScanId(null);
+    setProfileSaved(false);
     setShotIndex(0);
     setStep("checklist");
+  }
+
+  function restartCapture() {
+    if (!choice) {
+      reset();
+      return;
+    }
+    setCaptures({});
+    setMetas({});
+    setShotIndex(0);
+    setStep("capture");
   }
 
   const currentView = shotList[shotIndex];
@@ -254,7 +287,39 @@ export function FootScanClient() {
       )}
 
       {step === "result" && result && (
-        <ResultStep result={result} scanId={scanId} onRestart={reset} onRetake={handleRetake} />
+        <ResultStep
+          result={result}
+          scanId={scanId}
+          profileSaved={profileSaved}
+          onRestart={reset}
+          onRetake={handleRetake}
+        />
+      )}
+
+      {step === "retake_required" && (
+        <div className="flex flex-col items-center gap-5 py-12 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-amber-500/15 text-amber-500">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-lg font-semibold tracking-tight">
+              {translate("We couldn't read your foot")}
+            </h2>
+            <p className="px-4 text-sm soft-text">
+              {translate(
+                "Either the photos don't show your foot clearly, or the lighting/angle made the outline unreadable. Please re-take all the photos."
+              )}
+            </p>
+          </div>
+          <div className="flex w-full max-w-xs flex-col gap-2">
+            <Button onClick={restartCapture} className="w-full">
+              {translate("Re-take all photos")}
+            </Button>
+            <Button variant="ghost" onClick={reset} className="w-full">
+              {translate("Start over")}
+            </Button>
+          </div>
+        </div>
       )}
 
       {step === "error" && (
