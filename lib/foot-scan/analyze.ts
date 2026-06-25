@@ -77,6 +77,17 @@ function createFootScanClient(): OpenAI | null {
   return new OpenAI({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
 }
 
+// Non-secret fingerprint of the key actually loaded by this deployment, so a
+// 403 vs the packyapi dashboard can be cross-checked ("is this the token I set
+// in Vercel?") without ever exposing the full secret.
+function footScanKeyFingerprint(): { fingerprint: string; length: number } | null {
+  const raw = process.env.FOOT_SCAN_API_KEY?.trim();
+  if (!raw) return null;
+  const head = raw.slice(0, 6);
+  const tail = raw.length > 10 ? raw.slice(-4) : "";
+  return { fingerprint: tail ? `${head}…${tail}` : head, length: raw.length };
+}
+
 function describeFootScanEnvProblem(): string {
   const raw = process.env.FOOT_SCAN_API_KEY;
   const state = raw === undefined ? "未找到" : raw.trim() ? "正常" : "已设置但值为空";
@@ -353,6 +364,7 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
   console.info("[foot-scan] analyze start", {
     model: VISION_MODEL,
     baseURL: FOOT_SCAN_BASE_URL,
+    apiKey: footScanKeyFingerprint(),
     sampleCount: SAMPLE_COUNT,
     maxSamples: MAX_SAMPLES,
     temperature: SAMPLE_TEMPERATURE,
@@ -434,6 +446,7 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     console.error("[foot-scan] all samples failed", {
       attempts: allErrors.length,
       model: VISION_MODEL,
+      apiKey: footScanKeyFingerprint(),
       uniqueErrors: Array.from(new Set(allErrors))
     });
     return { ok: false, error: "Analysis request failed.", detail };
