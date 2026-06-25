@@ -17,20 +17,12 @@
 //     tilt is corrected out of the width ratio (correctRatioForTilt) — recovering
 //     the part of the accuracy a paper/card reference would have given, without
 //     asking the user to find one.
-//  4. Optional model ensemble. If FOOT_SCAN_MODEL_2 is set, reads are split
-//     across two vision models so their errors decorrelate.
 //
 // Classification + the mm conversion stay in code (classify.ts / config.ts) so
 // the boundaries remain explicit and tunable against a validation set.
 
 import OpenAI from "openai";
-import {
-  createPackyClient,
-  getPackyEnvReport,
-  describePackyEnvProblem,
-  describePackyError,
-  type PackyClientOptions
-} from "@/lib/ai/packy-client";
+import { describePackyError } from "@/lib/ai/packy-client";
 import {
   widthClassFromRatio,
   widthMmFromRatio,
@@ -72,26 +64,27 @@ import {
 // A stronger vision model markedly helps the fine visual calls (toe boundaries,
 // instep doming, landmark placement). Set FOOT_SCAN_MODEL to the exact model
 // string your packyapi account exposes; falls back to the pinned default below
-// when unset — intentionally independent of PACKY_MODEL so the recommender's
-// text model can change without touching foot scan accuracy.
-const VISION_MODEL =
-  process.env.FOOT_SCAN_MODEL?.trim() ||
-  process.env.PACKYAPI_VISION_MODEL?.trim() ||
-  process.env.PACKY_API_VISION_MODEL?.trim() ||
-  "claude-haiku-4-5-20251001";
+// when unset.
+const VISION_MODEL = process.env.FOOT_SCAN_MODEL?.trim() || "claude-haiku-4-5-20251001";
 
-// Optional second vision model for an ensemble. When set, reads alternate
-// between the two models so correlated single-model errors wash out. Leaving it
-// unset keeps the single-model behaviour unchanged.
-const VISION_MODEL_2 = process.env.FOOT_SCAN_MODEL_2?.trim() || "";
+// The OpenAI-compatible endpoint for packyapi. Hardcoded so the only thing the
+// deployment has to configure is FOOT_SCAN_API_KEY.
+const FOOT_SCAN_BASE_URL = "https://www.packyapi.com/v1";
 
-// packyapi can issue a SEPARATE key per model, so the foot scan can use its own
-// key/endpoint: FOOT_SCAN_API_KEY (and optionally FOOT_SCAN_BASE_URL) are
-// preferred when set, otherwise it falls back to the shared PACKYAPI_* config.
-const FOOT_SCAN_CLIENT_ENV: PackyClientOptions = {
-  apiKeyEnv: ["FOOT_SCAN_API_KEY"],
-  baseURLEnv: ["FOOT_SCAN_BASE_URL"]
-};
+function createFootScanClient(): OpenAI | null {
+  const apiKey = process.env.FOOT_SCAN_API_KEY?.trim();
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
+}
+
+function describeFootScanEnvProblem(): string {
+  const raw = process.env.FOOT_SCAN_API_KEY;
+  const state = raw === undefined ? "未找到" : raw.trim() ? "正常" : "已设置但值为空";
+  return (
+    `AI 服务未配置：FOOT_SCAN_API_KEY（${state}）。` +
+    `请在 Vercel 的环境变量中设置 FOOT_SCAN_API_KEY,然后 Redeploy 才会生效。`
+  );
+}
 
 // Initial reads per scan (env overrides the config default). The adaptive pass
 // may top this up to maxCount when the first reads disagree.
@@ -347,11 +340,10 @@ async function runSample(
 // --- Public entry point ----------------------------------------------------
 
 export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutcome> {
-  const envReport = getPackyEnvReport(FOOT_SCAN_CLIENT_ENV);
-  const client = createPackyClient(FOOT_SCAN_CLIENT_ENV);
+  const client = createFootScanClient();
   if (!client) {
-    const detail = describePackyEnvProblem(envReport, FOOT_SCAN_CLIENT_ENV);
-    console.error("[foot-scan] Packy client not configured", { envReport, detail });
+    const detail = describeFootScanEnvProblem();
+    console.error("[foot-scan] client not configured", { detail });
     return {
       ok: false,
       error: "AI service is not configured.",
@@ -359,12 +351,11 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     };
   }
   console.info("[foot-scan] analyze start", {
-    primaryModel: VISION_MODEL,
-    ensembleModel: VISION_MODEL_2 || null,
+    model: VISION_MODEL,
+    baseURL: FOOT_SCAN_BASE_URL,
     sampleCount: SAMPLE_COUNT,
     maxSamples: MAX_SAMPLES,
     temperature: SAMPLE_TEMPERATURE,
-    envReport,
     priorCount: input.priors?.length ?? 0,
     hasOther: Boolean(input.images.top_other)
   });
@@ -391,21 +382,12 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
 
   const hasOther = Boolean(input.images.top_other);
 
-  // Models to cycle through across the reads (ensemble when a 2nd is configured).
-  const models = VISION_MODEL_2 ? [VISION_MODEL, VISION_MODEL_2] : [VISION_MODEL];
-  const temperature = SAMPLE_COUNT > 1 || models.length > 1 ? SAMPLE_TEMPERATURE : 0;
+  const temperature = SAMPLE_COUNT > 1 ? SAMPLE_TEMPERATURE : 0;
 
   const runBatch = (n: number, startIndex: number) =>
     Promise.all(
       Array.from({ length: n }, (_, i) =>
-        runSample(
-          client,
-          content,
-          temperature,
-          models[(startIndex + i) % models.length],
-          hasOther,
-          startIndex + i
-        )
+        runSample(client, content, temperature, VISION_MODEL, hasOther, startIndex + i)
       )
     );
 
@@ -451,8 +433,7 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
       : lastError || undefined;
     console.error("[foot-scan] all samples failed", {
       attempts: allErrors.length,
-      primaryModel: VISION_MODEL,
-      ensembleModel: VISION_MODEL_2 || null,
+      model: VISION_MODEL,
       uniqueErrors: Array.from(new Set(allErrors))
     });
     return { ok: false, error: "Analysis request failed.", detail };
