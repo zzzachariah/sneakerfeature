@@ -40,17 +40,26 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  const t0 = Date.now();
   const ctx = await getFootScanContext();
-  if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
+  if (!ctx) {
+    console.warn("[foot-scan] access denied (no context / not permitted)");
+    return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
+  }
 
   let body: unknown;
   try {
     body = await request.json();
   } catch {
+    console.warn("[foot-scan] invalid JSON body", { userId: ctx.userId });
     return NextResponse.json({ ok: false, message: "Invalid JSON body." }, { status: 400 });
   }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
+    console.warn("[foot-scan] schema validation failed", {
+      userId: ctx.userId,
+      issues: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message }))
+    });
     return NextResponse.json(
       { ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." },
       { status: 400 }
@@ -58,6 +67,19 @@ export async function POST(request: Request) {
   }
 
   const { primarySide, footLengthMm, locale, images, tilt } = parsed.data;
+  console.info("[foot-scan] request accepted", {
+    userId: ctx.userId,
+    primarySide,
+    footLengthMm,
+    locale: locale ?? null,
+    hasTopOther: Boolean(images.top_other),
+    imageBytes: {
+      top: images.top.length,
+      oblique: images.oblique.length,
+      side: images.side.length,
+      top_other: images.top_other?.length ?? 0
+    }
+  });
 
   // Recent scans (fetched BEFORE this one is saved) feed cross-session fusion:
   // the same foot is an unchanging quantity, so past width reads shrink variance.
@@ -79,10 +101,24 @@ export async function POST(request: Request) {
   });
 
   if (!outcome.ok) {
+    console.error("[foot-scan] analysis failed", {
+      userId: ctx.userId,
+      durationMs: Date.now() - t0,
+      error: outcome.error,
+      detail: outcome.detail ?? null
+    });
     return NextResponse.json({ ok: false, message: outcome.error, detail: outcome.detail }, { status: 502 });
   }
 
   // Store derived results (never the photos) for history; non-fatal if it fails.
   const scanId = await saveScan(ctx.userId, outcome.result);
+  console.info("[foot-scan] analysis ok", {
+    userId: ctx.userId,
+    durationMs: Date.now() - t0,
+    scanId,
+    widthClass: outcome.result.primary.traits.width,
+    widthRatio: outcome.result.primary.measurements.width_ratio,
+    widthConf: outcome.result.primary.confidence.width
+  });
   return NextResponse.json({ ok: true, result: outcome.result, scanId });
 }
