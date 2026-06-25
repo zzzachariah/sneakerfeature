@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { Anchor, ArrowRight, Check, Cloud, Footprints, Hand, Info, Magnet, X, Zap } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -474,7 +475,7 @@ function FootTypeSection({
   onCloseModal
 }: {
   profile: FootProfile | null;
-  onScanHref: string;
+  onScanHref: Route;
   onCloseModal: () => void;
 }) {
   const { translate } = useLocale();

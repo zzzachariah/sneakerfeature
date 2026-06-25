@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Route } from "next";
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { SearchX, SlidersHorizontal, X } from "lucide-react";
+import { ChevronUp, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
+import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
 
 const INITIAL_VISIBLE = 48;
 const VISIBLE_STEP = 36;
@@ -94,6 +95,17 @@ export function HomeFeed({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const activeFacetCount = facetCount(facets);
   const isMobile = useIsMobile();
+  // iOS-app only: collapse the search/filter toolbar by default, expose a
+  // glassy "Browse all shoes" entry pill that expands it, and a "Collapse"
+  // button to fold it back. Web and Android are unaffected — `isIosNative`
+  // starts false (so SSR / first paint matches web) and flips on mount inside
+  // the Capacitor iOS shell. iPad / large iOS keeps the desktop toolbar (the
+  // entry pill is `md:hidden` and the toolbar bar still lays out at md+), so
+  // we additionally gate on `isMobile` to make iPad behave like desktop.
+  const isIosNative = useIsIosNative();
+  const collapseEnabled = isIosNative && isMobile;
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolbarVisible = !collapseEnabled || toolsOpen;
 
   useEffect(() => {
     if (!active) return;
@@ -246,7 +258,21 @@ export function HomeFeed({
           }
           style={revealStyle(0)}
         >
-        <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end">
+        {collapseEnabled && !toolsOpen && (
+          <button
+            type="button"
+            onClick={() => setToolsOpen(true)}
+            aria-expanded={false}
+            className="glass glass-rim glass-clip glass-interactive relative flex w-full items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium text-[rgb(var(--text))]"
+          >
+            <Search className="h-4 w-4" />
+            {translate("Browse all shoes")}
+          </button>
+        )}
+        <div
+          className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end"
+          style={toolbarVisible ? undefined : { display: "none" }}
+        >
           <div
             className="hidden md:inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]"
             data-tutorial="home-mode-toggle"
@@ -340,6 +366,17 @@ export function HomeFeed({
                 </span>
               )}
             </button>
+            {collapseEnabled && (
+              <button
+                type="button"
+                onClick={() => setToolsOpen(false)}
+                aria-label={translate("Collapse")}
+                className="glass glass-rim glass-clip glass-interactive relative inline-flex h-11 items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium text-[rgb(var(--subtext))]"
+              >
+                <ChevronUp className="h-4 w-4" />
+                {translate("Collapse")}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
