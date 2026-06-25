@@ -5,13 +5,14 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Check, Share2, RotateCcw, Sparkles, ImageDown } from "lucide-react";
+import { AlertTriangle, Check, Share2, RotateCcw, Sparkles, ImageDown, UserCircle2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { triggerDownload, safeFilename } from "@/lib/card/capture";
 import { shareContent } from "@/lib/native/native";
 import { haptics } from "@/lib/native/haptics";
+import { usePersona } from "@/components/preferences/persona-provider";
 import { ReportCard } from "@/components/foot-scan/report-card";
 import {
   WIDTH_LABEL,
@@ -74,23 +75,31 @@ function ScaleBar({ value, average, leftLabel, rightLabel }: { value: number; av
 export function ResultStep({
   result,
   scanId,
+  profileSaved,
   onRestart,
   onRetake
 }: {
   result: FootScanResult;
   scanId: string | null;
+  profileSaved: boolean;
   onRestart: () => void;
   onRetake: (views: ViewId[]) => void;
 }) {
   const { translate } = useLocale();
   const cardRef = useRef<HTMLDivElement>(null);
   const reportRef = useRef<HTMLDivElement>(null);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  // Server auto-saves the profile after a usable scan; this is a manual fallback
+  // for the (rare) case the server-side save failed.
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
+    profileSaved ? "saved" : "idle"
+  );
   const [sharing, setSharing] = useState(false);
   const [imaging, setImaging] = useState(false);
+  const { openModal: openPersonaModal, isLoggedIn } = usePersona();
 
   const p = result.primary;
   const m = p.measurements;
+  const saved = saveState === "saved";
 
   async function saveToProfile() {
     if (!scanId) return;
@@ -156,7 +165,19 @@ export function ResultStep({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* targeted re-shoot prompt */}
+      {/* auto-saved confirmation — anchors the player-profile CTA below */}
+      {saved && isLoggedIn && (
+        <div className="flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/8 px-3 py-1.5 text-xs">
+          <Check className="h-3.5 w-3.5 text-emerald-500" />
+          <span className="font-medium text-emerald-700 dark:text-emerald-400">
+            {translate("Saved to your player profile")}
+          </span>
+        </div>
+      )}
+
+      {/* targeted re-shoot prompt — shown when SOME (but not all) shots were
+          flagged; the all-flagged case skips this whole screen via the
+          retake_required step in foot-scan-client. */}
       {result.needs_retake.length > 0 && (
         <div className="flex items-start gap-2 rounded-xl bg-amber-500/12 p-3 text-sm">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
@@ -279,15 +300,24 @@ export function ResultStep({
 
       {/* actions */}
       <div className="grid grid-cols-2 gap-2">
-        <Button
-          variant="primary"
-          className="gap-2"
-          disabled={!scanId || saveState === "saving" || saveState === "saved"}
-          onClick={saveToProfile}
-        >
-          {saveState === "saved" ? <Check className="h-4 w-4" /> : null}
-          {translate(saveState === "saved" ? "Saved to profile" : saveState === "saving" ? "Saving…" : "Save to my profile")}
-        </Button>
+        {/* Primary CTA: open the player profile where the scan now lives.
+            Falls back to a manual save button if the server-side auto-save
+            failed (network/permissions/etc.). */}
+        {saved && isLoggedIn ? (
+          <Button variant="primary" className="col-span-2 gap-2" onClick={openPersonaModal}>
+            <UserCircle2 className="h-4 w-4" />
+            {translate("Open my player profile")}
+          </Button>
+        ) : (
+          <Button
+            variant="primary"
+            className="col-span-2 gap-2"
+            disabled={!scanId || saveState === "saving"}
+            onClick={saveToProfile}
+          >
+            {translate(saveState === "saving" ? "Saving…" : "Save to my player profile")}
+          </Button>
+        )}
         <Link href="/smart-picker" className="contents">
           <Button variant="secondary" className="w-full gap-2">
             <Sparkles className="h-4 w-4" />
@@ -302,7 +332,7 @@ export function ResultStep({
           <Share2 className="h-4 w-4" />
           {translate(sharing ? "Preparing…" : "Share")}
         </Button>
-        <Button variant="ghost" className="col-span-2 gap-2" onClick={onRestart}>
+        <Button variant="ghost" className="gap-2" onClick={onRestart}>
           <RotateCcw className="h-4 w-4" />
           {translate("Scan again")}
         </Button>
