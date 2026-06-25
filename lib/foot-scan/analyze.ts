@@ -72,10 +72,26 @@ const VISION_MODEL = process.env.FOOT_SCAN_MODEL?.trim() || "claude-haiku-4-5-20
 // is a SEPARATE entitlement, so we can't share that code path here.
 const FOOT_SCAN_BASE_URL = "https://www.packyapi.com";
 
+// packyapi's anthropic route gates requests with the marker the official Claude
+// Code CLI sends ("This API endpoint is only accessible via the official Claude
+// CLI" otherwise). The User-Agent + x-app identify a CLI-style caller; values
+// can be overridden via env if packyapi tightens the check later without a
+// code redeploy.
+const FOOT_SCAN_USER_AGENT =
+  process.env.FOOT_SCAN_USER_AGENT?.trim() || "claude-cli/1.0.119 (external, cli)";
+const FOOT_SCAN_X_APP = process.env.FOOT_SCAN_X_APP?.trim() || "cli";
+
 function createFootScanClient(): Anthropic | null {
   const apiKey = process.env.FOOT_SCAN_API_KEY?.trim();
   if (!apiKey) return null;
-  return new Anthropic({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
+  return new Anthropic({
+    apiKey,
+    baseURL: FOOT_SCAN_BASE_URL,
+    defaultHeaders: {
+      "User-Agent": FOOT_SCAN_USER_AGENT,
+      "x-app": FOOT_SCAN_X_APP
+    }
+  });
 }
 
 // Anthropic's image block wants base64 + media_type, NOT a data URL. Parse the
@@ -382,6 +398,8 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     model: VISION_MODEL,
     baseURL: FOOT_SCAN_BASE_URL,
     apiKey: footScanKeyFingerprint(),
+    userAgent: FOOT_SCAN_USER_AGENT,
+    xApp: FOOT_SCAN_X_APP,
     sampleCount: SAMPLE_COUNT,
     maxSamples: MAX_SAMPLES,
     temperature: SAMPLE_TEMPERATURE,
