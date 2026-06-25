@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { DUR, EASE } from "@/lib/motion/constants";
 import { ArrowRight } from "lucide-react";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
@@ -20,13 +21,12 @@ const CLIENT_TIMEOUT_MS = 12000;
 const SESSION_SYNC_TIMEOUT_MS = 5000;
 const AUTH_PREFIXES = ["/login", "/signup", "/register", "/forgot-password", "/reset-password"];
 
-const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
 const stagger = {
   animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } }
 };
 const fadeUp = {
   initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.42, ease } }
+  animate: { opacity: 1, y: 0, transition: { duration: DUR.slow, ease: EASE } }
 };
 
 function devLog(step: string, payload?: unknown) {
@@ -108,6 +108,7 @@ function useTiltHandlers() {
 
 export default function LoginPage() {
   const { translate } = useLocale();
+  const reduce = useReducedMotion();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
@@ -209,7 +210,7 @@ export default function LoginPage() {
         onSubmit={onSubmit}
         onPointerMove={tilt.onMove}
         onPointerLeave={tilt.onLeave}
-        initial="initial"
+        initial={reduce ? false : "initial"}
         animate="animate"
         variants={stagger}
         className="glass-card tilt-3d mx-auto w-full max-w-md space-y-5 p-5 md:p-8"
@@ -254,7 +255,7 @@ export default function LoginPage() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: 0.18, ease }}>
+          <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: DUR.fast, ease: EASE }}>
             <Button type="submit" className="shimmer-on-hover group h-11 w-full text-[0.95rem]" disabled={submitting}>
               <span className="relative z-10 inline-flex items-center gap-2">
                 {submitting ? translate("Signing in...") : translate("Sign in")}
@@ -273,7 +274,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2, ease }}
+              transition={{ duration: DUR.base, ease: EASE }}
             >
               <SneakerLoader compact label="Authenticating" />
             </motion.div>
@@ -284,7 +285,7 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.24, ease }}
+              transition={{ duration: DUR.base, ease: EASE }}
             >
               <FeedbackMessage message={message} isError={error} />
             </motion.div>

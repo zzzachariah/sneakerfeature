@@ -79,9 +79,9 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
         // Warm the detail route the moment a finger lands / pointer enters, so by
         // the time the tap completes the navigation is already in flight.
         onPointerEnter={() => router.prefetch(href)}
-        className="glass-lite block overflow-hidden rounded-2xl transition duration-[160ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)] active:scale-[0.985] active:bg-[rgb(var(--text)/0.06)]"
+        className="glass-lite block overflow-hidden rounded-2xl transition duration-[160ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)] active:scale-[0.985] active:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
       >
-        <div className="relative aspect-square w-full bg-white">
+        <div className="shoe-stage relative aspect-square w-full">
           <ShoeImage
             src={shoe.image_url}
             alt={shoe.shoe_name}
@@ -91,37 +91,14 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (
-            <span className="pop-in num-display absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow">
-              {matchScore}% {translate("match")}
+            <span className="pop-in absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow-[0_2px_8px_rgb(var(--shadow)/0.25)]">
+              <span className="num-display">{matchScore}%</span> {translate("match")}
             </span>
-          )}
-          {compareEnabled ? (
-            <label
-              onClick={(e) => e.stopPropagation()}
-              className="glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-md"
-            >
-              <input
-                type="checkbox"
-                checked={!!selected}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onToggleSelect?.();
-                }}
-                className="h-4 w-4 accent-[rgb(var(--text))]"
-                aria-label={translate("Compare")}
-              />
-            </label>
-          ) : (
-            <FavoriteButton
-              shoeId={shoe.id}
-              className="glass-lite absolute left-2 top-2 h-7 w-7 rounded-md opacity-90"
-              iconClassName="h-3.5 w-3.5"
-            />
           )}
         </div>
         <div className="p-3">
-          <div className="truncate text-sm font-semibold tracking-[-0.01em]">{shoe.shoe_name}</div>
-          <div className="mt-0.5 truncate text-[0.78rem] soft-text">{shoe.brand}</div>
+          <div className="truncate text-sm font-semibold tracking-[-0.01em] leading-[1.25]">{shoe.shoe_name}</div>
+          <div className="mt-0.5 truncate text-[0.78rem] soft-text leading-snug">{shoe.brand}</div>
           <div className="mt-1.5">
             <StarRatingSlot
               value={shoe.finalStars ?? null}
@@ -148,6 +125,30 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
         </div>
       </Link>
 
+      {compareEnabled ? (
+        <label
+          onClick={(e) => e.stopPropagation()}
+          className="tap-44 glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full"
+        >
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.();
+            }}
+            className="h-4 w-4 accent-[rgb(var(--text))]"
+            aria-label={translate("Compare")}
+          />
+        </label>
+      ) : (
+        <FavoriteButton
+          shoeId={shoe.id}
+          className="tap-44 glass-lite absolute left-2 top-2 h-7 w-7 rounded-full opacity-90"
+          iconClassName="h-3.5 w-3.5"
+        />
+      )}
+
       {hasReasons && (
         <button
           type="button"
@@ -157,7 +158,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             setWhyOpen((v) => !v);
           }}
           aria-label={translate("Why?")}
-          className="glass-lite absolute bottom-3 right-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgb(var(--text))] opacity-100 transition md:opacity-0 md:group-hover:opacity-100"
+          className="tap-44 glass-lite absolute bottom-3 right-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgb(var(--text))] opacity-100 transition md:opacity-0 md:group-hover:opacity-100"
         >
           <Info className="h-3.5 w-3.5" />
         </button>

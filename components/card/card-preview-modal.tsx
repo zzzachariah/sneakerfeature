@@ -1,6 +1,7 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { DUR, EASE } from "@/lib/motion/constants";
 import { Download, Share2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -28,6 +29,7 @@ type Props = {
 };
 
 export function CardPreviewModal({ open, onClose, mode }: Props) {
+  const reduce = useReducedMotion();
   const { translate } = useLocale();
   useBodyScrollLock(open);
   const [mounted, setMounted] = useState(false);
@@ -149,6 +151,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
+        transition={{ duration: reduce ? 0 : DUR.base, ease: EASE }}
         onClick={onClose}
       >
         <motion.div
@@ -157,10 +160,10 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           aria-modal
           className="liquid-glass-strong glass-rim glass-clip relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl"
           style={{ maxHeight: "calc(100dvh - 24px)" }}
-          initial={{ y: 18, opacity: 0, scale: 0.985 }}
+          initial={reduce ? { opacity: 0 } : { y: 18, opacity: 0, scale: 0.985 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
-          exit={{ y: 8, opacity: 0, scale: 0.985 }}
-          transition={{ duration: 0.22, ease: "easeOut" }}
+          exit={reduce ? { opacity: 0 } : { y: 8, opacity: 0, scale: 0.985 }}
+          transition={{ duration: reduce ? 0 : DUR.slow, ease: EASE }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 md:px-6 md:pt-5">

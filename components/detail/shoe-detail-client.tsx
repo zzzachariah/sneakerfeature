@@ -243,15 +243,18 @@ export function ShoeDetailClient({
           else router.push("/");
         }}
         aria-label={translate("Back")}
-        className="liquid-glass glass-rim fixed left-3 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:text-[rgb(var(--text))] active:scale-95"
+        className="tap-44 liquid-glass glass-rim fixed left-[var(--container-gutter)] z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:text-[rgb(var(--text))] active:scale-95"
         style={{ top: "calc(var(--top-nav-h) + 8px)" }}
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
 
       {!isLoggedIn ? (
-        <div className="pointer-events-none fixed right-5 top-[84px] z-30 max-w-[min(22rem,calc(100vw-40px))]">
-          <div className="pointer-events-auto rounded-2xl border border-red-500/50 bg-red-500/15 px-4 py-3 text-sm font-medium text-red-200 shadow-[0_10px_32px_rgb(var(--shadow)/0.25)] backdrop-blur-[10px]">
+        <div
+          className="pointer-events-none fixed right-[var(--container-gutter)] z-30 max-w-[min(22rem,calc(100vw-2*var(--container-gutter)))]"
+          style={{ top: "calc(var(--top-nav-h) + 8px)" }}
+        >
+          <div className="glass glass-rim glass-clip pointer-events-auto rounded-2xl px-4 py-3 text-sm font-medium text-[rgb(var(--text))] shadow-lift">
             {translate("Log in or sign up for the full sneakerfeature experience.")}
           </div>
         </div>

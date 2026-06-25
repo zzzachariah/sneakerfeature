@@ -47,7 +47,7 @@ export function ChecklistStep({
       <ul className="flex flex-col gap-2">
         {ITEMS.map((item, i) => (
           <li key={i}>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--surface)/0.5)] p-3">
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--surface)/0.5)] p-3 transition-colors hover:bg-[rgb(var(--surface)/0.7)] active:bg-[rgb(var(--surface)/0.9)] focus-within:ring-2 focus-within:ring-[rgb(var(--text)/0.2)]">
               <input
                 type="checkbox"
                 checked={checked[i]}
@@ -69,7 +69,7 @@ export function ChecklistStep({
         <p className="flex items-center gap-1.5 text-sm font-medium">
           <Sparkles className="h-3.5 w-3.5" />
           {translate("High-precision scan")}
-          <span className="rounded bg-[rgb(var(--text)/0.1)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide">Beta</span>
+          <span className="rounded bg-[rgb(var(--text)/0.1)] px-1.5 py-0.5 text-[0.67rem] uppercase tracking-wide">Beta</span>
         </p>
         <p className="mt-0.5 text-xs soft-text">
           {translate("Uses your phone's depth sensor (LiDAR/ToF) for millimetre measurements.")}

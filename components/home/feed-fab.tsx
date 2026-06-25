@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronsUp, GitCompare, Heart, SlidersHorizontal, X } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type Props = {
@@ -25,6 +26,7 @@ export function FeedFab({
   onToggleFavorites
 }: Props) {
   const { translate } = useLocale();
+  const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
 
   const close = () => setOpen(false);
@@ -66,13 +68,13 @@ export function FeedFab({
 
   return (
     <div
-      className="fixed right-4 z-40 flex flex-col items-end gap-2.5"
+      className="fixed right-[var(--container-gutter)] z-40 flex flex-col items-end gap-2.5"
       style={{
         bottom: "calc(var(--mobile-nav-h, 0px) + 20px)",
         opacity: visible ? 1 : 0,
-        transform: visible ? "none" : "translateY(12px)",
+        transform: visible || reduce ? "none" : "translateY(12px)",
         pointerEvents: visible ? "auto" : "none",
-        transition: "opacity 240ms var(--ease), transform 240ms var(--ease)"
+        transition: reduce ? "opacity 0.01s" : "opacity 240ms var(--ease), transform 240ms var(--ease)"
       }}
     >
       {actions.map((a, i) => (
@@ -81,9 +83,11 @@ export function FeedFab({
           className="flex items-center gap-2"
           style={{
             opacity: open ? 1 : 0,
-            transform: open ? "none" : "translateY(10px) scale(0.9)",
+            transform: open || reduce ? "none" : "translateY(10px) scale(0.9)",
             pointerEvents: open ? "auto" : "none",
-            transition: `opacity 200ms var(--ease) ${open ? i * 45 : 0}ms, transform 200ms var(--ease) ${open ? i * 45 : 0}ms`
+            transition: reduce
+              ? "opacity 0.01s"
+              : `opacity 200ms var(--ease) ${open ? i * 45 : 0}ms, transform 200ms var(--ease) ${open ? i * 45 : 0}ms`
           }}
         >
           <span className="glass glass-clip rounded-full px-2.5 py-1 text-[0.72rem] font-medium">{a.label}</span>
@@ -92,11 +96,11 @@ export function FeedFab({
             onClick={a.onClick}
             aria-label={a.label}
             aria-pressed={a.active}
-            className={`glass glass-rim relative inline-flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 ${
-              a.active ? "text-[rgb(var(--brand))]" : "text-[rgb(var(--text))]"
+            className={`glass glass-rim relative inline-flex h-11 w-11 items-center justify-center rounded-full transition active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--brand)/0.55)] ${
+              a.active ? "bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--brand))] ring-2 ring-[rgb(var(--brand)/0.5)] ring-inset" : "text-[rgb(var(--text))]"
             }`}
           >
-            <a.icon className="h-[18px] w-[18px]" />
+            <a.icon className="h-5 w-5" />
           </button>
         </div>
       ))}
@@ -106,7 +110,7 @@ export function FeedFab({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={translate("Feed controls")}
-        className="glass glass-rim glass-clip glass-interactive relative inline-flex h-[52px] w-[52px] items-center justify-center rounded-full text-[rgb(var(--text))] transition active:scale-90"
+        className="glass glass-rim glass-clip glass-interactive relative inline-flex h-[52px] w-[52px] items-center justify-center rounded-full text-[rgb(var(--text))] transition active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--brand)/0.55)]"
       >
         {open ? <X className="h-5 w-5" /> : <SlidersHorizontal className="h-5 w-5" />}
         {anyActive && !open && (

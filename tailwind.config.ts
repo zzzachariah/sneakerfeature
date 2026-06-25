@@ -6,8 +6,8 @@ export default {
   theme: {
     extend: {
       boxShadow: {
-        lift: "0 4px 16px rgb(0 0 0 / 0.18)",
-        cinematic: "0 40px 80px rgb(0 0 0 / 0.48)"
+        lift: "0 4px 16px rgb(var(--shadow) / 0.18)",
+        cinematic: "0 40px 80px rgb(var(--shadow) / 0.48)"
       },
       backgroundImage: {
         grid: "linear-gradient(to right, rgb(var(--text) / 0.02) 1px, transparent 1px), linear-gradient(to bottom, rgb(var(--text) / 0.02) 1px, transparent 1px)"

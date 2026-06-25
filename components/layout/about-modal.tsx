@@ -1,9 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+import { DUR, EASE } from "@/lib/motion/constants";
 
 type Props = {
   open: boolean;
@@ -12,6 +13,7 @@ type Props = {
 
 export function AboutModal({ open, onClose }: Props) {
   const { translate } = useLocale();
+  const reduce = useReducedMotion();
 
   useBodyScrollLock(open);
 
@@ -23,14 +25,15 @@ export function AboutModal({ open, onClose }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: reduce ? 0 : DUR.base, ease: EASE }}
           onClick={onClose}
         >
           <motion.div
             className="glass-strong glass-rim glass-clip liquid-interactive relative w-full max-w-2xl rounded-3xl p-5 md:p-6"
-            initial={{ y: 18, opacity: 0, scale: 0.985 }}
+            initial={{ y: reduce ? 0 : 18, opacity: 0, scale: reduce ? 1 : 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 8, opacity: 0, scale: 0.985 }}
-            transition={{ duration: 0.22, ease: "easeOut" }}
+            exit={{ y: reduce ? 0 : 8, opacity: 0, scale: reduce ? 1 : 0.985 }}
+            transition={{ duration: reduce ? 0 : DUR.slow, ease: EASE }}
             onClick={(e) => e.stopPropagation()}
           >
         <button

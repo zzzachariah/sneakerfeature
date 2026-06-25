@@ -54,7 +54,7 @@ function Chip({
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`inline-flex items-center rounded-full border px-3 py-1.5 text-[0.75rem] font-medium leading-none transition duration-150 active:scale-95 ${
+      className={`inline-flex h-11 items-center rounded-full border px-3.5 text-[0.78rem] font-medium leading-none transition duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] md:h-8 md:px-3 ${
         active
           ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
           : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))]"

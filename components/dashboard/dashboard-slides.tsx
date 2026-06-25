@@ -151,11 +151,15 @@ export function DashboardSlides(props: Props) {
           />
           <div className="mt-5 space-y-3">
             {signedOut ? (
-              <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
+              <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] px-5 py-8 text-center">
+                <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
+              </div>
             ) : props.loading ? (
               <ListSkeleton rows={3} />
             ) : activityFeed.length === 0 ? (
-              <p className="text-sm soft-text">{translate("No activity yet.")}</p>
+              <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] px-5 py-8 text-center">
+                <p className="text-sm soft-text">{translate("No activity yet.")}</p>
+              </div>
             ) : (
               <Stagger className="space-y-3">
                 {activityFeed.map((item) => (
@@ -184,11 +188,15 @@ export function DashboardSlides(props: Props) {
               </h3>
               <div className="mt-3 space-y-3">
                 {signedOut ? (
-                  <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
+                  <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] px-5 py-8 text-center">
+                    <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
+                  </div>
                 ) : props.loading ? (
                   <ListSkeleton rows={2} />
                 ) : props.submissions.length === 0 ? (
-                  <p className="text-sm soft-text">{translate("No submissions yet.")}</p>
+                  <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] px-5 py-8 text-center">
+                    <p className="text-sm soft-text">{translate("No submissions yet.")}</p>
+                  </div>
                 ) : (
                   props.submissions.map((item) => (
                     <div
@@ -214,7 +222,9 @@ export function DashboardSlides(props: Props) {
                 {signedOut ? null : props.loading ? (
                   <ListSkeleton rows={2} />
                 ) : props.savedCompares.length === 0 ? (
-                  <p className="text-sm soft-text">{translate("No saved comparisons yet.")}</p>
+                  <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] px-5 py-8 text-center">
+                    <p className="text-sm soft-text">{translate("No saved comparisons yet.")}</p>
+                  </div>
                 ) : (
                   props.savedCompares.map((item) => {
                     const openHref = (
@@ -286,7 +296,9 @@ export function DashboardSlides(props: Props) {
           />
           <div className="mt-5 space-y-5">
             {signedOut ? (
-              <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
+              <div className="rounded-2xl border border-dashed border-[rgb(var(--muted)/0.7)] bg-[rgb(var(--bg-elev)/0.35)] px-5 py-8 text-center">
+                <p className="text-sm soft-text">{translate("Please sign in to view your User Center.")}</p>
+              </div>
             ) : (
               <>
                 {/* Profile */}
@@ -448,8 +460,8 @@ function DeleteAccountSection({
   }
 
   return (
-    <section className="relative rounded-2xl border border-red-500/40 bg-[rgb(var(--surface)/0.5)] p-5">
-      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-red-400">
+    <section className="relative rounded-2xl border border-[rgb(var(--error)/0.4)] bg-[rgb(var(--surface)/0.5)] p-5">
+      <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-[rgb(var(--error))]">
         <AlertTriangle className="h-4 w-4" />
         {translate("Delete account")}
       </h3>
@@ -461,7 +473,7 @@ function DeleteAccountSection({
       <Button
         type="button"
         variant="secondary"
-        className="mt-4 w-full border-red-500/50 text-red-400 hover:border-red-500 hover:text-red-300 sm:w-auto"
+        className="mt-4 w-full border-[rgb(var(--error)/0.55)] text-[rgb(var(--error))] hover:border-[rgb(var(--error))] hover:text-[rgb(var(--error))] sm:w-auto"
         onClick={() => setOpen(true)}
       >
         {translate("Delete account")}
@@ -521,7 +533,7 @@ function DeleteAccountSection({
               </Button>
               <Button
                 type="button"
-                className="w-full border-red-600 bg-red-600 text-white hover:bg-red-500 sm:w-auto"
+                className="w-full border-[rgb(var(--error))] bg-[rgb(var(--error))] text-white hover:bg-[rgb(var(--error)/0.9)] sm:w-auto"
                 onClick={onConfirm}
                 disabled={deleting || !password}
               >

@@ -66,7 +66,7 @@ export function DepthCapture({
       </span>
       <h2 className="text-lg font-semibold tracking-[-0.01em]">
         {translate("High-precision scan")}{" "}
-        <span className="align-middle rounded bg-[rgb(var(--text)/0.1)] px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+        <span className="align-middle rounded bg-[rgb(var(--text)/0.1)] px-1.5 py-0.5 text-[0.67rem] uppercase tracking-wide">
           Beta
         </span>
       </h2>
@@ -129,7 +129,7 @@ export function DepthCapture({
           <button
             key={s}
             onClick={() => setSide(s)}
-            className={`min-h-[40px] flex-1 rounded-lg border px-3 text-sm font-medium ${
+            className={`min-h-[44px] md:min-h-[36px] flex-1 rounded-lg border px-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
               side === s
                 ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
                 : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--text))]"

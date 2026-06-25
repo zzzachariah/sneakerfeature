@@ -324,7 +324,7 @@ export function FootScanClient() {
 
       {step === "error" && (
         <div className="flex flex-col items-center gap-4 py-12 text-center">
-          <p className="whitespace-pre-line text-sm text-red-500">{errorMsg}</p>
+          <p className="whitespace-pre-line text-sm text-[rgb(var(--error))]">{errorMsg}</p>
           <Button variant="secondary" onClick={() => setStep("size")}>
             {translate("Try again")}
           </Button>

@@ -162,10 +162,10 @@ export function ImageCorrectionButton({ shoeId, isLoggedIn }: { shoeId: string; 
             <button
               type="button"
               onClick={openPicker}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--surface)/0.6)] p-6 text-sm soft-text transition hover:border-[rgb(var(--text)/0.4)]"
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--surface)/0.6)] p-6 text-sm soft-text transition hover:border-[rgb(var(--text)/0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
             >
               {preview ? (
-                <span className="aspect-square w-40 overflow-hidden rounded-lg border border-[rgb(var(--muted)/0.45)] bg-white">
+                <span className="shoe-stage aspect-square w-40 overflow-hidden rounded-lg border border-[rgb(var(--muted)/0.45)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={preview} alt={translate("Selected image preview")} className="h-full w-full object-contain" />
                 </span>

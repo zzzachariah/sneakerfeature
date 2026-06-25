@@ -258,7 +258,7 @@ export function BulkImageImportButton() {
           disabled={isBusy}
           inputMode="numeric"
         />
-        {quantityError ? <p className="text-xs text-rose-400">{quantityError}</p> : null}
+        {quantityError ? <p className="text-xs text-red-500">{quantityError}</p> : null}
       </div>
 
       <div className="space-y-2 rounded-xl border border-[rgb(var(--muted)/0.35)] p-3">

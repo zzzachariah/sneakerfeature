@@ -60,13 +60,13 @@ export function RecommendationGroup({ recommendations }: { recommendations: Reco
           {canCompare ? (
             <Link
               href={compareHref}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold text-[rgb(var(--bg))] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
             >
               <GitCompare className="h-3.5 w-3.5" />
               {translate("Compare selected")}
             </Link>
           ) : (
-            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[rgb(var(--text)/0.12)] px-3 text-[0.78rem] font-semibold soft-text">
+            <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[rgb(var(--text)/0.18)] px-3 text-[0.78rem] font-semibold soft-text">
               <GitCompare className="h-3.5 w-3.5" />
               {translate("Compare selected")}
             </span>

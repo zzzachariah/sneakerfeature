@@ -217,7 +217,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
                 {translate("Position")}
               </label>
               <span className="text-[0.7rem] soft-text">{translate("Pick up to 2 positions")}</span>
@@ -234,13 +234,13 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
                     disabled={busy}
                     className={`relative flex flex-col items-center justify-center gap-0.5 rounded-2xl border px-2 py-3 text-center transition disabled:opacity-50 ${
                       isPicked
-                        ? "border-amber-400/70 bg-amber-400/10 text-[rgb(var(--text))]"
+                        ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
                         : "border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.4)] soft-text hover:border-[rgb(var(--text)/0.4)]"
                     }`}
                   >
                     <span className="text-sm font-semibold">{translate(POSITION_LABEL[p])}</span>
                     {isPicked && (
-                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400/90 px-1 text-[0.6rem] font-bold text-black">
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1 text-[0.6rem] font-bold text-[rgb(var(--brand-contrast))]">
                         {order}
                       </span>
                     )}
@@ -251,7 +251,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
           </div>
 
           <div className="space-y-2">
-            <label className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+            <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
               {translate("Skill level")}
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -265,7 +265,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
                     disabled={busy}
                     className={`rounded-2xl border px-2 py-2.5 text-center text-[0.8rem] font-medium transition disabled:opacity-50 ${
                       isPicked
-                        ? "border-amber-400/70 bg-amber-400/10 text-[rgb(var(--text))]"
+                        ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
                         : "border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.4)] soft-text hover:border-[rgb(var(--text)/0.4)]"
                     }`}
                   >
@@ -278,7 +278,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="space-y-2">
             <div className="flex items-center justify-between gap-2">
-              <label className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
                 {translate("Are you flat-footed?")}
               </label>
               <div className="inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]">
@@ -286,7 +286,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
                   type="button"
                   onClick={() => setFlatFoot(false)}
                   disabled={busy}
-                  className="px-3 py-1.5 text-[0.78rem] font-medium transition"
+                  className="px-3 py-1.5 text-[0.78rem] font-medium transition rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--brand)/0.45)] focus-visible:ring-offset-0"
                   style={{
                     background: !flatFoot ? "rgb(var(--text)/0.92)" : "transparent",
                     color: !flatFoot ? "rgb(var(--bg))" : "rgb(var(--subtext))"
@@ -298,7 +298,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
                   type="button"
                   onClick={() => setFlatFoot(true)}
                   disabled={busy}
-                  className="border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1.5 text-[0.78rem] font-medium transition"
+                  className="border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1.5 text-[0.78rem] font-medium transition rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--brand)/0.45)] focus-visible:ring-offset-0"
                   style={{
                     background: flatFoot ? "rgb(var(--text)/0.92)" : "transparent",
                     color: flatFoot ? "rgb(var(--bg))" : "rgb(var(--subtext))"
@@ -335,7 +335,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <label className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
                 {translate("Height (cm)")}
               </label>
               <input
@@ -351,7 +351,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
                 {translate("Weight (kg)")}
               </label>
               <input
@@ -370,7 +370,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
 
           <div className="space-y-2 border-t border-[rgb(var(--muted)/0.25)] pt-3">
             <div className="flex items-center justify-between">
-              <label className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
                 {translate("Playstyle")}
               </label>
               <span className="text-[0.7rem] soft-text">{translate("Pick 3 in order (optional)")}</span>
@@ -389,7 +389,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
                     disabled={busy}
                     className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2.5 text-center transition disabled:opacity-50 ${
                       isPicked
-                        ? "border-amber-400/70 bg-amber-400/10 text-[rgb(var(--text))]"
+                        ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
                         : "border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.4)] soft-text hover:border-[rgb(var(--text)/0.4)]"
                     }`}
                   >
@@ -398,7 +398,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
                       {translate(DIM_LABELS[key])}
                     </span>
                     {isPicked && (
-                      <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400/90 px-1 text-[0.6rem] font-bold text-black">
+                      <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1 text-[0.6rem] font-bold text-[rgb(var(--brand-contrast))]">
                         {order}
                       </span>
                     )}
@@ -462,7 +462,7 @@ function MiniScale({ value }: { value: number }) {
         style={{ left: "50%" }}
       />
       <span
-        className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[rgb(var(--bg))] bg-amber-400/90"
+        className="absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[rgb(var(--bg))] bg-[rgb(var(--brand))]"
         style={{ left: `${Math.max(0, Math.min(1, value)) * 100}%` }}
       />
     </div>
@@ -485,10 +485,10 @@ function FootTypeSection({
       <Link
         href={onScanHref}
         onClick={onCloseModal}
-        className="group flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[rgb(var(--muted)/0.6)] bg-[rgb(var(--bg-elev)/0.4)] p-3 transition hover:border-amber-400/60 hover:bg-amber-400/5"
+        className="group flex items-center justify-between gap-3 rounded-2xl border border-dashed border-[rgb(var(--muted)/0.6)] bg-[rgb(var(--bg-elev)/0.4)] p-3 transition hover:border-[rgb(var(--brand)/0.5)] hover:bg-[rgb(var(--brand)/0.06)]"
       >
         <span className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-400/12 text-amber-500">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--brand))]">
             <Footprints className="h-4 w-4" />
           </span>
           <span className="flex flex-col">
@@ -507,14 +507,14 @@ function FootTypeSection({
   const instepValue = INSTEP_SCALE[profile.instep];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.5)] bg-gradient-to-b from-amber-400/[0.06] to-transparent">
+    <div className="overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.5)] bg-gradient-to-b from-[rgb(var(--brand)/0.06)] to-transparent">
       {/* header */}
       <div className="flex items-center justify-between gap-2 px-3.5 pt-3">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400/15 text-amber-500">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[rgb(var(--brand)/0.14)] text-[rgb(var(--brand))]">
             <Footprints className="h-3.5 w-3.5" />
           </span>
-          <span className="text-[0.78rem] font-medium uppercase tracking-[0.12em] soft-text">
+          <span className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
             {translate("Foot type")}
           </span>
         </div>
@@ -562,7 +562,7 @@ function FootTypeSection({
               <span
                 key={t}
                 className={`h-1 rounded-full ${
-                  t === profile.toe_shape ? "bg-amber-400/90" : "bg-[rgb(var(--text)/0.1)]"
+                  t === profile.toe_shape ? "bg-[rgb(var(--brand))]" : "bg-[rgb(var(--text)/0.1)]"
                 }`}
                 title={translate(TOE_SHORT[t])}
               />
@@ -575,10 +575,10 @@ function FootTypeSection({
       <Link
         href={onScanHref}
         onClick={onCloseModal}
-        className="group flex items-center justify-between gap-2 border-t border-[rgb(var(--muted)/0.35)] bg-[rgb(var(--bg-elev)/0.35)] px-3.5 py-2.5 text-sm transition hover:bg-amber-400/8"
+        className="group flex items-center justify-between gap-2 border-t border-[rgb(var(--muted)/0.35)] bg-[rgb(var(--bg-elev)/0.35)] px-3.5 py-2.5 text-sm transition hover:bg-[rgb(var(--brand)/0.08)]"
       >
         <span className="flex items-center gap-2 font-medium">
-          <Footprints className="h-3.5 w-3.5 text-amber-500" />
+          <Footprints className="h-3.5 w-3.5 text-[rgb(var(--brand))]" />
           {translate("Re-scan my feet")}
         </span>
         <ArrowRight className="h-3.5 w-3.5 soft-text transition group-hover:translate-x-0.5" />

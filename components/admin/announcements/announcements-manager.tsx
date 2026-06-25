@@ -15,6 +15,10 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { FeedbackMessage } from "@/components/ui/feedback-message";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type DurationChoice =
   | "1 day"
@@ -220,11 +224,7 @@ export function AnnouncementsManager({
         </div>
       </Card>
 
-      {error && (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-600">
-          {error}
-        </div>
-      )}
+      {error && <FeedbackMessage message={error} isError />}
 
       {items.length === 0 ? (
         <Card className="p-6 text-center text-sm soft-text">
@@ -479,7 +479,7 @@ function AnnouncementEditor({
           <button
             type="button"
             onClick={() => onClose(null)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text)/0.6)] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))]"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text)/0.6)] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
             aria-label="Close"
           >
             <X className="h-4 w-4" />
@@ -492,34 +492,34 @@ function AnnouncementEditor({
               <span className="block text-xs font-semibold uppercase tracking-wide soft-text">
                 Duration
               </span>
-              <select
+              <Select
                 value={form.duration}
                 onChange={(e) => setField("duration", e.target.value as DurationChoice)}
-                className="mt-1 w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.65)] px-3 py-2 text-sm"
+                wrapperClassName="mt-1"
               >
                 {DURATION_OPTIONS.map((d) => (
                   <option key={d} value={d}>
                     {d}
                   </option>
                 ))}
-              </select>
+              </Select>
               <span className="mt-1 block text-[0.7rem] soft-text">Auto-hide after this period.</span>
             </label>
             <label className="text-sm">
               <span className="block text-xs font-semibold uppercase tracking-wide soft-text">
                 Frequency
               </span>
-              <select
+              <Select
                 value={form.frequency}
                 onChange={(e) => setField("frequency", e.target.value as FrequencyChoice)}
-                className="mt-1 w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.65)] px-3 py-2 text-sm"
+                wrapperClassName="mt-1"
               >
                 {FREQUENCY_OPTIONS.map((f) => (
                   <option key={f.value} value={f.value}>
                     {f.label}
                   </option>
                 ))}
-              </select>
+              </Select>
               <span className="mt-1 block text-[0.7rem] soft-text">
                 {FREQUENCY_OPTIONS.find((f) => f.value === form.frequency)?.hint}
               </span>
@@ -609,11 +609,7 @@ function AnnouncementEditor({
             placeholder="/download or https://…"
           />
 
-          {err && (
-            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600">
-              {err}
-            </div>
-          )}
+          {err && <p className="feedback feedback-error">{err}</p>}
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-[rgb(var(--glass-stroke-soft)/0.4)] pt-3">
@@ -643,12 +639,12 @@ function LabeledInput({
   return (
     <label className="block text-sm">
       <span className="block text-xs font-semibold uppercase tracking-wide soft-text">{label}</span>
-      <input
+      <Input
         type="text"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.65)] px-3 py-2 text-sm placeholder:text-[rgb(var(--text)/0.35)]"
+        className="mt-1"
       />
     </label>
   );
@@ -668,12 +664,12 @@ function LabeledTextarea({
   return (
     <label className="block text-sm">
       <span className="block text-xs font-semibold uppercase tracking-wide soft-text">{label}</span>
-      <textarea
+      <Textarea
         rows={4}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="mt-1 w-full resize-y rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.6)] bg-[rgb(var(--bg-elev)/0.65)] px-3 py-2 text-sm placeholder:text-[rgb(var(--text)/0.35)]"
+        className="mt-1 resize-y"
       />
     </label>
   );
@@ -690,7 +686,7 @@ function StatusPill({
 }) {
   if (isLive) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-600">
+      <span className="inline-flex items-center gap-1 rounded-full bg-[rgb(var(--success)/0.15)] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-[rgb(var(--success))]">
         <CheckCircle2 className="h-3 w-3" />
         Live
       </span>

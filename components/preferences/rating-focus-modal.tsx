@@ -116,20 +116,20 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
                   disabled={busy}
                   className={`relative flex flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition disabled:opacity-50 ${
                     isPicked
-                      ? "border-amber-400/70 bg-amber-400/10 text-[rgb(var(--text))]"
+                      ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
                       : "border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.4)] soft-text hover:border-[rgb(var(--text)/0.4)]"
                   }`}
                 >
                   <span className="flex w-full items-center justify-between gap-2">
                     <span className="text-sm font-medium">{translate(DIM_LABELS[key])}</span>
                     {isPicked && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400/90 px-1.5 text-[0.65rem] font-bold text-black">
+                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1.5 text-[0.65rem] font-bold text-[rgb(var(--brand-contrast))]">
                         {indexLabel}
                       </span>
                     )}
                   </span>
                   {isPicked && slot && (
-                    <span className="text-[0.7rem] uppercase tracking-[0.12em] text-amber-300">
+                    <span className="text-[0.7rem] uppercase tracking-[0.12em] text-amber-600 dark:text-amber-400">
                       {translate(slot)} · {SLOT_PERCENT[slot]}
                     </span>
                   )}

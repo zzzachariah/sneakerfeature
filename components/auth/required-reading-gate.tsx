@@ -19,7 +19,7 @@ export function RequiredReadingGate({ onContinue }: { onContinue: () => void }) 
 
   return createPortal(
     <div className="fixed inset-0 z-[90]">
-      <div className="absolute inset-0 bg-[rgb(var(--glass-overlay)/0.72)] backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-[rgb(var(--glass-overlay)/0.4)] backdrop-blur-[16px]" />
       <div className="absolute inset-0 overflow-y-auto">
         <div className="flex min-h-full items-start justify-center p-4 pb-8 pt-24 md:pt-28">
           <div className="glass-strong glass-rim glass-clip relative w-full max-w-2xl rounded-3xl p-5 md:p-6">

@@ -132,7 +132,7 @@ export function ChatSidebar({
                         }}
                         onBlur={() => commitRename(chat.id)}
                         maxLength={60}
-                        className="w-full rounded-lg bg-[rgb(var(--surface))] px-2.5 py-2 text-sm outline-none ring-1 ring-[rgb(var(--text)/0.25)]"
+                        className="liquid-interactive w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-2.5 py-2 text-base text-[rgb(var(--text))] outline-none transition duration-200 hover:border-[rgb(var(--text)/0.35)] focus:border-[rgb(var(--text)/0.55)] focus:ring-2 focus:ring-[rgb(var(--text)/0.12)] md:text-sm"
                       />
                     </li>
                   );
@@ -158,7 +158,7 @@ export function ChatSidebar({
                           setMenuId(menuId === chat.id ? null : chat.id);
                         }}
                         aria-label={translate("More")}
-                        className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[rgb(var(--subtext))] opacity-100 transition hover:bg-[rgb(var(--text)/0.1)] hover:text-[rgb(var(--text))] md:opacity-0 md:group-hover/item:opacity-100"
+                        className="mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[rgb(var(--subtext))] opacity-100 transition hover:bg-[rgb(var(--text)/0.1)] hover:text-[rgb(var(--text))] md:opacity-0 md:group-hover/item:opacity-100 md:focus-visible:opacity-100"
                       >
                         <MoreHorizontal className="h-4 w-4" />
                       </button>

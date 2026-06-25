@@ -377,7 +377,7 @@ function PlatformTile({
           </p>
         </div>
 
-        <ArrowRight className="h-4 w-4 shrink-0 text-[rgb(var(--text)/0.4)] transition group-hover:translate-x-0.5 group-hover:text-[rgb(var(--text))]" />
+        <ArrowRight className="h-4 w-4 shrink-0 text-[rgb(var(--subtext))] transition group-hover:translate-x-0.5 group-hover:text-[rgb(var(--text))]" />
       </div>
     </motion.button>
   );
@@ -635,7 +635,7 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
                 transition={{ duration: 0.18 }}
-                className="inline-flex items-center gap-1 text-emerald-500"
+                className="inline-flex items-center gap-1 text-[rgb(var(--success))]"
               >
                 <Check className="h-3.5 w-3.5" />
                 Copied
@@ -759,7 +759,7 @@ function DesktopContent({
       {available ? (
         <PrimaryCTA href={url} icon={<Download className="h-4 w-4" aria-hidden />} label={meta.cta} />
       ) : (
-        <div className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-[rgb(var(--text)/0.15)] px-4 text-sm font-medium text-[rgb(var(--text)/0.55)]">
+        <div className="inline-flex h-12 w-full items-center justify-center rounded-2xl border border-[rgb(var(--text)/0.15)] px-4 text-sm font-medium text-[rgb(var(--subtext))]">
           {meta.empty}
         </div>
       )}
@@ -787,7 +787,7 @@ function DesktopContent({
           href={`https://github.com/${GITHUB_REPO}/releases/latest`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--text)/0.55)] hover:text-[rgb(var(--text))]"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
         >
           {zh ? "查看所有版本" : "All releases"}
           <ExternalLink className="h-2.5 w-2.5" />
@@ -812,14 +812,15 @@ function PrimaryCTA({
   icon: React.ReactNode;
   label: string;
 }) {
+  const reduce = useReducedMotion();
   return (
     <motion.a
       href={href}
       target={external ? "_blank" : undefined}
       rel={external ? "noopener noreferrer" : undefined}
-      whileHover={{ y: -1 }}
-      whileTap={{ scale: 0.985 }}
-      transition={{ duration: 0.2 }}
+      whileHover={reduce ? undefined : { y: -1 }}
+      whileTap={reduce ? undefined : { scale: 0.985 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[rgb(var(--text))] px-5 text-sm font-semibold text-[rgb(var(--bg))] shadow-[0_8px_24px_-12px_rgb(var(--shadow)/0.6)] transition hover:opacity-95"
     >
       {icon}

@@ -46,7 +46,7 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
   const hasBody = steps.length > 0;
 
   return (
-    <div className="w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.55)] px-3 py-2">
+    <div className="w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3.5 py-2">
       <button
         type="button"
         onClick={() => hasBody && setOpen((o) => !o)}

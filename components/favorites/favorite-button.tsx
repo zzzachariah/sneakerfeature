@@ -58,7 +58,7 @@ export function FavoriteButton({
       }}
       aria-pressed={fav}
       aria-label={translate(fav ? "Saved" : "Save")}
-      className={`inline-flex items-center justify-center gap-1.5 transition active:scale-90 ${className}`}
+      className={`relative inline-flex items-center justify-center gap-1.5 rounded-md transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 motion-reduce:transition-none hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${className}`}
     >
       <span className="relative inline-flex items-center justify-center">
         <AnimatePresence>
@@ -81,7 +81,7 @@ export function FavoriteButton({
           transition={{ duration: 0.42, ease: EASE, times: [0, 0.4, 1] }}
         >
           <Heart
-            className={`${iconClassName} ${fav ? "fill-[rgb(var(--brand))] text-[rgb(var(--brand))]" : "text-[rgb(var(--text)/0.7)]"}`}
+            className={`${iconClassName} ${fav ? "fill-[rgb(var(--brand))] text-[rgb(var(--brand))]" : "text-[rgb(var(--text))]"}`}
           />
         </motion.span>
       </span>

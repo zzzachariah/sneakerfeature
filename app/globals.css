@@ -162,6 +162,7 @@ html[data-native-platform="android"] {
     --glass-rim-shade: 0 0 0;
     --glass-saturate: 170%;
     --glass-brightness: 1;
+    color-scheme: dark;
   }
 }
 
@@ -1182,9 +1183,9 @@ html.capacitor-native[data-native-platform="ios"] div.surface-soft {
 }
 
 .auth-eyebrow {
-  font-size: 0.7rem;
+  font-size: 0.67rem;
   text-transform: uppercase;
-  letter-spacing: 0.28em;
+  letter-spacing: 0.22em;
   font-weight: 500;
   color: rgb(var(--subtext));
 }
@@ -1674,5 +1675,22 @@ html[data-skin="clean"] :where(a, button, [role="button"]):focus-visible {
 @media (prefers-reduced-motion: reduce) {
   html[data-skin="clean"] .premium-hover-lift:hover {
     transform: none;
+  }
+}
+
+/* ── design polish utilities ── */
+html { color-scheme: light; }
+html.dark { color-scheme: dark; }
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  box-shadow: 0 0 0 3px rgb(var(--text) / 0.25);
+}
+@media (prefers-color-scheme: dark) {
+  html:not(.light) input:focus,
+  html:not(.light) textarea:focus,
+  html:not(.light) select:focus {
+    box-shadow: 0 0 0 3px rgb(var(--text) / 0.25);
   }
 }

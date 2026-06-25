@@ -1,16 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
 
-function useCountUp(target: number, duration: number, trigger: boolean) {
+function useCountUp(target: number, duration: number, trigger: boolean, reduced?: boolean) {
   const [value, setValue] = useState(0);
   const [done, setDone] = useState(false);
   useEffect(() => {
     if (!trigger) {
       setDone(false);
+      return;
+    }
+    if (reduced) {
+      setValue(target);
+      setDone(true);
       return;
     }
     let start: number | null = null;
@@ -43,6 +49,7 @@ export function HomeHero({
 }) {
   const { translate } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
+  const reduce = useReducedMotion();
   const [up, setUp] = useState(false);
   const timerRef = useRef<number | null>(null);
 
@@ -60,14 +67,14 @@ export function HomeHero({
     };
   }, [active]);
 
-  const shoes = useCountUp(shoesCount, 900, up);
-  const brands = useCountUp(brandsCount, 700, up);
+  const shoes = useCountUp(shoesCount, 900, up, !!reduce);
+  const brands = useCountUp(brandsCount, 700, up, !!reduce);
 
   const reveal = (delay: number): React.CSSProperties => ({
-    opacity: up ? 1 : 0,
-    transform: up ? "none" : "translateY(20px)",
-    transition: "opacity 500ms cubic-bezier(0.22,1,0.36,1),transform 500ms cubic-bezier(0.22,1,0.36,1)",
-    transitionDelay: `${delay}ms`
+    opacity: up || reduce ? 1 : 0,
+    transform: up || reduce ? "none" : "translateY(20px)",
+    transition: reduce ? "none" : "opacity 500ms cubic-bezier(0.22,1,0.36,1), transform 500ms cubic-bezier(0.22,1,0.36,1)",
+    transitionDelay: reduce ? "0ms" : `${delay}ms`
   });
 
   function handleAvatarClick() {
@@ -127,8 +134,8 @@ export function HomeHero({
                   fontSize: "clamp(1.75rem, 3.6vw, 2.85rem)",
                   lineHeight: 1.05,
                   letterSpacing: "-0.02em",
-                  transform: up ? "translate3d(0,0,0)" : "translate3d(0,110%,0)",
-                  transition: "transform 760ms cubic-bezier(0.22,1,0.36,1)",
+                  transform: up || reduce ? "translate3d(0,0,0)" : "translate3d(0,110%,0)",
+                  transition: reduce ? "none" : "transform 760ms cubic-bezier(0.22,1,0.36,1)",
                   transitionDelay: "80ms",
                   willChange: "transform"
                 }}

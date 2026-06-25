@@ -94,7 +94,7 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
                   setSystem(s);
                   setSize("");
                 }}
-                className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] ${
+                className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
                   system === s
                     ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] font-semibold text-[rgb(var(--bg))]"
                     : "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))]"
@@ -145,7 +145,7 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
               <button
                 key={f.id}
                 onClick={() => setFit(f.id)}
-                className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] ${
+                className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
                   fit === f.id
                     ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] font-semibold text-[rgb(var(--bg))]"
                     : "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))]"
@@ -165,7 +165,7 @@ export function SizeStep({ onSubmit }: { onSubmit: (choice: SizeChoice) => void 
             <button
               key={s}
               onClick={() => setPrimarySide(s)}
-              className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] ${
+              className={`min-h-[44px] rounded-lg border px-2 text-sm transition md:min-h-[36px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
                 primarySide === s
                   ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] font-semibold text-[rgb(var(--bg))]"
                   : "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))]"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
@@ -29,7 +30,17 @@ export function BottomSheet({
 }) {
   const { translate } = useLocale();
   const reduce = useReducedMotion();
+  const titleId = useId();
   useBodyScrollLock(open);
+
+  useEffect(() => {
+    if (!open || !dismissible) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, dismissible, onClose]);
 
   return (
     <AnimatePresence>
@@ -49,6 +60,9 @@ export function BottomSheet({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
+            role="dialog"
+            aria-modal
+            aria-labelledby={title ? titleId : undefined}
             className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] sm:max-h-[80dvh] sm:rounded-3xl"
             style={{ paddingBottom: "max(0.75rem, var(--safe-bottom))" }}
             initial={{ y: reduce ? 0 : "100%" }}
@@ -72,7 +86,7 @@ export function BottomSheet({
               <span aria-hidden className="h-1.5 w-10 rounded-full bg-[rgb(var(--text)/0.18)]" />
             </div>
             {title ? (
-              <h2 className="shrink-0 px-6 pb-3 pt-2 text-lg font-semibold tracking-[0.01em]">
+              <h2 id={titleId} className="shrink-0 px-6 pb-3 pt-2 text-lg font-semibold tracking-[0.01em]">
                 {translate(title)}
               </h2>
             ) : null}

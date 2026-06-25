@@ -158,7 +158,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
           return (
             <motion.article
               key={r.id}
-              className="col-start-1 row-start-1 w-full px-10 py-5 md:py-6"
+              className="col-start-1 row-start-1 w-full px-12 py-5 md:px-10 md:py-6"
               initial={false}
               animate={{ opacity: active ? 1 : 0, x: active ? 0 : idx < cur ? -32 : 32 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -209,7 +209,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
               type="button"
               onClick={() => go(-1)}
               aria-label={zh ? "上一个" : "Previous"}
-              className="absolute inset-y-0 left-0 z-10 flex w-9 items-center justify-center text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))]"
+              className="absolute inset-y-0 left-0 z-10 flex w-11 md:w-9 items-center justify-center text-[rgb(var(--subtext))] bg-[rgb(var(--text)/0.04)] md:bg-transparent transition md:hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))] active:bg-[rgb(var(--text)/0.08)]"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -217,7 +217,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
               type="button"
               onClick={() => go(1)}
               aria-label={zh ? "下一个" : "Next"}
-              className="absolute inset-y-0 right-0 z-10 flex w-9 items-center justify-center text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))]"
+              className="absolute inset-y-0 right-0 z-10 flex w-11 md:w-9 items-center justify-center text-[rgb(var(--subtext))] bg-[rgb(var(--text)/0.04)] md:bg-transparent transition md:hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))] active:bg-[rgb(var(--text)/0.08)]"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -226,19 +226,24 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
       </div>
 
       {len > 1 ? (
-        <div className="mt-3 flex justify-center gap-1.5">
+        <div className="mt-1 flex justify-center gap-1.5">
           {reviews.map((r, idx) => (
             <button
               key={r.id}
               type="button"
               aria-label={`${idx + 1}`}
               onClick={() => setIndex(idx)}
-              className="h-1.5 rounded-full transition-all"
-              style={{
-                width: idx === cur ? 18 : 6,
-                background: idx === cur ? "rgb(var(--text)/0.75)" : "rgb(var(--muted)/0.6)"
-              }}
-            />
+              className="flex h-11 w-6 items-center justify-center"
+            >
+              <span
+                aria-hidden="true"
+                className="block h-1.5 rounded-full transition-all"
+                style={{
+                  width: idx === cur ? 18 : 6,
+                  background: idx === cur ? "rgb(var(--text)/0.75)" : "rgb(var(--muted)/0.6)"
+                }}
+              />
+            </button>
           ))}
         </div>
       ) : null}
