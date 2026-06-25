@@ -90,7 +90,7 @@ function MobileGalleries({ platforms }: { platforms: PlatformReviews[] }) {
   return (
     <>
       {platforms.length > 1 ? (
-        <div className="mb-3 inline-flex rounded-xl border border-[rgb(var(--muted)/0.5)] p-0.5">
+        <div className="mb-3 inline-flex rounded-xl border border-[rgb(var(--muted)/0.5)] p-0.5 ios-glass-segmented">
           {platforms.map((p, i) => {
             const on = i === idx;
             const Icon = p.platform === "youtube" ? Youtube : PlayCircle;

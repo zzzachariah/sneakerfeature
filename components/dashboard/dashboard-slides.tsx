@@ -336,7 +336,7 @@ export function DashboardSlides(props: Props) {
                 <HapticsToggle />
 
                 {/* Security */}
-                <section className="glass glass-rim relative rounded-2xl p-5">
+                <section className="glass glass-rim glass-clip relative rounded-2xl p-5">
                   <h3 className="text-sm font-semibold uppercase tracking-[0.18em] soft-text">
                     {translate("Password")}
                   </h3>

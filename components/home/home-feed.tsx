@@ -302,7 +302,7 @@ export function HomeFeed({
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none"
+                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.77rem] md:shadow-none ios-glass-search-pill"
               />
               {searchDraft.trim().length > 0 && (
                 <button
@@ -439,7 +439,7 @@ export function HomeFeed({
 
       {compareMode && selected.length > 1 && (
         <div
-          className="glass-strong glass-rim sticky flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between md:hidden"
+          className="glass-strong glass-rim glass-clip sticky flex flex-col gap-2 rounded-xl p-3 sm:flex-row sm:items-center sm:justify-between md:hidden"
           style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 16px)" }}
         >
           <p className="text-sm">

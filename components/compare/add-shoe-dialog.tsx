@@ -109,7 +109,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
           <motion.div
             role="dialog"
             aria-modal
-            className="glass-strong glass-rim relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl"
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl"
             initial={{ y: 24, opacity: 0, scale: 0.98 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: 24, opacity: 0, scale: 0.98 }}

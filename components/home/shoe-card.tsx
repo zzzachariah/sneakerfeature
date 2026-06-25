@@ -166,7 +166,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
       {whyOpen && hasReasons && (
         <div
           ref={popoverRef}
-          className="pop-in glass glass-rim absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl p-3"
+          className="pop-in glass glass-rim glass-clip absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl p-3"
           style={{ transformOrigin: "bottom right" }}
           onClick={(e) => e.preventDefault()}
         >

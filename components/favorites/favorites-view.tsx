@@ -17,7 +17,7 @@ export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: bo
       </h1>
 
       {!signedIn ? (
-        <div className="surface-card premium-border mx-auto max-w-sm rounded-2xl p-6 text-left">
+        <div className="surface-card premium-border ios-glass-favorites-empty relative mx-auto max-w-sm rounded-2xl p-6 text-left">
           <p className="mb-3 text-sm text-[rgb(var(--text)/0.82)]">{translate("Sign in to save shoes.")}</p>
           <SignInValue />
           <Link
@@ -28,7 +28,7 @@ export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: bo
           </Link>
         </div>
       ) : shoes.length === 0 ? (
-        <div className="surface-card premium-border mx-auto max-w-md rounded-2xl p-8 text-center">
+        <div className="surface-card premium-border ios-glass-favorites-empty relative mx-auto max-w-md rounded-2xl p-8 text-center">
           <p className="mb-4 text-sm soft-text">{translate("No saved shoes yet. Tap the heart on any shoe.")}</p>
           <Link
             href={"/" as Route}

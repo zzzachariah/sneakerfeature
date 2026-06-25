@@ -86,7 +86,7 @@ export function FeedFab({
             transition: `opacity 200ms var(--ease) ${open ? i * 45 : 0}ms, transform 200ms var(--ease) ${open ? i * 45 : 0}ms`
           }}
         >
-          <span className="glass rounded-full px-2.5 py-1 text-[0.72rem] font-medium">{a.label}</span>
+          <span className="glass glass-clip rounded-full px-2.5 py-1 text-[0.72rem] font-medium">{a.label}</span>
           <button
             type="button"
             onClick={a.onClick}
@@ -106,7 +106,7 @@ export function FeedFab({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label={translate("Feed controls")}
-        className="glass glass-rim relative inline-flex h-[52px] w-[52px] items-center justify-center rounded-full text-[rgb(var(--text))] transition active:scale-90"
+        className="glass glass-rim glass-clip glass-interactive relative inline-flex h-[52px] w-[52px] items-center justify-center rounded-full text-[rgb(var(--text))] transition active:scale-90"
       >
         {open ? <X className="h-5 w-5" /> : <SlidersHorizontal className="h-5 w-5" />}
         {anyActive && !open && (

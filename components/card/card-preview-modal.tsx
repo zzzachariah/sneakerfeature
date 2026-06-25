@@ -155,7 +155,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           key="dialog"
           role="dialog"
           aria-modal
-          className="liquid-glass-strong glass-rim relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl"
+          className="liquid-glass-strong glass-rim glass-clip relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl"
           style={{ maxHeight: "calc(100dvh - 24px)" }}
           initial={{ y: 18, opacity: 0, scale: 0.985 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}

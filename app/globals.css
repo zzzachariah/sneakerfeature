@@ -595,6 +595,165 @@ html[data-native-platform="ios"] [data-download-entry] {
   inset: -6px;
 }
 
+/* ── iOS-app only liquid-glass enhancements (scoped via .capacitor-native[data-native-platform="ios"]) ── */
+/* ──────────────────────────────────────────────────────────────────────────
+   iOS-only liquid-glass upgrades.
+   Scoped under html.capacitor-native[data-native-platform="ios"] (set by
+   components/native/capacitor-bridge.tsx) so web users see nothing change.
+   Each rule pairs a stable hook class with a glass tier from the system
+   above; rules also honor prefers-reduced-transparency via the @media
+   block earlier in this file (the .glass / .glass-strong / .glass-thin /
+   .glass-lite classes referenced here all degrade there).
+   ────────────────────────────────────────────────────────────────────── */
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-search-pill {
+  /* Home feed search pill — promote hand-rolled blur to regular .glass tier. */
+  background-color: rgb(var(--glass-tint) / 0.74);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  isolation: isolate;
+  overflow: hidden;
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-compare-picker {
+  /* compare-shoe-picker dialog body — promote surface-card to glass-strong. */
+  position: relative;
+  background-color: rgb(var(--glass-tint-strong) / 0.7);
+  border-color: rgb(var(--glass-stroke) / 0.55);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.55),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+    0 30px 72px rgb(var(--glass-shadow) / 0.42);
+  isolation: isolate;
+  /* overflow-hidden already present on the host */
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-segmented {
+  /* blogger-reviews segmented tab pill. */
+  position: relative;
+  border-color: transparent;
+  background-color: rgb(var(--glass-tint) / 0.7);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.45),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-composer-bar {
+  /* smart-picker composer outer bar — adopt official .glass-thin material. */
+  background-color: rgb(var(--glass-tint) / 0.74) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate)) !important;
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate)) !important;
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-admin-shell-bar {
+  /* Admin mobile sticky chrome — thin film like the rest of the app's nav. */
+  background-color: rgb(var(--glass-tint) / 0.72);
+  border-color: transparent;
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  box-shadow: inset 0 -1px 0 rgb(var(--glass-stroke) / 0.4);
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-favorites-empty {
+  /* Favorites sign-in CTA + empty-state card — modal-tier hero glass. */
+  background-color: rgb(var(--glass-tint-strong) / 0.7);
+  border-color: rgb(var(--glass-stroke) / 0.55);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.55),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+    0 18px 44px rgb(var(--glass-shadow) / 0.28);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-announce-stack-card {
+  /* AnnouncementModal StackCard — REGULAR .glass (not -strong) because the
+     parent Modal is already glass-strong; double-blur would muddy. */
+  background-color: rgb(var(--glass-tint) / 0.68);
+  border-color: rgb(var(--glass-stroke) / 0.48);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06);
+  isolation: isolate;
+  transition:
+    transform var(--dur-base) var(--ease),
+    background-color var(--dur-base) var(--ease);
+}
+html.capacitor-native[data-native-platform="ios"] .ios-glass-announce-stack-card:active {
+  transform: scale(0.985);
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-announce-empty {
+  /* Announcements empty-state hero card. */
+  background-color: rgb(var(--glass-tint) / 0.7);
+  border-color: rgb(var(--glass-stroke) / 0.5);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06);
+  isolation: isolate;
+  overflow: hidden;
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-platform-tile {
+  /* Download page platform picker tiles — 4 simultaneous, well within budget. */
+  background-color: rgb(var(--glass-tint) / 0.65);
+  border-color: rgb(var(--glass-stroke) / 0.5);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.5),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06);
+  isolation: isolate;
+  /* overflow-hidden + relative already on host. */
+  transition: transform var(--dur-base) var(--ease);
+}
+html.capacitor-native[data-native-platform="ios"] .ios-glass-platform-tile:active {
+  transform: scale(0.97);
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-download-steps {
+  /* Steps install-instructions card. NO backdrop-filter — long scroll page,
+     this matches glass-lite (tint + lit rim only). */
+  background-color: rgb(var(--glass-tint) / 0.55);
+  border-color: rgb(var(--glass-stroke) / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.42),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05);
+}
+
+html.capacitor-native[data-native-platform="ios"] .ios-glass-submit-humancheck {
+  /* HumanCheck emphasis frame inside the long submit form. glass-lite (no blur). */
+  background-color: rgb(var(--glass-tint) / 0.55);
+  border-color: rgb(var(--glass-stroke) / 0.45);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.42),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05);
+}
+
+/* TOC nav + contact callout on legal pages. .surface-soft is a tag-narrow
+   token but the legal pages use it on exactly two static hosts. We do not
+   change .surface-soft globally — only override on iOS for the two known
+   hosts. The selector below targets the rounded TOC nav + callout div. */
+html.capacitor-native[data-native-platform="ios"] nav.surface-soft,
+html.capacitor-native[data-native-platform="ios"] div.surface-soft {
+  background-color: rgb(var(--glass-tint) / 0.55);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.42),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05);
+}
+
 /* Surfaces */
 .surface-card {
   background: rgb(var(--bg-elev) / 0.96);

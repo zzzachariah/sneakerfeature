@@ -111,7 +111,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
           style={{ bottom: "calc(var(--mobile-nav-h, 0px) + 20px)" }}
           aria-live="polite"
         >
-          <div className="glass glass-rim pop-in shadow-lift pointer-events-auto flex max-w-[92vw] items-center gap-3 rounded-full px-4 py-2.5">
+          <div className="glass glass-rim glass-clip relative pop-in shadow-lift pointer-events-auto flex max-w-[92vw] items-center gap-3 rounded-full px-4 py-2.5">
             <Heart
               className={`h-4 w-4 ${toast.added ? "fill-[rgb(var(--brand))] text-[rgb(var(--brand))]" : "text-[rgb(var(--subtext))]"}`}
             />
