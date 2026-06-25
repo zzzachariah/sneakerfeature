@@ -269,8 +269,24 @@ export function HomeFeed({
             {translate("Browse all shoes")}
           </button>
         )}
+        {collapseEnabled && toolsOpen && (
+          // Floating collapse pill: pinned to the sticky toolbar's top-right
+          // corner so it stays visible as the user scrolls. The toolbar wrapper
+          // reserves right padding so the Filters / Search button doesn't sit
+          // under it.
+          <button
+            type="button"
+            onClick={() => setToolsOpen(false)}
+            aria-label={translate("Collapse")}
+            className="glass glass-rim glass-clip glass-interactive absolute right-2 top-1.5 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))]"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        )}
         <div
-          className="flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end"
+          className={`flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end${
+            collapseEnabled && toolsOpen ? " pr-12" : ""
+          }`}
           style={toolbarVisible ? undefined : { display: "none" }}
         >
           <div
@@ -366,17 +382,6 @@ export function HomeFeed({
                 </span>
               )}
             </button>
-            {collapseEnabled && (
-              <button
-                type="button"
-                onClick={() => setToolsOpen(false)}
-                aria-label={translate("Collapse")}
-                className="glass glass-rim glass-clip glass-interactive relative inline-flex h-11 items-center justify-center gap-1.5 rounded-full px-3.5 text-sm font-medium text-[rgb(var(--subtext))]"
-              >
-                <ChevronUp className="h-4 w-4" />
-                {translate("Collapse")}
-              </button>
-            )}
             <button
               type="button"
               onClick={() => {
