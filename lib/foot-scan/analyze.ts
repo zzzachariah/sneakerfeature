@@ -21,7 +21,8 @@
 // Classification + the mm conversion stay in code (classify.ts / config.ts) so
 // the boundaries remain explicit and tunable against a validation set.
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { describePackyError } from "@/lib/ai/packy-client";
 import {
   widthClassFromRatio,
   widthMmFromRatio,
@@ -66,47 +67,14 @@ import {
 // when unset.
 const VISION_MODEL = process.env.FOOT_SCAN_MODEL?.trim() || "claude-haiku-4-5-20251001";
 
-// packyapi's Anthropic-native gateway. The Anthropic SDK appends /v1/messages,
-// matching the `anthropic·/v1/messages` route the foot-scan key is authorised
-// for. The companion `openai·/v1/chat/completions` route (used by Smart Picker)
-// is a SEPARATE entitlement, so we can't share that code path here.
-const FOOT_SCAN_BASE_URL = "https://www.packyapi.com";
+// The OpenAI-compatible endpoint for packyapi. Hardcoded so the only thing the
+// deployment has to configure is FOOT_SCAN_API_KEY.
+const FOOT_SCAN_BASE_URL = "https://www.packyapi.com/v1";
 
-function createFootScanClient(): Anthropic | null {
+function createFootScanClient(): OpenAI | null {
   const apiKey = process.env.FOOT_SCAN_API_KEY?.trim();
   if (!apiKey) return null;
-  return new Anthropic({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
-}
-
-// Anthropic's image block wants base64 + media_type, NOT a data URL. Parse the
-// data URL the route accepted and split off the prefix.
-function dataUrlToImageBlock(dataUrl: string): Anthropic.Messages.ImageBlockParam {
-  const m = dataUrl.match(/^data:image\/(jpeg|jpg|png|webp);base64,(.+)$/);
-  if (!m) throw new Error("Invalid image data URL");
-  const ext = m[1] === "jpg" ? "jpeg" : m[1];
-  return {
-    type: "image",
-    source: {
-      type: "base64",
-      media_type: `image/${ext}` as "image/jpeg" | "image/png" | "image/webp",
-      data: m[2]
-    }
-  };
-}
-
-// Short, admin-readable error detail. Mirrors the OpenAI-side describePackyError
-// shape so the existing logs/UI keep showing "HTTP 403 code=... type=... — msg".
-function describeFootScanError(error: unknown): string {
-  if (error instanceof Anthropic.APIError) {
-    const meta: string[] = [`HTTP ${error.status ?? "?"}`];
-    const err = error as unknown as { code?: string; type?: string; message?: string };
-    if (err.code) meta.push(`code=${err.code}`);
-    if (err.type) meta.push(`type=${err.type}`);
-    const msg = (error.message || "").slice(0, 600);
-    return `${meta.join(" ")}${msg ? ` — ${msg}` : ""}`;
-  }
-  if (error instanceof Error) return (error.message || error.name).slice(0, 600);
-  return String(error).slice(0, 600);
+  return new OpenAI({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
 }
 
 // Non-secret fingerprint of the key actually loaded by this deployment, so a
@@ -140,8 +108,8 @@ const SAMPLE_COUNT = (() => {
 const MAX_SAMPLES = FOOT_SCAN_CONFIG.sampling.maxCount;
 
 // Sampling temperature used only when more than one read is taken, to give the
-// runs enough variety to average. Anthropic's native API always accepts
-// temperature in [0, 1], so no retry-without is needed here.
+// runs enough variety to average. If the model/relay rejects `temperature`, the
+// call is retried without it (see runSample).
 const SAMPLE_TEMPERATURE = (() => {
   const t = Number.parseFloat(process.env.FOOT_SCAN_TEMPERATURE ?? "");
   return Number.isFinite(t) && t >= 0 && t <= 1 ? t : FOOT_SCAN_CONFIG.sampling.temperature;
@@ -280,26 +248,41 @@ type Sample = {
 type SampleResult = { ok: true; sample: Sample } | { ok: false; error: string };
 
 async function runSample(
-  client: Anthropic,
-  content: Anthropic.Messages.ContentBlockParam[],
+  client: OpenAI,
+  content: OpenAI.Chat.Completions.ChatCompletionContentPart[],
   temperature: number,
   model: string,
   hasOther: boolean,
   index: number
 ): Promise<SampleResult> {
+  // The relay does not lift an OpenAI `system` turn into Anthropic's system
+  // field, so everything rides in a single user turn.
+  const base = {
+    model,
+    max_tokens: 1600,
+    messages: [{ role: "user" as const, content }]
+  };
+
   const t0 = Date.now();
   let raw: string;
   try {
-    const completion = await client.messages.create({
-      model,
-      max_tokens: 1600,
-      temperature,
-      messages: [{ role: "user", content }]
-    });
-    const block = completion.content[0];
-    raw = block && block.type === "text" ? block.text : "";
+    let completion;
+    try {
+      completion = await client.chat.completions.create({ ...base, temperature });
+    } catch (e) {
+      // Opus-tier models reject `temperature` on the native API; some relays
+      // forward it. Retry once without it so a model upgrade can't break the
+      // call — self-consistency then relies on the model's own default variance.
+      if (e instanceof OpenAI.APIError && e.status === 400) {
+        console.warn("[foot-scan] sample retrying without temperature", { index, model, status: e.status });
+        completion = await client.chat.completions.create(base);
+      } else {
+        throw e;
+      }
+    }
+    raw = completion.choices[0]?.message?.content ?? "";
   } catch (e) {
-    const error = describeFootScanError(e);
+    const error = describePackyError(e);
     console.error("[foot-scan] sample API call failed", { index, model, durationMs: Date.now() - t0, error });
     return { ok: false, error };
   }
@@ -390,7 +373,7 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
   });
 
   const language = input.locale === "zh" ? "Simplified Chinese" : "English";
-  const content: Anthropic.Messages.ContentBlockParam[] = [
+  const content: OpenAI.Chat.Completions.ChatCompletionContentPart[] = [
     { type: "text", text: PROMPT },
     {
       type: "text",
@@ -398,15 +381,15 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     },
     { type: "text", text: `\nReference foot length (anchor): ${input.footLengthMm} mm. Primary foot: ${input.primarySide}.` },
     { type: "text", text: `\n[Image: ${VIEW_LABELS.top}]` },
-    dataUrlToImageBlock(input.images.top),
+    { type: "image_url", image_url: { url: input.images.top } },
     { type: "text", text: `\n[Image: ${VIEW_LABELS.oblique}]` },
-    dataUrlToImageBlock(input.images.oblique),
+    { type: "image_url", image_url: { url: input.images.oblique } },
     { type: "text", text: `\n[Image: ${VIEW_LABELS.side}]` },
-    dataUrlToImageBlock(input.images.side)
+    { type: "image_url", image_url: { url: input.images.side } }
   ];
   if (input.images.top_other) {
     content.push({ type: "text", text: `\n[Image: ${VIEW_LABELS.top_other}]` });
-    content.push(dataUrlToImageBlock(input.images.top_other));
+    content.push({ type: "image_url", image_url: { url: input.images.top_other } });
   }
 
   const hasOther = Boolean(input.images.top_other);
