@@ -45,7 +45,6 @@ export function NativePullToRefresh() {
     if (!nativeAvailable()) return;
     const blocked = NO_REFRESH_PREFIXES.some((p) => pathname.startsWith(p));
     void NativeChrome.setPullToRefreshEnabled({ enabled: !blocked }).catch(() => {});
-    void NativeChrome.setBottomPullToRefreshEnabled({ enabled: !blocked }).catch(() => {});
   }, [pathname]);
 
   return null;

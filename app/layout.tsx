@@ -19,6 +19,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NativeBottomNav } from "@/components/native/native-bottom-nav";
 import { NativeTopBar } from "@/components/native/native-top-bar";
 import { NativePullToRefresh } from "@/components/native/native-gestures";
+import { NativeBottomReload } from "@/components/native/native-bottom-reload";
 import { NavScrollIndicatorProvider } from "@/components/layout/nav-scroll-indicator";
 import { RouteMemory } from "@/components/auth/route-memory";
 import {
@@ -115,6 +116,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     <TutorialOverlay />
                     <PushRegistration />
                     <NativePullToRefresh />
+                    <NativeBottomReload />
                   </TutorialProvider>
                 </PersonaProvider>
               </RatingFocusProvider>
