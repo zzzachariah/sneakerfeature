@@ -10,7 +10,6 @@ import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
 import { scoreColor } from "@/lib/score-tone";
-import { FavoriteButton } from "@/components/favorites/favorite-button";
 import { Reveal } from "@/components/motion/reveal";
 
 type Props = {
@@ -89,10 +88,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             </span>
           )}
         </div>
-        {/* Reserve room at the bottom-right for the favorite button so it
-            never overlaps the name/brand/stars/chips and never has to
-            compress them with a forced right-padding. */}
-        <div className="p-3 pb-10">
+        <div className="p-3">
           <div className="truncate text-sm font-semibold tracking-[-0.01em] leading-[1.25]">{shoe.shoe_name}</div>
           <div className="mt-0.5 truncate text-[0.78rem] soft-text leading-snug">{shoe.brand}</div>
           <div className="mt-1.5">
@@ -119,7 +115,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
         </div>
       </Link>
 
-      {compareEnabled ? (
+      {compareEnabled && (
         <label
           onClick={(e) => e.stopPropagation()}
           className="tap-44 glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full"
@@ -135,16 +131,6 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             aria-label={translate("Compare")}
           />
         </label>
-      ) : (
-        // Favorite sits in the bottom-right corner of the WHOLE card
-        // (image + text section), inside the visible card border. The
-        // bottom space is reserved by the pb-10 above, so it never
-        // overlaps content and never pushes other elements around.
-        <FavoriteButton
-          shoeId={shoe.id}
-          className="tap-44 glass-lite absolute bottom-2 right-2 z-10 h-7 w-7 rounded-full opacity-95"
-          iconClassName="h-3.5 w-3.5"
-        />
       )}
     </>
   );
