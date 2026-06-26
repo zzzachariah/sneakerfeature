@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ChevronDown, Download, History, Plus, Sparkles, Wallet } from "lucide-react";
+import { ChevronDown, Download, History, Plus, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DUR, EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
@@ -31,12 +31,6 @@ type Props = {
   onNewChat: () => void;
 };
 
-const EXAMPLE_PROMPTS = [
-  { key: "guard-light", en: "Lightweight shoes for an agile guard with responsive cushioning" },
-  { key: "wide-foot", en: "Basketball shoes for wide feet with great lateral stability" },
-  { key: "beginner", en: "Best budget-friendly basketball shoes for a beginner" },
-  { key: "outdoor", en: "Durable outdoor basketball shoes with good traction" },
-] as const;
 
 export function ChatConversation({
   messages,
@@ -59,7 +53,7 @@ export function ChatConversation({
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement | null>(null);
-  const [prefillText, setPrefillText] = useState("");
+  const [prefillText] = useState("");
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -101,9 +95,8 @@ export function ChatConversation({
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
-      {/* Mobile header */}
-      <div className="flex items-center justify-between gap-2 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-[var(--container-gutter)] py-2 md:hidden">
-        {/* Conversation history — anchored dropdown popover (not a full-screen takeover). */}
+      {/* Header — history + balance only, no title */}
+      <div className="flex items-center justify-between gap-2 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-[var(--container-gutter)] py-2">
         <div ref={historyRef} className="relative shrink-0">
           <button
             type="button"
@@ -131,32 +124,7 @@ export function ChatConversation({
             />
           )}
         </div>
-        <h1 className="min-w-0 flex-1 truncate text-center text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
         <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
-          <Wallet className="h-3.5 w-3.5" />
-          {creditsLoaded ? (
-            <>{unlimited ? "∞" : balance} {translate("credits")}</>
-          ) : (
-            <span aria-hidden className="skeleton inline-block h-3.5 w-12" />
-          )}
-          {creditsLoaded && (
-            <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
-          )}
-        </div>
-      </div>
-
-      {/* Desktop header */}
-      <div className="hidden items-center justify-between gap-3 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-[var(--container-gutter)] py-3 md:flex">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)]">
-            <Sparkles className="h-4 w-4 text-[rgb(var(--subtext))]" />
-          </span>
-          <div className="min-w-0 leading-tight">
-            <h1 className="truncate text-sm font-semibold tracking-[-0.01em]">{headerTitle}</h1>
-            <p className="truncate text-[0.7rem] soft-text">{translate("AI shoe recommendations from our database")}</p>
-          </div>
-        </div>
-        <div className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
           <Wallet className="h-3.5 w-3.5" />
           {creditsLoaded ? (
             <>{unlimited ? "∞" : balance} {translate("credits")}</>
@@ -178,37 +146,7 @@ export function ChatConversation({
             </div>
           )}
 
-          {isEmpty && (
-            <div className="mt-8 flex flex-col items-center gap-4">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)] shadow-[0_8px_24px_rgb(var(--glass-shadow)/0.18)]">
-                  <Sparkles className="h-7 w-7 text-[rgb(var(--text))]" />
-                </span>
-                <h2 className="text-lg font-semibold">{translate("Find your next pair")}</h2>
-                <p className="max-w-xs text-sm soft-text">
-                  {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
-                </p>
-              </div>
-
-              {/* Example prompt cards */}
-              <div className="grid w-full grid-cols-2 gap-2">
-                {EXAMPLE_PROMPTS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    onClick={() => setPrefillText(p.en)}
-                    className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.55)] p-3 text-left text-[0.78rem] leading-snug transition hover:bg-[rgb(var(--surface)/0.85)] hover:shadow-[0_4px_12px_rgb(var(--glass-shadow)/0.12)] active:scale-[0.98]"
-                  >
-                    {translate(p.en)}
-                  </button>
-                ))}
-              </div>
-
-              <p className="max-w-sm rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.6)] p-3 text-center text-[0.75rem] leading-relaxed soft-text">
-                {translate("1 credit = 1 recommended shoe. Asking AI for 10 shoes at once costs 10 credits. Please choose the number before sending.")}
-              </p>
-            </div>
-          )}
+          {isEmpty && <div className="h-8" />}
 
           {!loadingMessages && messages.map((message, idx) => {
             if (message.role === "user") {

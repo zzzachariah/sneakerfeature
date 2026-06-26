@@ -13,8 +13,6 @@ type Props = {
   prefillText?: string;
 };
 
-const QUICK_COUNTS = [1, 3, 5, 10].filter((n) => n <= MAX_RECOMMENDATIONS);
-
 export function MessageInput({ balance, unlimited, sending, onSend, prefillText }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
@@ -42,54 +40,54 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
     }
   };
 
+  const handleCountChange = (raw: string) => {
+    const v = parseInt(raw);
+    if (isNaN(v)) return;
+    setCount(Math.min(MAX_RECOMMENDATIONS, Math.max(1, v)));
+  };
+
   return (
-    <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--bg)/0.66)] p-3 backdrop-blur-[26px] backdrop-saturate-[180%] ios-glass-composer-bar">
-      <div className="surface-card premium-border rounded-2xl transition focus-within:shadow-[0_0_0_3px_rgb(var(--text)/0.07)]">
-        {/* Textarea */}
+    <div className="flex justify-center px-4 pb-5 pt-2 ios-glass-composer-bar">
+      <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.82)] shadow-[0_8px_32px_rgb(var(--glass-shadow)/0.14)] backdrop-blur-[28px] backdrop-saturate-[160%]">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           rows={2}
           placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
-          className="w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-base md:text-sm outline-none placeholder:text-[rgb(var(--subtext)/0.6)]"
+          className="w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-[0.95rem] outline-none placeholder:text-[rgb(var(--subtext)/0.5)] md:text-sm"
         />
 
-        {/* Toolbar row */}
-        <div className="flex items-center justify-between gap-3 px-3 pb-3 pt-1">
-          {/* Count chips */}
-          <div className="flex items-center gap-1.5">
-            {QUICK_COUNTS.map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setCount(n)}
-                className={`h-7 min-w-[1.75rem] rounded-full px-2 text-[0.76rem] font-semibold transition-all ${
-                  count === n
-                    ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] shadow-[0_2px_8px_rgb(var(--glass-shadow)/0.18)]"
-                    : "bg-[rgb(var(--text)/0.06)] text-[rgb(var(--subtext))] hover:bg-[rgb(var(--text)/0.12)] hover:text-[rgb(var(--text))]"
-                }`}
-              >
-                {n}
-              </button>
-            ))}
-            <span className="ml-0.5 text-[0.72rem] soft-text">
-              {translate("shoes")}
-            </span>
+        <div className="flex items-center justify-between gap-3 px-4 pb-3.5 pt-1.5">
+          {/* Inline count */}
+          <div className={`flex items-center gap-1 ${insufficient ? "text-[rgb(var(--error))]" : "soft-text"}`}>
+            <span className="text-[0.78rem]">×</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max={MAX_RECOMMENDATIONS}
+              value={count}
+              onChange={(e) => handleCountChange(e.target.value)}
+              className={`w-7 appearance-none bg-transparent text-center text-sm font-semibold outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                insufficient ? "text-[rgb(var(--error))]" : "text-[rgb(var(--text))]"
+              }`}
+            />
+            <span className="text-[0.78rem]">{translate("shoes")}</span>
           </div>
 
-          {/* Send button */}
+          {/* Send */}
           <button
             type="button"
             onClick={submit}
             disabled={!isReady}
             aria-label={sending ? translate("AI is thinking…") : translate("Send")}
-            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
+            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
               sending
                 ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
                 : isReady
-                  ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] shadow-[0_4px_14px_rgb(var(--glass-shadow)/0.22)] hover:scale-105 active:scale-95"
-                  : "cursor-not-allowed bg-[rgb(var(--text)/0.12)] text-[rgb(var(--subtext))]"
+                  ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] shadow-[0_4px_14px_rgb(var(--glass-shadow)/0.2)] hover:scale-105 active:scale-95"
+                  : "cursor-not-allowed bg-[rgb(var(--text)/0.1)] text-[rgb(var(--subtext))]"
             }`}
           >
             {sending ? (
@@ -99,19 +97,6 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
             )}
           </button>
         </div>
-      </div>
-
-      {/* Credit status — below card */}
-      <div className="mt-1.5 px-1 text-[0.71rem]">
-        {insufficient ? (
-          <span className="font-medium text-[rgb(var(--error))]">
-            {translate("Insufficient balance")} · {balance} {translate("credits")} {translate("remaining")}
-          </span>
-        ) : (
-          <span className="soft-text">
-            {count} {translate("credits")} · {translate("Balance")} {unlimited ? "∞" : balance}
-          </span>
-        )}
       </div>
     </div>
   );
