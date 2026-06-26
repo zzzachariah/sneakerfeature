@@ -19,6 +19,7 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "configureSearch", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSearchVisible", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPullToRefreshEnabled", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBottomPullToRefreshEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentMenu", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise)
     ]
@@ -26,6 +27,11 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
     private var controller: NativeTabBarController?
     private var navBar: NativeNavBarController?
     private var refreshControl: UIRefreshControl?
+
+    // Bottom pull-to-refresh state
+    private var bottomIndicator: UIActivityIndicatorView?
+    private var isBottomRefreshing = false
+    private var bottomPullEnabled = false
 
     // Enable the WKWebView's own interactive edge-swipe to go back/forward
     // through the (Next.js) history — iOS doesn't turn this on by default for an
@@ -170,6 +176,64 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         notifyListeners("pullRefresh", data: nil)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
             sender.endRefreshing()
+        }
+    }
+
+    // MARK: Bottom pull-to-refresh (pull up past the bottom edge then release)
+
+    @objc func setBottomPullToRefreshEnabled(_ call: CAPPluginCall) {
+        let enabled = call.getBool("enabled") ?? true
+        DispatchQueue.main.async {
+            self.setupBottomPull(enabled)
+            call.resolve()
+        }
+    }
+
+    private func setupBottomPull(_ enabled: Bool) {
+        guard enabled != bottomPullEnabled else { return }
+        guard let scrollView = bridge?.webView?.scrollView else { return }
+        if enabled {
+            scrollView.panGestureRecognizer.addTarget(self, action: #selector(handleScrollPan(_:)))
+            scrollView.alwaysBounceVertical = true
+
+            if bottomIndicator == nil {
+                let indicator = UIActivityIndicatorView(style: .medium)
+                indicator.hidesWhenStopped = true
+                indicator.translatesAutoresizingMaskIntoConstraints = false
+                if let superview = bridge?.webView?.superview {
+                    superview.addSubview(indicator)
+                    NSLayoutConstraint.activate([
+                        indicator.centerXAnchor.constraint(equalTo: superview.centerXAnchor),
+                        indicator.bottomAnchor.constraint(
+                            equalTo: superview.safeAreaLayoutGuide.bottomAnchor, constant: -20
+                        )
+                    ])
+                }
+                bottomIndicator = indicator
+            }
+        } else {
+            scrollView.panGestureRecognizer.removeTarget(self, action: #selector(handleScrollPan(_:)))
+            bottomIndicator?.removeFromSuperview()
+            bottomIndicator = nil
+            isBottomRefreshing = false
+        }
+        bottomPullEnabled = enabled
+    }
+
+    @objc private func handleScrollPan(_ gr: UIPanGestureRecognizer) {
+        guard gr.state == .ended, !isBottomRefreshing else { return }
+        guard let scrollView = bridge?.webView?.scrollView else { return }
+
+        let overscroll = scrollView.contentOffset.y + scrollView.bounds.height
+            - scrollView.contentSize.height
+        guard overscroll > 80 else { return }
+
+        isBottomRefreshing = true
+        bottomIndicator?.startAnimating()
+        notifyListeners("pullRefresh", data: nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.bottomIndicator?.stopAnimating()
+            self?.isBottomRefreshing = false
         }
     }
 

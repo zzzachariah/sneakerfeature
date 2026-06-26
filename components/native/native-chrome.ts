@@ -36,6 +36,9 @@ export interface NativeChromePlugin {
   // Native pull-to-refresh (UIRefreshControl on the web scroll view). Toggle per
   // route; fires the `pullRefresh` event when the user pulls down at the top.
   setPullToRefreshEnabled(options: { enabled: boolean }): Promise<void>;
+  // Bottom pull-to-refresh: overscroll past the bottom edge then release.
+  // Fires the same `pullRefresh` event so the handler is shared.
+  setBottomPullToRefreshEnabled(options: { enabled: boolean }): Promise<void>;
   // Ad-hoc native menus / confirms (presentable from any web trigger)
   presentMenu(options: {
     title?: string;
