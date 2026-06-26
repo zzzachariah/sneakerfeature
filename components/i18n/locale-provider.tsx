@@ -11,6 +11,9 @@ const SWITCH_OVERLAY_MS = 900;
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "pull up to refresh": "上拉刷新",
+  "release to refresh": "松手刷新",
+  "refreshing…": "刷新中…",
   "bounce": "弹性",
   "decent": "中等",
   "kobe": "科比",
