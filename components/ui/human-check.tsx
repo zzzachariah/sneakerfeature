@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import Script from "next/script";
 
@@ -48,6 +48,14 @@ export function HumanCheck({ action, onToken }: Props) {
       });
     }
   }
+
+  // If the Turnstile script was already loaded before this component mounted
+  // (SPA navigation between pages that both include HumanCheck), the Script
+  // onLoad won't fire again. Fall back to rendering immediately on mount.
+  useEffect(() => {
+    if (siteKey && window.turnstile) handleScriptLoad();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!siteKey) {
     return (
