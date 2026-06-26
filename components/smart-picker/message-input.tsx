@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type KeyboardEvent } from "react";
-import { ArrowUp, Loader2, Minus, Plus } from "lucide-react";
+import { useEffect, useState, type KeyboardEvent } from "react";
+import { ArrowUp, Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
 
@@ -10,30 +10,31 @@ type Props = {
   unlimited: boolean;
   sending: boolean;
   onSend: (message: string, count: number) => void;
+  prefillText?: string;
 };
 
-export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
+const QUICK_COUNTS = [1, 3, 5, 10].filter((n) => n <= MAX_RECOMMENDATIONS);
+
+export function MessageInput({ balance, unlimited, sending, onSend, prefillText }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
-  const [count, setCount] = useState(1);
+  const [count, setCount] = useState(3);
+
+  useEffect(() => {
+    if (prefillText) setText(prefillText);
+  }, [prefillText]);
 
   const insufficient = !unlimited && balance < count;
   const canSend = text.trim().length > 0 && !sending;
   const isReady = canSend && !insufficient;
 
-  const adjust = (delta: number) => setCount((c) => Math.min(MAX_RECOMMENDATIONS, Math.max(1, c + delta)));
-
   const submit = () => {
-    if (!canSend) return;
-    if (insufficient) return;
+    if (!isReady) return;
     onSend(text.trim(), count);
     setText("");
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // While a CJK IME is composing a character, Enter confirms the candidate —
-    // it must NOT submit. `isComposing` covers modern browsers; keyCode 229 is
-    // the legacy WebKit/IE signal for the same state.
     if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -56,26 +57,21 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className="text-[0.72rem] soft-text">{translate("Recommend")}</span>
-            <div className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] p-0.5">
-              <button
-                type="button"
-                onClick={() => adjust(-1)}
-                disabled={count <= 1}
-                aria-label={translate("Decrease")}
-                className="tap-44 relative inline-flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[rgb(var(--text)/0.08)] disabled:opacity-50"
-              >
-                <Minus className="h-3.5 w-3.5" />
-              </button>
-              <span className="min-w-5 text-center text-sm font-semibold tabular-nums">{count}</span>
-              <button
-                type="button"
-                onClick={() => adjust(1)}
-                disabled={count >= MAX_RECOMMENDATIONS}
-                aria-label={translate("Increase")}
-                className="tap-44 relative inline-flex h-6 w-6 items-center justify-center rounded-full transition hover:bg-[rgb(var(--text)/0.08)] disabled:opacity-50"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+            <div className="flex items-center gap-1">
+              {QUICK_COUNTS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setCount(n)}
+                  className={`h-6 min-w-[1.5rem] rounded-full px-1.5 text-[0.72rem] font-semibold transition ${
+                    count === n
+                      ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
+                      : "border border-[rgb(var(--glass-stroke-soft)/0.6)] hover:bg-[rgb(var(--text)/0.07)]"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
             <span className="text-[0.72rem] soft-text">{translate("shoes")}</span>
           </div>
@@ -104,12 +100,13 @@ export function MessageInput({ balance, unlimited, sending, onSend }: Props) {
 
       <div className="mt-1.5 px-1 text-[0.72rem] soft-text">
         {insufficient ? (
-          <span className="text-[rgb(var(--error))]">
-            {translate("Insufficient balance")} ({translate("Balance")} {balance} {translate("credits")}).
+          <span className="font-medium text-[rgb(var(--error))]">
+            {translate("Insufficient balance")} · {translate("Balance")} {balance} {translate("credits")}
           </span>
         ) : (
           <span>
-            {translate("This will use")} {count} {translate("credits")} · {translate("Balance")} {unlimited ? "∞" : balance} {translate("credits")}
+            {translate("This will use")} <span className="font-semibold text-[rgb(var(--text))]">{count}</span>{" "}
+            {translate("credits")} · {translate("Balance")} {unlimited ? "∞" : balance} {translate("credits")}
           </span>
         )}
       </div>
