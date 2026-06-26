@@ -1,31 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Capacitor } from "@capacitor/core";
+import { useRouter } from "next/navigation";
 import { ArrowDown, Loader2 } from "lucide-react";
 import { haptics } from "@/lib/native/haptics";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 // Top pull-to-refresh — "下拉刷新", implemented in JS/touch events.
 //
-// The iOS app already gets pull-down refresh via a native UIRefreshControl
-// (NativeChromePlugin → NativePullToRefresh). Outside iOS — Android Capacitor
-// and the mobile browser — there's no equivalent built in, so this ships the
-// same gesture as ordinary web content (no platform restriction, no App Store
-// resubmission). Skipped on iOS to avoid double-firing with the native control,
-// and on the deck-style / canvas-editor routes that own their own vertical
-// gestures (the same ones the iOS / bottom controls skip).
-const enabledPlatform = () => {
-  if (typeof window === "undefined") return false;
-  // iOS keeps its native UIRefreshControl — don't double-handle.
-  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") return false;
-  return true;
-};
-
-// Routes that run their own touch-driven gestures (image pan / deck swipe /
-// chat scrollers); a downward drag there must not get hijacked into a refresh.
-const NO_REFRESH_PREFIXES = ["/shoes/", "/smart-picker", "/foot-scan"];
+// Runs on EVERY platform — iOS Capacitor app, Android Capacitor, mobile web,
+// desktop. Pages here often use inner overflow-y-auto viewports rather than
+// scrolling the outer document, which is why the native iOS UIRefreshControl
+// (attached to the WKWebView's outer scrollView) never fired in practice. This
+// handler walks up from the touch target to find whichever element is actually
+// scrolling, and only arms when THAT scroller is pinned at its top — so the
+// gesture works regardless of whether scrolling lives on the document or in
+// some inner panel.
+//
+// No route exclusion list: the per-scroller check below also bails when the
+// touch starts inside a modal / sheet / sidebar / image-pan area whose own
+// scroller can absorb the drag, so deck pages and the foot-scan editor don't
+// get hijacked.
 
 const THRESHOLD = 72; // overscroll travel (px) needed to arm a refresh
 const MAX_PULL = 132; // clamp so the indicator never wanders too far down
@@ -34,35 +29,33 @@ const SNAP = "transform 220ms var(--ease), opacity 220ms var(--ease)";
 
 type Phase = "idle" | "pull" | "armed" | "refreshing";
 
-// True when `el` is a scroller whose content overflows AND it isn't already
-// pinned at its own top — i.e. a downward drag would scroll it instead of
-// pulling the page. Used to bail when the touch starts inside a modal / sheet /
-// sidebar that has its own scroll position (window.scrollY stays 0 when body
-// scroll is locked, so the cheap check isn't enough on its own).
-function absorbsDownwardDrag(el: HTMLElement): boolean {
+// True when `el` is a scrollable container — content overflows AND its
+// computed overflow-y allows it to scroll.
+function isScrollable(el: HTMLElement): boolean {
   if (el.scrollHeight <= el.clientHeight) return false;
   const overflowY = getComputedStyle(el).overflowY;
-  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") return false;
-  return el.scrollTop > 0;
+  return overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay";
 }
 
-function startedInsideInnerScroller(target: EventTarget | null): boolean {
+// Find the nearest ancestor that actually scrolls (walking from the touch
+// target up). Falls back to the documentElement when nothing inner scrolls —
+// which matches what `window.scrollY` reports anyway.
+function findScroller(target: EventTarget | null): HTMLElement {
   let el = target instanceof HTMLElement ? target : null;
   while (el && el !== document.body) {
-    if (absorbsDownwardDrag(el)) return true;
+    if (isScrollable(el)) return el;
     el = el.parentElement;
   }
-  return false;
+  return document.scrollingElement as HTMLElement ?? document.documentElement;
 }
 
 export function WebPullToRefresh() {
-  const pathname = usePathname();
   const router = useRouter();
   const { translate } = useLocale();
 
   // Defer rendering to after mount so SSR (always null) and the first client
-  // render agree — otherwise non-iOS browsers / Android Capacitor would log a
-  // hydration mismatch for the pill <div> on every cold page load.
+  // render agree — otherwise we'd log a hydration mismatch for the pill <div>
+  // on every cold page load.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -75,18 +68,12 @@ export function WebPullToRefresh() {
     tracking: false,
     startY: 0,
     armed: false,
-    blocked: false,
     refreshing: false,
+    scroller: null as HTMLElement | null,
   });
 
   useEffect(() => {
-    g.current.blocked = NO_REFRESH_PREFIXES.some((p) => pathname.startsWith(p));
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!enabledPlatform()) return;
-
-    const atTop = () => window.scrollY <= 0;
+    if (typeof window === "undefined") return;
 
     const paint = (travel: number) => {
       const el = pillRef.current;
@@ -97,17 +84,18 @@ export function WebPullToRefresh() {
 
     const onStart = (e: TouchEvent) => {
       const s = g.current;
-      if (s.blocked || s.refreshing || e.touches.length !== 1) return;
-      // Bail if the touch began inside a modal / sheet / sidebar that owns its
-      // own scroll — a downward drag there should scroll that container, not
-      // pull the page. (Body-scroll-lock keeps window.scrollY at 0, so the
-      // outer atTop() check below is true even when an overlay is open.)
-      if (startedInsideInnerScroller(e.target)) {
+      if (s.refreshing || e.touches.length !== 1) return;
+      // Lock onto whichever container is doing the scrolling at the touch
+      // point. If it's NOT pinned at its top, abort — the drag belongs to that
+      // scroller, not pull-to-refresh.
+      const scroller = findScroller(e.target);
+      if (scroller.scrollTop > 0) {
         s.tracking = false;
         s.armed = false;
-        // startY stays unused — onMove won't track unless onStart succeeded.
+        s.scroller = null;
         return;
       }
+      s.scroller = scroller;
       s.tracking = false;
       s.armed = false;
       s.startY = e.touches[0].clientY;
@@ -116,14 +104,15 @@ export function WebPullToRefresh() {
 
     const onMove = (e: TouchEvent) => {
       const s = g.current;
-      if (s.blocked || s.refreshing || e.touches.length !== 1) return;
+      if (s.refreshing || e.touches.length !== 1 || !s.scroller) return;
       const y = e.touches[0].clientY;
 
       if (!s.tracking) {
-        // Only begin tracking once pinned at the top and pulling downward.
-        if (atTop() && y > s.startY) {
+        // Only begin tracking once the scroller is still at its top AND the
+        // finger is moving downward.
+        if (s.scroller.scrollTop <= 0 && y > s.startY) {
           s.tracking = true;
-          s.startY = y; // measure overscroll from the top edge
+          s.startY = y; // measure overscroll from the moment we lock in
         } else {
           s.startY = y;
           return;
@@ -164,7 +153,7 @@ export function WebPullToRefresh() {
         router.refresh();
         // router.refresh() gives no completion signal, so clear after a short
         // beat — long enough to read as a real reload, short enough to never
-        // feel stuck (mirrors the native top control's 0.7s).
+        // feel stuck.
         window.setTimeout(() => {
           s.refreshing = false;
           setPhase("idle");
@@ -176,6 +165,7 @@ export function WebPullToRefresh() {
       }
       s.tracking = false;
       s.armed = false;
+      s.scroller = null;
     };
 
     window.addEventListener("touchstart", onStart, { passive: true });
@@ -190,7 +180,7 @@ export function WebPullToRefresh() {
     };
   }, [router]);
 
-  if (!mounted || !enabledPlatform()) return null;
+  if (!mounted) return null;
 
   const label =
     phase === "refreshing"
@@ -229,3 +219,4 @@ export function WebPullToRefresh() {
     </div>
   );
 }
+
