@@ -31,6 +31,13 @@ type Props = {
   onNewChat: () => void;
 };
 
+const EXAMPLE_PROMPTS = [
+  { key: "guard-light", en: "Lightweight shoes for an agile guard with responsive cushioning" },
+  { key: "wide-foot", en: "Basketball shoes for wide feet with great lateral stability" },
+  { key: "beginner", en: "Best budget-friendly basketball shoes for a beginner" },
+  { key: "outdoor", en: "Durable outdoor basketball shoes with good traction" },
+] as const;
+
 export function ChatConversation({
   messages,
   loadingMessages,
@@ -52,6 +59,7 @@ export function ChatConversation({
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement | null>(null);
+  const [prefillText, setPrefillText] = useState("");
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -171,15 +179,32 @@ export function ChatConversation({
           )}
 
           {isEmpty && (
-            <div className="mt-10 flex flex-col items-center gap-3 text-center">
-              <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)] shadow-[0_8px_24px_rgb(var(--glass-shadow)/0.18)]">
-                <Sparkles className="h-7 w-7 text-[rgb(var(--text))]" />
-              </span>
-              <h2 className="text-lg font-semibold">{translate("Find your next pair")}</h2>
-              <p className="max-w-md text-sm soft-text">
-                {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
-              </p>
-              <p className="max-w-md rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.6)] p-3 text-[0.78rem] leading-relaxed soft-text">
+            <div className="mt-8 flex flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[rgb(var(--text)/0.14)] to-[rgb(var(--text)/0.02)] shadow-[0_8px_24px_rgb(var(--glass-shadow)/0.18)]">
+                  <Sparkles className="h-7 w-7 text-[rgb(var(--text))]" />
+                </span>
+                <h2 className="text-lg font-semibold">{translate("Find your next pair")}</h2>
+                <p className="max-w-xs text-sm soft-text">
+                  {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
+                </p>
+              </div>
+
+              {/* Example prompt cards */}
+              <div className="grid w-full grid-cols-2 gap-2">
+                {EXAMPLE_PROMPTS.map((p) => (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setPrefillText(p.en)}
+                    className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.55)] p-3 text-left text-[0.78rem] leading-snug transition hover:bg-[rgb(var(--surface)/0.85)] hover:shadow-[0_4px_12px_rgb(var(--glass-shadow)/0.12)] active:scale-[0.98]"
+                  >
+                    {translate(p.en)}
+                  </button>
+                ))}
+              </div>
+
+              <p className="max-w-sm rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.6)] p-3 text-center text-[0.75rem] leading-relaxed soft-text">
                 {translate("1 credit = 1 recommended shoe. Asking AI for 10 shoes at once costs 10 credits. Please choose the number before sending.")}
               </p>
             </div>
@@ -250,7 +275,7 @@ export function ChatConversation({
       </div>
 
       <div className="mx-auto w-full max-w-2xl">
-        <MessageInput balance={balance} unlimited={unlimited} sending={sending} onSend={onSend} />
+        <MessageInput balance={balance} unlimited={unlimited} sending={sending} onSend={onSend} prefillText={prefillText} />
       </div>
 
       <CardPreviewModal
