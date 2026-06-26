@@ -9,17 +9,22 @@ import { useLocale } from "@/components/i18n/locale-provider";
 
 // Top pull-to-refresh — "下拉刷新", implemented in JS/touch events.
 //
-// The iOS app already gets pull-down refresh via a native UIRefreshControl
-// (NativeChromePlugin → NativePullToRefresh). Outside iOS — Android Capacitor
-// and the mobile browser — there's no equivalent built in, so this ships the
-// same gesture as ordinary web content (no platform restriction, no App Store
-// resubmission). Skipped on iOS to avoid double-firing with the native control,
-// and on the deck-style / canvas-editor routes that own their own vertical
-// gestures (the same ones the iOS / bottom controls skip).
+// Works on every platform except the iOS Capacitor native app when the
+// NativeChrome plugin is present — that app gets a UIRefreshControl from
+// NativePullToRefresh/native-gestures.tsx, so we defer to that to avoid
+// double-firing. Every other surface (iOS Safari, Android Capacitor, web
+// browsers) runs this JS implementation. Note: globals.css sets
+// overscroll-behavior:none on body, so the browser's own pull-to-refresh is
+// already suppressed everywhere — this JS handler is the only way to provide
+// the gesture on those surfaces.
 const enabledPlatform = () => {
   if (typeof window === "undefined") return false;
-  // iOS keeps its native UIRefreshControl — don't double-handle.
-  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") return false;
+  // Skip only when the native UIRefreshControl is handling it.
+  if (
+    Capacitor.isNativePlatform() &&
+    Capacitor.getPlatform() === "ios" &&
+    Capacitor.isPluginAvailable("NativeChrome")
+  ) return false;
   return true;
 };
 
