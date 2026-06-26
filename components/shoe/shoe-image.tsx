@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type ShoeImageProps = {
@@ -12,7 +11,7 @@ type ShoeImageProps = {
   className?: string;
   /** When inside a `.group` (e.g. a card), gently zooms the image on hover/press. */
   interactive?: boolean;
-  /** When true, loads the image eagerly (for above-the-fold / LCP images). */
+  /** Kept for call-site compatibility; native <img> handles eager loading via decoding. */
   priority?: boolean;
 };
 
@@ -35,13 +34,10 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
   const [loaded, setLoaded] = useState(false);
   const hasImage = Boolean(src) && !failed;
 
-  // Reset the load state whenever the source changes so the new image fades in.
   useEffect(() => {
     setLoaded(false);
   }, [src]);
 
-  // Cached images can finish loading before React attaches onLoad; catch that
-  // via the `complete` flag so the image never stays stuck at opacity 0.
   const handleImgRef = useCallback((node: HTMLImageElement | null) => {
     if (node && node.complete && node.naturalWidth > 0) setLoaded(true);
   }, []);
@@ -51,29 +47,16 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
       className={`shoe-stage relative mx-auto overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.42)] ${VARIANT_CLASS[variant]} ${className}`}
     >
       {hasImage ? (
-        <Image
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
           ref={handleImgRef}
           src={src ?? ""}
           alt={alt}
-          fill
-          sizes={
-            variant === "detail"
-              ? "(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 480px"
-              : variant === "compare"
-              ? "(max-width: 768px) 50vw, 208px"
-              : variant === "suggestion"
-              ? "64px"
-              : "56px"
-          }
           loading={priority ? "eager" : "lazy"}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
-          className={cn("shoe-img object-contain object-center", interactive && "shoe-img--zoom", loaded ? "img-loaded" : "img-loading")}
+          className={cn("shoe-img h-full w-full object-contain object-center", interactive && "shoe-img--zoom", loaded ? "img-loaded" : "img-loading")}
           style={{
-            // No backdrop color: background-removed PNGs float on the adaptive
-            // .shoe-stage (see globals.css). Originals that still have a white
-            // plate simply render that plate over the stage — degrades cleanly.
-            // Drives both the fill-scale and the optional hover zoom.
             ["--img-scale" as string]: VARIANT_SCALE[variant]
           }}
         />
