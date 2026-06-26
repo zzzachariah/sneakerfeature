@@ -197,14 +197,14 @@ export function ChatConversation({
                     key={p.key}
                     type="button"
                     onClick={() => setPrefillText(p.en)}
-                    className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.55)] p-3 text-left text-[0.78rem] leading-snug transition hover:bg-[rgb(var(--surface)/0.85)] hover:shadow-[0_4px_12px_rgb(var(--glass-shadow)/0.12)] active:scale-[0.98]"
+                    className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.55)] p-3 text-left text-[0.78rem] leading-snug transition hover:bg-[rgb(var(--surface)/0.85)] hover:shadow-[0_4px_12px_rgb(var(--glass-shadow)/0.12)] active:scale-[0.98]"
                   >
                     {translate(p.en)}
                   </button>
                 ))}
               </div>
 
-              <p className="max-w-sm rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.6)] p-3 text-center text-[0.75rem] leading-relaxed soft-text">
+              <p className="max-w-sm rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.6)] p-3 text-center text-[0.75rem] leading-relaxed soft-text">
                 {translate("1 credit = 1 recommended shoe. Asking AI for 10 shoes at once costs 10 credits. Please choose the number before sending.")}
               </p>
             </div>

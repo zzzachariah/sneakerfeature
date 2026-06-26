@@ -78,7 +78,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
               </div>
               <label
                 onClick={(e) => e.stopPropagation()}
-                className="relative tap-44 inline-flex shrink-0 cursor-pointer items-center rounded-md bg-[rgb(var(--text)/0.05)] px-1.5 py-1"
+                className="relative tap-44 inline-flex shrink-0 cursor-pointer items-center rounded-lg bg-[rgb(var(--text)/0.05)] px-1.5 py-1"
                 title={translate("Add to compare")}
               >
                 <input
@@ -108,7 +108,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
           <button
             type="button"
             onClick={() => setDetailOpen(true)}
-            className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.5)] px-2.5 py-1 text-[0.75rem] font-medium transition hover:border-[rgb(var(--text)/0.4)] hover:bg-[rgb(var(--text)/0.04)]"
+            className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] px-3 py-1 text-[0.75rem] font-medium transition hover:border-[rgb(var(--text)/0.4)] hover:bg-[rgb(var(--text)/0.04)]"
           >
             {translate("Details")}
             <ArrowUpRight className="h-3.5 w-3.5" />
@@ -158,7 +158,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
 
           {/* Pros & Cons — side by side */}
           {hasProsCons && (
-            <div className="flex gap-4 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] p-3">
+            <div className="flex gap-4 rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] p-3">
               {rec.pros.length > 0 && <ProsCons label={translate("Pros")} items={rec.pros} tone="pro" />}
               {rec.cons.length > 0 && <ProsCons label={translate("Cons")} items={rec.cons} tone="con" />}
             </div>
@@ -166,7 +166,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
 
           {/* Radar chart */}
           {rec.radar.length > 0 && (
-            <div className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-3">
+            <div className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-3">
               <p className="mb-2 text-center text-[0.66rem] font-semibold uppercase tracking-[0.12em] soft-text">
                 {translate("Performance")}
               </p>
@@ -178,7 +178,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
 
           {/* References */}
           {rec.references && rec.references.length > 0 && (
-            <div className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-2.5">
+            <div className="rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] px-3 py-2.5">
               <p className="mb-1.5 text-[0.66rem] font-semibold uppercase tracking-[0.12em] soft-text">
                 {translate("References")}
               </p>
