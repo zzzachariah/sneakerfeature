@@ -12,6 +12,7 @@ const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "pull up to refresh": "上拉刷新",
+  "pull down to refresh": "下拉刷新",
   "release to refresh": "松手刷新",
   "refreshing…": "刷新中…",
   "bounce": "弹性",

@@ -20,7 +20,7 @@ const nativeAvailable = () =>
   Capacitor.getPlatform() === "ios" &&
   Capacitor.isPluginAvailable("NativeChrome");
 
-const NO_REFRESH_PREFIXES = ["/shoes/", "/smart-picker"];
+const NO_REFRESH_PREFIXES = ["/shoes/", "/smart-picker", "/foot-scan"];
 
 export function NativePullToRefresh() {
   const pathname = usePathname();
