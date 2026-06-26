@@ -773,6 +773,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "decrease": "减少",
   "increase": "增加",
   "send": "发送",
+  "tell me what you need and i'll pick the right sneaker for you.": "告诉我你的需求，我来帮你挑一双合适的球鞋。",
   "insufficient balance": "余额不足",
   "go recharge": "去充值",
   "this will use": "本次消耗",
@@ -1015,7 +1016,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "cn (mm)": "CN（毫米）",
   // capture
   "hold the phone flat, facing down": "把手机放平，镜头朝下",
-  "tilt the top of the phone away from you (~45°)": "把手机顶部向远离你的方向倾斜（约 45°）",
+  "tilt the top of the phone away from you (~45°)": "手机顶部前倾约 45°",
   "hold the phone upright": "把手机竖直拿好",
   "looks level": "角度合适",
   "take a photo, then line it up with the outline": "拍一张照片，然后与示意图对齐",

@@ -84,13 +84,14 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
           className="min-h-0 flex-1 resize-none bg-transparent py-0.5 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
         />
 
-        {/* Count — 16px on the number input also prevents iOS zoom. */}
+        {/* Count — sized to match the send button so they sit on the same
+            line with the same visual height. 16px font prevents iOS zoom. */}
         <div
-          className={`mb-0.5 flex shrink-0 items-center ${
+          className={`flex h-10 shrink-0 items-center text-sm ${
             insufficient ? "text-[rgb(var(--error))]" : "soft-text"
           }`}
         >
-          <span className="text-[0.8rem]">×</span>
+          <span>×</span>
           <input
             type="number"
             inputMode="numeric"
@@ -104,16 +105,17 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
               insufficient ? "text-[rgb(var(--error))]" : "text-[rgb(var(--text))]"
             }`}
           />
-          <span className="text-[0.8rem]">{translate("shoes")}</span>
+          <span>{translate("shoes")}</span>
         </div>
 
-        {/* Send button */}
+        {/* Send button — h-10 matches the count row so both sit at the same
+            height on the same line, with a more prominent tappable target. */}
         <button
           type="button"
           onClick={submit}
           disabled={!isReady}
           aria-label={sending ? translate("AI is thinking…") : translate("Send")}
-          className={`mb-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
+          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
             sending
               ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
               : isReady
@@ -122,9 +124,9 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
           }`}
         >
           {sending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            <ArrowUp className="h-3.5 w-3.5" strokeWidth={2.5} />
+            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
           )}
         </button>
       </div>

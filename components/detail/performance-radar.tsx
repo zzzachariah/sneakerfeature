@@ -23,7 +23,10 @@ type Props = {
 const VIEW = 320;
 const CENTER = VIEW / 2;
 const MAX_RADIUS = 92;
-const LABEL_RADIUS = 128;
+// Pushed out from 128 so longer labels like "抓地力/止滑程度" don't bleed into
+// the radar ring on small screens (label container is 24% wide, so its inner
+// edge needs to clear the chart).
+const LABEL_RADIUS = 145;
 
 function polar(radius: number, angleRad: number) {
   const x = Number((CENTER + radius * Math.sin(angleRad)).toFixed(3));
@@ -42,9 +45,11 @@ function ringPath(radius: number, count: number) {
 
 export function PerformanceRadar({ axes, active }: Props) {
   const count = axes.length;
-  const { ref, inView } = useInView<HTMLDivElement>();
-  // Slide decks pass `active` (replays on re-entry); elsewhere fall back to a
-  // one-shot reveal when the chart scrolls into view.
+  // `repeat` toggles inView false when the chart scrolls back out — so the
+  // animation REPLAYS every time the user scrolls it back into view, not just
+  // the first time. Slide decks that pass `active` keep their own replay
+  // behavior (active is true while the slide is current).
+  const { ref, inView } = useInView<HTMLDivElement>(0.15, { repeat: true });
   const progress = useProgress(active ?? inView);
 
   const polygonPoints = axes
@@ -150,7 +155,7 @@ function AxisLabel({
 
   return (
     <div
-      className="absolute flex w-[28%] flex-col items-center gap-0.5 text-center leading-tight"
+      className="absolute flex w-[24%] flex-col items-center gap-0.5 text-center leading-tight"
       style={{
         left: `${leftPct}%`,
         top: `${topPct}%`,

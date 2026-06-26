@@ -146,7 +146,18 @@ export function ChatConversation({
             </div>
           )}
 
-          {isEmpty && <div className="h-8" />}
+          {/* Centered empty state — title + one-line prompt so a fresh conversation
+              isn't a blank panel. Sits in the available vertical space, not pinned. */}
+          {isEmpty && (
+            <div className="flex min-h-[40vh] flex-col items-center justify-center px-4 text-center">
+              <h2 className="text-2xl font-semibold tracking-[-0.01em] md:text-3xl">
+                {translate("Smart Picker")}
+              </h2>
+              <p className="mt-2 max-w-[22rem] text-sm soft-text">
+                {translate("Tell me what you need and I'll pick the right sneaker for you.")}
+              </p>
+            </div>
+          )}
 
           {!loadingMessages && messages.map((message, idx) => {
             if (message.role === "user") {

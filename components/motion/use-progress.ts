@@ -12,10 +12,19 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
- * One-shot "in view" detection via IntersectionObserver.
- * Good for scroll-reveal that should only play once.
+ * "In view" detection via IntersectionObserver.
+ *
+ * By default it's one-shot (the observer disconnects after first intersection)
+ * — good for scroll-reveal that should only play once. Pass `{ repeat: true }`
+ * to flip `inView` true/false every time the element enters/leaves the
+ * viewport, so a progress-driven animation can replay each time it scrolls
+ * back into view (e.g. the radar charts).
  */
-export function useInView<T extends Element>(threshold = 0.15) {
+export function useInView<T extends Element>(
+  threshold = 0.15,
+  opts: { repeat?: boolean } = {}
+) {
+  const { repeat = false } = opts;
   const ref = useRef<T | null>(null);
   const [inView, setInView] = useState(false);
   useEffect(() => {
@@ -25,14 +34,16 @@ export function useInView<T extends Element>(threshold = 0.15) {
       ([entry]) => {
         if (entry.isIntersecting) {
           setInView(true);
-          obs.disconnect();
+          if (!repeat) obs.disconnect();
+        } else if (repeat) {
+          setInView(false);
         }
       },
       { threshold }
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [threshold]);
+  }, [threshold, repeat]);
   return { ref, inView };
 }
 

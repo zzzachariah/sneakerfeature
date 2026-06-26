@@ -20,7 +20,9 @@ type Props = {
 
 export function CompareRadar({ shoes, active }: Props) {
   const { translate } = useLocale();
-  const { ref, inView } = useInView<HTMLDivElement>();
+  // `repeat` so the draw-in plays every time the chart scrolls into view, not
+  // only the first time. Slide decks pass `active` to keep their own behavior.
+  const { ref, inView } = useInView<HTMLDivElement>(0.15, { repeat: true });
   const progress = useProgress(active ?? inView);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const n = METRICS.length;
@@ -104,8 +106,10 @@ export function CompareRadar({ shoes, active }: Props) {
             })
           : null}
         {angles.map((a, i) => {
-          const lx = CX + (R + 26) * Math.cos(a);
-          const ly = CY + (R + 26) * Math.sin(a);
+          // Pushed out from R+26 so longer labels (e.g. "抓地力/止滑程度") don't
+          // visually crowd the chart's outer ring.
+          const lx = CX + (R + 40) * Math.cos(a);
+          const ly = CY + (R + 40) * Math.sin(a);
           return (
             <text
               key={i}
