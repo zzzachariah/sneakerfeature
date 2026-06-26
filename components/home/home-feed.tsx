@@ -4,12 +4,10 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Route } from "next";
 import React, { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronUp, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
+import { ChevronUp, Search, SearchX, X } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeCard } from "@/components/home/shoe-card";
@@ -17,14 +15,6 @@ import { useLocalShoes } from "@/lib/local/use-local-shoes";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
-import { ShoeFacets } from "@/components/home/shoe-facets";
-import {
-  EMPTY_FACETS,
-  facetCount,
-  buildFacetIndex,
-  matchesIndexed,
-  type FacetState
-} from "@/lib/filters/shoe-facets";
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
@@ -94,20 +84,14 @@ export function HomeFeed({
   // Render the SSR list (keeps personalization); keep an offline IndexedDB copy
   // of the public catalog in sync, and fall back to it when there's no server data.
   const shoes = useLocalShoes(initialShoes);
-  // Precompute facet data (incl. the regex-scored performance flags) once per
-  // catalog, so filtering stays cheap on every keystroke / facet toggle.
-  const facetIndex = useMemo(() => buildFacetIndex(shoes), [shoes]);
   const [searchDraft, setSearchDraft] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
-  const [brand, setBrand] = useState("all");
   const [selected, setSelected] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState(false);
   const [revealed, setRevealed] = useState(active);
-  const [facets, setFacets] = useState<FacetState>(EMPTY_FACETS);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const activeFacetCount = facetCount(facets);
+  const gridRef = useRef<HTMLUListElement | null>(null);
   const isMobile = useIsMobile();
   // iOS-app only: collapse the search/filter toolbar by default, expose a
   // glassy "Browse all shoes" entry pill that expands it, and a "Collapse"
@@ -161,9 +145,7 @@ export function HomeFeed({
       .filter(
         ({ shoe, searchScore }) =>
           searchScore >= 0 &&
-          (brand === "all" || shoe.brand === brand) &&
-          (!onlyFavorites || favorites.has(shoe.id)) &&
-          matchesIndexed(facetIndex.get(shoe.id), facets)
+          (!onlyFavorites || favorites.has(shoe.id))
       );
 
     return list.sort((a, b) => {
@@ -179,16 +161,25 @@ export function HomeFeed({
       if (av !== bv) return bv - av;
       return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
     });
-  }, [scored, query, brand, mode, facets, facetIndex, onlyFavorites, favorites]);
+  }, [scored, query, mode, onlyFavorites, favorites]);
 
-  // Floating feed control: appears once the player has scrolled down into the
-  // list (home only). Threshold-based so it's stable, not flickery.
+  // Floating feed control: visible while any part of the shoe grid is in viewport.
+  // Uses IntersectionObserver so the FAB appears as soon as the list scrolls into
+  // view and hides when the user scrolls back above it.
   useEffect(() => {
     if (!onCollapse) return;
-    const onScroll = () => setFabVisible(window.scrollY > 320);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    const node = gridRef.current;
+    if (!node) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setFabVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => setFabVisible(entries.some((e) => e.isIntersecting)),
+      { threshold: 0 }
+    );
+    io.observe(node);
+    return () => io.disconnect();
   }, [onCollapse]);
 
   function onToggleFavorites() {
@@ -199,12 +190,10 @@ export function HomeFeed({
     setOnlyFavorites((v) => !v);
   }
 
-  const brands = Array.from(new Set(shoes.map((s) => s.brand)));
-
   // Progressive rendering: reset the window whenever the result set changes.
   useEffect(() => {
     setVisibleCount(INITIAL_VISIBLE);
-  }, [query, brand, mode, facets]);
+  }, [query, mode]);
 
   // Grow the window as the sentinel nears the viewport. Re-runs on each grow so
   // it keeps filling until the sentinel leaves range or every shoe is shown;
@@ -256,7 +245,6 @@ export function HomeFeed({
         });
 
   const reduce = useReducedMotion();
-  const personalizedDisabled = !persona;
 
   return (
     <section className={pageScroll ? "flex flex-col" : "flex h-full min-h-0 flex-col"} data-tutorial="home-feed">
@@ -304,72 +292,21 @@ export function HomeFeed({
           </button>
         )}
         <div
-          className={`flex flex-col items-stretch gap-2 md:flex-row md:items-center md:justify-end${
+          className={`flex flex-row items-center gap-2${
             collapseEnabled && toolsOpen ? " pr-12" : ""
           }`}
           style={toolbarVisible ? undefined : { display: "none" }}
         >
-          <div
-            role="group"
-            aria-label={translate("Feed mode")}
-            className="hidden md:inline-flex overflow-hidden rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)]"
-            data-tutorial="home-mode-toggle"
-          >
-            <button
-              type="button"
-              onClick={() => setMode("browse")}
-              aria-pressed={mode === "browse"}
-              className="px-3 py-1.5 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgb(var(--text)/0.25)]"
-              style={{
-                background: mode === "browse" ? "rgb(var(--text)/0.92)" : "transparent",
-                color: mode === "browse" ? "rgb(var(--bg))" : "rgb(var(--subtext))"
-              }}
-            >
-              {translate("Browse all")}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (personalizedDisabled) {
-                  if (isLoggedIn) openModal();
-                  return;
-                }
-                setMode("personalized");
-              }}
-              disabled={personalizedDisabled && !isLoggedIn}
-              aria-pressed={mode === "personalized"}
-              aria-disabled={personalizedDisabled}
-              className="border-l border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 py-1.5 text-[0.78rem] font-medium transition disabled:cursor-not-allowed disabled:opacity-50 hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[rgb(var(--text)/0.25)]"
-              style={{
-                background: mode === "personalized" ? "rgb(var(--text)/0.92)" : "transparent",
-                color: mode === "personalized" ? "rgb(var(--bg))" : "rgb(var(--subtext))"
-              }}
-              title={personalizedDisabled ? translate("Log in to personalize") : undefined}
-            >
-              {translate("Personalized")}
-            </button>
-          </div>
           <form
             onSubmit={runSearch}
-            className="flex flex-row items-center gap-2 md:flex-row md:items-center"
+            className="flex flex-1 flex-row items-center gap-2"
           >
-            <Select
-              wrapperClassName="hidden md:block"
-              className="md:w-auto md:text-[0.78rem]"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-            >
-              <option value="all">{translate("All brands")}</option>
-              {brands.map((b) => (
-                <option key={b}>{b}</option>
-              ))}
-            </Select>
-            <div className="relative flex-1 md:flex-initial" data-tutorial="home-feed-search">
+            <div className="relative flex-1" data-tutorial="home-feed-search">
               <Input
                 placeholder={translate("Search shoes…")}
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
-                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:w-[220px] md:rounded-lg md:text-[0.78rem] md:shadow-none ios-glass-search-pill"
+                className="h-11 w-full rounded-full bg-[rgb(var(--surface)/0.82)] pr-9 shadow-[0_6px_20px_rgb(var(--shadow)/0.18)] backdrop-blur-[16px] md:h-9 md:rounded-lg md:text-[0.78rem] md:shadow-none ios-glass-search-pill"
               />
               {searchDraft.trim().length > 0 && (
                 <button
@@ -389,66 +326,9 @@ export function HomeFeed({
             >
               {translate("Search")}
             </Button>
-            <button
-              type="button"
-              onClick={() => setFiltersOpen((v) => !v)}
-              aria-expanded={filtersOpen}
-              className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-full border px-3.5 text-sm font-medium leading-none transition md:h-9 md:rounded-lg md:px-3 md:text-[0.78rem] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
-                filtersOpen || activeFacetCount > 0
-                  ? "bg-[rgb(var(--brand)/0.08)] border-[rgb(var(--brand)/0.6)] text-[rgb(var(--brand))]"
-                  : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))]"
-              }`}
-            >
-              <SlidersHorizontal className="h-4 w-4 md:h-3.5 md:w-3.5" />
-              {translate("Filters")}
-              {activeFacetCount > 0 && (
-                <span className="inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1 text-[0.62rem] font-semibold tabular-nums text-[rgb(var(--brand-contrast))]">
-                  {activeFacetCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setCompareMode((v) => {
-                  if (v) setSelected([]);
-                  return !v;
-                });
-              }}
-              className={`hidden md:inline-flex h-9 items-center justify-center rounded-md border px-3 text-[0.78rem] font-medium leading-none transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
-                compareMode
-                  ? "border-[rgb(var(--text))] bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
-                  : "border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.35)]"
-              }`}
-            >
-              {translate("Compare mode")}
-            </button>
-            {compareMode &&
-              (selected.length > 1 ? (
-                <Link
-                  href={`/compare?ids=${selected.join(",")}`}
-                  className="hidden md:inline-flex h-9 items-center justify-center rounded-md border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 text-[0.78rem] font-semibold leading-none text-[rgb(var(--bg))] transition hover:opacity-90"
-                >
-                  {translate("Compare")} ({selected.length})
-                </Link>
-              ) : (
-                <span
-                  aria-disabled="true"
-                  className="hidden md:inline-flex h-9 cursor-not-allowed items-center justify-center rounded-md border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium leading-none text-[rgb(var(--subtext)/0.7)]"
-                >
-                  {translate("Compare")}
-                  {selected.length === 1 ? ` (${selected.length})` : ""}
-                </span>
-              ))}
           </form>
         </div>
         </div>
-
-          {/* Desktop: inline filter panel. Phone bottom sheet is rendered outside
-              the scroll container (below) so iOS fixed-position layering works. */}
-          {filtersOpen && !isMobile && (
-            <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} />
-          )}
 
           {filtered.length === 0 ? (
             <div className="surface-card premium-border mx-auto mt-4 flex max-w-sm flex-col items-center gap-3 rounded-2xl p-8 text-center">
@@ -462,18 +342,16 @@ export function HomeFeed({
                 onClick={() => {
                   setSearchDraft("");
                   setQuery("");
-                  setBrand("all");
-                  setFacets(EMPTY_FACETS);
                   setOnlyFavorites(false);
                 }}
                 className="mt-1 inline-flex min-h-[44px] items-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] px-4 text-sm font-medium tracking-[-0.01em] text-[rgb(var(--text))] transition hover:border-[rgb(var(--text)/0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] md:min-h-[36px]"
               >
-                {translate("Clear filters")}
+                {translate("Clear search")}
               </button>
             </div>
           ) : (
             <>
-              <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+              <ul ref={gridRef} className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {filtered.slice(0, visibleCount).map(({ shoe, score }, index) => (
                   <ShoeCard
                     key={shoe.id}
@@ -506,20 +384,6 @@ export function HomeFeed({
         </p>
       )}
       </div>
-
-      {/* Phone filter sheet — rendered outside overflow-auto so position:fixed
-          works correctly on iOS Capacitor (the overflow container otherwise
-          intercepts touch events before they reach the backdrop). */}
-      {isMobile && (
-        <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
-          <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} bare />
-          <div className="mt-5">
-            <Button className="w-full" onClick={() => setFiltersOpen(false)}>
-              {translate("Show results")} · {filtered.length}
-            </Button>
-          </div>
-        </BottomSheet>
-      )}
 
       {compareMode && selected.length > 1 && (
         <div
