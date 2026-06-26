@@ -42,10 +42,10 @@ function useReducedMotion() {
   return r;
 }
 
-// Tuned for fast scroll: render a bigger initial page and grow in larger
-// chunks so the sentinel can't be "outrun" before the next batch mounts.
+// Initial paint window. Once the user scrolls anywhere near the bottom,
+// we jump straight to rendering the WHOLE filtered list so fast flicks
+// never outrun progressive batches — see the IntersectionObserver below.
 const INITIAL_VISIBLE = 96;
-const VISIBLE_STEP = 72;
 
 // Tracks the phone breakpoint so filters open as a native-feeling bottom sheet on
 // phones and stay as an inline panel on desktop. Defaults to false (desktop) for
@@ -221,12 +221,12 @@ export function HomeFeed({
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          setVisibleCount((c) => Math.min(filtered.length, c + VISIBLE_STEP));
+          // Jump straight to the full result set on first sentinel hit so
+          // fast scrolls never outrun the progressive batches.
+          setVisibleCount(filtered.length);
         }
       },
-      // Wide pre-fetch margin so fast scrolls don't outrun the sentinel and
-      // leave the user staring at empty white grid cells.
-      { rootMargin: "2400px 0px" }
+      { rootMargin: "3200px 0px" }
     );
     io.observe(node);
     return () => io.disconnect();
@@ -479,7 +479,13 @@ export function HomeFeed({
                     key={shoe.id}
                     shoe={shoe}
                     index={index}
-                    priority={index < 4}
+                    // No queue stagger and a wide rootMargin: each card
+                    // fades in on its own, and the IntersectionObserver
+                    // trips ~800px before the card enters the viewport so
+                    // fast scrolls never see opacity-0 placeholders.
+                    revealStagger={0}
+                    revealRootMargin="800px 0px"
+                    priority={index < 16}
                     matchScore={mode === "personalized" ? score : null}
                     showChips={mode === "personalized"}
                     compareEnabled={compareMode}

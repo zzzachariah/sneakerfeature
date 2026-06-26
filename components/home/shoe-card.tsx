@@ -28,6 +28,12 @@ type Props = {
    * collections). Omit in virtualized feeds where rows mount/unmount on scroll.
    */
   index?: number;
+  /** Per-index stagger passed to the Reveal wrapper. Default 50ms; set 0 to
+   * fire every card on its own viewport entry with no queue delay. */
+  revealStagger?: number;
+  /** IntersectionObserver rootMargin for the Reveal wrapper. Default "0px";
+   * pass a positive value to trip the reveal before the card enters viewport. */
+  revealRootMargin?: string;
   /** When true, loads the image eagerly to avoid lazy-loading LCP images. */
   priority?: boolean;
 };
@@ -43,7 +49,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, priority }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const href = `/shoes/${shoe.slug}` as Route;
@@ -82,16 +88,6 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
               <span className="num-display">{matchScore}%</span> {translate("match")}
             </span>
           )}
-          {/* Favorite sits in the bottom-right CORNER of the image (not below
-              the whole card). The Heart inside the FavoriteButton stops
-              propagation so the Link's navigation never fires from here. */}
-          {!compareEnabled && (
-            <FavoriteButton
-              shoeId={shoe.id}
-              className="tap-44 glass-lite absolute bottom-2 right-2 h-7 w-7 rounded-full opacity-90 z-10"
-              iconClassName="h-3.5 w-3.5"
-            />
-          )}
         </div>
         <div className="p-3">
           <div className="truncate text-sm font-semibold tracking-[-0.01em] leading-[1.25]">{shoe.shoe_name}</div>
@@ -105,7 +101,9 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             />
           </div>
           {chips.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
+            // Reserve right padding so chips never tuck under the floating
+            // favorite button anchored at the card's bottom-right.
+            <div className="mt-1.5 flex flex-wrap gap-1 pr-10">
               {chips.map((c) => (
                 <span
                   key={c.key}
@@ -120,7 +118,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
         </div>
       </Link>
 
-      {compareEnabled && (
+      {compareEnabled ? (
         <label
           onClick={(e) => e.stopPropagation()}
           className="tap-44 glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full"
@@ -136,6 +134,14 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             aria-label={translate("Compare")}
           />
         </label>
+      ) : (
+        // Favorite sits at the bottom-right CORNER of the WHOLE CARD
+        // (image + name/brand/stars section), not just the image.
+        <FavoriteButton
+          shoeId={shoe.id}
+          className="tap-44 glass-lite absolute bottom-2 right-2 z-10 h-7 w-7 rounded-full opacity-95"
+          iconClassName="h-3.5 w-3.5"
+        />
       )}
     </>
   );
@@ -143,7 +149,13 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
   const outerClass = `group relative ${className ?? ""}`;
   if (index != null) {
     return (
-      <Reveal as="li" index={index} className={outerClass}>
+      <Reveal
+        as="li"
+        index={index}
+        stagger={revealStagger}
+        rootMargin={revealRootMargin}
+        className={outerClass}
+      >
         {body}
       </Reveal>
     );
