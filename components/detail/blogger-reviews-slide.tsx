@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Youtube,
@@ -8,9 +8,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   ExternalLink,
-  Sparkles,
-  ChevronLeft,
-  ChevronRight
+  Sparkles
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { BloggerReview } from "@/lib/types";
@@ -18,10 +16,11 @@ import type { BloggerReview } from "@/lib/types";
 type Platform = "youtube" | "bilibili";
 
 // The dedicated 博主点评 slide body: two side-by-side galleries (Bilibili left,
-// YouTube right). Each gallery shows one reviewer at a time; clicking the left/
-// right rails flips between that platform's reviewers with a horizontal
-// slide+fade. Content is stored per-locale, so it renders the UI language's copy
-// directly (blogger names are never translated).
+// YouTube right) on desktop, a single gallery + centered platform pills on
+// mobile. Each gallery shows one reviewer at a time; on mobile the user
+// horizontally swipes the card to flip between reviewers (no side rails).
+// Content is stored per-locale, so it renders the UI language's copy directly
+// (blogger names are never translated).
 type PlatformReviews = { platform: Platform; reviews: BloggerReview[] };
 
 export function BloggerReviewsSlideBody({ reviews }: { reviews: BloggerReview[] }) {
@@ -90,7 +89,8 @@ function MobileGalleries({ platforms }: { platforms: PlatformReviews[] }) {
   return (
     <>
       {platforms.length > 1 ? (
-        <div className="mb-3 inline-flex rounded-xl border border-[rgb(var(--muted)/0.5)] p-0.5 ios-glass-segmented">
+        <div className="mb-3 flex justify-center">
+          <div className="inline-flex rounded-xl border border-[rgb(var(--muted)/0.5)] p-0.5 ios-glass-segmented">
           {platforms.map((p, i) => {
             const on = i === idx;
             const Icon = p.platform === "youtube" ? Youtube : PlayCircle;
@@ -111,6 +111,7 @@ function MobileGalleries({ platforms }: { platforms: PlatformReviews[] }) {
               </button>
             );
           })}
+          </div>
         </div>
       ) : null}
       <ReviewGallery key={active.platform} platform={active.platform} reviews={active.reviews} />
@@ -134,6 +135,36 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
     setIndex((p) => (p + delta + len) % len);
   };
 
+  // Horizontal swipe to flip between reviewers on mobile (replaces the old
+  // left/right chevron rails). Tracks the first finger only; ignores anything
+  // that turns more vertical than horizontal so the page can still scroll.
+  const touchRef = useRef<{ x: number; y: number; locked: "h" | "v" | null } | null>(null);
+  const SWIPE_THRESHOLD = 48;
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) {
+      touchRef.current = null;
+      return;
+    }
+    touchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, locked: null };
+  };
+  const onTouchMove = (e: React.TouchEvent) => {
+    const t = touchRef.current;
+    if (!t || t.locked === "v") return;
+    const dx = e.touches[0].clientX - t.x;
+    const dy = e.touches[0].clientY - t.y;
+    if (!t.locked && (Math.abs(dx) > 8 || Math.abs(dy) > 8)) {
+      t.locked = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const t = touchRef.current;
+    touchRef.current = null;
+    if (!t || t.locked !== "h") return;
+    const dx = e.changedTouches[0].clientX - t.x;
+    if (dx <= -SWIPE_THRESHOLD) go(1);
+    else if (dx >= SWIPE_THRESHOLD) go(-1);
+  };
+
   if (!len) return null;
 
   return (
@@ -148,8 +179,15 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
 
       {/* All cards share ONE grid cell, so the stage is as tall as the TALLEST
           card and never jumps when switching. The active card fades + slides in;
-          the others sit transparent, parked left/right. */}
-      <div className="relative grid flex-1 content-center min-h-[12rem] overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)]">
+          the others sit transparent, parked left/right. Swipe horizontally to
+          switch reviewers (mobile); on desktop, use the dots below. */}
+      <div
+        className="relative grid flex-1 content-center min-h-[12rem] overflow-hidden rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] touch-pan-y"
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => { touchRef.current = null; }}
+      >
         {reviews.map((r, idx) => {
           const active = idx === cur;
           const pros = (zh ? r.pros : r.pros_en ?? r.pros) ?? [];
@@ -158,7 +196,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
           return (
             <motion.article
               key={r.id}
-              className="col-start-1 row-start-1 w-full px-12 py-5 md:px-10 md:py-6"
+              className="col-start-1 row-start-1 w-full px-5 py-5 md:px-8 md:py-6"
               initial={false}
               animate={{ opacity: active ? 1 : 0, x: active ? 0 : idx < cur ? -32 : 32 }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -203,26 +241,6 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
           );
         })}
 
-        {len > 1 ? (
-          <>
-            <button
-              type="button"
-              onClick={() => go(-1)}
-              aria-label={zh ? "上一个" : "Previous"}
-              className="absolute inset-y-0 left-0 z-10 flex w-11 md:w-9 items-center justify-center text-[rgb(var(--subtext))] bg-[rgb(var(--text)/0.04)] md:bg-transparent transition md:hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))] active:bg-[rgb(var(--text)/0.08)]"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => go(1)}
-              aria-label={zh ? "下一个" : "Next"}
-              className="absolute inset-y-0 right-0 z-10 flex w-11 md:w-9 items-center justify-center text-[rgb(var(--subtext))] bg-[rgb(var(--text)/0.04)] md:bg-transparent transition md:hover:bg-[rgb(var(--text)/0.05)] hover:text-[rgb(var(--text))] active:bg-[rgb(var(--text)/0.08)]"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </>
-        ) : null}
       </div>
 
       {len > 1 ? (

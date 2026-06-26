@@ -406,9 +406,9 @@ export function CaptureStep({
             <video ref={videoRef} playsInline muted className="h-full w-full object-cover" />
             <FootOverlay view={config.view} side={side} />
             {mode === "live" && (
-              <div className="absolute left-1/2 top-3 -translate-x-1/2">
+              <div className="pointer-events-none absolute left-1/2 top-3 max-w-[calc(100%-1.5rem)] -translate-x-1/2">
                 <span
-                  className={`rounded-full px-3 py-1 text-xs font-medium backdrop-blur-md ${
+                  className={`block whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium backdrop-blur-md ${
                     tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
                   }`}
                 >

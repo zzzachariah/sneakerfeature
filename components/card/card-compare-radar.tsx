@@ -90,8 +90,9 @@ export function CardCompareRadar({ shoes, size = 520 }: Props) {
           })
         : null}
       {angles.map((a, i) => {
-        const lx = CX + (R + 26) * Math.cos(a);
-        const ly = CY + (R + 26) * Math.sin(a);
+        // Pushed out so longer labels (e.g. "抓地力/止滑程度") clear the chart.
+        const lx = CX + (R + 42) * Math.cos(a);
+        const ly = CY + (R + 42) * Math.sin(a);
         return (
           <text
             key={`label-${i}`}

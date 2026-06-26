@@ -46,7 +46,12 @@ export function BottomSheet({
     <AnimatePresence>
       {open && (
         <motion.div
-          className={`fixed inset-0 ${zIndexClass} flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] backdrop-blur-[12px] sm:items-center`}
+          // Inset by the top navbar and mobile bottom nav so the sheet (and its
+          // dim backdrop) sit BETWEEN the chrome — never covering it. The top
+          // navbar (z-40) and mobile bottom nav (z-40) stay visible above the
+          // dim. The sheet itself is dragged from the bottom of this inset box.
+          className={`fixed left-0 right-0 ${zIndexClass} flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] backdrop-blur-[12px] sm:items-center`}
+          style={{ top: "var(--top-nav-h)", bottom: "var(--mobile-nav-h)" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -63,7 +68,9 @@ export function BottomSheet({
             role="dialog"
             aria-modal
             aria-labelledby={title ? titleId : undefined}
-            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[88dvh] w-full max-w-lg flex-col rounded-t-[28px] sm:max-h-[80dvh] sm:rounded-3xl"
+            // max-h-full so the sheet fills its inset container (already sized
+            // to sit between the navs) without spilling under them.
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full max-w-lg flex-col rounded-t-[28px] sm:max-h-[80dvh] sm:rounded-3xl"
             style={{ paddingBottom: "max(0.75rem, var(--safe-bottom))" }}
             initial={{ y: reduce ? 0 : "100%" }}
             animate={{ y: 0 }}

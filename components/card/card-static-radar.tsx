@@ -6,8 +6,10 @@ import { useLocale } from "@/components/i18n/locale-provider";
 const VIEW = 320;
 const CENTER = VIEW / 2;
 const MAX_RADIUS = 110;
-const LABEL_RADIUS = 138;
-const VALUE_RADIUS = 158;
+// Pushed out so longer labels (e.g. "抓地力/止滑程度") clear the chart's outer
+// ring on the east/west sides.
+const LABEL_RADIUS = 152;
+const VALUE_RADIUS = 170;
 
 function polar(radius: number, angleRad: number) {
   return {
