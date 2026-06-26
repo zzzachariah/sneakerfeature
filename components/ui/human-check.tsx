@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import Script from "next/script";
 
 // Cloudflare Turnstile human-verification widget. Renders the Cloudflare
 // challenge and hands the resulting token to the form; the protected API route
@@ -20,8 +21,6 @@ declare global {
   }
 }
 
-const SCRIPT_TIMEOUT_MS = 8000;
-
 type Props = {
   // A short label for the action being protected (login/register/comment/...).
   // Passed through to Turnstile's `action` field for analytics; optional.
@@ -36,59 +35,19 @@ export function HumanCheck({ action, onToken }: Props) {
   const widgetId = useRef<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => {
-    if (!siteKey) return;
-
-    setFailed(false);
-
-    const scriptId = "cf-turnstile-script";
-    let script = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement("script");
-      script.id = scriptId;
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
+  function handleScriptLoad() {
+    const container = document.getElementById(id);
+    if (container && !widgetId.current && window.turnstile && siteKey) {
+      widgetId.current = window.turnstile.render(container, {
+        sitekey: siteKey,
+        theme: "auto",
+        action,
+        callback: (token: string) => onToken(token),
+        "error-callback": () => setFailed(true),
+        "expired-callback": () => onToken("")
+      });
     }
-
-    const onScriptError = () => setFailed(true);
-    script.addEventListener("error", onScriptError);
-
-    const timer = window.setInterval(() => {
-      if (window.turnstile) {
-        window.clearInterval(timer);
-        const container = document.getElementById(id);
-        if (container && !widgetId.current) {
-          widgetId.current = window.turnstile.render(container, {
-            sitekey: siteKey,
-            theme: "auto",
-            action,
-            callback: (token: string) => onToken(token),
-            "error-callback": () => setFailed(true),
-            "expired-callback": () => onToken("")
-          });
-        }
-      }
-    }, 150);
-
-    const timeoutHandle = window.setTimeout(() => {
-      if (!widgetId.current) {
-        window.clearInterval(timer);
-        setFailed(true);
-      }
-    }, SCRIPT_TIMEOUT_MS);
-
-    return () => {
-      window.clearInterval(timer);
-      window.clearTimeout(timeoutHandle);
-      script?.removeEventListener("error", onScriptError);
-      if (widgetId.current && window.turnstile) {
-        window.turnstile.remove(widgetId.current);
-        widgetId.current = null;
-      }
-    };
-  }, [id, action, onToken, siteKey]);
+  }
 
   if (!siteKey) {
     return (
@@ -122,6 +81,13 @@ export function HumanCheck({ action, onToken }: Props) {
 
   return (
     <div className="flex min-h-[66px] justify-center md:justify-start">
+      <Script
+        id="cf-turnstile-script"
+        src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+        strategy="afterInteractive"
+        onLoad={handleScriptLoad}
+        onError={() => setFailed(true)}
+      />
       <div id={id} />
     </div>
   );

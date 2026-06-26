@@ -32,10 +32,24 @@ function hasAuthCookie(request: NextRequest) {
 // API paths that legitimately receive cross-origin POSTs (webhooks / cron
 // hits from Vercel + Supabase). Each handler independently verifies its
 // own signature / bearer secret, so they're exempt from the Origin check.
+//
+// Intentionally public POST endpoints and rationale:
+//   /api/auth/send-email-hook  — Supabase webhook; verified by shared secret in handler.
+//   /api/cron/weekly-digest    — Vercel cron; verified by CRON_SECRET bearer token in handler.
+//                                NOTE: Add new cron routes here explicitly — do NOT widen to
+//                                `/api/cron/` prefix, as that would silently exempt future
+//                                handlers that may lack proper bearer-secret verification.
+//   /api/translate             — Public translation proxy; intentionally unauthenticated.
+//                                Risk accepted: no user data mutated; abuse should be
+//                                mitigated by an IP-based rate limit in the route handler.
+//   /api/announcements/*/view  — Public view-count increment; intentionally unauthenticated.
+//                                Risk accepted: counter inflation only; no sensitive data exposed.
 function isCrossOriginAllowedApi(pathname: string) {
   return (
     pathname.startsWith("/api/auth/send-email-hook") ||
-    pathname.startsWith("/api/cron/")
+    pathname === "/api/cron/weekly-digest" ||
+    pathname === "/api/translate" ||
+    /^\/api\/announcements\/[^/]+\/view$/.test(pathname)
   );
 }
 
@@ -57,7 +71,10 @@ function isCsrfBlocked(request: NextRequest): boolean {
   } catch {
     return true;
   }
-  return originHost !== request.nextUrl.host;
+  const appHost = process.env.NEXT_PUBLIC_APP_URL
+    ? new URL(process.env.NEXT_PUBLIC_APP_URL).host
+    : request.nextUrl.host;
+  return originHost !== appHost;
 }
 
 export function middleware(request: NextRequest) {

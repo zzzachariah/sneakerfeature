@@ -28,6 +28,13 @@ export const metadata: Metadata = {
   },
 };
 
+function safeJsonLd(obj: unknown): string {
+  return JSON.stringify(obj)
+    .replace(/&/g, '\\u0026')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e');
+}
+
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   const shoes = await getShoes();
@@ -40,7 +47,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: "sneakerfeature",

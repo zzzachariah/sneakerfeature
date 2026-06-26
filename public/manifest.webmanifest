@@ -1,14 +1,20 @@
 {
+  "id": "/",
   "name": "sneakerfeature",
   "short_name": "sneakerfeature",
   "description": "EVERYTHING u need to know for sneakers.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "icons": [
-    { "src": "/favicon.png", "sizes": "any", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
     { "src": "/logo.png", "sizes": "1024x1024", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/desktop.png", "sizes": "1280x720", "type": "image/png", "form_factor": "wide" },
+    { "src": "/screenshots/mobile.png", "sizes": "750x1334", "type": "image/png", "form_factor": "narrow" }
   ]
 }

@@ -17,7 +17,7 @@
 //
 // Fail-safe: the catch is intentionally empty. If anything throws, no marker is
 // set and nothing is de-glassed, so the iOS app can never accidentally change.
-export function SkinInitScript() {
+export function SkinInitScript({ nonce }: { nonce?: string }) {
   const code = `(() => { try { var ua = navigator.userAgent || ""; var iosApp = /sneakerfeature-mobile/.test(ua) && !/android/i.test(ua); if (!iosApp) document.documentElement.setAttribute('data-skin', 'clean'); } catch (e) {} })();`;
-  return <script dangerouslySetInnerHTML={{ __html: code }} />;
+  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
 }

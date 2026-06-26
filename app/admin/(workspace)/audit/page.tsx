@@ -18,6 +18,7 @@ type AuditRow = {
   target_submission_id: string | null;
   target_shoe_id: string | null;
   profiles: { username: string } | { username: string }[] | null;
+  shoes: { id: string; shoe_name: string } | { id: string; shoe_name: string }[] | null;
 };
 
 function actorName(row: AuditRow): string {
@@ -31,18 +32,16 @@ export default async function AdminAuditPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdminPageContext();
+  const [, params] = await Promise.all([requireAdminPageContext(), searchParams]);
   const db = createAdminClient();
   if (!db) return <Card className="p-5">Service-role client is not configured.</Card>;
-
-  const params = await searchParams;
   const type = typeof params.type === "string" ? params.type : "all";
   const q = typeof params.q === "string" ? params.q : "";
 
   let query = db
     .from("admin_audit_logs")
     .select(
-      "id, action, note, created_at, target_type, target_submission_id, target_shoe_id, profiles!admin_audit_logs_actor_admin_id_fkey(username)"
+      "id, action, note, created_at, target_type, target_submission_id, target_shoe_id, profiles!admin_audit_logs_actor_admin_id_fkey(username), shoes!admin_audit_logs_target_shoe_id_fkey(id, shoe_name)"
     )
     .order("created_at", { ascending: false })
     .limit(250);
@@ -57,16 +56,11 @@ export default async function AdminAuditPage({
   const { data } = await query;
   const rows = (data ?? []) as AuditRow[];
 
-  // Resolve readable labels for shoe targets; submissions/members render inline.
-  const shoeIds = [...new Set(rows.filter((r) => r.target_shoe_id).map((r) => r.target_shoe_id as string))];
-  const shoeNames = new Map<string, string>();
-  if (shoeIds.length) {
-    const { data: shoes } = await db.from("shoes").select("id, shoe_name").in("id", shoeIds);
-    for (const s of shoes ?? []) shoeNames.set(s.id, s.shoe_name);
-  }
-
   function targetLabel(row: AuditRow): string {
-    if (row.target_type === "shoe" && row.target_shoe_id) return shoeNames.get(row.target_shoe_id) ?? "(shoe)";
+    if (row.target_type === "shoe" && row.shoes) {
+      const shoe = Array.isArray(row.shoes) ? row.shoes[0] : row.shoes;
+      return shoe?.shoe_name ?? "(shoe)";
+    }
     if (row.target_type === "submission" && row.target_submission_id) return `#${row.target_submission_id.slice(0, 8)}`;
     if (row.target_type === "profile") return "member";
     if (row.target_type === "admin_session") return "session";

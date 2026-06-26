@@ -32,14 +32,12 @@ export default async function AdminCommentsPage({
   const shoeIds = [...new Set(list.map((c) => c.shoe_id))];
   const usernameById = new Map<string, string>();
   const shoeNameById = new Map<string, string>();
-  if (userIds.length) {
-    const { data: profiles } = await db.from("profiles").select("id, username").in("id", userIds);
-    for (const p of profiles ?? []) usernameById.set(p.id, p.username);
-  }
-  if (shoeIds.length) {
-    const { data: shoes } = await db.from("shoes").select("id, shoe_name").in("id", shoeIds);
-    for (const s of shoes ?? []) shoeNameById.set(s.id, s.shoe_name);
-  }
+  const [{ data: profiles }, { data: shoes }] = await Promise.all([
+    userIds.length ? db.from("profiles").select("id, username").in("id", userIds) : Promise.resolve({ data: [] }),
+    shoeIds.length ? db.from("shoes").select("id, shoe_name").in("id", shoeIds) : Promise.resolve({ data: [] })
+  ]);
+  for (const p of profiles ?? []) usernameById.set(p.id, p.username);
+  for (const s of shoes ?? []) shoeNameById.set(s.id, s.shoe_name);
 
   let rows: CommentRow[] = list.map((c) => ({
     id: c.id,

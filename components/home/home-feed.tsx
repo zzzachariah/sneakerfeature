@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Route } from "next";
-import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import React, { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronUp, Search, SearchX, SlidersHorizontal, X } from "lucide-react";
-import { useReducedMotion } from "framer-motion";
 import { Shoe } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +29,18 @@ import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
 import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
+
+function useReducedMotion() {
+  const [r, setR] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setR(mq.matches);
+    const h = (e: MediaQueryListEvent) => setR(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+  return r;
+}
 
 const INITIAL_VISIBLE = 48;
 const VISIBLE_STEP = 36;
@@ -459,10 +470,12 @@ export function HomeFeed({
           ) : (
             <>
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {filtered.slice(0, visibleCount).map(({ shoe, score }) => (
+                {filtered.slice(0, visibleCount).map(({ shoe, score }, index) => (
                   <ShoeCard
                     key={shoe.id}
                     shoe={shoe}
+                    index={index}
+                    priority={index < 4}
                     matchScore={mode === "personalized" ? score : null}
                     showChips={mode === "personalized"}
                     compareEnabled={compareMode}

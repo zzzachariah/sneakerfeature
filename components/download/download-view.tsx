@@ -23,19 +23,11 @@ import {
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-const GITHUB_REPO = "zzzachariah/sneakerfeature";
-// Same-origin streaming proxy (app/api/download/android). GitHub's release CDN
-// (objects.githubusercontent.com) is blocked/throttled in mainland China, where
-// a direct link just hangs on a blank page. This route streams the APK through
-// our own domain, which IS reachable there. It is the default/fallback; when
-// the client can reach GitHub we upgrade to the direct release URL (faster,
-// and keeps the bulk of downloads off our own bandwidth) — see the effect below.
+// Same-origin proxy for the Android APK (app/api/download/android).
+// GitHub's release CDN is blocked/throttled in mainland China; this route
+// streams through our own domain which is reachable there.
 const PROXY_APK_URL = "/api/download/android";
 const IOS_APP_STORE_URL = "https://apps.apple.com/us/app/sneakerfeature/id6780938606";
-// Shared US App Store account for users without one of their own. It's tied to
-// nothing personal and only grants media-and-purchases scope (no iCloud login).
-const SHARED_APPLE_EMAIL = "kevinchospi@outlook.com";
-const SHARED_APPLE_PASSWORD = "Jx135790";
 
 type Platform = "ios" | "android" | "macos" | "windows";
 
@@ -51,13 +43,6 @@ function detectPlatform(): Platform | null {
   if (/Windows/.test(ua)) return "windows";
   return null;
 }
-
-type Release = {
-  tag_name: string;
-  draft: boolean;
-  prerelease: boolean;
-  assets?: { name?: string; browser_download_url?: string; size?: number }[];
-};
 
 type PlatformMeta = {
   id: Platform;
@@ -126,37 +111,14 @@ export function DownloadView() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`, {
-      headers: { Accept: "application/vnd.github+json" },
-    })
+    fetch("/api/download/desktop")
       .then((r) => (r.ok ? r.json() : null))
-      .then((releases: Release[] | null) => {
-        if (cancelled || !Array.isArray(releases)) return;
-        const mobile = releases.find(
-          (r) =>
-            r && !r.draft && !r.prerelease && typeof r.tag_name === "string" && r.tag_name.startsWith("mobile-v")
-        );
-        const apk = mobile?.assets?.find((a) => typeof a.name === "string" && a.name.endsWith(".apk"));
-        if (apk?.browser_download_url) setApkUrl(apk.browser_download_url);
-
-        const desk = releases.find(
-          (r) =>
-            r && !r.draft && !r.prerelease && typeof r.tag_name === "string" && r.tag_name.startsWith("desktop-v")
-        );
-        if (desk) {
-          const dmg = desk.assets?.find((a) => typeof a.name === "string" && a.name.endsWith(".dmg"));
-          const exe = desk.assets?.find((a) => typeof a.name === "string" && a.name.endsWith(".exe"));
-          if (dmg?.browser_download_url || exe?.browser_download_url) {
-            setDesktop({
-              macUrl: dmg?.browser_download_url ?? "",
-              winUrl: exe?.browser_download_url ?? "",
-              version: desk.tag_name.replace(/^desktop-v/, ""),
-            });
-          }
-        }
+      .then((data: { macUrl: string; winUrl: string; version: string } | null) => {
+        if (cancelled || !data) return;
+        setDesktop(data);
       })
       .catch(() => {
-        /* offline / rate-limited / blocked — leave defaults */
+        /* offline / rate-limited — leave desktop null */
       });
     return () => {
       cancelled = true;
@@ -493,6 +455,18 @@ function DeviceDetail({
 
 function IOSContent({ zh, translate }: { zh: boolean; translate: (k: string) => string }) {
   const [showAccount, setShowAccount] = useState(false);
+  const [appleAccount, setAppleAccount] = useState<{ email: string; password: string } | null>(null);
+
+  useEffect(() => {
+    if (!showAccount || appleAccount) return;
+    fetch("/api/download/apple-account")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { email: string; password: string } | null) => {
+        if (data) setAppleAccount(data);
+      })
+      .catch(() => {/* ignore */});
+  }, [showAccount, appleAccount]);
+
   return (
     <div className="space-y-4">
       <PrimaryCTA
@@ -531,13 +505,21 @@ function IOSContent({ zh, translate }: { zh: boolean; translate: (k: string) => 
       </button>
 
       <AnimatePresence initial={false}>
-        {showAccount && <SharedAppleAccountPanel zh={zh} key="shared-acct" />}
+        {showAccount && (
+          <SharedAppleAccountPanel zh={zh} account={appleAccount} key="shared-acct" />
+        )}
       </AnimatePresence>
     </div>
   );
 }
 
-function SharedAppleAccountPanel({ zh }: { zh: boolean }) {
+function SharedAppleAccountPanel({
+  zh,
+  account,
+}: {
+  zh: boolean;
+  account: { email: string; password: string } | null;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -564,8 +546,8 @@ function SharedAppleAccountPanel({ zh }: { zh: boolean }) {
         </div>
 
         <div className="space-y-3">
-          <CopyField label={zh ? "邮箱" : "Email"} value={SHARED_APPLE_EMAIL} />
-          <CopyField label={zh ? "密码" : "Password"} value={SHARED_APPLE_PASSWORD} mono />
+          <CopyField label={zh ? "邮箱" : "Email"} value={account?.email ?? ""} />
+          <CopyField label={zh ? "密码" : "Password"} value={account?.password ?? ""} mono />
         </div>
 
         <div className="rounded-xl bg-[rgb(var(--text)/0.04)] p-3.5">
@@ -784,7 +766,7 @@ function DesktopContent({
 
       {available && (
         <a
-          href={`https://github.com/${GITHUB_REPO}/releases/latest`}
+          href={url}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"

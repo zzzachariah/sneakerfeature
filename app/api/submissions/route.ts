@@ -6,10 +6,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 function jsonResponse(payload: unknown, init?: ResponseInit) {
-  console.log("[submissions] final returned response", {
-    status: init?.status ?? 200,
-    payload
-  });
   return NextResponse.json(payload, init);
 }
 
@@ -23,7 +19,7 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
       console.log("[submissions] request body parsed", {
-        bodyKeys: body && typeof body === "object" ? Object.keys(body) : []
+        keyCount: body && typeof body === "object" ? Object.keys(body).length : 0
       });
     } catch (error) {
       console.error("[submissions] request body parse failed", error);

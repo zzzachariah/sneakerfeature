@@ -312,15 +312,19 @@ export async function POST(
     .eq("id", id)
     .select("id, status, published_at, published_shoe_id, reviewed_by");
 
-  console.log("[publish] submission metadata update result", {
-    submissionId: id,
-    shoeId,
-    reviewerId: user.id,
-    nowIso,
-    submissionUpdateError,
-    updatedRows,
-    updatedRowCount: updatedRows?.length ?? 0
-  });
+  if (submissionUpdateError) {
+    console.error("[publish] submission metadata update failed", {
+      submissionId: id,
+      shoeId,
+      error: submissionUpdateError.message,
+    });
+  } else {
+    console.log("[publish] submission metadata update succeeded", {
+      submissionId: id,
+      shoeId,
+      updatedRowCount: updatedRows?.length ?? 0,
+    });
+  }
 
   if (submissionUpdateError) {
     return badRequest(

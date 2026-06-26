@@ -5,6 +5,34 @@ import { getFootScanContext } from "@/lib/foot-scan/access";
 import { analyzeFootScan } from "@/lib/foot-scan/analyze";
 import { buildFootProfile, listScans, saveFootProfile, saveScan } from "@/lib/foot-scan/store";
 
+// ---------------------------------------------------------------------------
+// Per-user rate limiting (in-memory sliding window)
+// Max 10 scans per hour per user.
+// ---------------------------------------------------------------------------
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+// Minimum gap between consecutive scans for the same user (server-enforced).
+const MIN_SCAN_GAP_MS = 60 * 1000; // 1 minute
+
+// Map<userId, timestamps[]> — timestamps of requests within the current window.
+const scanTimestamps = new Map<string, number[]>();
+
+function checkRateLimit(userId: string): { allowed: boolean; retryAfterMs: number } {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (scanTimestamps.get(userId) ?? []).filter((t) => t > windowStart);
+
+  if (timestamps.length >= RATE_LIMIT_MAX) {
+    // Earliest timestamp in the window — user can retry once it falls out.
+    const retryAfterMs = (timestamps[0] ?? now) + RATE_LIMIT_WINDOW_MS - now;
+    return { allowed: false, retryAfterMs: Math.max(retryAfterMs, 0) };
+  }
+
+  timestamps.push(now);
+  scanTimestamps.set(userId, timestamps);
+  return { allowed: true, retryAfterMs: 0 };
+}
+
 // Node runtime (OpenAI SDK + Supabase admin); never cached — per-user and
 // side-effecting.
 export const runtime = "nodejs";
@@ -46,6 +74,32 @@ export async function POST(request: Request) {
   if (!ctx) {
     console.warn("[foot-scan] access denied (no context / not permitted)");
     return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
+  }
+
+  // --- Per-user in-memory rate limit (max 10 scans / hour) ---
+  const rl = checkRateLimit(ctx.userId);
+  if (!rl.allowed) {
+    const retryAfterSec = Math.ceil(rl.retryAfterMs / 1000);
+    console.warn("[foot-scan] rate limit exceeded", { userId: ctx.userId, retryAfterSec });
+    return NextResponse.json(
+      { ok: false, message: "Too many scans. Please wait before trying again." },
+      { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
+    );
+  }
+
+  // --- DB-level minimum gap between consecutive scans (1 minute) ---
+  const recentScans = await listScans(ctx.userId, 1).catch(() => []);
+  if (recentScans.length > 0) {
+    const lastScanAt = new Date(recentScans[0].created_at).getTime();
+    const msSinceLast = Date.now() - lastScanAt;
+    if (msSinceLast < MIN_SCAN_GAP_MS) {
+      const retryAfterSec = Math.ceil((MIN_SCAN_GAP_MS - msSinceLast) / 1000);
+      console.warn("[foot-scan] minimum gap not met", { userId: ctx.userId, msSinceLast, retryAfterSec });
+      return NextResponse.json(
+        { ok: false, message: "Please wait a moment before submitting another scan." },
+        { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
+      );
+    }
   }
 
   let body: unknown;

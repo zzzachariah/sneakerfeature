@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
+import React, { useEffect, useRef, useState } from "react";
+
+function useReducedMotion() {
+  const [r, setR] = React.useState(false);
+  React.useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setR(mq.matches);
+    const h = (e: MediaQueryListEvent) => setR(e.matches);
+    mq.addEventListener("change", h);
+    return () => mq.removeEventListener("change", h);
+  }, []);
+  return r;
+}
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";

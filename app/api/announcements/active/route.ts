@@ -7,11 +7,10 @@ import { getActiveAnnouncements } from "@/lib/announcements/store";
 // single dialog when only one is live. Returns [] when nothing is active.
 // Falls back to public/announcement.json (GitHub-Action-published) when the
 // DB has none — handled inside getActiveAnnouncements.
-export const dynamic = "force-dynamic";
 
 export async function GET() {
   const active = await getActiveAnnouncements();
   return NextResponse.json(active, {
-    headers: { "Cache-Control": "no-store" },
+    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" },
   });
 }

@@ -33,9 +33,13 @@ function devLog(step: string, payload?: unknown) {
   }
 }
 
+const AUTH_PREFIXES = ["/login", "/signup", "/register", "/forgot-password", "/reset-password"];
+
 function normalizeRedirectTarget(raw: string | null): Route {
   if (!raw) return "/dashboard" as Route;
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard" as Route;
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return "/dashboard" as Route;
+  const path = raw.split("?")[0];
+  if (AUTH_PREFIXES.some((p) => path === p || path.startsWith(`${p}/`))) return "/dashboard" as Route;
   return raw as Route;
 }
 

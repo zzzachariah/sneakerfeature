@@ -10,12 +10,18 @@
 
 const VERSION = "v1";
 const STATIC_CACHE = `sf-static-${VERSION}`;
+// IMAGE_CACHE applies only to content-hashed or versioned image URLs (e.g. /_next/static/…).
+// Non-hashed paths like /_next/image are excluded below; use networkFirst or a TTL check
+// if you ever need to cache non-hashed image URLs.
 const IMAGE_CACHE = `sf-images-${VERSION}`;
 const PAGE_CACHE = `sf-pages-${VERSION}`;
 const KEEP = new Set([STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE]);
 
-self.addEventListener("install", () => {
+self.addEventListener("install", (event) => {
   self.skipWaiting();
+  event.waitUntil(
+    caches.open(PAGE_CACHE).then((cache) => cache.add("/offline"))
+  );
 });
 
 self.addEventListener("activate", (event) => {
@@ -53,6 +59,8 @@ async function networkFirst(request, cacheName) {
   } catch (err) {
     const cached = await cache.match(request);
     if (cached) return cached;
+    const offline = await caches.match("/offline");
+    if (offline) return offline;
     throw err;
   }
 }
@@ -79,6 +87,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (request.destination === "image") {
+    if (url.pathname.startsWith("/_next/image")) return; // not content-hashed; let network handle
     event.respondWith(staleWhileRevalidate(request, IMAGE_CACHE));
     return;
   }

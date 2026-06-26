@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Check, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, Search, Sparkles, User } from "lucide-react";
@@ -114,8 +115,7 @@ export function Navbar() {
           className="inline-flex items-center transition-opacity hover:opacity-80"
         >
           <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="sneakerfeature" className="nav-logo h-7 w-7" />
+            <Image src="/logo.png" alt="sneakerfeature" width={28} height={28} priority className="nav-logo" />
           </span>
         </Link>
 
@@ -329,6 +329,7 @@ export function Navbar() {
               <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
                 <Link
                   href="/download"
+                  prefetch={true}
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   data-download-entry
@@ -339,6 +340,7 @@ export function Navbar() {
 
                 <Link
                   href="/search/advanced"
+                  prefetch={true}
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                 >

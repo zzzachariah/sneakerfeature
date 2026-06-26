@@ -13,22 +13,20 @@ export const metadata: Metadata = {
 };
 
 export default async function FavoritesPage() {
-  const user = await getCurrentUser();
+  const [user, supabase] = await Promise.all([getCurrentUser(), createClient()]);
   let shoes: Shoe[] = [];
 
-  if (user) {
+  if (user && supabase) {
     let ids = new Set<string>();
     try {
-      const supabase = await createClient();
-      if (supabase) {
-        const { data } = await supabase.from("favorites").select("shoe_id").eq("user_id", user.id);
-        ids = new Set((data ?? []).map((r) => r.shoe_id as string));
-      }
+      const [{ data }, allShoes] = await Promise.all([
+        supabase.from("favorites").select("shoe_id").eq("user_id", user.id),
+        getShoes()
+      ]);
+      ids = new Set((data ?? []).map((r) => r.shoe_id as string));
+      shoes = allShoes.filter((s) => ids.has(s.id));
     } catch {
       // Table missing (migration not yet applied) or DB unavailable — show empty.
-    }
-    if (ids.size > 0) {
-      shoes = (await getShoes()).filter((s) => ids.has(s.id));
     }
   }
 

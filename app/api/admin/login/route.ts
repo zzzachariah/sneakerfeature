@@ -44,7 +44,8 @@ export async function POST(request: Request) {
   }
 
   const cookieStore = await cookies();
-  const response = NextResponse.json({ ok: true, message: "Admin login successful." });
+  // Temporary holder for cookies set by Supabase during sign-in
+  const tempCookies: Array<{ name: string; value: string; options?: Record<string, unknown> }> = [];
 
   const supabase = createServerClient(url, anon, {
     cookies: {
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
-        cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        cookiesToSet.forEach((c) => tempCookies.push(c));
       }
     }
   });
@@ -65,9 +66,8 @@ export async function POST(request: Request) {
   const { data: profile } = await adminClient.from("profiles").select("username, role").eq("id", signInData.user.id).maybeSingle();
   if (!profile || profile.role !== "admin") {
     await supabase.auth.signOut();
-    const deny = NextResponse.json({ ok: false, message: "No such admin account." }, { status: 403 });
-    response.cookies.getAll().forEach((cookie) => deny.cookies.set(cookie));
-    return deny;
+    // Return a fresh response with NO cookies so no session leaks to the client
+    return NextResponse.json({ ok: false, message: "No such admin account." }, { status: 403 });
   }
 
   await adminClient.from("admin_audit_logs").insert({
@@ -77,12 +77,13 @@ export async function POST(request: Request) {
     note: "Admin login via role-checked Supabase session"
   });
 
+  // Role confirmed — now build the success response and attach auth cookies
   const finalResponse = NextResponse.json({
     ok: true,
     message: "Admin login successful.",
     username: profile.username
   });
 
-  response.cookies.getAll().forEach((cookie) => finalResponse.cookies.set(cookie));
+  tempCookies.forEach(({ name, value, options }) => finalResponse.cookies.set(name, value, options));
   return finalResponse;
 }

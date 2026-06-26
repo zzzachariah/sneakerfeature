@@ -43,20 +43,30 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
+function safeJsonLd(obj: unknown): string {
+  return JSON.stringify(obj)
+    .replace(/&/g, '\\u0026')
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e');
+}
+
 export default async function ShoeDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [shoe, profile, allShoes] = await Promise.all([
+  // Stage 1: fetch shoe and profile first (fast, single-row queries)
+  const [shoe, profile] = await Promise.all([
     getShoeBySlug(slug),
     getCurrentProfile(),
-    getShoes()
   ]);
   if (!shoe) return notFound();
 
   const isAdmin = profile?.role === "admin";
   const isLoggedIn = Boolean(profile);
-  const [imageState, bloggerReviews] = await Promise.all([
+
+  // Stage 2: now that shoe.id and isAdmin are known, run all remaining fetches in parallel
+  const [allShoes, imageState, bloggerReviews] = await Promise.all([
+    getShoes(),
     getShoeImageState(shoe.id, isAdmin),
-    getBloggerReviewsForShoe(shoe.id)
+    getBloggerReviewsForShoe(shoe.id),
   ]);
 
   const related = allShoes.filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
@@ -84,8 +94,8 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(productSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbSchema) }} />
       <ShoeDetailClient shoe={shoe} related={related} isAdmin={isAdmin} isLoggedIn={isLoggedIn} imageState={imageState} bloggerReviews={bloggerReviews} />
       <RecordView shoeId={shoe.id} isLoggedIn={isLoggedIn} />
     </>

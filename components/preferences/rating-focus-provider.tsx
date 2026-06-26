@@ -2,9 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { isValidFocus, type RatingFocus } from "@/lib/star-rating";
-import { RatingFocusModal } from "@/components/preferences/rating-focus-modal";
+
+const RatingFocusModal = dynamic(() => import('@/components/preferences/rating-focus-modal').then(m => ({ default: m.RatingFocusModal })), { ssr: false, loading: () => null });
 
 type RatingFocusContextValue = {
   focus: RatingFocus | null;

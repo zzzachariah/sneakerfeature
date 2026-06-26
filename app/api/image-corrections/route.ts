@@ -57,6 +57,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Admin database client is not configured." }, { status: 500 });
   }
 
+  const { count, error: countError } = await supabase
+    .from("image_corrections")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("status", "pending")
+    .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString());
+
+  if (countError) {
+    return NextResponse.json({ ok: false, message: "Could not verify upload limit." }, { status: 500 });
+  }
+  if ((count ?? 0) >= 5) {
+    return NextResponse.json(
+      { ok: false, message: "You have reached the limit of 5 pending corrections per hour. Please wait before submitting again." },
+      { status: 429 }
+    );
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   if (!supabaseUrl) {
     return NextResponse.json({ ok: false, message: "Supabase URL is not configured." }, { status: 500 });

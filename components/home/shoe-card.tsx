@@ -28,6 +28,8 @@ type Props = {
    * collections). Omit in virtualized feeds where rows mount/unmount on scroll.
    */
   index?: number;
+  /** When true, loads the image eagerly to avoid lazy-loading LCP images. */
+  priority?: boolean;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -41,7 +43,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, priority }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const href = `/shoes/${shoe.slug}` as Route;
@@ -72,6 +74,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             fallbackLabel={translate("No image")}
             variant="detail"
             interactive
+            priority={priority ?? index === 0}
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (

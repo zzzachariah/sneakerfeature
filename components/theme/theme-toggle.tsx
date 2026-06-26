@@ -66,7 +66,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   );
 }
 
-export function ThemeInitScript() {
+export function ThemeInitScript({ nonce }: { nonce?: string }) {
   const code = `(() => { try { const t = localStorage.getItem('theme'); if (t === 'light' || t === 'dark') document.documentElement.classList.add(t); } catch (e) {} })();`;
-  return <script dangerouslySetInnerHTML={{ __html: code }} />;
+  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
 }

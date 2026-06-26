@@ -65,7 +65,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   const { supabase, user } = auth;
   const { id } = await params;
 
-  const parsed = schema.safeParse(await request.json());
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, message: "Invalid JSON body." }, { status: 400 });
+  }
+  const parsed = schema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? "Invalid payload.");
 
   const { data: currentShoe, error: currentShoeError } = await supabase.from("shoes").select("*").eq("id", id).maybeSingle();

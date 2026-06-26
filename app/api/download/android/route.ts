@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 //
 // No user input is accepted (the source is hard-coded to this repo's releases),
 // so there is no SSRF surface — mirrors app/api/image-proxy/route.ts.
-const GITHUB_REPO = "zzzachariah/sneakerfeature";
+const GITHUB_REPO = process.env.GITHUB_REPO ?? "zzzachariah/sneakerfeature";
 const APK_FALLBACK_URL = `https://github.com/${GITHUB_REPO}/releases/latest/download/sneakerfeature.apk`;
 
 // Resolve the newest mobile-v* release's .apk so a later desktop release can't
@@ -23,7 +23,7 @@ async function resolveApkUrl(): Promise<string> {
         Accept: "application/vnd.github+json",
         "User-Agent": "sneakerfeature-download-proxy",
       },
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
     });
     if (res.ok) {
       const releases = await res.json();
@@ -39,7 +39,21 @@ async function resolveApkUrl(): Promise<string> {
         const apk = mobile?.assets?.find(
           (a: { name?: string }) => typeof a?.name === "string" && a.name.endsWith(".apk")
         );
-        if (apk?.browser_download_url) return apk.browser_download_url as string;
+        if (apk?.browser_download_url) {
+          const raw = apk.browser_download_url as string;
+          try {
+            const parsed = new URL(raw);
+            if (
+              parsed.hostname === "github.com" ||
+              parsed.hostname.endsWith(".github.com") ||
+              parsed.hostname.endsWith(".githubusercontent.com")
+            ) {
+              return raw;
+            }
+          } catch {
+            /* invalid URL — fall through */
+          }
+        }
       }
     }
   } catch {
@@ -51,26 +65,14 @@ async function resolveApkUrl(): Promise<string> {
 export async function GET() {
   const apkUrl = await resolveApkUrl();
 
-  // Stream the body straight through (no buffering) so large APKs aren't capped
-  // by the serverless response-body limit — same approach as image-proxy.
-  const upstream = await fetch(apkUrl, {
-    headers: { Accept: "application/vnd.android.package-archive" },
-    redirect: "follow",
-    cache: "no-store",
+  // Redirect to the versioned asset URL instead of streaming the binary.
+  // This sidesteps CDN staleness entirely — the binary URL itself changes when
+  // a new release ships, so CDN caches are automatically busted by URL.
+  // The short TTL (300 s) ensures a new release is visible within minutes.
+  return NextResponse.redirect(apkUrl, {
+    status: 302,
+    headers: {
+      "Cache-Control": "public, max-age=300, s-maxage=300, stale-while-revalidate=60",
+    },
   });
-
-  if (!upstream.ok || !upstream.body) {
-    return NextResponse.json({ error: "apk unavailable", status: upstream.status }, { status: 502 });
-  }
-
-  const headers = new Headers({
-    "Content-Type": "application/vnd.android.package-archive",
-    "Content-Disposition": 'attachment; filename="sneakerfeature.apk"',
-    // Let Vercel's CDN cache the binary; it only changes when a new release ships.
-    "Cache-Control": "public, max-age=3600, s-maxage=3600",
-  });
-  const contentLength = upstream.headers.get("content-length");
-  if (contentLength) headers.set("Content-Length", contentLength);
-
-  return new NextResponse(upstream.body, { status: 200, headers });
 }

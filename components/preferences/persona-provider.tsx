@@ -2,9 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 import { isValidPersona, type Persona } from "@/lib/persona/types";
-import { PersonaModal } from "@/components/preferences/persona-modal";
+
+const PersonaModal = dynamic(() => import('@/components/preferences/persona-modal').then(m => ({ default: m.PersonaModal })), { ssr: false, loading: () => null });
 
 type PersonaContextValue = {
   persona: Persona | null;
@@ -33,8 +36,9 @@ export function PersonaProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { signedIn } = useAuthState();
   const [persona, setPersona] = useState<Persona | null>(initialPersona);
-  const [isLoggedIn, setIsLoggedIn] = useState(initialIsLoggedIn);
+  const [isLoggedIn, setIsLoggedIn] = useState(() => initialIsLoggedIn || signedIn);
   const [loaded, setLoaded] = useState(initialPersona !== null);
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,11 +74,6 @@ export function PersonaProvider({
         cancelled = true;
       };
     }
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return;
-      setIsLoggedIn(Boolean(data.session?.user?.id));
-    });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (cancelled) return;

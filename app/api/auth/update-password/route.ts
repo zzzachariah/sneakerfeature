@@ -2,19 +2,34 @@ import { NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyTurnstileToken } from "@/lib/turnstile";
+import { z } from "zod";
+
+const updatePasswordSchema = z.object({
+  currentPassword: z.string().min(1).max(1000),
+  newPassword: z.string().min(8).max(1000),
+  confirmPassword: z.string().min(1).max(1000),
+  verificationToken: z.string().min(1),
+});
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const currentPassword = body?.currentPassword as string;
-  const newPassword = body?.newPassword as string;
-  const confirmPassword = body?.confirmPassword as string;
-
-  if (!currentPassword || !newPassword || !confirmPassword) {
-    return NextResponse.json({ ok: false, message: "All password fields are required." }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, message: "Invalid JSON body." }, { status: 400 });
   }
 
-  if (newPassword.length < 8) {
-    return NextResponse.json({ ok: false, message: "New password must be at least 8 characters." }, { status: 400 });
+  const parsed = updatePasswordSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ ok: false, message: "Invalid request body." }, { status: 400 });
+  }
+
+  const { currentPassword, newPassword, confirmPassword, verificationToken } = parsed.data;
+
+  const verified = await verifyTurnstileToken(verificationToken);
+  if (!verified.success) {
+    return NextResponse.json({ ok: false, message: verified.message ?? "Verification not completed." }, { status: 400 });
   }
 
   if (newPassword !== confirmPassword) {

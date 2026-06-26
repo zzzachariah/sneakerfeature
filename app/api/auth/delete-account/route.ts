@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 // Permanently deletes the signed-in user's account (App Store Review Guideline
 // 5.1.1(v)). Deleting the auth user cascades to the profile and every
@@ -9,18 +10,25 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // push tokens, … — via the ON DELETE CASCADE foreign keys in db/migrations.
 export async function POST(request: Request) {
   let password = "";
+  let verificationToken: string | undefined;
   try {
     const body = await request.json();
     password = typeof body?.password === "string" ? body.password : "";
+    verificationToken = typeof body?.verificationToken === "string" ? body.verificationToken : undefined;
   } catch {
     return NextResponse.json({ ok: false, message: "Invalid request." }, { status: 400 });
   }
 
-  if (!password) {
+  if (!password || password.length > 1000) {
     return NextResponse.json(
       { ok: false, message: "Enter your password to confirm account deletion." },
       { status: 400 }
     );
+  }
+
+  const verified = await verifyTurnstileToken(verificationToken);
+  if (!verified.success) {
+    return NextResponse.json({ ok: false, message: verified.message ?? "Verification not completed." }, { status: 400 });
   }
 
   const supabase = await createServerClient();

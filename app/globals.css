@@ -179,7 +179,7 @@ html {
   transition: background-color 280ms var(--ease);
 }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: rgb(var(--text));
   background-color: rgb(var(--bg));
   transition: background-color 280ms var(--ease), color 280ms var(--ease);
