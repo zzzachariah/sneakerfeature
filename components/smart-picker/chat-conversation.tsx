@@ -212,9 +212,7 @@ export function ChatConversation({
         </div>
       </div>
 
-      <div className="mx-auto w-full max-w-2xl">
-        <MessageInput balance={balance} unlimited={unlimited} sending={sending} onSend={onSend} prefillText={prefillText} />
-      </div>
+      <MessageInput balance={balance} unlimited={unlimited} sending={sending} onSend={onSend} prefillText={prefillText} />
 
       <CardPreviewModal
         open={!!report}
