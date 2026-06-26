@@ -3,8 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Info } from "lucide-react";
+import { useMemo } from "react";
 import type { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
@@ -17,7 +16,6 @@ import { Reveal } from "@/components/motion/reveal";
 type Props = {
   shoe: Shoe;
   matchScore?: number | null;
-  reasons?: string[];
   showChips?: boolean;
   compareEnabled?: boolean;
   selected?: boolean;
@@ -43,11 +41,9 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled, selected, onToggleSelect, className, index }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
-  const [whyOpen, setWhyOpen] = useState(false);
-  const popoverRef = useRef<HTMLDivElement | null>(null);
   const href = `/shoes/${shoe.slug}` as Route;
 
   // Top two performance dimensions, shown only in personalized mode so default
@@ -58,18 +54,6 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
       .sort((a, b) => b.score - a.score)
       .slice(0, 2);
   }, [shoe, showChips]);
-
-  useEffect(() => {
-    if (!whyOpen) return;
-    const onDocClick = (e: MouseEvent) => {
-      if (!popoverRef.current) return;
-      if (!popoverRef.current.contains(e.target as Node)) setWhyOpen(false);
-    };
-    window.addEventListener("mousedown", onDocClick);
-    return () => window.removeEventListener("mousedown", onDocClick);
-  }, [whyOpen]);
-
-  const hasReasons = reasons && reasons.length > 0;
 
   const body = (
     <>
@@ -108,9 +92,7 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
             />
           </div>
           {chips.length > 0 && (
-            // Clear the bottom-right "Why?" button (absolute, always visible on
-            // mobile) so chips never slide underneath it.
-            <div className={`mt-1.5 flex flex-wrap gap-1 ${hasReasons ? "pr-10" : ""}`}>
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {chips.map((c) => (
                 <span
                   key={c.key}
@@ -144,45 +126,11 @@ export function ShoeCard({ shoe, matchScore, reasons, showChips, compareEnabled,
       ) : (
         <FavoriteButton
           shoeId={shoe.id}
-          className="tap-44 glass-lite absolute left-2 top-2 h-7 w-7 rounded-full opacity-90"
+          className="tap-44 glass-lite absolute bottom-2 right-2 h-7 w-7 rounded-full opacity-90"
           iconClassName="h-3.5 w-3.5"
         />
       )}
 
-      {hasReasons && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setWhyOpen((v) => !v);
-          }}
-          aria-label={translate("Why?")}
-          className="tap-44 glass-lite absolute bottom-3 right-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgb(var(--text))] opacity-100 transition md:opacity-0 md:group-hover:opacity-100"
-        >
-          <Info className="h-3.5 w-3.5" />
-        </button>
-      )}
-
-      {whyOpen && hasReasons && (
-        <div
-          ref={popoverRef}
-          className="pop-in glass glass-rim glass-clip absolute bottom-12 right-3 z-10 w-[calc(100%-1.5rem)] max-w-[240px] rounded-xl p-3"
-          style={{ transformOrigin: "bottom right" }}
-          onClick={(e) => e.preventDefault()}
-        >
-          <p className="mb-1 text-[0.7rem] font-semibold uppercase tracking-[0.1em] soft-text">
-            {translate("Recommended for you")}
-          </p>
-          <ul className="space-y-1">
-            {(reasons ?? []).map((r) => (
-              <li key={r} className="text-[0.78rem] leading-snug">
-                · {translate(r)}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </>
   );
 

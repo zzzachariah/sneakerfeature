@@ -429,19 +429,10 @@ export function HomeFeed({
         </div>
         </div>
 
-          {/* Desktop: inline filter panel. Phones: a draggable bottom sheet. */}
+          {/* Desktop: inline filter panel. Phone bottom sheet is rendered outside
+              the scroll container (below) so iOS fixed-position layering works. */}
           {filtersOpen && !isMobile && (
             <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} />
-          )}
-          {isMobile && (
-            <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
-              <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} bare />
-              <div className="mt-5">
-                <Button className="w-full" onClick={() => setFiltersOpen(false)}>
-                  {translate("Show results")} · {filtered.length}
-                </Button>
-              </div>
-            </BottomSheet>
           )}
 
           {filtered.length === 0 ? (
@@ -468,12 +459,11 @@ export function HomeFeed({
           ) : (
             <>
               <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {filtered.slice(0, visibleCount).map(({ shoe, score, reasons }) => (
+                {filtered.slice(0, visibleCount).map(({ shoe, score }) => (
                   <ShoeCard
                     key={shoe.id}
                     shoe={shoe}
                     matchScore={mode === "personalized" ? score : null}
-                    reasons={mode === "personalized" ? reasons : []}
                     showChips={mode === "personalized"}
                     compareEnabled={compareMode}
                     selected={selected.includes(shoe.id)}
@@ -493,6 +483,20 @@ export function HomeFeed({
         </p>
       )}
       </div>
+
+      {/* Phone filter sheet — rendered outside overflow-auto so position:fixed
+          works correctly on iOS Capacitor (the overflow container otherwise
+          intercepts touch events before they reach the backdrop). */}
+      {isMobile && (
+        <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
+          <ShoeFacets shoes={shoes} facets={facets} onChange={setFacets} bare />
+          <div className="mt-5">
+            <Button className="w-full" onClick={() => setFiltersOpen(false)}>
+              {translate("Show results")} · {filtered.length}
+            </Button>
+          </div>
+        </BottomSheet>
+      )}
 
       {compareMode && selected.length > 1 && (
         <div

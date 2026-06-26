@@ -312,8 +312,8 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
             </div>
 
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {results.map(({ shoe, score, reasons }, i) => (
-                <ShoeCard key={shoe.id} shoe={shoe} matchScore={score} reasons={reasons} showChips index={i} />
+              {results.map(({ shoe, score }, i) => (
+                <ShoeCard key={shoe.id} shoe={shoe} matchScore={score} showChips index={i} />
               ))}
             </ul>
 
