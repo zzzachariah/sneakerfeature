@@ -82,6 +82,16 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
               <span className="num-display">{matchScore}%</span> {translate("match")}
             </span>
           )}
+          {/* Favorite sits in the bottom-right CORNER of the image (not below
+              the whole card). The Heart inside the FavoriteButton stops
+              propagation so the Link's navigation never fires from here. */}
+          {!compareEnabled && (
+            <FavoriteButton
+              shoeId={shoe.id}
+              className="tap-44 glass-lite absolute bottom-2 right-2 h-7 w-7 rounded-full opacity-90 z-10"
+              iconClassName="h-3.5 w-3.5"
+            />
+          )}
         </div>
         <div className="p-3">
           <div className="truncate text-sm font-semibold tracking-[-0.01em] leading-[1.25]">{shoe.shoe_name}</div>
@@ -110,7 +120,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
         </div>
       </Link>
 
-      {compareEnabled ? (
+      {compareEnabled && (
         <label
           onClick={(e) => e.stopPropagation()}
           className="tap-44 glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full"
@@ -126,14 +136,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             aria-label={translate("Compare")}
           />
         </label>
-      ) : (
-        <FavoriteButton
-          shoeId={shoe.id}
-          className="tap-44 glass-lite absolute bottom-2 right-2 h-7 w-7 rounded-full opacity-90"
-          iconClassName="h-3.5 w-3.5"
-        />
       )}
-
     </>
   );
 
