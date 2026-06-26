@@ -1678,6 +1678,38 @@ html[data-skin="clean"] :where(a, button, [role="button"]):focus-visible {
   }
 }
 
+/* ── Feed FAB — iOS native Liquid Glass enhancement ──
+   Promotes the FAB action buttons and their label pills to a richer glass
+   tier on iOS: stronger blur, brighter rim, inner glow, deeper shadow so they
+   read as thick liquid glass tablets floating above the shoe grid. */
+html.capacitor-native[data-native-platform="ios"] .ios-glass-fab {
+  background-color: rgb(var(--glass-tint) / 0.72);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(var(--glass-brightness));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.75),
+    inset 0 0 18px rgb(var(--glass-rim) / 0.12),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+    0 16px 40px -12px rgb(var(--glass-shadow) / 0.42),
+    0 6px 16px -6px rgb(var(--glass-shadow) / 0.22);
+  isolation: isolate;
+  overflow: hidden;
+}
+html.capacitor-native[data-native-platform="ios"] .ios-glass-fab:active {
+  transform: scale(0.92);
+}
+html.capacitor-native[data-native-platform="ios"] .ios-glass-fab-label {
+  background-color: rgb(var(--glass-tint) / 0.68);
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(var(--glass-saturate));
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.55),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.05),
+    0 8px 20px -8px rgb(var(--glass-shadow) / 0.28);
+  isolation: isolate;
+  overflow: hidden;
+}
+
 /* ── design polish utilities ── */
 html { color-scheme: light; }
 html.dark { color-scheme: dark; }
