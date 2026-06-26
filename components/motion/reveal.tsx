@@ -18,6 +18,13 @@ type RevealProps = {
   /** vertical travel in px. Default 8. */
   y?: number;
   /**
+   * IntersectionObserver rootMargin. Defaults to "0px"; pass a positive value
+   * (e.g. "600px 0px") to trip the reveal BEFORE the element enters viewport
+   * — needed for fast-scrolled lists where waiting until the element is
+   * actually visible would leave it stuck at opacity 0.
+   */
+  rootMargin?: string;
+  /**
    * When provided, drives the reveal off slide-active state and REPLAYS each
    * time it flips false -> true. When omitted, falls back to a one-shot
    * scroll-into-view reveal via IntersectionObserver.
@@ -39,6 +46,7 @@ export function Reveal({
   stagger = 50,
   delay = 0,
   y = 8,
+  rootMargin = "0px",
   active,
 }: RevealProps) {
   const driveByActive = active !== undefined;
@@ -63,11 +71,11 @@ export function Reveal({
           obs.disconnect();
         }
       },
-      { threshold: 0.12 }
+      { threshold: 0.01, rootMargin }
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [driveByActive]);
+  }, [driveByActive, rootMargin]);
 
   // Active-driven: replay each time the slide/section becomes active.
   useEffect(() => {

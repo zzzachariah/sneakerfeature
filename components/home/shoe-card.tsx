@@ -28,6 +28,12 @@ type Props = {
    * collections). Omit in virtualized feeds where rows mount/unmount on scroll.
    */
   index?: number;
+  /** Per-index stagger passed to the Reveal wrapper. Default 50ms; set 0 to
+   * fire every card on its own viewport entry with no queue delay. */
+  revealStagger?: number;
+  /** IntersectionObserver rootMargin for the Reveal wrapper. Default "0px";
+   * pass a positive value to trip the reveal before the card enters viewport. */
+  revealRootMargin?: string;
   /** When true, loads the image eagerly to avoid lazy-loading LCP images. */
   priority?: boolean;
 };
@@ -43,7 +49,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, priority }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const href = `/shoes/${shoe.slug}` as Route;
@@ -143,7 +149,13 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
   const outerClass = `group relative ${className ?? ""}`;
   if (index != null) {
     return (
-      <Reveal as="li" index={index} className={outerClass}>
+      <Reveal
+        as="li"
+        index={index}
+        stagger={revealStagger}
+        rootMargin={revealRootMargin}
+        className={outerClass}
+      >
         {body}
       </Reveal>
     );

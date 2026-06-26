@@ -478,10 +478,13 @@ export function HomeFeed({
                   <ShoeCard
                     key={shoe.id}
                     shoe={shoe}
-                    // Skip per-card Reveal in the home grid: with a 50ms
-                    // stagger per index, card #50 would wait 2.5s before its
-                    // entry animation even starts, leaving fast-scrollers
-                    // looking at empty cells until the queue catches up.
+                    index={index}
+                    // No queue stagger and a wide rootMargin: each card
+                    // fades in on its own, and the IntersectionObserver
+                    // trips ~800px before the card enters the viewport so
+                    // fast scrolls never see opacity-0 placeholders.
+                    revealStagger={0}
+                    revealRootMargin="800px 0px"
                     priority={index < 16}
                     matchScore={mode === "personalized" ? score : null}
                     showChips={mode === "personalized"}
