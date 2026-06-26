@@ -42,8 +42,10 @@ function useReducedMotion() {
   return r;
 }
 
-const INITIAL_VISIBLE = 48;
-const VISIBLE_STEP = 36;
+// Tuned for fast scroll: render a bigger initial page and grow in larger
+// chunks so the sentinel can't be "outrun" before the next batch mounts.
+const INITIAL_VISIBLE = 96;
+const VISIBLE_STEP = 72;
 
 // Tracks the phone breakpoint so filters open as a native-feeling bottom sheet on
 // phones and stay as an inline panel on desktop. Defaults to false (desktop) for
@@ -222,7 +224,9 @@ export function HomeFeed({
           setVisibleCount((c) => Math.min(filtered.length, c + VISIBLE_STEP));
         }
       },
-      { rootMargin: "800px 0px" }
+      // Wide pre-fetch margin so fast scrolls don't outrun the sentinel and
+      // leave the user staring at empty white grid cells.
+      { rootMargin: "2400px 0px" }
     );
     io.observe(node);
     return () => io.disconnect();
