@@ -364,7 +364,7 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
   console.info("[foot-scan] analyze start", {
     model: VISION_MODEL,
     baseURL: FOOT_SCAN_BASE_URL,
-    apiKey: footScanKeyFingerprint(),
+    keyConfigured: Boolean(process.env.FOOT_SCAN_API_KEY?.trim()),
     sampleCount: SAMPLE_COUNT,
     maxSamples: MAX_SAMPLES,
     temperature: SAMPLE_TEMPERATURE,
@@ -446,8 +446,8 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
     console.error("[foot-scan] all samples failed", {
       attempts: allErrors.length,
       model: VISION_MODEL,
-      apiKey: footScanKeyFingerprint(),
-      uniqueErrors: Array.from(new Set(allErrors))
+      keyConfigured: Boolean(process.env.FOOT_SCAN_API_KEY?.trim()),
+      uniqueErrorCount: new Set(allErrors).size
     });
     return { ok: false, error: "Analysis request failed.", detail };
   }

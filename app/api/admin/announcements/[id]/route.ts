@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { getAdminContext } from "@/lib/admin/auth";
 import {
   deleteAnnouncement,
@@ -53,6 +54,7 @@ export async function PATCH(
 
   try {
     const item = await updateAnnouncement(id, parsed.data, ctx.userId);
+    revalidateTag("announcements");
     return NextResponse.json({ ok: true, item });
   } catch (e) {
     console.error("[admin/announcements] update failed", e);
@@ -73,6 +75,7 @@ export async function DELETE(
   const { id } = await params;
   try {
     await deleteAnnouncement(id, ctx.userId);
+    revalidateTag("announcements");
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("[admin/announcements] delete failed", e);

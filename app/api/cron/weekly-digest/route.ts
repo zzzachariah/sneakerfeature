@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createPackyClient } from "@/lib/ai/packy-client";
@@ -27,7 +28,9 @@ const USER_BATCH = 200; // safety cap per run; tune for scale
 function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  return request.headers.get("authorization") === `Bearer ${secret}`;
+  const a = Buffer.from(request.headers.get("authorization") ?? "");
+  const b = Buffer.from(`Bearer ${secret}`);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export async function GET(request: Request) {

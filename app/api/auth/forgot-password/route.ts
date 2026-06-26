@@ -10,6 +10,22 @@ const forgotPasswordSchema = z.object({
 // Generic response — never reveal whether an account exists (no enumeration).
 const GENERIC_OK = "If an account exists for that email, a reset link has been sent.";
 
+/**
+ * POST /api/auth/forgot-password
+ *
+ * PURPOSE: CAPTCHA gate only — not a full server-side password-reset trigger.
+ *
+ * Architecture note: the actual recovery email is sent client-side via
+ * `supabase.auth.resetPasswordForEmail()` so that the PKCE code-verifier is
+ * created and stored in the requesting browser (required for the reset link to
+ * be redeemable in that same browser session). This route's sole responsibility
+ * is to verify the Turnstile CAPTCHA before the client proceeds with the SDK
+ * call. It returns a generic, account-non-enumerating response regardless of
+ * whether an account exists for the submitted email.
+ *
+ * Security requirement: TURNSTILE_SECRET_KEY must be set in the environment;
+ * without it `verifyTurnstileToken` will throw and all requests will be blocked.
+ */
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = forgotPasswordSchema.safeParse(body);

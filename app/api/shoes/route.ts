@@ -1,15 +1,11 @@
 import { createHash } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getPublicShoes } from "@/lib/data/shoes";
+import { createClient } from "@/lib/supabase/server";
 
-// Public shoe catalog for the on-device (IndexedDB) library — see
-// lib/local/use-local-shoes.ts. The data is already public via SSR, but a single
-// endpoint returning the whole DB is easy to bulk-scrape, so this adds light
-// best-effort protection:
-//   • requires the app/site's own `x-sf-app` header — blocks naive `curl` and
-//     cross-origin browser fetch (which can't set custom headers without CORS we
-//     don't grant);
-//   • a per-instance rate limit on top.
+// Shoe catalog endpoint for authenticated app clients — see
+// lib/local/use-local-shoes.ts. Requires a valid Supabase session; unauthenticated
+// requests are rejected with 403. Also enforces a per-IP rate limit.
 // It also supports conditional GET (ETag / If-None-Match) so re-syncs that find
 // nothing changed cost almost nothing.
 export const dynamic = "force-dynamic";
@@ -30,7 +26,10 @@ function rateLimited(ip: string): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  if (request.headers.get("x-sf-app") !== "1") {
+  const supabase = await createClient();
+  if (!supabase) return NextResponse.json({ error: "server_error" }, { status: 500 });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -48,6 +47,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { version, shoes },
-    { headers: { ETag: etag, "Cache-Control": "private, max-age=0, must-revalidate" } }
+    { headers: { ETag: etag, "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
   );
 }

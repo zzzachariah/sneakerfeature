@@ -71,7 +71,15 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, count, dimAvgs, myDimRatings });
+  const isPersonal = myDimRatings !== null;
+  const cacheHeader = isPersonal
+    ? "private, no-store"
+    : "public, s-maxage=60, stale-while-revalidate=300";
+
+  return NextResponse.json(
+    { ok: true, count, dimAvgs, myDimRatings },
+    { headers: { "Cache-Control": cacheHeader } }
+  );
 }
 
 export async function POST(request: Request) {

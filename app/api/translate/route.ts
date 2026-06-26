@@ -1,12 +1,59 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 const translationCache = new Map<string, string>();
 const DEFAULT_LOCALE = "zh";
-const LIBRETRANSLATE_URL = process.env.LIBRETRANSLATE_URL;
+function parseAndValidateLibreUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    console.warn("[i18n/api] LIBRETRANSLATE_URL is not a valid URL — LibreTranslate disabled");
+    return null;
+  }
+  if (parsed.protocol !== "https:") {
+    console.warn("[i18n/api] LIBRETRANSLATE_URL must use https: — LibreTranslate disabled");
+    return null;
+  }
+  const hostname = parsed.hostname;
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    /^10\./.test(hostname) ||
+    /^192\.168\./.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(hostname)
+  ) {
+    console.warn("[i18n/api] LIBRETRANSLATE_URL points to a private/loopback address — LibreTranslate disabled");
+    return null;
+  }
+  return raw;
+}
+
+const LIBRETRANSLATE_URL = parseAndValidateLibreUrl(process.env.LIBRETRANSLATE_URL);
 const TRANSLATION_TIMEOUT_MS = 10000;
 const isI18nDebugEnabled = process.env.I18N_DEBUG === "1";
 const MYMEMORY_URL = "https://api.mymemory.translated.net/get";
 const SAFE_TRANSLATION_CHARS = 420;
+const MAX_TEXT_LENGTH = 10_000;
+const ALLOWED_LOCALES = new Set(["zh", "en", "es", "fr", "de", "ja", "ko", "pt", "ru", "ar"]);
+
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 30;
+const hits = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = hits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    hits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count += 1;
+  return entry.count > RATE_MAX;
+}
+
 const OFFLINE_ZH_EXACT: Record<string, string> = {
   "full-length boom forefoot": "全掌 BOOM 前掌",
   "flight plate with zoom air forefoot": "前掌搭载 Zoom Air 的 Flight Plate",
@@ -166,11 +213,35 @@ async function translateWithMyMemory(text: string, target: string) {
   return translated || null;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Auth check: only authenticated users may call this endpoint.
+  const supabase = await createClient();
+  if (!supabase) return NextResponse.json({ ok: false, message: "Server error" }, { status: 500 });
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 });
+  }
+
+  // Per-IP rate limit to prevent abuse even for authenticated callers.
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (rateLimited(ip)) {
+    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+  }
+
   try {
     const body = (await request.json()) as { text?: string; target?: string };
     const text = String(body.text ?? "").trim();
     const target = String(body.target ?? DEFAULT_LOCALE);
+
+    // Restrict accepted locales to a known-good allowlist to limit abuse surface.
+    if (!ALLOWED_LOCALES.has(target)) {
+      return NextResponse.json({ translatedText: "", reason: "unsupported_locale" }, { status: 400 });
+    }
+
+    // Cap body size before any downstream network calls.
+    if (text.length > MAX_TEXT_LENGTH) {
+      return NextResponse.json({ translatedText: "", reason: "text_too_long" }, { status: 400 });
+    }
 
     if (isI18nDebugEnabled) {
       console.log("[i18n/api] request", { text, target });

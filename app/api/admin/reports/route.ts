@@ -28,6 +28,17 @@ export async function POST(request: Request) {
   }
 
   if (parsed.data.action === "delete_comment" && parsed.data.commentId) {
+    const { data: report, error: reportFetchError } = await db
+      .from("comment_reports")
+      .select("comment_id")
+      .eq("id", parsed.data.reportId)
+      .single();
+    if (reportFetchError || !report) {
+      return NextResponse.json({ ok: false, message: "Report not found." }, { status: 404 });
+    }
+    if (report.comment_id !== parsed.data.commentId) {
+      return NextResponse.json({ ok: false, message: "commentId does not match the report." }, { status: 400 });
+    }
     const { error: delError } = await db.from("comments").delete().eq("id", parsed.data.commentId);
     if (delError) return NextResponse.json({ ok: false, message: delError.message }, { status: 400 });
     // The comment cascade removes its reports; mark any lingering ones reviewed.

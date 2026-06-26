@@ -7,9 +7,20 @@ import { Plus } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { CompareSlides } from "@/components/compare/compare-slides";
-import { AddShoeDialog } from "@/components/compare/add-shoe-dialog";
-import { CardPreviewModal } from "@/components/card/card-preview-modal";
-import { CompareShoePicker } from "@/components/card/compare-shoe-picker";
+import dynamic from "next/dynamic";
+
+const AddShoeDialog = dynamic(
+  () => import("@/components/compare/add-shoe-dialog").then((m) => m.AddShoeDialog),
+  { ssr: false, loading: () => null }
+);
+const CardPreviewModal = dynamic(
+  () => import("@/components/card/card-preview-modal").then((m) => m.CardPreviewModal),
+  { ssr: false, loading: () => null }
+);
+const CompareShoePicker = dynamic(
+  () => import("@/components/card/compare-shoe-picker").then((m) => m.CompareShoePicker),
+  { ssr: false, loading: () => null }
+);
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

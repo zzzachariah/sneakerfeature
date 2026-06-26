@@ -40,7 +40,7 @@ function fail({
 }
 
 function success(payload: Record<string, unknown>, requestId: string) {
-  console.info(`[admin] /image requestId=${requestId} step=final_return success status=200`, payload);
+  console.info(`[admin] /image requestId=${requestId} step=final_return success status=200`);
   revalidateTag("shoes");
   return NextResponse.json({ ok: true, ...payload }, { status: 200 });
 }
@@ -97,6 +97,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const pending = await getLatestByStatus(supabase, shoeId, "pending");
     if (!pending) return fail({ status: 400, error: "No pending image to approve.", step: "db_update", requestId });
 
+    if (pending.created_by !== user.id) {
+      return fail({ status: 403, error: "You may only approve images you staged.", step: "db_update", requestId });
+    }
+
     const nowIso = new Date().toISOString();
 
     const { error: demoteError } = await supabase
@@ -136,6 +140,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (parsed.data.action === "reject") {
     const pending = await getLatestByStatus(supabase, shoeId, "pending");
     if (!pending) return fail({ status: 400, error: "No pending image to reject.", step: "db_update", requestId });
+
+    if (pending.created_by !== user.id) {
+      return fail({ status: 403, error: "You may only reject images you staged.", step: "db_update", requestId });
+    }
 
     const { error: rejectError } = await supabase
       .from("shoe_images")
@@ -233,6 +241,17 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 
   if (parsed.data.action === "confirm_url") {
+    // Verify the storage path belongs to this shoe to prevent path injection
+    const expectedPrefix = `shoes/${shoeId}/`;
+    if (!parsed.data.storage_path.startsWith(expectedPrefix)) {
+      return fail({
+        status: 400,
+        error: "storage_path does not belong to this shoe.",
+        step: "request_parse",
+        requestId
+      });
+    }
+
     const nowIso = new Date().toISOString();
 
     const { error: closePendingError } = await supabase

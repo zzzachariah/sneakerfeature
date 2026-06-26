@@ -126,6 +126,7 @@ export function AccountMenu({ className }: { className?: string }) {
 
                 <Link
                   href="/dashboard"
+                  prefetch={true}
                   role="menuitem"
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
@@ -136,6 +137,7 @@ export function AccountMenu({ className }: { className?: string }) {
 
                 <Link
                   href="/favorites"
+                  prefetch={true}
                   role="menuitem"
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
@@ -147,6 +149,7 @@ export function AccountMenu({ className }: { className?: string }) {
                 {isAdmin && (
                   <Link
                     href="/admin"
+                    prefetch={true}
                     role="menuitem"
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"

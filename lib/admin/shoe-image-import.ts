@@ -1,4 +1,6 @@
 import { randomUUID } from "crypto";
+import dns from "dns/promises";
+import { isIP } from "net";
 import { SupabaseClient } from "@supabase/supabase-js";
 
 type SourceType = "official" | "retailer" | "review_media" | "unknown";
@@ -63,6 +65,42 @@ const BLOCKED_DOMAINS = ["pinterest.com", "pinimg.com", "facebook.com", "instagr
 const STRONG_POSITIVE_TERMS = ["official", "picture", "product", "retailer", "shoe"];
 const STRONG_NEGATIVE_TERMS = ["thumbnail", "sprite", "proxy", "logo", "icon", "top 10", "ranking"];
 const STOPWORDS = new Set(["the", "and", "for", "with", "shoe", "shoes", "model", "official", "picture", "image"]);
+
+function isPrivateIp(ip: string): boolean {
+  // IPv6 loopback and ULA (fc00::/7)
+  if (ip === "::1") return true;
+  const lower = ip.toLowerCase();
+  if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
+  // IPv4 private/loopback/link-local ranges
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4) return false;
+  const [a, b] = parts;
+  return (
+    a === 127 ||
+    a === 10 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254)
+  );
+}
+
+async function isPrivateOrLoopbackUrl(urlStr: string): Promise<boolean> {
+  let hostname: string;
+  try {
+    hostname = new URL(urlStr).hostname;
+  } catch {
+    return true; // invalid URL — treat as blocked
+  }
+  // If the hostname is already a raw IP, check it directly
+  if (isIP(hostname)) return isPrivateIp(hostname);
+  // Otherwise resolve DNS and check the returned address
+  try {
+    const { address } = await dns.lookup(hostname, { all: false });
+    return isPrivateIp(address);
+  } catch {
+    return true; // DNS failure — treat as blocked
+  }
+}
 
 function normalizeText(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -231,9 +269,13 @@ export function looksLikeHtml(buffer: Buffer) {
 
 async function probeCandidate(candidate: ScoredCandidate) {
   try {
+    if (await isPrivateOrLoopbackUrl(candidate.imageUrl)) {
+      return { ok: false as const, reason: "probe_blocked_private_ip" };
+    }
+
     const head = await fetch(candidate.imageUrl, {
       method: "HEAD",
-      redirect: "follow",
+      redirect: "error",
       headers: getDownloadHeaders(candidate.imageUrl, candidate.sourcePageUrl),
       signal: AbortSignal.timeout(12_000)
     });
@@ -243,9 +285,13 @@ async function probeCandidate(candidate: ScoredCandidate) {
     const ct = (head.headers.get("content-type") ?? "").toLowerCase();
     if (ct.startsWith("image/")) return { ok: true as const, reason: "probe_head_image_ok" };
 
+    if (await isPrivateOrLoopbackUrl(candidate.imageUrl)) {
+      return { ok: false as const, reason: "probe_blocked_private_ip" };
+    }
+
     const partial = await fetch(candidate.imageUrl, {
       method: "GET",
-      redirect: "follow",
+      redirect: "error",
       headers: { ...getDownloadHeaders(candidate.imageUrl, candidate.sourcePageUrl), range: "bytes=0-2047" },
       signal: AbortSignal.timeout(12_000)
     });
@@ -265,9 +311,13 @@ async function probeCandidate(candidate: ScoredCandidate) {
 
 async function downloadCandidate(candidate: ScoredCandidate) {
   try {
+    if (await isPrivateOrLoopbackUrl(candidate.imageUrl)) {
+      return { ok: false as const, reason: "download_blocked_private_ip" };
+    }
+
     const response = await fetch(candidate.imageUrl, {
       method: "GET",
-      redirect: "follow",
+      redirect: "error",
       headers: getDownloadHeaders(candidate.imageUrl, candidate.sourcePageUrl),
       signal: AbortSignal.timeout(20_000)
     });
@@ -405,9 +455,18 @@ export async function downloadImageFromUrl(url: string): Promise<DownloadImageFr
   }
 
   try {
+    const { address } = await dns.lookup(parsed.hostname);
+    if (isPrivateIp(address)) {
+      return { ok: false, reason: "ssrf_blocked_private_ip" };
+    }
+  } catch {
+    return { ok: false, reason: "ssrf_dns_resolution_failed" };
+  }
+
+  try {
     const response = await fetch(url, {
       method: "GET",
-      redirect: "follow",
+      redirect: "error",
       headers: getDownloadHeaders(url, `${parsed.origin}/`),
       signal: AbortSignal.timeout(20_000)
     });

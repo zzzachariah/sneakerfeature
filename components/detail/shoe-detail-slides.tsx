@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, Share2 } from "lucide-react";
-import { CardPreviewModal } from "@/components/card/card-preview-modal";
+import dynamic from "next/dynamic";
+const CardPreviewModal = dynamic(
+  () => import("@/components/card/card-preview-modal").then((m) => ({ default: m.CardPreviewModal })),
+  { ssr: false, loading: () => null }
+);
 import { CommentSection } from "@/components/detail/comment-section";
 import { BloggerReviewsSlideBody } from "@/components/detail/blogger-reviews-slide";
 import { ImageCorrectionButton } from "@/components/detail/image-correction-button";
@@ -285,6 +290,7 @@ function OverviewSection({
               alt={`${shoe.brand} ${shoe.shoe_name}`}
               fallbackLabel={translate("No image")}
               variant="detail"
+              priority
             />
           </Parallax>
         </div>
@@ -554,6 +560,7 @@ function CommentsSection({ shoe, specStars, isLoggedIn }: Props) {
 
 function RelatedSection({ related }: Props) {
   const { translate } = useLocale();
+  const router = useRouter();
   return (
     <Card className="mx-auto w-full max-w-4xl p-6 md:p-8">
       <div className="flex items-center justify-between">
@@ -568,6 +575,7 @@ function RelatedSection({ related }: Props) {
           <Reveal key={item.id} index={i}>
             <Link
               href={`/shoes/${item.slug}`}
+              onPointerEnter={() => router.prefetch(`/shoes/${item.slug}`)}
               data-field-key="shoe_name"
               className="block rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
             >

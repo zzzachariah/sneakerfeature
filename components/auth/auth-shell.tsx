@@ -1,12 +1,10 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { motion } from "framer-motion";
 import { AnimatedBackground } from "@/components/ui/animated-background";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { useLocale } from "@/components/i18n/locale-provider";
-
-const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
+import { Reveal } from "@/components/motion/reveal";
 
 export function AuthShell({
   eyebrow,
@@ -28,12 +26,7 @@ export function AuthShell({
       <AnimatedBackground />
 
       <div className="container-shell relative z-10 grid grid-cols-1 items-center gap-10 py-8 md:py-16 lg:grid-cols-[1.05fr,0.95fr] lg:gap-16 lg:py-24">
-        <motion.section
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, ease }}
-          className="hidden flex-col justify-center gap-8 lg:flex"
-        >
+        <Reveal as="section" y={14} className="hidden flex-col justify-center gap-8 lg:flex">
           <p className="auth-eyebrow">{translate(eyebrow)}</p>
           <h1 className="t-display-sm max-w-[520px]">
             {accentWord ? (
@@ -64,7 +57,7 @@ export function AuthShell({
               <p className="text-sm soft-text">{translate("Sneakers scored to your game. Sign in to get started.")}</p>
             </div>
           </div>
-        </motion.section>
+        </Reveal>
 
         <div className="relative">
           {children}

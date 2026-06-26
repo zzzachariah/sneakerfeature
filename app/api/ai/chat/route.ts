@@ -26,6 +26,25 @@ import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/li
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+// ---------------------------------------------------------------------------
+// In-memory sliding-window rate limiter: max 30 requests per userId per minute.
+// Resets naturally as timestamps age out. This is a lightweight abuse guard that
+// fires before any DB I/O, separate from the credit system.
+// ---------------------------------------------------------------------------
+const RATE_LIMIT_MAX = 30;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const rateLimitStore = new Map<string, number[]>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const timestamps = (rateLimitStore.get(userId) ?? []).filter((t) => t > windowStart);
+  if (timestamps.length >= RATE_LIMIT_MAX) return false;
+  timestamps.push(now);
+  rateLimitStore.set(userId, timestamps);
+  return true;
+}
+
 const schema = z.object({
   chatId: z.string().uuid(),
   message: z.string().trim().min(1, "Message is required.").max(2000),
@@ -37,6 +56,11 @@ type HistoryRow = { role: "user" | "assistant"; content: string; recommendations
 export async function POST(request: Request) {
   const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
+
+  // Rate limit: max 30 requests/minute per user, enforced before any DB I/O.
+  if (!checkRateLimit(ctx.userId)) {
+    return NextResponse.json({ ok: false, message: "Too many requests." }, { status: 429 });
+  }
 
   let body: unknown;
   try {
@@ -71,7 +95,7 @@ export async function POST(request: Request) {
   const client = createPackyClient();
   if (!client) {
     const report = getPackyEnvReport();
-    console.error("[ai/chat] packyapi not configured", report);
+    console.error("[ai/chat] packyapi not configured", { apiKey: report.apiKey, baseURL: report.baseURL });
     return NextResponse.json({ ok: false, message: describePackyEnvProblem(report) }, { status: 503 });
   }
 

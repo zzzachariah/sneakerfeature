@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { commentSchema } from "@/lib/validation/schemas";
+import { commentSchema, deleteCommentSchema } from "@/lib/validation/schemas";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 
 async function getSupabase() {
@@ -104,7 +104,10 @@ export async function GET(request: Request) {
     };
   });
 
-  return NextResponse.json({ ok: true, comments: normalized });
+  return NextResponse.json(
+    { ok: true, comments: normalized },
+    { headers: { "Cache-Control": "private, max-age=30, must-revalidate" } }
+  );
 }
 
 export async function POST(request: Request) {
@@ -142,12 +145,19 @@ export async function DELETE(request: Request) {
   const supabase = await getSupabase();
   if (!supabase) return NextResponse.json({ ok: false, message: "Database is not configured." }, { status: 400 });
 
-  const body = await request.json();
-  const commentId = body?.commentId;
-
-  if (!commentId || typeof commentId !== "string") {
-    return NextResponse.json({ ok: false, message: "commentId is required." }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, message: "Invalid JSON body." }, { status: 400 });
   }
+
+  const parsed = deleteCommentSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
+  }
+
+  const { commentId } = parsed.data;
 
   const {
     data: { user }

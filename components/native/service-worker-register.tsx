@@ -14,7 +14,14 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     const register = () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
+      navigator.serviceWorker.register("/sw.js").then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          newWorker?.addEventListener("statechange", () => {
+            if (newWorker.state === "activated") window.location.reload();
+          });
+        });
+      }).catch(() => {
         /* registration unsupported / blocked — ignore */
       });
     };

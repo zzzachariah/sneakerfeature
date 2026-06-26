@@ -4,7 +4,6 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import Link from "next/link";
 import type { Route } from "next";
 import { Heart } from "lucide-react";
-import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 type FavoritesValue = {
@@ -23,7 +22,6 @@ const TOAST_MS = 3500;
 // on failure), and surfaces a small toast on each change with a "View" shortcut
 // to /favorites. Degrades silently when the DB/table is absent.
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const { signedIn, loaded: authLoaded } = useAuthState();
   const { translate } = useLocale();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
@@ -31,12 +29,6 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!authLoaded) return;
-    if (!signedIn) {
-      setFavorites(new Set());
-      setLoaded(true);
-      return;
-    }
     let active = true;
     void (async () => {
       try {
@@ -52,7 +44,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, [authLoaded, signedIn]);
+  }, []); // run once on mount; auth cookie is included automatically
 
   const showToast = useCallback((message: string, added: boolean, href?: string) => {
     setToast({ key: Date.now(), message, added, href });

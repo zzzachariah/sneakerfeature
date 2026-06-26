@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { getAdminContext } from "@/lib/admin/auth";
 import { createAnnouncement, listAnnouncements } from "@/lib/announcements/store";
 
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
 
   try {
     const item = await createAnnouncement(parsed.data, ctx.userId);
+    revalidateTag("announcements");
     return NextResponse.json({ ok: true, item });
   } catch (e) {
     console.error("[admin/announcements] create failed", e);

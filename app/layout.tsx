@@ -1,7 +1,15 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import localFont from "next/font/local";
+const GeistMono = localFont({
+  src: "../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2",
+  variable: "--font-geist-mono",
+  display: "swap",
+  adjustFontFallback: false,
+  fallback: ["ui-monospace", "SFMono-Regular", "Roboto Mono", "Menlo", "Monaco", "Liberation Mono", "DejaVu Sans Mono", "Courier New", "monospace"],
+  weight: "100 900",
+});
 import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { ServiceWorkerRegister } from "@/components/native/service-worker-register";
@@ -17,6 +25,7 @@ import {
   CookieConsentProvider,
   CookieBanner,
   AnalyticsGate,
+  VercelAnalyticsGate,
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
@@ -30,8 +39,6 @@ import { AuthStateProvider } from "@/components/auth/auth-state-provider";
 import { FavoritesProvider } from "@/components/favorites/favorites-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -74,6 +81,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://www.googletagmanager.com" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        <link rel="preconnect" href="https://challenges.cloudflare.com" crossOrigin="anonymous" />
+      </head>
       <body>
         <ThemeInitScript />
         <SkinInitScript />
@@ -110,11 +122,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AuthStateProvider>
             <CookieBanner />
             <AnalyticsGate />
+            <VercelAnalyticsGate />
             <AnnouncementModal />
           </CookieConsentProvider>
         </LocaleProvider>
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   );

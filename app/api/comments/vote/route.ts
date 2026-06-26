@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { z } from "zod";
+
+const voteSchema = z.object({
+  commentId: z.string().uuid("Invalid comment identifier."),
+  voteType: z.enum(["like", "dislike"]),
+});
 
 export async function POST(request: Request) {
-  const body = await request.json();
-  const commentId = body?.commentId;
-  const voteType = body?.voteType as "like" | "dislike";
-
-  if (!commentId || typeof commentId !== "string") {
-    return NextResponse.json({ ok: false, message: "commentId is required." }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, message: "Invalid JSON body." }, { status: 400 });
   }
-
-  if (voteType !== "like" && voteType !== "dislike") {
-    return NextResponse.json({ ok: false, message: "voteType must be like or dislike." }, { status: 400 });
+  const parsed = voteSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
+  const { commentId, voteType } = parsed.data;
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

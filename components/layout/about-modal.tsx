@@ -21,7 +21,8 @@ export function AboutModal({ open, onClose }: Props) {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-50 grid place-items-center bg-[rgb(var(--glass-overlay)/0.72)] p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-50 grid place-items-center bg-[rgb(var(--glass-overlay)/0.72)] px-4 backdrop-blur-sm"
+          style={{ padding: "max(1rem, var(--top-nav-h)) 1rem max(1rem, var(--mobile-nav-h))" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

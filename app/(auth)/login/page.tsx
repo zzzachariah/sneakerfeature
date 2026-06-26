@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import type { Route } from "next";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { DUR, EASE } from "@/lib/motion/constants";
 import { ArrowRight } from "lucide-react";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
@@ -16,18 +16,11 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { LAST_PATH_KEY } from "@/components/auth/route-memory";
+import { Reveal } from "@/components/motion/reveal";
 
 const CLIENT_TIMEOUT_MS = 12000;
 const SESSION_SYNC_TIMEOUT_MS = 5000;
 const AUTH_PREFIXES = ["/login", "/signup", "/register", "/forgot-password", "/reset-password"];
-
-const stagger = {
-  animate: { transition: { staggerChildren: 0.06, delayChildren: 0.08 } }
-};
-const fadeUp = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0, transition: { duration: DUR.slow, ease: EASE } }
-};
 
 function devLog(step: string, payload?: unknown) {
   if (process.env.NODE_ENV !== "production") {
@@ -108,7 +101,6 @@ function useTiltHandlers() {
 
 export default function LoginPage() {
   const { translate } = useLocale();
-  const reduce = useReducedMotion();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [verificationToken, setVerificationToken] = useState("");
@@ -206,22 +198,19 @@ export default function LoginPage() {
       accentWord="sneakerfeature"
       subheading="Sign in to write reviews, save compares, and keep your index synced across devices."
     >
-      <motion.form
+      <form
         onSubmit={onSubmit}
         onPointerMove={tilt.onMove}
         onPointerLeave={tilt.onLeave}
-        initial={reduce ? false : "initial"}
-        animate="animate"
-        variants={stagger}
         className="glass-card tilt-3d mx-auto w-full max-w-md space-y-5 p-5 md:p-8"
       >
-        <motion.div variants={fadeUp} className="space-y-1.5">
+        <Reveal index={0} className="space-y-1.5">
           <p className="auth-eyebrow">{translate("log in")}</p>
           <h2 className="text-[28px] font-semibold tracking-[-0.02em]">{translate("Sign in")}</h2>
           <p className="text-sm soft-text">{translate("Sign in with email or username.")}</p>
-        </motion.div>
+        </Reveal>
 
-        <motion.div variants={fadeUp}>
+        <Reveal index={1}>
           <FloatingInput
             label={translate("Email or username")}
             value={identifier}
@@ -229,9 +218,9 @@ export default function LoginPage() {
             autoComplete="username"
             required
           />
-        </motion.div>
+        </Reveal>
 
-        <motion.div variants={fadeUp}>
+        <Reveal index={2}>
           <FloatingInput
             label={translate("Password")}
             value={password}
@@ -248,13 +237,13 @@ export default function LoginPage() {
               {translate("Forgot password?")}
             </Link>
           </div>
-        </motion.div>
+        </Reveal>
 
-        <motion.div variants={fadeUp}>
+        <Reveal index={3}>
           <HumanCheck action="login" onToken={setVerificationToken} />
-        </motion.div>
+        </Reveal>
 
-        <motion.div variants={fadeUp}>
+        <Reveal index={4}>
           <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.985 }} transition={{ duration: DUR.fast, ease: EASE }}>
             <Button type="submit" className="shimmer-on-hover group h-11 w-full text-[0.95rem]" disabled={submitting}>
               <span className="relative z-10 inline-flex items-center gap-2">
@@ -265,7 +254,7 @@ export default function LoginPage() {
               </span>
             </Button>
           </motion.div>
-        </motion.div>
+        </Reveal>
 
         <AnimatePresence mode="wait">
           {submitting && (
@@ -292,13 +281,13 @@ export default function LoginPage() {
           )}
         </AnimatePresence>
 
-        <motion.p variants={fadeUp} className="pt-1 text-xs soft-text">
+        <Reveal index={5} as="p" className="pt-1 text-xs soft-text">
           {translate("Need an account?")}{" "}
           <Link href="/signup" className="text-[rgb(var(--text))] underline-offset-4 hover:underline">
             {translate("Sign up")}
           </Link>
-        </motion.p>
-      </motion.form>
+        </Reveal>
+      </form>
     </AuthShell>
   );
 }

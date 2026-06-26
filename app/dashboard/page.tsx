@@ -78,14 +78,33 @@ export default function DashboardPage() {
         setUserId(session.user.id);
         setEmail(session.user.email ?? "");
 
+        // Kick off the comments query separately so we can chain the vote-counter
+        // query immediately when comment IDs are known, without waiting for the
+        // rest of batch 1 to complete.
+        const commentsPromise = sb
+          .from("comments")
+          .select("id, content, created_at, shoe_id, shoes(slug, shoe_name)")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        // As soon as the user's own comment IDs are available, start fetching
+        // aggregate vote counts for those comments.  This overlaps with the
+        // remaining batch-1 queries and avoids a dedicated second round-trip for
+        // the common case (user has commented but voted on few/no other comments).
+        const voteCountersPromise: Promise<{ data: VoteRow[] }> = Promise.resolve(commentsPromise).then(async (res) => {
+          const ids = ((res.data ?? []) as CommentWithShoeRow[]).map((c) => c.id);
+          if (ids.length === 0) return { data: [] as VoteRow[] };
+          const result = await sb
+            .from("comment_votes")
+            .select("comment_id, vote_type")
+            .in("comment_id", ids);
+          return { data: (result.data ?? []) as VoteRow[] };
+        });
+
         const [profileRes, commentsRes, submissionsRes, compareRes, votesRes] = await Promise.all([
           sb.from("profiles").select("username, role").eq("id", session.user.id).maybeSingle(),
-          sb
-            .from("comments")
-            .select("id, content, created_at, shoe_id, shoes(slug, shoe_name)")
-            .eq("user_id", session.user.id)
-            .order("created_at", { ascending: false })
-            .limit(50),
+          commentsPromise,
           sb
             .from("user_submissions")
             .select("id, status, created_at")
@@ -115,25 +134,35 @@ export default function DashboardPage() {
         const votedOnlyIds = Array.from(new Set([...likedIds, ...dislikedIds])).filter(
           (id) => !myCommentIds.includes(id)
         );
-        const allCommentIds = Array.from(new Set([...myCommentIds, ...likedIds, ...dislikedIds]));
 
-        const [votedCommentsRes, voteCountersRes] = await Promise.all([
+        // Fetch voted-on comment rows (needs votedOnlyIds from batch 1) and
+        // supplement the vote-counter results with any voted-only IDs not yet
+        // covered by voteCountersPromise.
+        const [votedCommentsRes, voteCountersForVotedRes, voteCountersRes] = await Promise.all([
           votedOnlyIds.length > 0
             ? sb
                 .from("comments")
                 .select("id, content, created_at, shoe_id, shoes(slug, shoe_name)")
                 .in("id", votedOnlyIds)
             : Promise.resolve({ data: [] as CommentWithShoeRow[] }),
-          allCommentIds.length > 0
+          votedOnlyIds.length > 0
             ? sb
                 .from("comment_votes")
                 .select("comment_id, vote_type")
-                .in("comment_id", allCommentIds)
-            : Promise.resolve({ data: [] as VoteRow[] })
+                .in("comment_id", votedOnlyIds)
+            : Promise.resolve({ data: [] as VoteRow[] }),
+          voteCountersPromise
         ]);
 
+        // Merge vote counts from both queries: voteCountersRes covers the user's
+        // own comment IDs (fetched early), voteCountersForVotedRes covers any
+        // additional comment IDs the user voted on but did not author.
+        const allVoteRows: VoteRow[] = [
+          ...(voteCountersRes.data ?? []),
+          ...((voteCountersForVotedRes.data ?? []) as VoteRow[])
+        ];
         const voteCounts = new Map<string, { likes: number; dislikes: number }>();
-        for (const vote of (voteCountersRes.data ?? []) as VoteRow[]) {
+        for (const vote of allVoteRows) {
           const current = voteCounts.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
           if (vote.vote_type === "like") current.likes += 1;
           if (vote.vote_type === "dislike") current.dislikes += 1;

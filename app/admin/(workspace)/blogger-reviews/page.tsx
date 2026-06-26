@@ -39,35 +39,49 @@ export default async function AdminBloggerReviewsPage({
     .map((t) => t.replace(/[,()*:%]/g, "").trim())
     .filter(Boolean);
 
+  // Stage 1: run count and a speculative first-page query in parallel.
   let countQuery = supabase.from("shoes").select("id", { count: "exact", head: true });
   for (const tok of tokens) countQuery = countQuery.or(`shoe_name.ilike.%${tok}%,brand.ilike.%${tok}%`);
-  const { count } = await countQuery;
 
+  let speculativeQuery = supabase
+    .from("shoes")
+    .select("id, shoe_name, brand, blogger_reviews(platform)")
+    .order("shoe_name", { ascending: true })
+    .range(0, PAGE_SIZE - 1);
+  for (const tok of tokens) speculativeQuery = speculativeQuery.or(`shoe_name.ilike.%${tok}%,brand.ilike.%${tok}%`);
+
+  const [{ count }, { data: speculativeShoes }] = await Promise.all([countQuery, speculativeQuery]);
+
+  // Stage 2: if the user requested a page other than page 1, fetch it.
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const page = Math.min(requestedPage, totalPages);
+
+  let shoes: typeof speculativeShoes;
+  if (page === 1) {
+    shoes = speculativeShoes;
+  } else {
+    const pageFrom = (page - 1) * PAGE_SIZE;
+    let dataQuery = supabase
+      .from("shoes")
+      .select("id, shoe_name, brand, blogger_reviews(platform)")
+      .order("shoe_name", { ascending: true })
+      .range(pageFrom, pageFrom + PAGE_SIZE - 1);
+    for (const tok of tokens) dataQuery = dataQuery.or(`shoe_name.ilike.%${tok}%,brand.ilike.%${tok}%`);
+    ({ data: shoes } = await dataQuery);
+  }
+
   const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
 
-  let dataQuery = supabase
-    .from("shoes")
-    .select("id, shoe_name, brand")
-    .order("shoe_name", { ascending: true })
-    .range(from, to);
-  for (const tok of tokens) dataQuery = dataQuery.or(`shoe_name.ilike.%${tok}%,brand.ilike.%${tok}%`);
-  const { data: shoes } = await dataQuery;
-
-  // Review counts per platform, only for the shoes on this page.
-  const shoeIds = (shoes ?? []).map((s) => s.id);
+  // Build counts map from the nested blogger_reviews rows (no third query needed).
   const counts = new Map<string, { youtube: number; bilibili: number }>();
-  if (shoeIds.length > 0) {
-    const { data: reviewRows } = await supabase.from("blogger_reviews").select("shoe_id, platform").in("shoe_id", shoeIds);
-    for (const row of reviewRows ?? []) {
-      const entry = counts.get(row.shoe_id) ?? { youtube: 0, bilibili: 0 };
-      if (row.platform === "youtube") entry.youtube += 1;
-      else if (row.platform === "bilibili") entry.bilibili += 1;
-      counts.set(row.shoe_id, entry);
+  for (const shoe of shoes ?? []) {
+    let youtube = 0, bilibili = 0;
+    for (const r of (shoe as { blogger_reviews?: { platform: string }[] }).blogger_reviews ?? []) {
+      if (r.platform === "youtube") youtube++;
+      else if (r.platform === "bilibili") bilibili++;
     }
+    counts.set(shoe.id, { youtube, bilibili });
   }
 
   const rangeStart = total === 0 ? 0 : from + 1;

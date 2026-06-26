@@ -9,6 +9,8 @@ import {
 } from "react";
 import Link from "next/link";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { isIosNativeApp } from "@/lib/native/native";
@@ -21,8 +23,9 @@ import { isIosNativeApp } from "@/lib/native/native";
  * - {@link CookieBanner} prompts first-time visitors (rendered only after the
  *   stored value is read, so there is no SSR/hydration flash).
  * - {@link AnalyticsGate} loads the cookie-setting Google Analytics/Ads scripts
- *   ONLY after the visitor accepts. Vercel's cookieless analytics stay in the
- *   root layout and are not gated here.
+ *   ONLY after the visitor accepts.
+ * - {@link VercelAnalyticsGate} loads Vercel Analytics and Speed Insights ONLY
+ *   after the visitor accepts, ensuring consistent consent scope.
  *
  * Inside the native iOS app, tracking is blocked entirely: the consent prompt is
  * hidden and the cookie-setting analytics/ads scripts never load, so the app
@@ -150,6 +153,23 @@ export function CookieBanner() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Gates Vercel Analytics and Speed Insights behind cookie consent.
+ * Both packages inject their scripts with `defer` so there is no
+ * render-blocking concern — this wrapper ensures they only fire after
+ * the visitor has accepted cookies.
+ */
+export function VercelAnalyticsGate() {
+  const { consent } = useCookieConsent();
+  if (consent !== "accepted") return null;
+  return (
+    <>
+      <Analytics />
+      <SpeedInsights />
+    </>
   );
 }
 

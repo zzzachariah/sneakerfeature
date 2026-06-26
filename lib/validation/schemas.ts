@@ -21,6 +21,10 @@ export const reportCommentSchema = z.object({
   reason: z.enum(["spam", "harassment", "inappropriate", "other"])
 });
 
+export const deleteCommentSchema = z.object({
+  commentId: z.string().uuid("commentId must be a valid UUID")
+});
+
 export const blockUserSchema = z.object({
   userId: z.string().uuid("Invalid user identifier."),
   action: z.enum(["block", "unblock"])

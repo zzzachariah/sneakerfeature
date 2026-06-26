@@ -287,6 +287,8 @@ export function RecommendationReportCard({
                   <img
                     src={proxiedImageSrc(rec.image_url)}
                     alt=""
+                    width={84}
+                    height={84}
                     crossOrigin="anonymous"
                     style={{ width: 84, height: 84, objectFit: "contain" }}
                   />
