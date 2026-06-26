@@ -3,38 +3,68 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowDown, Loader2 } from "lucide-react";
 import { haptics } from "@/lib/native/haptics";
 import { useLocale } from "@/components/i18n/locale-provider";
 
-// Bottom pull-to-refresh — "上拉松手重新加载".
+// Top pull-to-refresh — "下拉刷新", implemented in JS/touch events.
 //
-// Unlike the top UIRefreshControl (native Swift, needs a re-archive to change),
-// this is implemented entirely in JS/touch events, so it ships as ordinary web
-// content and updates the moment the site deploys — no App Store resubmission.
-//
-// Gesture: once the page is scrolled to the very bottom and the finger keeps
-// dragging up (overscroll), an indicator rises from the bottom edge. Past the
-// threshold a haptic fires and the label flips to "release to refresh";
-// letting go then runs router.refresh() (re-runs the server components). It's
-// disabled on the deck-style routes that own their own vertical gestures, the
-// same ones the top pull-to-refresh skips.
-const enabledPlatform = () =>
-  Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios";
+// The iOS app already gets pull-down refresh via a native UIRefreshControl
+// (NativeChromePlugin → NativePullToRefresh). Outside iOS — Android Capacitor
+// and the mobile browser — there's no equivalent built in, so this ships the
+// same gesture as ordinary web content (no platform restriction, no App Store
+// resubmission). Skipped on iOS to avoid double-firing with the native control,
+// and on the deck-style / canvas-editor routes that own their own vertical
+// gestures (the same ones the iOS / bottom controls skip).
+const enabledPlatform = () => {
+  if (typeof window === "undefined") return false;
+  // iOS keeps its native UIRefreshControl — don't double-handle.
+  if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") return false;
+  return true;
+};
 
+// Routes that run their own touch-driven gestures (image pan / deck swipe /
+// chat scrollers); a downward drag there must not get hijacked into a refresh.
 const NO_REFRESH_PREFIXES = ["/shoes/", "/smart-picker", "/foot-scan"];
 
 const THRESHOLD = 72; // overscroll travel (px) needed to arm a refresh
-const MAX_PULL = 132; // clamp so the indicator never wanders too far up
+const MAX_PULL = 132; // clamp so the indicator never wanders too far down
 const RESISTANCE = 0.5; // finger distance → indicator travel (rubber-band feel)
 const SNAP = "transform 220ms var(--ease), opacity 220ms var(--ease)";
 
 type Phase = "idle" | "pull" | "armed" | "refreshing";
 
-export function NativeBottomReload() {
+// True when `el` is a scroller whose content overflows AND it isn't already
+// pinned at its own top — i.e. a downward drag would scroll it instead of
+// pulling the page. Used to bail when the touch starts inside a modal / sheet /
+// sidebar that has its own scroll position (window.scrollY stays 0 when body
+// scroll is locked, so the cheap check isn't enough on its own).
+function absorbsDownwardDrag(el: HTMLElement): boolean {
+  if (el.scrollHeight <= el.clientHeight) return false;
+  const overflowY = getComputedStyle(el).overflowY;
+  if (overflowY !== "auto" && overflowY !== "scroll" && overflowY !== "overlay") return false;
+  return el.scrollTop > 0;
+}
+
+function startedInsideInnerScroller(target: EventTarget | null): boolean {
+  let el = target instanceof HTMLElement ? target : null;
+  while (el && el !== document.body) {
+    if (absorbsDownwardDrag(el)) return true;
+    el = el.parentElement;
+  }
+  return false;
+}
+
+export function WebPullToRefresh() {
   const pathname = usePathname();
   const router = useRouter();
   const { translate } = useLocale();
+
+  // Defer rendering to after mount so SSR (always null) and the first client
+  // render agree — otherwise non-iOS browsers / Android Capacitor would log a
+  // hydration mismatch for the pill <div> on every cold page load.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const pillRef = useRef<HTMLDivElement>(null);
@@ -49,7 +79,6 @@ export function NativeBottomReload() {
     refreshing: false,
   });
 
-  // Keep the route-block flag current without re-binding the touch listeners.
   useEffect(() => {
     g.current.blocked = NO_REFRESH_PREFIXES.some((p) => pathname.startsWith(p));
   }, [pathname]);
@@ -57,20 +86,28 @@ export function NativeBottomReload() {
   useEffect(() => {
     if (!enabledPlatform()) return;
 
-    const atBottom = () =>
-      window.scrollY + window.innerHeight >=
-      document.documentElement.scrollHeight - 2;
+    const atTop = () => window.scrollY <= 0;
 
     const paint = (travel: number) => {
       const el = pillRef.current;
       if (!el) return;
-      el.style.transform = `translate(-50%, ${-travel}px)`;
+      el.style.transform = `translate(-50%, ${travel}px)`;
       el.style.opacity = travel > 4 ? "1" : "0";
     };
 
     const onStart = (e: TouchEvent) => {
       const s = g.current;
       if (s.blocked || s.refreshing || e.touches.length !== 1) return;
+      // Bail if the touch began inside a modal / sheet / sidebar that owns its
+      // own scroll — a downward drag there should scroll that container, not
+      // pull the page. (Body-scroll-lock keeps window.scrollY at 0, so the
+      // outer atTop() check below is true even when an overlay is open.)
+      if (startedInsideInnerScroller(e.target)) {
+        s.tracking = false;
+        s.armed = false;
+        // startY stays unused — onMove won't track unless onStart succeeded.
+        return;
+      }
       s.tracking = false;
       s.armed = false;
       s.startY = e.touches[0].clientY;
@@ -83,17 +120,17 @@ export function NativeBottomReload() {
       const y = e.touches[0].clientY;
 
       if (!s.tracking) {
-        // Only begin tracking once pinned at the bottom and pulling upward.
-        if (atBottom() && y < s.startY) {
+        // Only begin tracking once pinned at the top and pulling downward.
+        if (atTop() && y > s.startY) {
           s.tracking = true;
-          s.startY = y; // measure overscroll from the bottom edge
+          s.startY = y; // measure overscroll from the top edge
         } else {
           s.startY = y;
           return;
         }
       }
 
-      const pulled = s.startY - y; // > 0 while pulling up
+      const pulled = y - s.startY; // > 0 while pulling down
       if (pulled <= 0) {
         // Reversed direction — drop the baseline back to the finger.
         s.startY = y;
@@ -121,7 +158,7 @@ export function NativeBottomReload() {
         s.refreshing = true;
         setPhase("refreshing");
         if (el) {
-          el.style.transform = `translate(-50%, ${-THRESHOLD}px)`;
+          el.style.transform = `translate(-50%, ${THRESHOLD}px)`;
           el.style.opacity = "1";
         }
         router.refresh();
@@ -153,14 +190,14 @@ export function NativeBottomReload() {
     };
   }, [router]);
 
-  if (!enabledPlatform()) return null;
+  if (!mounted || !enabledPlatform()) return null;
 
   const label =
     phase === "refreshing"
       ? translate("Refreshing…")
       : phase === "armed"
         ? translate("Release to refresh")
-        : translate("Pull up to refresh");
+        : translate("Pull down to refresh");
 
   return (
     <div
@@ -168,7 +205,10 @@ export function NativeBottomReload() {
       aria-hidden
       className="pointer-events-none fixed left-1/2 z-[60] flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium shadow-lg backdrop-blur"
       style={{
-        bottom: "calc(var(--mobile-nav-h) + 8px)",
+        // Use --safe-top (not env() directly) so the Android floor from
+        // globals.css applies — under Capacitor 8 edge-to-edge the WebView
+        // reports env(safe-area-inset-*) unreliably.
+        top: "calc(var(--safe-top) + 8px)",
         transform: "translate(-50%, 0)",
         opacity: 0,
         willChange: "transform, opacity",
@@ -180,7 +220,7 @@ export function NativeBottomReload() {
       {phase === "refreshing" ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
-        <ArrowUp
+        <ArrowDown
           className="h-4 w-4 transition-transform duration-200"
           style={{ transform: phase === "armed" ? "rotate(180deg)" : "none" }}
         />
