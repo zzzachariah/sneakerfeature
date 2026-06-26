@@ -77,7 +77,7 @@ export default async function AdminBloggerReviewsPage({
   const counts = new Map<string, { youtube: number; bilibili: number }>();
   for (const shoe of shoes ?? []) {
     let youtube = 0, bilibili = 0;
-    for (const r of (shoe as any).blogger_reviews ?? []) {
+    for (const r of (shoe as { blogger_reviews?: { platform: string }[] }).blogger_reviews ?? []) {
       if (r.platform === "youtube") youtube++;
       else if (r.platform === "bilibili") bilibili++;
     }

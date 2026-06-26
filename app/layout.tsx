@@ -15,11 +15,7 @@ import { CapacitorBridge } from "@/components/native/capacitor-bridge";
 import { ServiceWorkerRegister } from "@/components/native/service-worker-register";
 import { RouteProgress } from "@/components/layout/route-progress";
 import { PushRegistration } from "@/components/native/push-registration";
-import dynamic from "next/dynamic";
-const MobileBottomNav = dynamic(
-  () => import("@/components/layout/mobile-bottom-nav").then((m) => ({ default: m.MobileBottomNav })),
-  { ssr: false }
-);
+import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { NativeBottomNav } from "@/components/native/native-bottom-nav";
 import { NativeTopBar } from "@/components/native/native-top-bar";
 import { NativePullToRefresh } from "@/components/native/native-gestures";
@@ -36,19 +32,13 @@ import { SkinInitScript } from "@/components/theme/skin-init";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { LanguageFirstRun } from "@/components/i18n/language-first-run";
-const AnnouncementModal = dynamic(
-  () => import("@/components/announce/announcement-modal").then((m) => ({ default: m.AnnouncementModal })),
-  { ssr: false }
-);
+import { AnnouncementModal } from "@/components/announce/announcement-modal";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
 import { FavoritesProvider } from "@/components/favorites/favorites-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
-const TutorialOverlay = dynamic(
-  () => import("@/components/tutorial/tutorial-overlay").then((m) => ({ default: m.TutorialOverlay })),
-  { ssr: false }
-);
+import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
 import { DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
