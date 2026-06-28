@@ -765,8 +765,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "view details": "查看详情",
   "pick up to 5 to compare": "最多选 5 双对比",
   "compare selected": "对比所选",
-  "describe what you're looking for (e.g. responsive cushioning for a guard)…":
-    "描述你想要的球鞋（例如：后卫用、软弹缓震）…",
+  "describe the sneakers you want":
+    "描述你想要的球鞋",
   "ai picks": "AI 精选",
   "ai shoe recommendations from our database": "来自数据库的 AI 球鞋推荐",
   "recommend": "推荐",

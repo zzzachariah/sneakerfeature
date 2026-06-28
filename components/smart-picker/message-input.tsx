@@ -72,16 +72,19 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-end gap-3 px-4 pt-3 pb-0.5">
-        {/* Auto-growing textarea — 16px prevents iOS auto-zoom on focus. */}
+        {/* Auto-growing textarea — h-10 (2.5rem) min-height matches the count
+            row and send button so all three sit at the same height on one line.
+            py-2 vertically centers the single-line text; 16px prevents iOS
+            auto-zoom on focus. */}
         <textarea
           ref={textareaRef}
           value={text}
           onChange={(e) => { setText(e.target.value); growTextarea(); }}
           onKeyDown={onKeyDown}
           rows={1}
-          placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
-          style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "1.5rem" }}
-          className="min-h-0 flex-1 resize-none bg-transparent py-0.5 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
+          placeholder={translate("Describe the sneakers you want")}
+          style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "2.5rem" }}
+          className="min-h-0 flex-1 resize-none bg-transparent py-2 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
         />
 
         {/* Count — sized to match the send button so they sit on the same
