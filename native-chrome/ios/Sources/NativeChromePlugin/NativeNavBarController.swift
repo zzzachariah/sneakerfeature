@@ -15,7 +15,9 @@ final class NativeNavBarController: NSObject {
     private var searchAttached = false
 
     var onAction: ((String) -> Void)?
-    var onSearch: ((String) -> Void)?
+    // (text, submit) — submit is true only on the keyboard Search key / Cancel,
+    // so the web can filter on submit and only update the draft while typing.
+    var onSearch: ((String, Bool) -> Void)?
 
     init(host: UIViewController) {
         self.host = host
@@ -93,7 +95,13 @@ final class NativeNavBarController: NSObject {
             searchBar.translatesAutoresizingMaskIntoConstraints = false
             searchBar.delegate = self
             // Let the system own the background so iOS 26 can apply Liquid Glass.
+            // `.minimal` + a cleared backgroundImage strips the opaque `.prominent`
+            // chrome (an inset bevel that would otherwise hide the glass material),
+            // so the system Liquid Glass shows through on iOS 26; pre-26 it's a
+            // plain translucent field, which is the acceptable fallback.
             searchBar.isTranslucent = true
+            searchBar.searchBarStyle = .minimal
+            searchBar.backgroundImage = UIImage()
             view.addSubview(searchBar)
             NSLayoutConstraint.activate([
                 searchBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -110,6 +118,12 @@ final class NativeNavBarController: NSObject {
         searchBar.isHidden = !visible
         if !visible { searchBar.resignFirstResponder() }
         else { host?.view.bringSubviewToFront(searchBar) }
+    }
+
+    /// Push text INTO the native field (web → native), e.g. when the web layer
+    /// clears the query programmatically. Does not fire onSearch (avoids a loop).
+    func setSearchText(_ text: String) {
+        searchBar.text = text
     }
 
     @objc private func homeTapped() {
@@ -241,17 +255,19 @@ final class NativeNavBarController: NSObject {
 
 extension NativeNavBarController: UISearchBarDelegate {
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-        onSearch?(searchText)
+        // Typing only updates the draft (submit:false) — no live filtering, to
+        // match the web search box (which filters on submit, not per keystroke).
+        onSearch?(searchText, false)
     }
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         searchBar.resignFirstResponder()
-        onSearch?(searchBar.text ?? "")
+        onSearch?(searchBar.text ?? "", true)
     }
 
     func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
         searchBar.text = ""
         searchBar.resignFirstResponder()
-        onSearch?("")
+        onSearch?("", true)
     }
 }

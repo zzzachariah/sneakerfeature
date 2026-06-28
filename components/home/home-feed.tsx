@@ -19,6 +19,21 @@ import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
 import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
+import { Capacitor } from "@capacitor/core";
+import { NativeChrome } from "@/components/native/native-chrome";
+
+// True only inside the iOS app with the native-chrome plugin compiled in.
+// Mirrors components/native/native-bottom-nav.tsx so the native UISearchBar is
+// only used when the plugin actually loaded — otherwise the CSS pill stays.
+const nativeSearchAvailable = () =>
+  Capacitor.isNativePlatform() &&
+  Capacitor.getPlatform() === "ios" &&
+  Capacitor.isPluginAvailable("NativeChrome");
+
+// Height (px) the native UISearchBar occupies under the nav bar. The web feed
+// reserves this much space at the top while the native bar is live so the list
+// scrolls clear of the (out-of-webview) overlay. ≈ a standard UISearchBar.
+const NATIVE_SEARCH_H = 56;
 
 function useReducedMotion() {
   const [r, setR] = React.useState(false);
@@ -104,12 +119,65 @@ export function HomeFeed({
   const collapseEnabled = isIosNative && isMobile;
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolbarVisible = !collapseEnabled || toolsOpen;
+  // Flips true only AFTER the native UISearchBar is configured + shown
+  // (resolve-then-supersede). While true, the web search row is hidden and the
+  // native glass bar owns text entry; a missing/broken plugin never flips it, so
+  // the CSS pill always stays as the fallback.
+  const [nativeSearchActive, setNativeSearchActive] = useState(false);
 
   useEffect(() => {
     if (!active) return;
     const t = window.setTimeout(() => setRevealed(true), 60);
     return () => window.clearTimeout(t);
   }, [active]);
+
+  // iOS-app only: when the user expands the toolbar ("Browse all shoes"),
+  // surface the system Liquid Glass UISearchBar pinned at the top and let it
+  // drive the query; hide it again on collapse / leaving the page. Gated on home
+  // (this component is the shoe-list surface), iOS-native, phone, and the plugin
+  // being present — web / Android / no-plugin keep the CSS pill below. The native
+  // bar is a UIKit overlay constrained under the nav bar, OUTSIDE the WKWebView
+  // scroll view, so it stays pinned at the top while the list scrolls; the web
+  // reserves NATIVE_SEARCH_H of top space (below) so content isn't occluded.
+  useEffect(() => {
+    if (!collapseEnabled || !nativeSearchAvailable()) return;
+    if (!toolsOpen) return;
+    let removeListener: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        await NativeChrome.configureSearch({ placeholder: translate("Search shoes…") });
+        await NativeChrome.setSearchVisible({ visible: true });
+        const handle = await NativeChrome.addListener("searchChanged", ({ text, submit }) => {
+          // Typing updates the draft; only the keyboard Search key (submit) runs
+          // the filter — same "filter on submit" behavior as the web search box.
+          setSearchDraft(text);
+          if (submit) setQuery(text);
+        });
+        removeListener = () => void handle.remove();
+        if (cancelled) {
+          removeListener();
+          void NativeChrome.setSearchVisible({ visible: false });
+          return;
+        }
+        setNativeSearchActive(true);
+      } catch (err) {
+        console.warn("[native-chrome] native search wiring failed — keeping CSS pill:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      removeListener?.();
+      setNativeSearchActive(false);
+      // Runs on collapse (toolsOpen→false) AND on unmount, which is how the home
+      // feed leaves the tree (browseOpen→false unmounts HomeFeed) — so the bar is
+      // always torn down. Safe even if the plugin never resolved.
+      if (nativeSearchAvailable()) void NativeChrome.setSearchVisible({ visible: false });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseEnabled, toolsOpen, translate]);
 
   const scored = useMemo(() => {
     const base = shoes.map((shoe) => ({
@@ -228,6 +296,10 @@ export function HomeFeed({
   function clearSearch() {
     setSearchDraft("");
     setQuery("");
+    // Keep the native field in sync when it owns input (it won't auto-clear).
+    if (nativeSearchActive && nativeSearchAvailable()) {
+      void NativeChrome.setSearchText({ text: "" });
+    }
   }
 
   function toggleSelect(id: string) {
@@ -264,7 +336,9 @@ export function HomeFeed({
                 "sticky top-[var(--top-nav-h)] z-30 mb-3 py-2 md:-mx-[var(--container-gutter)] md:px-[var(--container-gutter)] md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.55)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[var(--glass-blur-md)] md:backdrop-saturate-[var(--glass-saturate)]"
               : "sticky top-0 z-10 -mx-3 mb-3 px-3 py-2 md:border-b md:border-[rgb(var(--glass-stroke-soft)/0.55)] md:bg-[rgb(var(--bg)/0.66)] md:backdrop-blur-[var(--glass-blur-md)] md:backdrop-saturate-[var(--glass-saturate)]"
           }
-          style={revealStyle(0)}
+          // Reserve the native UISearchBar's height at the top while it owns the
+          // search, so the feed scrolls clear of the (out-of-webview) glass bar.
+          style={nativeSearchActive ? { ...revealStyle(0), paddingTop: NATIVE_SEARCH_H } : revealStyle(0)}
         >
         {collapseEnabled && !toolsOpen && (
           <button
@@ -286,6 +360,9 @@ export function HomeFeed({
             type="button"
             onClick={() => setToolsOpen(false)}
             aria-label={translate("Collapse")}
+            // When the native search bar is live it occupies the top band, so drop
+            // the collapse pill just below it (overrides the top-1.5 class).
+            style={nativeSearchActive ? { top: NATIVE_SEARCH_H + 6 } : undefined}
             className="glass glass-rim glass-clip glass-interactive absolute right-2 top-1.5 z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:right-[calc(var(--container-gutter)+0.5rem)]"
           >
             <ChevronUp className="h-4 w-4" />
@@ -295,7 +372,10 @@ export function HomeFeed({
           className={`flex flex-row items-center gap-2${
             collapseEnabled && toolsOpen ? " pr-12" : ""
           }`}
-          style={toolbarVisible ? undefined : { display: "none" }}
+          // Hidden when collapsed, and when the native glass search bar is live
+          // (it fully replaces this web search row; its keyboard Search key runs
+          // the query). The CSS pill below stays the web/Android/no-plugin path.
+          style={!toolbarVisible || nativeSearchActive ? { display: "none" } : undefined}
         >
           <form
             onSubmit={runSearch}
@@ -340,8 +420,7 @@ export function HomeFeed({
               <button
                 type="button"
                 onClick={() => {
-                  setSearchDraft("");
-                  setQuery("");
+                  clearSearch();
                   setOnlyFavorites(false);
                 }}
                 className="mt-1 inline-flex min-h-[44px] items-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] px-4 text-sm font-medium tracking-[-0.01em] text-[rgb(var(--text))] transition hover:border-[rgb(var(--text)/0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] md:min-h-[36px]"
