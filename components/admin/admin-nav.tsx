@@ -17,6 +17,7 @@ import {
   MessageSquare,
   BarChart3,
   ScrollText,
+  Scale,
   type LucideIcon
 } from "lucide-react";
 
@@ -66,6 +67,12 @@ export const NAV_GROUPS: AdminNavGroup[] = [
         label: "Blogger reviews",
         icon: Megaphone,
         match: (p) => p.startsWith("/admin/blogger-reviews")
+      },
+      {
+        href: "/admin/verdicts",
+        label: "Verdict import",
+        icon: Scale,
+        match: (p) => p.startsWith("/admin/verdicts")
       },
       {
         href: "/admin/image-corrections",
