@@ -18,13 +18,17 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setNavBarVisible", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "configureSearch", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setSearchVisible", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setSearchText", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPullToRefreshEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentMenu", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configureFab", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setFabVisible", returnType: CAPPluginReturnPromise)
     ]
 
     private var controller: NativeTabBarController?
     private var navBar: NativeNavBarController?
+    private var fab: NativeFabController?
     private var refreshControl: UIRefreshControl?
 
     // Enable the WKWebView's own interactive edge-swipe to go back/forward
@@ -117,8 +121,8 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         let placeholder = call.getString("placeholder")
         DispatchQueue.main.async {
             let bar = self.ensureNavBar()
-            bar?.onSearch = { [weak self] text in
-                self?.notifyListeners("searchChanged", data: ["text": text])
+            bar?.onSearch = { [weak self] text, submit in
+                self?.notifyListeners("searchChanged", data: ["text": text, "submit": submit])
             }
             bar?.configureSearch(placeholder: placeholder)
             call.resolve()
@@ -129,6 +133,44 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         let visible = call.getBool("visible") ?? true
         DispatchQueue.main.async {
             self.ensureNavBar()?.setSearchVisible(visible)
+            call.resolve()
+        }
+    }
+
+    @objc func setSearchText(_ call: CAPPluginCall) {
+        let text = call.getString("text") ?? ""
+        DispatchQueue.main.async {
+            self.ensureNavBar()?.setSearchText(text)
+            call.resolve()
+        }
+    }
+
+    // MARK: Floating action button (home feed speed-dial trigger)
+
+    private func ensureFab() -> NativeFabController? {
+        if fab == nil, let host = self.bridge?.viewController {
+            let f = NativeFabController(host: host)
+            f.onTap = { [weak self] in
+                self?.notifyListeners("fabTap", data: nil)
+            }
+            fab = f
+        }
+        return fab
+    }
+
+    @objc func configureFab(_ call: CAPPluginCall) {
+        let symbol = call.getString("symbol")
+        let label = call.getString("label")
+        DispatchQueue.main.async {
+            self.ensureFab()?.configure(symbol: symbol, label: label)
+            call.resolve()
+        }
+    }
+
+    @objc func setFabVisible(_ call: CAPPluginCall) {
+        let visible = call.getBool("visible") ?? true
+        DispatchQueue.main.async {
+            self.ensureFab()?.setVisible(visible)
             call.resolve()
         }
     }

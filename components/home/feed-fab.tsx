@@ -4,6 +4,8 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { ChevronsUp, GitCompare, Heart, SlidersHorizontal, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { NativeChrome } from "@/components/native/native-chrome";
+import { presentNativeMenu, nativeMenuAvailable } from "@/components/native/native-menu";
 
 type Props = {
   visible: boolean;
@@ -54,6 +56,74 @@ export function FeedFab({
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
 
+  // iOS app only: a real Liquid Glass floating button replaces the web speed-dial
+  // (see native-chrome/NativeFabController). `nativeReady` flips true ONLY after
+  // configureFab resolves — until then the web dial renders as the fallback so a
+  // missing/unsynced plugin never blanks the surface (mirrors native-tabbar-active).
+  const [nativeReady, setNativeReady] = React.useState(false);
+
+  // Keep the latest action callbacks + state in a ref so the (stable) fabTap
+  // listener and the action sheet always call current props without resubscribing.
+  const actionsRef = React.useRef({
+    collapse: onCollapse,
+    toggleCompare: onToggleCompare,
+    toggleFavorites: onToggleFavorites
+  });
+  actionsRef.current = { collapse: onCollapse, toggleCompare: onToggleCompare, toggleFavorites: onToggleFavorites };
+
+  // Configure the native FAB once + wire its tap to the existing native action
+  // sheet (presentMenu — itself system Liquid Glass). Only after configureFab
+  // resolves do we flip nativeReady (which hides the web dial).
+  React.useEffect(() => {
+    if (!nativeMenuAvailable()) return;
+    let remove: (() => void) | undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        await NativeChrome.configureFab({ symbol: "slider.horizontal.3", label: translate("Feed controls") });
+        if (cancelled) return;
+        setNativeReady(true);
+        const handle = await NativeChrome.addListener("fabTap", () => {
+          const a = actionsRef.current;
+          void presentNativeMenu(
+            [
+              { key: "fav", label: translate("Saved only") },
+              { key: "cmp", label: translate("Compare") },
+              { key: "col", label: translate("Collapse") }
+            ],
+            { cancelLabel: translate("Cancel") }
+          ).then((key) => {
+            if (key === "fav") a.toggleFavorites();
+            else if (key === "cmp") a.toggleCompare();
+            else if (key === "col") a.collapse();
+          });
+        });
+        remove = () => void handle.remove();
+      } catch (err) {
+        console.warn("[native-chrome] configureFab failed — keeping web speed-dial:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
+  }, [translate]);
+
+  // Drive native FAB visibility from the same `visible` prop the web dial uses.
+  React.useEffect(() => {
+    if (!nativeReady) return;
+    void NativeChrome.setFabVisible({ visible });
+  }, [nativeReady, visible]);
+
+  // Hide the native FAB when this component unmounts (leaving the home feed) so
+  // it never lingers over other routes.
+  React.useEffect(() => {
+    if (!nativeMenuAvailable()) return;
+    return () => {
+      void NativeChrome.setFabVisible({ visible: false });
+    };
+  }, []);
+
   // Fold the dial back whenever the cluster hides (user scrolled above the
   // list), so it reappears compact rather than mid-expansion when they return.
   React.useEffect(() => {
@@ -98,6 +168,9 @@ export function FeedFab({
   const anyActive = compareMode || onlyFavorites;
 
   if (!mounted) return null;
+  // Native FAB is live → don't render the web speed-dial at all (resolve-then-
+  // supersede). Until nativeReady, the web dial stays as the fallback.
+  if (nativeReady) return null;
 
   const dial = (
     <div

@@ -33,6 +33,13 @@ export interface NativeChromePlugin {
   // Native search bar (under the nav bar; drives the web list)
   configureSearch(options: { placeholder?: string }): Promise<void>;
   setSearchVisible(options: { visible: boolean }): Promise<void>;
+  // Push text INTO the native field (web → native), e.g. on a programmatic clear.
+  setSearchText(options: { text: string }): Promise<void>;
+  // Native floating action button (home feed speed-dial trigger). The web drives
+  // visibility; on tap the `fabTap` event fires and the web presents the expanded
+  // actions via presentMenu (itself a system Liquid Glass action sheet).
+  configureFab(options: { symbol?: string; label?: string }): Promise<void>;
+  setFabVisible(options: { visible: boolean }): Promise<void>;
   // Native pull-to-refresh (UIRefreshControl on the web scroll view). Toggle per
   // route; fires the `pullRefresh` event when the user pulls down at the top.
   setPullToRefreshEnabled(options: { enabled: boolean }): Promise<void>;
@@ -56,9 +63,12 @@ export interface NativeChromePlugin {
   ): Promise<PluginListenerHandle>;
   addListener(
     eventName: "searchChanged",
-    listener: (data: { text: string }) => void
+    // `submit` is true only when the user hits the keyboard Search key (or
+    // Cancel) — mirrors the web's "filter on submit, not on every keystroke".
+    listener: (data: { text: string; submit?: boolean }) => void
   ): Promise<PluginListenerHandle>;
   addListener(eventName: "pullRefresh", listener: () => void): Promise<PluginListenerHandle>;
+  addListener(eventName: "fabTap", listener: () => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
 
