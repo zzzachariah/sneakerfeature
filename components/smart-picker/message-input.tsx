@@ -82,7 +82,7 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
           onChange={(e) => { setText(e.target.value); growTextarea(); }}
           onKeyDown={onKeyDown}
           rows={1}
-          placeholder={translate("Describe the sneakers you want")}
+          placeholder={translate("Describe your ideal sneaker")}
           style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "2.5rem" }}
           className="min-h-0 flex-1 resize-none bg-transparent py-2 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
         />
