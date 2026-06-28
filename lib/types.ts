@@ -35,6 +35,16 @@ export interface ShoeSpec {
   torsional_rigidity_zh?: string | null;
   playstyle_summary_zh?: string | null;
   story_summary_zh?: string | null;
+  // One-line editorial "verdict": a pro phrase + a con phrase that the detail
+  // page composes into "如果你喜欢…(pro)，并且可以接受…(con)，那么这双鞋为你准备".
+  // Chinese-first content bulk-imported via the admin Verdict panel (migration
+  // 037). Unlike the fields above, the English side is authored by hand — these
+  // are NOT in SPEC_TRANSLATABLE_FIELDS, so the auto-translate job leaves them
+  // alone. The zh UI reads the *_zh column first and falls back to English.
+  pro_summary?: string | null;
+  pro_summary_zh?: string | null;
+  con_summary?: string | null;
+  con_summary_zh?: string | null;
 }
 
 export interface Shoe {

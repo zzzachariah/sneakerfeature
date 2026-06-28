@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Share2 } from "lucide-react";
+import { ArrowRight, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
 import dynamic from "next/dynamic";
 const CardPreviewModal = dynamic(
   () => import("@/components/card/card-preview-modal").then((m) => ({ default: m.CardPreviewModal })),
@@ -399,6 +399,61 @@ function OverviewSection({
   );
 }
 
+// Trim trailing connectors/punctuation so an authored fragment slots cleanly
+// into the composed verdict sentence (the fragment is meant to read as a phrase,
+// not a full sentence — see docs/verdict-import.md).
+function trimFragment(s: string): string {
+  return s.trim().replace(/[。．.，,、；;：:！!]+$/u, "").trim();
+}
+
+// One-line verdict shown directly under the performance radar. Renders the
+// authored pro / con phrases (👍 / 👎, matching the blogger-review colours) and,
+// when BOTH halves exist, the composed "如果你喜欢…，并且可以接受…" sentence. The
+// phrases come from shoe_specs.pro_summary / con_summary (zh via pickLocalized);
+// if neither side is authored yet the whole block disappears.
+function VerdictBlock({ shoe }: { shoe: Shoe }) {
+  const { locale } = useLocale();
+  const pro = pickLocalized(locale, shoe.spec.pro_summary, shoe.spec.pro_summary_zh)?.trim() ?? "";
+  const con = pickLocalized(locale, shoe.spec.con_summary, shoe.spec.con_summary_zh)?.trim() ?? "";
+
+  if (!pro && !con) return null;
+
+  const eyebrow = locale === "zh" ? "这双适合你吗" : "Is it for you?";
+  const verdict =
+    pro && con
+      ? locale === "zh"
+        ? `如果你喜欢${trimFragment(pro)}，并且可以接受${trimFragment(con)}，那么这双鞋就是为你准备的。`
+        : `If you like ${trimFragment(pro)}, and can live with ${trimFragment(con)}, then this shoe is for you.`
+      : null;
+
+  return (
+    <Reveal>
+      <Card className="mx-auto mt-4 max-w-xl p-5 md:p-6">
+        <p className="t-eyebrow">{eyebrow}</p>
+        {verdict && (
+          <p className="mt-2 text-[0.95rem] font-medium leading-7 text-[rgb(var(--text))] md:text-base">
+            {verdict}
+          </p>
+        )}
+        <div className={cn("space-y-2", verdict ? "mt-3" : "mt-2")}>
+          {pro && (
+            <div className="flex items-start gap-2 text-sm md:text-[0.95rem]">
+              <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <span className="soft-text">{pro}</span>
+            </div>
+          )}
+          {con && (
+            <div className="flex items-start gap-2 text-sm md:text-[0.95rem]">
+              <ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+              <span className="soft-text">{con}</span>
+            </div>
+          )}
+        </div>
+      </Card>
+    </Reveal>
+  );
+}
+
 // Performance: radar on top, then a clean spec table below — two columns on
 // tablet/desktop, a single column on phones (so the enlarged labels and full,
 // untruncated text stay readable).
@@ -447,6 +502,8 @@ function PerformanceSection({
           <PerformanceRadar axes={radarAxes} />
         </Card>
       </Reveal>
+
+      <VerdictBlock shoe={shoe} />
 
       <Stagger
         className="num-display mx-auto mt-6 grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2"
