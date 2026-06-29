@@ -23,12 +23,15 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "presentMenu", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "configureFab", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "setFabVisible", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "setFabVisible", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "configureBack", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setBackVisible", returnType: CAPPluginReturnPromise)
     ]
 
     private var controller: NativeTabBarController?
     private var navBar: NativeNavBarController?
     private var fab: NativeFabController?
+    private var back: NativeBackController?
     private var refreshControl: UIRefreshControl?
 
     // Enable the WKWebView's own interactive edge-swipe to go back/forward
@@ -171,6 +174,36 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         let visible = call.getBool("visible") ?? true
         DispatchQueue.main.async {
             self.ensureFab()?.setVisible(visible)
+            call.resolve()
+        }
+    }
+
+    // MARK: Floating back button (shoe-detail page, top-left)
+
+    private func ensureBack() -> NativeBackController? {
+        if back == nil, let host = self.bridge?.viewController {
+            let b = NativeBackController(host: host)
+            b.onTap = { [weak self] in
+                self?.notifyListeners("backTap", data: nil)
+            }
+            back = b
+        }
+        return back
+    }
+
+    @objc func configureBack(_ call: CAPPluginCall) {
+        let symbol = call.getString("symbol")
+        let label = call.getString("label")
+        DispatchQueue.main.async {
+            self.ensureBack()?.configure(symbol: symbol, label: label)
+            call.resolve()
+        }
+    }
+
+    @objc func setBackVisible(_ call: CAPPluginCall) {
+        let visible = call.getBool("visible") ?? true
+        DispatchQueue.main.async {
+            self.ensureBack()?.setVisible(visible)
             call.resolve()
         }
     }

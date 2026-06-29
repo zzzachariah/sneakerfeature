@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { BackButton } from "@/components/detail/back-button";
 import { ShoeDetailSlides } from "@/components/detail/shoe-detail-slides";
 import { type RadarAxis } from "@/components/detail/performance-radar";
 import { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
@@ -234,31 +234,30 @@ export function ShoeDetailClient({
 
   return (
     <main className="relative">
-      {/* Back button — sits at the top-left, just under the navbar logo, and
-          returns to the previous screen (falls back to home on direct entry). */}
-      <button
-        type="button"
-        onClick={() => {
-          if (typeof window !== "undefined" && window.history.length > 1) router.back();
-          else router.push("/");
-        }}
-        aria-label={translate("Back")}
-        className="tap-44 liquid-glass glass-rim fixed left-[var(--container-gutter)] z-30 inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:text-[rgb(var(--text))] active:scale-95"
+      {/* Top overlay row — the back button (left) and, when logged out, a sign-in
+          nudge (right). Both live in ONE container-aligned flex row so (a) the
+          back button lands directly under the navbar logo at every width (it used
+          to be pinned to the viewport edge and drift away from the centered
+          content on desktop) and (b) the two never overlap — the full-width nudge
+          previously buried the back button on phones. The row is click-through;
+          only its children take pointer events. Inside the iOS app the web pill is
+          superseded by a real native Liquid Glass button (see BackButton). */}
+      <div
+        className="pointer-events-none fixed inset-x-0 z-30"
         style={{ top: "calc(var(--top-nav-h) + 8px)" }}
       >
-        <ChevronLeft className="h-5 w-5" />
-      </button>
+        <div className="container-shell flex items-start justify-between gap-3">
+          <BackButton />
 
-      {!isLoggedIn ? (
-        <div
-          className="pointer-events-none fixed right-[var(--container-gutter)] z-30 max-w-[min(22rem,calc(100vw-2*var(--container-gutter)))]"
-          style={{ top: "calc(var(--top-nav-h) + 8px)" }}
-        >
-          <div className="glass glass-rim glass-clip pointer-events-auto rounded-2xl px-4 py-3 text-sm font-medium text-[rgb(var(--text))] shadow-lift">
-            {translate("Log in or sign up for the full sneakerfeature experience.")}
-          </div>
+          {!isLoggedIn ? (
+            <div className="max-w-[min(22rem,calc(100vw-2*var(--container-gutter)-3.5rem))]">
+              <div className="glass glass-rim glass-clip rounded-2xl px-4 py-3 text-sm font-medium text-[rgb(var(--text))] shadow-lift">
+                {translate("Log in or sign up for the full sneakerfeature experience.")}
+              </div>
+            </div>
+          ) : null}
         </div>
-      ) : null}
+      </div>
 
       <ShoeDetailSlides
         shoe={shoe}
