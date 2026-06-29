@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
+import { createPublicClient } from "@/lib/supabase/public";
 import { VERDICT_FIELDS, normKey, type VerdictField } from "@/lib/admin/verdict-csv";
 
 // Bulk-import of per-shoe one-line verdicts (pro_summary / con_summary, + their
@@ -31,10 +32,32 @@ const schema = z.object({
   // overwrite: a non-empty cell replaces the stored value.
   // fill: a non-empty cell is written only where the stored value is empty.
   // Either way, a BLANK/absent cell never wipes an existing value.
-  mode: z.enum(["overwrite", "fill"]).optional()
+  mode: z.enum(["overwrite", "fill"]).optional(),
+  // The client sets this true on the LAST batch so we bust the catalog cache
+  // exactly once per import instead of after every batch.
+  final: z.boolean().optional()
 });
 
 type VerdictInputRow = z.infer<typeof rowSchema>;
+type ShoeIdentity = { id: string; slug: string | null; brand: string; shoe_name: string };
+
+// Shoe identity (id/slug/brand/shoe_name) only changes when shoes are added or
+// renamed — never during a verdict import (which only writes shoe_specs). Cache
+// it, tagged "shoes", so the many batches of one import share a single read
+// instead of re-scanning the whole table each time. revalidateTag("shoes") (the
+// final batch below, and any shoe edit elsewhere) refreshes it. shoes is
+// publicly readable, so the anon client is sufficient here.
+const loadShoeIdentityCached = unstable_cache(
+  async (): Promise<ShoeIdentity[] | null> => {
+    const sb = createPublicClient();
+    if (!sb) return null;
+    const { data, error } = await sb.from("shoes").select("id, slug, brand, shoe_name");
+    if (error) return null;
+    return (data ?? []) as ShoeIdentity[];
+  },
+  ["verdict-shoe-identity-v1"],
+  { tags: ["shoes"], revalidate: 60 }
+);
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, message }, { status: 400 });
@@ -61,13 +84,18 @@ export async function POST(request: NextRequest) {
   const mode = parsed.data.mode ?? "overwrite";
   const rows = parsed.data.rows;
 
-  // Build shoe lookup tables for this batch.
-  const { data: shoes, error: shoesError } = await supabase.from("shoes").select("id, slug, brand, shoe_name");
-  if (shoesError) return badRequest(`Could not load shoes: ${shoesError.message}`);
+  // Shoe lookup — cached across the import; fall back to a direct read if the
+  // public client/cache is unavailable.
+  let shoes = await loadShoeIdentityCached();
+  if (!shoes) {
+    const { data, error } = await supabase.from("shoes").select("id, slug, brand, shoe_name");
+    if (error) return badRequest(`Could not load shoes: ${error.message}`);
+    shoes = (data ?? []) as ShoeIdentity[];
+  }
 
   const bySlug = new Map<string, string>();
   const byBrandName = new Map<string, string>();
-  for (const s of shoes ?? []) {
+  for (const s of shoes) {
     if (s.slug) bySlug.set(normKey(s.slug), s.id);
     byBrandName.set(`${normKey(s.brand)}|${normKey(s.shoe_name)}`, s.id);
   }
@@ -105,6 +133,7 @@ export async function POST(request: NextRequest) {
   }
 
   const unmatched: string[] = [];
+  const errors: string[] = [];
   let matched = 0;
   let updated = 0;
   let inserted = 0;
@@ -136,24 +165,34 @@ export async function POST(request: NextRequest) {
 
     const label = val(row, "slug") || val(row, "shoe_name") || shoeId;
     const writePayload = { ...payload, updated_at: new Date().toISOString() };
+
+    // A single failing row no longer aborts the whole batch — record it and move
+    // on, so earlier successful writes still count and the tally stays accurate.
     const { data: updatedSpecs, error: updateError } = await supabase
       .from("shoe_specs")
       .update(writePayload)
       .eq("shoe_id", shoeId)
       .select("id");
-    if (updateError) return badRequest(`Update failed for ${label}: ${updateError.message}`);
+    if (updateError) {
+      errors.push(`${label}: ${updateError.message}`);
+      continue;
+    }
 
     if (!updatedSpecs || updatedSpecs.length === 0) {
-      const { error: insertError } = await supabase.from("shoe_specs").insert({ shoe_id: shoeId, ...payload });
-      if (insertError) return badRequest(`Insert failed for ${label}: ${insertError.message}`);
+      const { error: insertError } = await supabase.from("shoe_specs").insert({ shoe_id: shoeId, ...writePayload });
+      if (insertError) {
+        errors.push(`${label}: ${insertError.message}`);
+        continue;
+      }
       inserted++;
     } else {
       updated++;
     }
   }
 
-  // Wrote at least one row → bust the cached catalog so detail pages refresh.
-  if (updated > 0 || inserted > 0) revalidateTag("shoes");
+  // Bust the cached catalog (and the identity cache above) once, on the final
+  // batch, so detail pages pick up the whole import in one shot.
+  if (parsed.data.final) revalidateTag("shoes");
 
-  return NextResponse.json({ ok: true, matched, updated, inserted, skippedNoData, unmatched });
+  return NextResponse.json({ ok: true, matched, updated, inserted, skippedNoData, unmatched, errors });
 }
