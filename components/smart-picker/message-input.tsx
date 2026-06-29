@@ -37,7 +37,8 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+    // Floor at 40px (h-10) so a single line matches the count + send button height.
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, 40), 128)}px`;
   };
 
   const submit = () => {
@@ -72,7 +73,9 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-end gap-3 px-4 pt-3 pb-0.5">
-        {/* Auto-growing textarea — 16px prevents iOS auto-zoom on focus. */}
+        {/* Auto-growing textarea — resting height h-10 (2.5rem) with vertically
+            centered text so it sits on the same line and the same height as the
+            ×N count and the send button. 16px font prevents iOS auto-zoom on focus. */}
         <textarea
           ref={textareaRef}
           value={text}
@@ -80,8 +83,8 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
           onKeyDown={onKeyDown}
           rows={1}
           placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
-          style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "1.5rem" }}
-          className="min-h-0 flex-1 resize-none bg-transparent py-0.5 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
+          style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "2.5rem" }}
+          className="flex-1 resize-none bg-transparent py-2 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
         />
 
         {/* Count — sized to match the send button so they sit on the same

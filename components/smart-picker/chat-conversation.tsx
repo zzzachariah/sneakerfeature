@@ -151,10 +151,10 @@ export function ChatConversation({
           {isEmpty && (
             <div className="flex min-h-[40vh] flex-col items-center justify-center px-4 text-center">
               <h2 className="text-2xl font-semibold tracking-[-0.01em] md:text-3xl">
-                {translate("Smart Picker")}
+                {translate("Find your next pair")}
               </h2>
               <p className="mt-2 max-w-[22rem] text-sm soft-text">
-                {translate("Tell me what you need and I'll pick the right sneaker for you.")}
+                {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
               </p>
             </div>
           )}
