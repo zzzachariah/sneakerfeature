@@ -1,104 +1,70 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
+import { createPublicClient } from "@/lib/supabase/public";
+import { VERDICT_FIELDS, normKey, type VerdictField } from "@/lib/admin/verdict-csv";
 
 // Bulk-import of per-shoe one-line verdicts (pro_summary / con_summary, + their
-// _zh counterparts) from a CSV. Content is authored externally (Claude chat) and
-// matched to shoes by slug (primary) or brand+shoe_name (fallback). See
-// docs/verdict-import.md for the CSV format and the generation prompt.
+// _zh counterparts). The admin client parses the CSV and POSTs it in small
+// BATCHES so it can render a live progress bar; each request handles one batch
+// and returns its own tally. Rows are matched to shoes by slug (primary) or
+// brand+shoe_name (fallback). See docs/verdict-import.md for the CSV format.
 
 export const dynamic = "force-dynamic";
 
-const schema = z.object({
-  csv: z.string().min(1, "CSV is empty."),
-  // overwrite: a non-empty CSV cell replaces the stored value.
-  // fill: a non-empty CSV cell is written only where the stored value is empty.
-  // Either way, a BLANK cell never wipes an existing value.
-  mode: z.enum(["overwrite", "fill"]).optional()
+const optionalText = z.string().optional();
+
+const rowSchema = z.object({
+  slug: optionalText,
+  brand: optionalText,
+  shoe_name: optionalText,
+  pro_summary: optionalText,
+  pro_summary_zh: optionalText,
+  con_summary: optionalText,
+  con_summary_zh: optionalText
 });
 
-const VERDICT_FIELDS = ["pro_summary", "pro_summary_zh", "con_summary", "con_summary_zh"] as const;
-type VerdictField = (typeof VERDICT_FIELDS)[number];
+const schema = z.object({
+  // One batch of already-parsed rows. Capped so a single serverless invocation
+  // stays well within its time budget; the client sends many small batches.
+  rows: z.array(rowSchema).min(1).max(200),
+  // overwrite: a non-empty cell replaces the stored value.
+  // fill: a non-empty cell is written only where the stored value is empty.
+  // Either way, a BLANK/absent cell never wipes an existing value.
+  mode: z.enum(["overwrite", "fill"]).optional(),
+  // The client sets this true on the LAST batch so we bust the catalog cache
+  // exactly once per import instead of after every batch.
+  final: z.boolean().optional()
+});
 
-// Header name -> canonical column. Lets the CSV use friendly headers in any order.
-const HEADER_ALIASES: Record<string, string> = {
-  slug: "slug",
-  brand: "brand",
-  shoe_name: "shoe_name",
-  "shoe name": "shoe_name",
-  name: "shoe_name",
-  model: "shoe_name",
-  pro_summary: "pro_summary",
-  "pro summary": "pro_summary",
-  pro: "pro_summary",
-  pro_en: "pro_summary",
-  pro_summary_zh: "pro_summary_zh",
-  "pro summary zh": "pro_summary_zh",
-  pro_zh: "pro_summary_zh",
-  con_summary: "con_summary",
-  "con summary": "con_summary",
-  con: "con_summary",
-  con_en: "con_summary",
-  con_summary_zh: "con_summary_zh",
-  "con summary zh": "con_summary_zh",
-  con_zh: "con_summary_zh"
-};
+type VerdictInputRow = z.infer<typeof rowSchema>;
+type ShoeIdentity = { id: string; slug: string | null; brand: string; shoe_name: string };
 
-// Minimal RFC-4180-ish parser: quoted fields, "" escapes, commas/newlines inside
-// quotes, CRLF, and a leading BOM. Returns rows of raw string cells.
-function parseCsv(input: string): string[][] {
-  let text = input;
-  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
-
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let field = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i++;
-        } else {
-          inQuotes = false;
-        }
-      } else {
-        field += c;
-      }
-      continue;
-    }
-    if (c === '"') {
-      inQuotes = true;
-    } else if (c === ",") {
-      row.push(field);
-      field = "";
-    } else if (c === "\r") {
-      // swallow; handled by the \n branch
-    } else if (c === "\n") {
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-    } else {
-      field += c;
-    }
-  }
-  row.push(field);
-  rows.push(row);
-
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
-}
-
-function normKey(s: string): string {
-  return s.trim().toLowerCase().replace(/\s+/g, " ");
-}
+// Shoe identity (id/slug/brand/shoe_name) only changes when shoes are added or
+// renamed — never during a verdict import (which only writes shoe_specs). Cache
+// it, tagged "shoes", so the many batches of one import share a single read
+// instead of re-scanning the whole table each time. revalidateTag("shoes") (the
+// final batch below, and any shoe edit elsewhere) refreshes it. shoes is
+// publicly readable, so the anon client is sufficient here.
+const loadShoeIdentityCached = unstable_cache(
+  async (): Promise<ShoeIdentity[] | null> => {
+    const sb = createPublicClient();
+    if (!sb) return null;
+    const { data, error } = await sb.from("shoes").select("id, slug, brand, shoe_name");
+    if (error) return null;
+    return (data ?? []) as ShoeIdentity[];
+  },
+  ["verdict-shoe-identity-v1"],
+  { tags: ["shoes"], revalidate: 60 }
+);
 
 function badRequest(message: string) {
   return NextResponse.json({ ok: false, message }, { status: 400 });
+}
+
+function val(row: VerdictInputRow, key: keyof VerdictInputRow): string {
+  return (row[key] ?? "").trim();
 }
 
 export async function POST(request: NextRequest) {
@@ -116,86 +82,78 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return badRequest(parsed.error.issues[0]?.message ?? "Invalid payload.");
 
   const mode = parsed.data.mode ?? "overwrite";
-  const rows = parseCsv(parsed.data.csv);
-  if (rows.length < 2) return badRequest("CSV needs a header row and at least one data row.");
+  const rows = parsed.data.rows;
 
-  // Map each header column to a canonical key (unknown columns are ignored).
-  const header = rows[0].map((h) => HEADER_ALIASES[normKey(h)] ?? null);
-  const colOf = (key: string) => header.indexOf(key);
-
-  const hasSlug = colOf("slug") !== -1;
-  const hasBrand = colOf("brand") !== -1;
-  const hasName = colOf("shoe_name") !== -1;
-  if (!hasSlug && !(hasBrand && hasName)) {
-    return badRequest("CSV must have a 'slug' column, or both 'brand' and 'shoe_name' columns, to match shoes.");
+  // Shoe lookup — cached across the import; fall back to a direct read if the
+  // public client/cache is unavailable.
+  let shoes = await loadShoeIdentityCached();
+  if (!shoes) {
+    const { data, error } = await supabase.from("shoes").select("id, slug, brand, shoe_name");
+    if (error) return badRequest(`Could not load shoes: ${error.message}`);
+    shoes = (data ?? []) as ShoeIdentity[];
   }
-  const presentVerdictCols = VERDICT_FIELDS.filter((f) => colOf(f) !== -1);
-  if (presentVerdictCols.length === 0) {
-    return badRequest("CSV must include at least one of: pro_summary, pro_summary_zh, con_summary, con_summary_zh.");
-  }
-
-  // Build shoe lookup tables once.
-  const { data: shoes, error: shoesError } = await supabase
-    .from("shoes")
-    .select("id, slug, brand, shoe_name");
-  if (shoesError) return badRequest(`Could not load shoes: ${shoesError.message}`);
 
   const bySlug = new Map<string, string>();
   const byBrandName = new Map<string, string>();
-  for (const s of shoes ?? []) {
+  for (const s of shoes) {
     if (s.slug) bySlug.set(normKey(s.slug), s.id);
     byBrandName.set(`${normKey(s.brand)}|${normKey(s.shoe_name)}`, s.id);
   }
 
-  // Current verdict values per shoe (only needed for "fill" mode).
+  const matchShoe = (row: VerdictInputRow): string | null => {
+    const slug = val(row, "slug");
+    const brand = val(row, "brand");
+    const name = val(row, "shoe_name");
+    return (
+      (slug ? bySlug.get(normKey(slug)) : undefined) ||
+      (brand && name ? byBrandName.get(`${normKey(brand)}|${normKey(name)}`) : undefined) ||
+      null
+    );
+  };
+
+  // For "fill" mode, read existing verdict text for the shoes matched in THIS
+  // batch so we only write into empty slots.
   const existingByShoe = new Map<string, Partial<Record<VerdictField, string>>>();
   if (mode === "fill") {
-    const { data: specs } = await supabase
-      .from("shoe_specs")
-      .select("shoe_id, pro_summary, pro_summary_zh, con_summary, con_summary_zh");
-    for (const sp of specs ?? []) {
-      const cur: Partial<Record<VerdictField, string>> = {};
-      for (const f of VERDICT_FIELDS) {
-        const v = (sp as Record<string, unknown>)[f];
-        if (typeof v === "string" && v.trim()) cur[f] = v;
+    const matchedIds = [...new Set(rows.map(matchShoe).filter((id): id is string => Boolean(id)))];
+    if (matchedIds.length) {
+      const { data: specs } = await supabase
+        .from("shoe_specs")
+        .select("shoe_id, pro_summary, pro_summary_zh, con_summary, con_summary_zh")
+        .in("shoe_id", matchedIds);
+      for (const sp of specs ?? []) {
+        const cur: Partial<Record<VerdictField, string>> = {};
+        for (const f of VERDICT_FIELDS) {
+          const v = (sp as Record<string, unknown>)[f];
+          if (typeof v === "string" && v.trim()) cur[f] = v;
+        }
+        existingByShoe.set(sp.shoe_id as string, cur);
       }
-      existingByShoe.set(sp.shoe_id as string, cur);
     }
   }
 
-  const cell = (row: string[], key: string): string => {
-    const i = colOf(key);
-    return i === -1 ? "" : (row[i] ?? "").trim();
-  };
-
   const unmatched: string[] = [];
+  const errors: string[] = [];
   let matched = 0;
   let updated = 0;
   let inserted = 0;
   let skippedNoData = 0;
 
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r];
-    const slug = cell(row, "slug");
-    const brand = cell(row, "brand");
-    const name = cell(row, "shoe_name");
-
-    const shoeId =
-      (slug && bySlug.get(normKey(slug))) ||
-      (brand && name && byBrandName.get(`${normKey(brand)}|${normKey(name)}`)) ||
-      null;
-
+  for (const row of rows) {
+    const shoeId = matchShoe(row);
     if (!shoeId) {
-      unmatched.push(slug || (brand || name ? `${brand} ${name}`.trim() : `row ${r + 1}`));
+      const slug = val(row, "slug");
+      const label = slug || `${val(row, "brand")} ${val(row, "shoe_name")}`.trim();
+      unmatched.push(label || "(row with no identifier)");
       continue;
     }
     matched++;
 
     const existing = existingByShoe.get(shoeId) ?? {};
     const payload: Partial<Record<VerdictField, string>> = {};
-    for (const f of presentVerdictCols) {
-      const value = cell(row, f);
-      if (!value) continue; // blank cell never wipes an existing value
+    for (const f of VERDICT_FIELDS) {
+      const value = val(row, f);
+      if (!value) continue; // blank/absent cell never wipes an existing value
       if (mode === "fill" && existing[f]) continue; // keep what's already there
       payload[f] = value;
     }
@@ -205,34 +163,36 @@ export async function POST(request: NextRequest) {
       continue;
     }
 
+    const label = val(row, "slug") || val(row, "shoe_name") || shoeId;
     const writePayload = { ...payload, updated_at: new Date().toISOString() };
+
+    // A single failing row no longer aborts the whole batch — record it and move
+    // on, so earlier successful writes still count and the tally stays accurate.
     const { data: updatedSpecs, error: updateError } = await supabase
       .from("shoe_specs")
       .update(writePayload)
       .eq("shoe_id", shoeId)
       .select("id");
-    if (updateError) return badRequest(`Update failed for ${slug || name || shoeId}: ${updateError.message}`);
+    if (updateError) {
+      errors.push(`${label}: ${updateError.message}`);
+      continue;
+    }
 
     if (!updatedSpecs || updatedSpecs.length === 0) {
-      const { error: insertError } = await supabase
-        .from("shoe_specs")
-        .insert({ shoe_id: shoeId, ...payload });
-      if (insertError) return badRequest(`Insert failed for ${slug || name || shoeId}: ${insertError.message}`);
+      const { error: insertError } = await supabase.from("shoe_specs").insert({ shoe_id: shoeId, ...writePayload });
+      if (insertError) {
+        errors.push(`${label}: ${insertError.message}`);
+        continue;
+      }
       inserted++;
     } else {
       updated++;
     }
   }
 
-  revalidateTag("shoes");
+  // Bust the cached catalog (and the identity cache above) once, on the final
+  // batch, so detail pages pick up the whole import in one shot.
+  if (parsed.data.final) revalidateTag("shoes");
 
-  return NextResponse.json({
-    ok: true,
-    message: `Imported ${matched} shoe(s): ${updated} updated, ${inserted} created, ${skippedNoData} skipped (no verdict text), ${unmatched.length} unmatched.`,
-    matched,
-    updated,
-    inserted,
-    skippedNoData,
-    unmatched
-  });
+  return NextResponse.json({ ok: true, matched, updated, inserted, skippedNoData, unmatched, errors });
 }
