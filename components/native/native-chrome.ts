@@ -40,6 +40,12 @@ export interface NativeChromePlugin {
   // actions via presentMenu (itself a system Liquid Glass action sheet).
   configureFab(options: { symbol?: string; label?: string }): Promise<void>;
   setFabVisible(options: { visible: boolean }): Promise<void>;
+  // Native floating back button (shoe-detail page, top-left). The web drives
+  // visibility per route; on tap the `backTap` event fires and the web navigates
+  // back (router.back(), falling back to home). A real Liquid Glass surface, like
+  // the FAB above.
+  configureBack(options: { symbol?: string; label?: string }): Promise<void>;
+  setBackVisible(options: { visible: boolean }): Promise<void>;
   // Native pull-to-refresh (UIRefreshControl on the web scroll view). Toggle per
   // route; fires the `pullRefresh` event when the user pulls down at the top.
   setPullToRefreshEnabled(options: { enabled: boolean }): Promise<void>;
@@ -69,6 +75,7 @@ export interface NativeChromePlugin {
   ): Promise<PluginListenerHandle>;
   addListener(eventName: "pullRefresh", listener: () => void): Promise<PluginListenerHandle>;
   addListener(eventName: "fabTap", listener: () => void): Promise<PluginListenerHandle>;
+  addListener(eventName: "backTap", listener: () => void): Promise<PluginListenerHandle>;
   removeAllListeners(): Promise<void>;
 }
 
