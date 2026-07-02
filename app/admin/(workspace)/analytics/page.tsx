@@ -32,7 +32,7 @@ type TopShoe = { id: string; name: string; brand: string; count: number };
 export default async function AdminAnalyticsPage() {
   await requireAdminPageContext();
   const db = createAdminClient();
-  if (!db) return <Card className="p-5">Service-role client is not configured.</Card>;
+  if (!db) return <Card className="p-4 sm:p-5">Service-role client is not configured.</Card>;
 
   const head = { count: "exact" as const, head: true };
   const [

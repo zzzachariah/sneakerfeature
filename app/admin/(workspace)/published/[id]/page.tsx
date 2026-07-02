@@ -92,8 +92,8 @@ export default function AdminPublishedDetailPage() {
     }
   }
 
-  if (loading) return <Card className="p-5">Loading published record...</Card>;
-  if (!data) return <Card className="p-5">Record unavailable.</Card>;
+  if (loading) return <Card className="p-4 sm:p-5">Loading published record...</Card>;
+  if (!data) return <Card className="p-4 sm:p-5">Record unavailable.</Card>;
 
   return (
     <div className="space-y-4">

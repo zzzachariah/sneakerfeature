@@ -159,7 +159,7 @@ export function VerdictsImportClient() {
         icon={Scale}
       />
 
-      <div className="surface-card premium-border space-y-4 rounded-2xl p-5">
+      <div className="surface-card premium-border space-y-4 rounded-2xl p-4 sm:p-5">
         <div className="rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.45)] p-3 text-sm leading-6 soft-text">
           <p className="font-medium text-[rgb(var(--text))]">Expected columns (header row required)</p>
           <code className="mt-1 block break-all text-xs text-[rgb(var(--accent))]">{SAMPLE_HEADER}</code>
@@ -173,8 +173,8 @@ export function VerdictsImportClient() {
         <div className="flex flex-wrap items-center gap-3">
           <label
             className={cn(
-              "inline-flex items-center gap-2 rounded-lg border border-[rgb(var(--accent)/0.5)] px-3 py-1.5 text-sm text-[rgb(var(--accent))] transition",
-              importing ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-[rgb(var(--accent)/0.1)]"
+              "inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[rgb(var(--accent)/0.5)] px-4 text-sm text-[rgb(var(--accent))] transition md:min-h-0 md:px-3 md:py-1.5",
+              importing ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-[rgb(var(--accent)/0.1)] active:bg-[rgb(var(--accent)/0.1)]"
             )}
           >
             <Upload className="h-4 w-4" />
@@ -207,25 +207,27 @@ export function VerdictsImportClient() {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <fieldset className="flex items-center gap-3 text-sm" disabled={importing}>
+        {/* Mobile: mode picker stacks above a full-width button row so nothing
+            wraps into an ambiguous cluster at 375px. sm+: original inline bar. */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+          <fieldset className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" disabled={importing}>
             <legend className="t-eyebrow mr-1 inline">On conflict</legend>
-            <label className="inline-flex items-center gap-1.5">
+            <label className="inline-flex min-h-[44px] items-center gap-2 sm:min-h-0 sm:gap-1.5">
               <input type="radio" name="mode" checked={mode === "overwrite"} onChange={() => setMode("overwrite")} />
               Overwrite
             </label>
-            <label className="inline-flex items-center gap-1.5">
+            <label className="inline-flex min-h-[44px] items-center gap-2 sm:min-h-0 sm:gap-1.5">
               <input type="radio" name="mode" checked={mode === "fill"} onChange={() => setMode("fill")} />
               Only fill empty
             </label>
           </fieldset>
 
-          <div className="ml-auto flex gap-2">
+          <div className="flex gap-2 sm:ml-auto">
             <button
               type="button"
               onClick={reset}
               disabled={importing}
-              className="rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:bg-[rgb(var(--muted)/0.3)] disabled:opacity-50"
+              className="min-h-[44px] flex-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 text-sm transition hover:bg-[rgb(var(--muted)/0.3)] active:bg-[rgb(var(--muted)/0.3)] disabled:opacity-50 sm:flex-none md:min-h-0 md:py-1.5"
             >
               Reset
             </button>
@@ -235,7 +237,7 @@ export function VerdictsImportClient() {
                 onClick={() => {
                   cancelRef.current = true;
                 }}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/60 px-3 py-1.5 text-sm font-medium text-rose-300 transition hover:bg-rose-400/10"
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 text-sm font-medium text-rose-300 transition hover:bg-rose-400/10 active:bg-rose-400/10 sm:flex-none md:min-h-0 md:py-1.5"
               >
                 <Ban className="h-4 w-4" />
                 Cancel
@@ -245,7 +247,7 @@ export function VerdictsImportClient() {
                 type="button"
                 onClick={submit}
                 disabled={!csv.trim()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.12)] px-3 py-1.5 text-sm font-medium text-[rgb(var(--accent))] transition hover:bg-[rgb(var(--accent)/0.2)] disabled:opacity-50"
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.6)] bg-[rgb(var(--accent)/0.12)] px-3 text-sm font-medium text-[rgb(var(--accent))] transition hover:bg-[rgb(var(--accent)/0.2)] active:bg-[rgb(var(--accent)/0.2)] disabled:opacity-50 sm:flex-none md:min-h-0 md:py-1.5"
               >
                 <Upload className="h-4 w-4" />
                 Import
@@ -263,7 +265,7 @@ export function VerdictsImportClient() {
       )}
 
       {phase !== "idle" && (
-        <div className="surface-card premium-border space-y-4 rounded-2xl p-5">
+        <div className="surface-card premium-border space-y-4 rounded-2xl p-4 sm:p-5">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium text-[rgb(var(--text))]">{doneLabel}</span>
             <span className="num-display soft-text">

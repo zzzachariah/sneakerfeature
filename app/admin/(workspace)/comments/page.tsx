@@ -16,7 +16,7 @@ export default async function AdminCommentsPage({
 }) {
   await requireAdminPageContext();
   const db = createAdminClient();
-  if (!db) return <Card className="p-5">Service-role client is not configured.</Card>;
+  if (!db) return <Card className="p-4 sm:p-5">Service-role client is not configured.</Card>;
 
   const params = await searchParams;
   const q = (typeof params.q === "string" ? params.q : "").trim();

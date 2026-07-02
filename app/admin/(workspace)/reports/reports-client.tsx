@@ -54,7 +54,7 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
       {message && <p className="text-sm text-[rgb(var(--accent))]">{message}</p>}
 
       {reports.length === 0 ? (
-        <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-10 text-center">
+        <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-8 text-center sm:p-10">
           <ShieldCheck className="h-8 w-8 text-emerald-400" />
           <p className="font-medium">No open reports</p>
           <p className="text-sm soft-text">The moderation queue is clear.</p>
@@ -77,12 +77,13 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
               </blockquote>
               <p className="mt-1 text-xs soft-text">author: @{report.authorUsername}</p>
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              {/* Mobile: two equal 44px buttons; sm+: compact inline pair. */}
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <button
                   type="button"
                   disabled={busy === report.id || !report.commentExists}
                   onClick={() => act(report, "delete_comment")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/60 px-3 py-1.5 text-sm text-rose-400 transition hover:bg-rose-400/10 disabled:opacity-50"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 text-sm text-rose-400 transition hover:bg-rose-400/10 active:bg-rose-400/10 disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <Trash2 className="h-4 w-4" /> Delete comment
                 </button>
@@ -90,7 +91,7 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
                   type="button"
                   disabled={busy === report.id}
                   onClick={() => act(report, "dismiss")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-sm transition hover:border-[rgb(var(--text)/0.45)] disabled:opacity-50"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 text-sm transition hover:border-[rgb(var(--text)/0.45)] active:bg-[rgb(var(--muted)/0.2)] disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <Check className="h-4 w-4" /> Dismiss
                 </button>

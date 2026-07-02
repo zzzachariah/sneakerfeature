@@ -186,7 +186,10 @@ export default async function AdminPage() {
   ];
 
   return (
-    <div className="space-y-5">
+    // The dashboard lives outside the (workspace) route group, so it must
+    // provide its own container-shell — without it the page hugs the viewport
+    // edges on mobile.
+    <main className="container-shell space-y-5 py-6">
       <AdminPageHeader
         title="Admin console"
         description={`Signed in as ${admin.username}. Pick a section to manage.`}
@@ -327,6 +330,6 @@ export default async function AdminPage() {
           </span>
         </span>
       </Link>
-    </div>
+    </main>
   );
 }

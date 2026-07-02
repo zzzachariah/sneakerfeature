@@ -14,7 +14,7 @@ export default async function AdminReviewPage({ searchParams }: { searchParams: 
   const params = await searchParams;
   const supabase = createAdminClient();
 
-  if (!supabase) return <Card className="p-5">Supabase is not configured.</Card>;
+  if (!supabase) return <Card className="p-4 sm:p-5">Supabase is not configured.</Card>;
 
   const q = typeof params.q === "string" ? params.q : "";
   const status = typeof params.status === "string" ? params.status : "queue";

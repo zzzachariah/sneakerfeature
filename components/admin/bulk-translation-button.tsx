@@ -164,9 +164,10 @@ export function BulkTranslationButton() {
         </p>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-[40px] items-center gap-2.5 text-sm md:min-h-0 md:gap-2">
         <input
           type="checkbox"
+          className="h-4 w-4 shrink-0"
           checked={forceRetranslate}
           disabled={running}
           onChange={(event) => setForceRetranslate(event.target.checked)}

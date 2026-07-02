@@ -16,7 +16,7 @@ export default async function AdminUsersPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const db = createAdminClient();
-  if (!db) return <Card className="p-5">Service-role client is not configured.</Card>;
+  if (!db) return <Card className="p-4 sm:p-5">Service-role client is not configured.</Card>;
   const [ctx, params] = await Promise.all([requireAdminPageContext(), searchParams]);
   const q = typeof params.q === "string" ? params.q : "";
   const role = typeof params.role === "string" ? params.role : "all";

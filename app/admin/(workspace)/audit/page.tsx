@@ -34,7 +34,7 @@ export default async function AdminAuditPage({
 }) {
   const [, params] = await Promise.all([requireAdminPageContext(), searchParams]);
   const db = createAdminClient();
-  if (!db) return <Card className="p-5">Service-role client is not configured.</Card>;
+  if (!db) return <Card className="p-4 sm:p-5">Service-role client is not configured.</Card>;
   const type = typeof params.type === "string" ? params.type : "all";
   const q = typeof params.q === "string" ? params.q : "";
 

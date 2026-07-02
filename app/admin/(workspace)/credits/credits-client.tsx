@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { confirmDialog } from "@/components/native/native-menu";
 
 type CreditRow = {
@@ -106,15 +107,15 @@ export function CreditsClient() {
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border border-[rgb(var(--muted)/0.4)] p-3">
             <p className="text-sm font-semibold">Grant credits</p>
-            <input className="mt-2 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm" placeholder="Username" value={grantUser} onChange={(e) => setGrantUser(e.target.value)} />
-            <input className="mt-2 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm" placeholder="Credits (positive integer)" inputMode="numeric" value={grantCredits} onChange={(e) => setGrantCredits(e.target.value)} />
-            <input className="mt-2 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm" placeholder="Note (optional)" value={grantNote} onChange={(e) => setGrantNote(e.target.value)} />
+            <Input className="mt-2" placeholder="Username" value={grantUser} onChange={(e) => setGrantUser(e.target.value)} />
+            <Input className="mt-2" placeholder="Credits (positive integer)" inputMode="numeric" value={grantCredits} onChange={(e) => setGrantCredits(e.target.value)} />
+            <Input className="mt-2" placeholder="Note (optional)" value={grantNote} onChange={(e) => setGrantNote(e.target.value)} />
             <Button onClick={handleGrant} disabled={busy} className="mt-3 w-full">Grant</Button>
           </div>
 
           <div className="rounded-lg border border-[rgb(var(--muted)/0.4)] p-3">
             <p className="text-sm font-semibold">Clear balance</p>
-            <input className="mt-2 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm" placeholder="Username" value={clearUser} onChange={(e) => setClearUser(e.target.value)} />
+            <Input className="mt-2" placeholder="Username" value={clearUser} onChange={(e) => setClearUser(e.target.value)} />
             <Button variant="secondary" onClick={handleClear} disabled={busy} className="mt-3 w-full">
               Reset balance to 0
             </Button>
@@ -127,8 +128,8 @@ export function CreditsClient() {
       <Card className="p-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
           <h2 className="truncate text-base font-semibold">All user balances</h2>
-          <input className="min-w-0 rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm sm:ml-auto sm:max-w-xs" placeholder="Search username or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <button onClick={load} className="shrink-0 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-2 text-xs hover:bg-[rgb(var(--muted)/0.25)]">Refresh</button>
+          <Input className="min-w-0 sm:ml-auto sm:max-w-xs" placeholder="Search username or email…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <button onClick={load} className="min-h-[44px] shrink-0 rounded-full border border-[rgb(var(--muted)/0.5)] px-4 text-sm hover:bg-[rgb(var(--muted)/0.25)] active:bg-[rgb(var(--muted)/0.25)] md:min-h-0 md:px-3 md:py-2 md:text-xs">Refresh</button>
         </div>
 
         {loading ? (
