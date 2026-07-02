@@ -468,7 +468,7 @@ function ProfileCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="p-5">
+    <Card className="p-4 sm:p-5">
       <div className="flex items-center gap-2.5">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-[rgb(var(--accent)/0.12)] text-[rgb(var(--accent))]">
           <Icon className="h-4 w-4" />

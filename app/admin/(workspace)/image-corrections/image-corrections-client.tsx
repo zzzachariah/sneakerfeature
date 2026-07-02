@@ -57,7 +57,7 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
       {message && <p className="text-sm text-[rgb(var(--accent))]">{message}</p>}
 
       {corrections.length === 0 ? (
-        <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-10 text-center">
+        <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-8 text-center sm:p-10">
           <ShieldCheck className="h-8 w-8 text-emerald-400" />
           <p className="font-medium">No pending image corrections</p>
           <p className="text-sm soft-text">The review queue is clear.</p>
@@ -122,12 +122,13 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                 </p>
               )}
 
-              <div className="mt-3 flex flex-wrap gap-2">
+              {/* Mobile: two equal 44px buttons; sm+: compact inline pair. */}
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <button
                   type="button"
                   disabled={busy === correction.id}
                   onClick={() => act(correction, "approve")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/60 px-3 py-1.5 text-sm text-emerald-400 transition hover:bg-emerald-400/10 disabled:opacity-50"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-emerald-400/60 px-3 text-sm text-emerald-400 transition hover:bg-emerald-400/10 active:bg-emerald-400/10 disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <Check className="h-4 w-4" /> Approve &amp; apply
                 </button>
@@ -135,7 +136,7 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                   type="button"
                   disabled={busy === correction.id}
                   onClick={() => act(correction, "reject")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-rose-400/60 px-3 py-1.5 text-sm text-rose-400 transition hover:bg-rose-400/10 disabled:opacity-50"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 text-sm text-rose-400 transition hover:bg-rose-400/10 active:bg-rose-400/10 disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <X className="h-4 w-4" /> Reject
                 </button>

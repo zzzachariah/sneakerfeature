@@ -11,7 +11,7 @@ import { AdminPageHeader } from "@/components/admin/admin-page-header";
 export default async function AdminPublishedPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdminPageContext();
   const supabase = await createClient();
-  if (!supabase) return <Card className="p-5">Supabase is not configured.</Card>;
+  if (!supabase) return <Card className="p-4 sm:p-5">Supabase is not configured.</Card>;
 
   const params = await searchParams;
   const q = typeof params.q === "string" ? params.q : "";

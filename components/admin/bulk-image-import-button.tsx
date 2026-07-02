@@ -278,9 +278,10 @@ export function BulkImageImportButton() {
             <p className="soft-text">{translate("No matching shoes.")}</p>
           ) : (
             filteredShoes.map((shoe) => (
-              <label key={shoe.id} className="flex cursor-pointer items-center gap-2 py-1">
+              <label key={shoe.id} className="flex min-h-[40px] cursor-pointer items-center gap-2.5 py-1 md:min-h-0 md:gap-2">
                 <input
                   type="checkbox"
+                  className="h-4 w-4 shrink-0"
                   checked={selectedShoeIds.includes(shoe.id)}
                   onChange={() => toggleSelection(shoe.id)}
                   disabled={isBusy}

@@ -39,7 +39,7 @@ export default async function AdminShoeReviewsPage({ params }: { params: Promise
       />
 
       {!supabase ? (
-        <Card className="p-5">Supabase is not configured.</Card>
+        <Card className="p-4 sm:p-5">Supabase is not configured.</Card>
       ) : (
         <ShoeReviewsClient shoeId={shoeId} />
       )}

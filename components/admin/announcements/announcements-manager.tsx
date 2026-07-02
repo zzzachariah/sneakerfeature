@@ -15,6 +15,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { confirmDialog } from "@/components/native/native-menu";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -170,7 +171,12 @@ export function AnnouncementsManager({
   }
 
   async function remove(item: AnnouncementRecord) {
-    if (!confirm(`Delete announcement “${item.title || item.titleZh || item.id}”?`)) return;
+    const ok = await confirmDialog({
+      message: `Delete announcement “${item.title || item.titleZh || item.id}”?`,
+      okLabel: "Delete",
+      destructive: true
+    });
+    if (!ok) return;
     setBusyId(item.id);
     setError(null);
     try {

@@ -22,7 +22,7 @@ export default async function AdminBloggerReviewsPage({
     return (
       <div className="space-y-4">
         <AdminPageHeader title="Blogger reviews" icon={Megaphone} />
-        <Card className="p-5">Supabase is not configured.</Card>
+        <Card className="p-4 sm:p-5">Supabase is not configured.</Card>
       </div>
     );
   }
@@ -119,7 +119,51 @@ export default async function AdminBloggerReviewsPage({
       </Card>
 
       <Card className="overflow-hidden p-0">
-        <div className="overflow-x-auto">
+        {/* Mobile: stacked card list — the whole row links to the shoe's review
+            manager, no horizontal scroll. md+: the original table. */}
+        <ol className="divide-y divide-[rgb(var(--muted)/0.35)] md:hidden">
+          {(shoes ?? []).length === 0 && (
+            <li className="p-6 text-center text-sm soft-text">
+              No shoes{q ? " match this search" : ""}.
+            </li>
+          )}
+          {(shoes ?? []).map((shoe) => {
+            const c = counts.get(shoe.id) ?? { youtube: 0, bilibili: 0 };
+            const totalReviews = c.youtube + c.bilibili;
+            return (
+              <li key={shoe.id}>
+                <Link
+                  href={`/admin/blogger-reviews/${shoe.id}`}
+                  className="flex min-h-[44px] items-center justify-between gap-3 p-4 active:bg-[rgb(var(--muted)/0.15)]"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{shoe.shoe_name}</p>
+                    <p className="mt-0.5 truncate text-xs soft-text">{shoe.brand ?? "—"}</p>
+                  </div>
+                  <span className="flex shrink-0 items-center gap-3 text-sm">
+                    {totalReviews === 0 ? (
+                      <span className="text-xs soft-text">No reviews</span>
+                    ) : (
+                      <>
+                        <span className="inline-flex items-center gap-1 tabular-nums" title="YouTube">
+                          <Youtube className="h-4 w-4 text-rose-400" />
+                          {c.youtube}
+                        </span>
+                        <span className="inline-flex items-center gap-1 tabular-nums" title="Bilibili">
+                          <PlayCircle className="h-4 w-4 text-sky-400" />
+                          {c.bilibili}
+                        </span>
+                      </>
+                    )}
+                    <ChevronRight className="h-4 w-4 soft-text" />
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ol>
+
+        <div className="hidden overflow-x-auto md:block">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="bg-[rgb(var(--bg-elev)/0.85)] text-left text-xs soft-text">
             <tr>
@@ -182,13 +226,13 @@ export default async function AdminBloggerReviewsPage({
           {page > 1 ? (
             <Link
               href={pageHref(page - 1)}
-              className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]"
+              className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-4 text-sm hover:bg-[rgb(var(--muted)/0.25)] active:bg-[rgb(var(--muted)/0.25)] md:min-h-0 md:px-3 md:py-1 md:text-xs"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
               Prev
             </Link>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs opacity-40">
+            <span className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-4 text-sm opacity-40 md:min-h-0 md:px-3 md:py-1 md:text-xs">
               <ChevronLeft className="h-3.5 w-3.5" />
               Prev
             </span>
@@ -199,13 +243,13 @@ export default async function AdminBloggerReviewsPage({
           {page < totalPages ? (
             <Link
               href={pageHref(page + 1)}
-              className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]"
+              className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-4 text-sm hover:bg-[rgb(var(--muted)/0.25)] active:bg-[rgb(var(--muted)/0.25)] md:min-h-0 md:px-3 md:py-1 md:text-xs"
             >
               Next
               <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           ) : (
-            <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs opacity-40">
+            <span className="inline-flex min-h-[44px] items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-4 text-sm opacity-40 md:min-h-0 md:px-3 md:py-1 md:text-xs">
               Next
               <ChevronRight className="h-3.5 w-3.5" />
             </span>

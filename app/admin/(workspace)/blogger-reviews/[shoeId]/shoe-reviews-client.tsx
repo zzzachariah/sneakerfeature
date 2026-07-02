@@ -50,8 +50,9 @@ const STATUS_STYLES: Record<string, string> = {
   error: "text-rose-400"
 };
 
+// 16px font + ~44px height on mobile (no iOS focus-zoom); compact on md+.
 const inputCls =
-  "mt-1 w-full rounded border border-[rgb(var(--muted)/0.5)] bg-transparent px-2 py-1.5 text-sm outline-none transition focus:border-[rgb(var(--text)/0.55)] focus:ring-2 focus:ring-[rgb(var(--text)/0.12)]";
+  "mt-1 w-full rounded-lg border border-[rgb(var(--muted)/0.5)] bg-transparent px-3 py-2.5 text-base outline-none transition focus:border-[rgb(var(--text)/0.55)] focus:ring-2 focus:ring-[rgb(var(--text)/0.12)] md:rounded md:px-2 md:py-1.5 md:text-sm";
 const taCls = `${inputCls} min-h-16 leading-6`;
 
 function toDraft(r: AdminReview): Draft {
@@ -181,7 +182,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
         </p>
         <button
           onClick={() => load()}
-          className="ml-auto rounded-full border border-[rgb(var(--muted)/0.5)] px-3 py-1 text-xs hover:bg-[rgb(var(--muted)/0.25)]"
+          className="ml-auto min-h-[44px] rounded-full border border-[rgb(var(--muted)/0.5)] px-4 text-sm hover:bg-[rgb(var(--muted)/0.25)] active:bg-[rgb(var(--muted)/0.25)] md:min-h-0 md:px-3 md:py-1 md:text-xs"
         >
           Refresh
         </button>
@@ -275,7 +276,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
                 <button
                   onClick={() => remove(r.id)}
                   disabled={busy}
-                  className="inline-flex items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2.5 py-1.5 text-xs text-rose-400 transition hover:border-rose-300/70 disabled:opacity-50 sm:ml-auto"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2.5 text-sm text-rose-400 transition hover:border-rose-300/70 active:bg-rose-400/10 disabled:opacity-50 sm:ml-auto md:min-h-0 md:py-1.5 md:text-xs"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete

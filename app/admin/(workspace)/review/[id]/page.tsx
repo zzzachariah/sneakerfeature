@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { ClipboardCheck } from "lucide-react";
+import { haptics } from "@/lib/native/haptics";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +54,16 @@ const fieldDefs: Array<{
   { key: "reviewer_notes", label: "Reviewer notes", type: "textarea" }
 ];
 
+/** The 3-pane comparison only fits side-by-side at xl. Below that the page
+ * shows one pane at a time, switched by a sticky segmented control. */
+const PANES = [
+  { key: "original", label: "Original" },
+  { key: "normalized", label: "Normalized" },
+  { key: "edit", label: "Edit" }
+] as const;
+
+type PaneKey = (typeof PANES)[number]["key"];
+
 function pick(obj: Record<string, any>, key: string) {
   if (obj[key] !== undefined && obj[key] !== null) return obj[key];
   if (obj.raw_payload && obj.raw_payload[key] !== undefined && obj.raw_payload[key] !== null) {
@@ -74,6 +85,8 @@ export default function AdminSubmissionDetailPage() {
   const [saving, setSaving] = useState<null | "save_draft" | "approve_publish" | "reject">(null);
   const [confirmRejectOpen, setConfirmRejectOpen] = useState(false);
   const [note, setNote] = useState("");
+  // Editing is the primary mobile job, so it's the default pane.
+  const [pane, setPane] = useState<PaneKey>("edit");
   const [form, setForm] = useState<Record<string, any>>({
     tags: [],
     source_links: []
@@ -203,14 +216,14 @@ export default function AdminSubmissionDetailPage() {
     }
   }
 
-  if (loading) return <Card className="p-5">Loading review workspace...</Card>;
-  if (!data) return <Card className="p-5">Submission unavailable.</Card>;
+  if (loading) return <Card className="p-4 sm:p-5">Loading review workspace...</Card>;
+  if (!data) return <Card className="p-4 sm:p-5">Submission unavailable.</Card>;
 
   return (
     <div className="space-y-4">
       <AdminPageHeader
         title="Submission review workspace"
-        description="Left = original submission, middle = OpenAI normalized, right = final admin-editable publish payload."
+        description="Compare the original submission with the OpenAI normalized output, then edit and publish the final payload."
         icon={ClipboardCheck}
       />
       <div className="surface-card premium-border space-y-1 rounded-2xl p-4 text-xs soft-text">
@@ -255,8 +268,35 @@ export default function AdminSubmissionDetailPage() {
         </Card>
       )}
 
+      {/* Pane switcher (hidden at xl where all three panes are visible).
+          Sticky offsets track the AdminMobileShell bar: 68px tall below md
+          (44px hamburger + py-3), 64px at md–lg, gone at lg+ where only the
+          workspace's 1.5rem top padding remains. */}
+      <div className="sticky z-20 [top:calc(var(--safe-top,0px)+68px)] md:[top:calc(var(--safe-top,0px)+64px)] lg:[top:1.5rem] xl:hidden">
+        <div className="glass-strong premium-border grid grid-cols-3 gap-1 rounded-2xl p-1">
+          {PANES.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              aria-pressed={pane === p.key}
+              onClick={() => {
+                haptics.selection();
+                setPane(p.key);
+              }}
+              className={
+                pane === p.key
+                  ? "min-h-[44px] rounded-xl border border-[rgb(var(--accent)/0.45)] bg-[rgb(var(--accent)/0.12)] text-sm font-medium text-[rgb(var(--accent))]"
+                  : "min-h-[44px] rounded-xl border border-transparent text-sm soft-text transition active:bg-[rgb(var(--muted)/0.3)]"
+              }
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="p-4">
+        <Card className={`p-4 ${pane === "original" ? "" : "hidden xl:block"}`}>
           <h3 className="font-semibold">Original user submission</h3>
           <div className="mt-3 space-y-2 text-sm">
             {fieldDefs.map((field) => (
@@ -268,7 +308,7 @@ export default function AdminSubmissionDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className={`p-4 ${pane === "normalized" ? "" : "hidden xl:block"}`}>
           <h3 className="font-semibold">OpenAI normalized output</h3>
           <div className="mt-3 space-y-2 text-sm">
             {fieldDefs.map((field) => {
@@ -293,7 +333,7 @@ export default function AdminSubmissionDetailPage() {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className={`p-4 ${pane === "edit" ? "" : "hidden xl:block"}`}>
           <h3 className="font-semibold">Admin final editable version</h3>
           <div className="mt-3 space-y-2 text-sm">
             {fieldDefs.map((field) => (
@@ -363,7 +403,7 @@ export default function AdminSubmissionDetailPage() {
             placeholder="Explain what changed and why"
           />
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button disabled={saving !== null} onClick={() => submitAction("save_draft")}>{saving === "save_draft" ? "Saving..." : "Save draft"}</Button>
           <Button disabled={saving !== null} variant="secondary" onClick={() => submitAction("approve_publish")}>{saving === "approve_publish" ? "Publishing..." : "Approve & publish"}</Button>
           <Button disabled={saving !== null} variant="ghost" className="border border-red-500/35 text-red-500 hover:bg-red-500/10" onClick={() => setConfirmRejectOpen(true)}>{saving === "reject" ? "Deleting..." : "Reject"}</Button>

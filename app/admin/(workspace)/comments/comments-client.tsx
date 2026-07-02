@@ -48,7 +48,7 @@ export function CommentsClient({ initialRows }: { initialRows: CommentRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-10 text-center">
+      <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-8 text-center sm:p-10">
         <MessageSquareOff className="h-8 w-8 soft-text" />
         <p className="font-medium">No comments found</p>
         <p className="text-sm soft-text">Try a different search.</p>
