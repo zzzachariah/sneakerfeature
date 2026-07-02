@@ -92,7 +92,8 @@ function ShoePlinth({
     <motion.div
       layout
       initial={{ opacity: 0, y: 24 }}
-      animate={{ opacity: 1, y: 0 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: false, amount: "some" }}
       transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
       className="group relative"
     >

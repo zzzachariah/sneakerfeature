@@ -14,17 +14,18 @@ export function prefersReducedMotion(): boolean {
 /**
  * "In view" detection via IntersectionObserver.
  *
- * By default it's one-shot (the observer disconnects after first intersection)
- * — good for scroll-reveal that should only play once. Pass `{ repeat: true }`
- * to flip `inView` true/false every time the element enters/leaves the
- * viewport, so a progress-driven animation can replay each time it scrolls
- * back into view (e.g. the radar charts).
+ * By default `inView` flips true when `threshold` of the element is visible
+ * and back to false only once it has FULLY left the viewport (enter/exit
+ * hysteresis — no flicker at the edges, and nothing visibly resets while any
+ * part is still on screen). That lets progress-driven animations replay every
+ * time the element scrolls back in. Pass `{ repeat: false }` for the old
+ * one-shot behavior (the observer disconnects after first intersection).
  */
 export function useInView<T extends Element>(
   threshold = 0.15,
   opts: { repeat?: boolean } = {}
 ) {
-  const { repeat = false } = opts;
+  const { repeat = true } = opts;
   const ref = useRef<T | null>(null);
   const [inView, setInView] = useState(false);
   useEffect(() => {
@@ -32,14 +33,15 @@ export function useInView<T extends Element>(
     if (!node) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (!entry.isIntersecting) {
+          if (repeat) setInView(false);
+        } else if (entry.intersectionRatio >= Math.max(0, threshold - 0.01)) {
           setInView(true);
           if (!repeat) obs.disconnect();
-        } else if (repeat) {
-          setInView(false);
         }
       },
-      { threshold }
+      // Observe both boundaries: the enter threshold and the full exit.
+      { threshold: threshold > 0 ? [0, threshold] : 0 }
     );
     obs.observe(node);
     return () => obs.disconnect();

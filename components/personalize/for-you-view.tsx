@@ -38,14 +38,20 @@ type Props = {
   popular: ForYouShoe[];
 };
 
-const container: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } }
-};
 const item: Variants = {
   hidden: { opacity: 0, y: 18 },
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 26 } }
 };
+// Each section reveals itself as it scrolls into view and replays on every
+// re-entry (it resets only once fully off-screen). Sections cascade naturally
+// as the user scrolls instead of all firing on mount — which used to play the
+// below-the-fold entrances while nobody could see them.
+const sectionReveal = {
+  variants: item,
+  initial: "hidden",
+  whileInView: "show",
+  viewport: { once: false, amount: "some" }
+} as const;
 
 const POSITION_ZH: Record<string, string> = { PG: "控卫", SG: "分卫", SF: "小前", PF: "大前", C: "中锋" };
 const POSITION_EN: Record<string, string> = {
@@ -103,15 +109,10 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       : null;
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
-      className="container-shell py-8 sm:py-12"
-    >
+    <div className="container-shell py-8 sm:py-12">
       <div className="mx-auto w-full max-w-3xl">
       {/* 1. Greeting + player avatar */}
-      <motion.header variants={item}>
+      <motion.header {...sectionReveal}>
         <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
           <Sparkles className="h-5 w-5" />
           <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
@@ -135,7 +136,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       {/* Signed-out / empty: start-browsing guide (popular still shows below) */}
       {!signedIn || (!hasDigest && recentShoes.length === 0) ? (
         <motion.section
-          variants={item}
+          {...sectionReveal}
           className="surface-card premium-border mt-6 flex flex-col items-center gap-3 rounded-2xl p-8 text-center"
         >
           <Sparkles className="h-7 w-7 text-[rgb(var(--accent))]" />
@@ -156,7 +157,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
 
       {/* 2. A comparison for you */}
       {compareShoes.length === 2 ? (
-        <motion.section variants={item} className="mt-8">
+        <motion.section {...sectionReveal} className="mt-8">
           <SectionTitle icon={<GitCompareArrows className="h-4 w-4" />} text={translate("A comparison for you")} />
           <div className="surface-card premium-border mt-3 rounded-2xl p-5">
             <p className="text-sm">
@@ -176,7 +177,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
 
       {/* 3. Picked for you (AI) */}
       {recommendations.length > 0 ? (
-        <motion.section variants={item} className="mt-8">
+        <motion.section {...sectionReveal} className="mt-8">
           <SectionTitle icon={<Sparkles className="h-4 w-4" />} text={translate("Picked for you")} />
           <ul className="mt-3 space-y-3">
             {recommendations.map((rec) => (
@@ -210,7 +211,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       {/* 4. Popular — podium top 3 (moved above "Continue browsing" so it sits
           higher up the For You face) */}
       {popular.length >= 3 ? (
-        <motion.section variants={item} className="mt-8">
+        <motion.section {...sectionReveal} className="mt-8">
           <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Popular this week")} />
           <div className="mt-4 grid grid-cols-3 items-end gap-3">
             <PodiumItem shoe={popular[1]} rank={2} rankLabel={getRankLabel(2)} />
@@ -225,7 +226,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
         <ContinueBrowsing recentShoes={recentShoes} translate={translate} />
       ) : null}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -326,7 +327,7 @@ function ContinueBrowsing({
   const canExpand = recentShoes.length > COLLAPSED_COUNT;
 
   return (
-    <motion.section variants={item} className="mt-8">
+    <motion.section {...sectionReveal} className="mt-8">
       <div className="flex items-center justify-between gap-3">
         <SectionTitle icon={<History className="h-4 w-4" />} text={translate("Continue browsing")} />
         {canExpand ? (

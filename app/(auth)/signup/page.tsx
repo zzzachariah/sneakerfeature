@@ -222,7 +222,8 @@ export default function SignupPage() {
           onPointerMove={tilt.onMove}
           onPointerLeave={tilt.onLeave}
           initial={reduce ? false : "initial"}
-          animate="animate"
+          whileInView="animate"
+          viewport={{ once: false, amount: "some" }}
           variants={stagger}
           className={`glass-card tilt-3d mx-auto w-full max-w-md space-y-5 p-5 md:p-8 ${gateOpen ? "pointer-events-none select-none opacity-60" : ""}`}
         >
