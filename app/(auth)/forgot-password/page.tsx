@@ -111,7 +111,8 @@ export default function ForgotPasswordPage() {
       <motion.form
         onSubmit={onSubmit}
         initial={reduce ? false : "initial"}
-        animate="animate"
+        whileInView="animate"
+        viewport={{ once: false, amount: "some" }}
         variants={stagger}
         className="glass-card mx-auto w-full max-w-md space-y-5 p-5 md:p-8"
       >

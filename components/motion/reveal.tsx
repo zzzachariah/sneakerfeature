@@ -26,10 +26,16 @@ type RevealProps = {
   rootMargin?: string;
   /**
    * When provided, drives the reveal off slide-active state and REPLAYS each
-   * time it flips false -> true. When omitted, falls back to a one-shot
-   * scroll-into-view reveal via IntersectionObserver.
+   * time it flips false -> true. When omitted, falls back to a
+   * scroll-into-view reveal via IntersectionObserver that replays on every
+   * entry (see `once` to opt out).
    */
   active?: boolean;
+  /**
+   * Scroll mode only: play just the first time the element enters the
+   * viewport instead of replaying on every scroll-into-view. Default false.
+   */
+  once?: boolean;
 };
 
 /**
@@ -48,6 +54,7 @@ export function Reveal({
   y = 8,
   rootMargin = "0px",
   active,
+  once = false,
 }: RevealProps) {
   const driveByActive = active !== undefined;
   const nodeRef = useRef<HTMLElement | null>(null);
@@ -59,7 +66,12 @@ export function Reveal({
     nodeRef.current = node;
   }, []);
 
-  // Scroll-into-view (one-shot) when not driven by `active`.
+  // Scroll-into-view when not driven by `active`. By default the element
+  // resets once it has (almost) fully left the viewport, so removing and
+  // re-adding `.reveal-in` replays the CSS animation on every re-entry —
+  // scrolling back up re-animates just like the first pass. The reset happens
+  // at <1% visibility, so it's never seen. `once` restores the old fire-and-
+  // disconnect behavior.
   useEffect(() => {
     if (driveByActive) return;
     const node = nodeRef.current;
@@ -68,14 +80,16 @@ export function Reveal({
       ([entry]) => {
         if (entry.isIntersecting) {
           setShown(true);
-          obs.disconnect();
+          if (once) obs.disconnect();
+        } else if (!once) {
+          setShown(false);
         }
       },
       { threshold: 0.01, rootMargin }
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [driveByActive, rootMargin]);
+  }, [driveByActive, rootMargin, once]);
 
   // Active-driven: replay each time the slide/section becomes active.
   useEffect(() => {

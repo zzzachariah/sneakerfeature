@@ -199,7 +199,8 @@ function DevicePicker({
       <header className="text-center">
         <motion.span
           initial={reduce ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: "some" }}
           transition={{ duration: 0.4, delay: 0.05 }}
           className="inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--accent)/0.35)] bg-[rgb(var(--accent)/0.08)] px-3 py-1 text-[0.7rem] font-medium uppercase tracking-[0.14em] text-[rgb(var(--accent))]"
         >
@@ -208,7 +209,8 @@ function DevicePicker({
         </motion.span>
         <motion.h1
           initial={reduce ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: "some" }}
           transition={{ duration: 0.45, delay: 0.08 }}
           className="mt-4 text-3xl font-semibold tracking-[-0.02em] sm:text-4xl"
         >
@@ -216,7 +218,8 @@ function DevicePicker({
         </motion.h1>
         <motion.p
           initial={reduce ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: false, amount: "some" }}
           transition={{ duration: 0.45, delay: 0.12 }}
           className="mx-auto mt-3 max-w-xl text-[0.95rem] leading-[1.65] soft-text"
         >
@@ -242,7 +245,8 @@ function DevicePicker({
 
       <motion.div
         initial={reduce ? false : { opacity: 0 }}
-        animate={{ opacity: 1 }}
+        whileInView={{ opacity: 1 }}
+        viewport={{ once: false, amount: "some" }}
         transition={{ duration: 0.4, delay: 0.32 }}
         className="mt-10 flex flex-col items-center gap-2 text-center sm:flex-row sm:justify-center"
       >
@@ -281,7 +285,8 @@ function PlatformTile({
       onClick={onSelect}
       layoutId={`tile-${meta.id}`}
       initial={reduce ? false : { opacity: 0, y: 14, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: false, amount: "some" }}
       transition={{
         duration: 0.5,
         delay: 0.12 + index * 0.06,

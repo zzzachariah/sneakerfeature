@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { pickLocalized } from "@/components/i18n/localized-field";
+import { useInView } from "@/components/motion/use-progress";
 import { SPEC_ROWS } from "@/components/compare/compare-metrics";
 
 const EMPTY_LABEL = "—";
@@ -15,16 +16,18 @@ type Props = {
 
 export function CompareSpecTable({ shoes, active = true }: Props) {
   const { translate, locale } = useLocale();
-  const pulsedRef = useRef(false);
+  // Replays the differing-row accent wash on every scroll into view (the
+  // in-view flag resets once the table fully leaves the viewport).
+  const { ref, inView } = useInView<HTMLDivElement>(0.1);
   const [pulse, setPulse] = useState(false);
+  const triggered = active && inView;
 
   useEffect(() => {
-    if (!active || pulsedRef.current) return;
-    pulsedRef.current = true;
+    if (!triggered) return;
     setPulse(true);
     const t = setTimeout(() => setPulse(false), 1500);
     return () => clearTimeout(t);
-  }, [active]);
+  }, [triggered]);
 
   if (!shoes.length) return null;
 
@@ -37,7 +40,7 @@ export function CompareSpecTable({ shoes, active = true }: Props) {
   });
 
   return (
-    <div className="num-display overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg-elev)/0.45)]">
+    <div ref={ref} className="num-display overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg-elev)/0.45)]">
       {shoes.length === 2 ? (
         <PairedLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} />
       ) : (

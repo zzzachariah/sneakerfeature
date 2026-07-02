@@ -19,6 +19,7 @@ import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
 import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
+import { useInView } from "@/components/motion/use-progress";
 import { Capacitor } from "@capacitor/core";
 import { NativeChrome } from "@/components/native/native-chrome";
 
@@ -103,7 +104,10 @@ export function HomeFeed({
   const [query, setQuery] = useState(initialQuery);
   const [selected, setSelected] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState(false);
-  const [revealed, setRevealed] = useState(active);
+  const [revealed, setRevealed] = useState(false);
+  // Repeating in-view flag for the toolbar / count reveal: resets whenever the
+  // feed fully leaves the viewport so the entrance replays on every return.
+  const { ref: revealAreaRef, inView: feedInView } = useInView<HTMLElement>(0);
   const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const gridRef = useRef<HTMLUListElement | null>(null);
@@ -126,10 +130,13 @@ export function HomeFeed({
   const [nativeSearchActive, setNativeSearchActive] = useState(false);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !feedInView) {
+      setRevealed(false);
+      return;
+    }
     const t = window.setTimeout(() => setRevealed(true), 60);
     return () => window.clearTimeout(t);
-  }, [active]);
+  }, [active, feedInView]);
 
   // iOS-app only: when the user expands the toolbar ("Browse all shoes"),
   // surface the system Liquid Glass UISearchBar pinned at the top and let it
@@ -319,7 +326,7 @@ export function HomeFeed({
   const reduce = useReducedMotion();
 
   return (
-    <section className={pageScroll ? "flex flex-col" : "flex h-full min-h-0 flex-col"} data-tutorial="home-feed">
+    <section ref={revealAreaRef} className={pageScroll ? "flex flex-col" : "flex h-full min-h-0 flex-col"} data-tutorial="home-feed">
       <div
         className={pageScroll ? "" : "min-h-0 flex-1 overflow-auto px-3 pb-3"}
         {...(scrollContainerAttr && !pageScroll ? { "data-home-scroll-container": "true" } : {})}
@@ -436,12 +443,14 @@ export function HomeFeed({
                     key={shoe.id}
                     shoe={shoe}
                     index={index}
-                    // No queue stagger and a wide rootMargin: each card
-                    // fades in on its own, and the IntersectionObserver
-                    // trips ~800px before the card enters the viewport so
-                    // fast scrolls never see opacity-0 placeholders.
+                    // No queue stagger and a small rootMargin: each card
+                    // fades in on its own, slightly before it enters the
+                    // viewport so the entrance is actually visible while
+                    // scrolling (Reveal now replays on every re-entry, so a
+                    // late trip during a fast fling self-heals instead of
+                    // leaving a stuck opacity-0 placeholder).
                     revealStagger={0}
-                    revealRootMargin="800px 0px"
+                    revealRootMargin="120px 0px"
                     priority={index < 16}
                     matchScore={mode === "personalized" ? score : null}
                     showChips={mode === "personalized"}
