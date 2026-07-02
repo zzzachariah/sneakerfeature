@@ -11,7 +11,7 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -107,6 +107,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
   const tilt = useTiltHandlers();
 
   const router = useRouter();
@@ -140,6 +141,9 @@ export default function LoginPage() {
       devLog("api response", data);
 
       if (!res.ok || !data.ok) {
+        // The server already consumed the single-use verification token, so a
+        // retry with the same one would fail — issue a fresh challenge.
+        humanCheckRef.current?.reset();
         setError(true);
         setMessage(data.message ?? "Login failed.");
         return;
@@ -182,6 +186,7 @@ export default function LoginPage() {
         currentSession?.data?.session ? "session present" : "session not present"
       );
     } catch (err) {
+      humanCheckRef.current?.reset();
       setError(true);
       setMessage("Login request timed out or failed. Please try again.");
       devLog("flow failed", err);
@@ -240,7 +245,7 @@ export default function LoginPage() {
         </Reveal>
 
         <Reveal index={3}>
-          <HumanCheck action="login" onToken={setVerificationToken} />
+          <HumanCheck ref={humanCheckRef} action="login" onToken={setVerificationToken} />
         </Reveal>
 
         <Reveal index={4}>

@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { RequiredReadingGate } from "@/components/auth/required-reading-gate";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [gateOpen, setGateOpen] = useState(true);
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,6 +42,11 @@ export default function RegisterPage() {
     });
     const data = await res.json();
     setSubmitting(false);
+    if (!res.ok || !data.ok) {
+      // The server already consumed the single-use verification token, so a
+      // retry with the same one would fail — issue a fresh challenge.
+      humanCheckRef.current?.reset();
+    }
     setError(!res.ok || !data.ok);
     setMessage(data.message ?? (data.ok ? "Account created." : "Registration failed."));
   }
@@ -54,7 +60,7 @@ export default function RegisterPage() {
         <div><label className="mb-1 block text-xs soft-text">{translate("Username")}</label><Input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder={translate("sneakerfan23")} required /></div>
         <div><label className="mb-1 block text-xs soft-text">{translate("Email")}</label><Input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder={translate("you@domain.com")} type="email" required /></div>
         <div><label className="mb-1 block text-xs soft-text">{translate("Password")}</label><Input value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={translate("At least 8 characters")} type="password" required /></div>
-        <HumanCheck action="register" onToken={setVerificationToken} />
+        <HumanCheck ref={humanCheckRef} action="register" onToken={setVerificationToken} />
         <Button type="submit" className="w-full" disabled={submitting}>{submitting ? translate("Creating account...") : translate("Create account")}</Button>
         {submitting && <SneakerLoader compact label="Setting up your profile" />}
         {message && <FeedbackMessage message={message} isError={error} />}

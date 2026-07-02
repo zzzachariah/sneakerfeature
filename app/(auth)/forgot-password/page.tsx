@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { DUR, EASE } from "@/lib/motion/constants";
@@ -9,7 +9,7 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -42,6 +42,7 @@ export default function ForgotPasswordPage() {
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,6 +72,9 @@ export default function ForgotPasswordPage() {
       const data = await res.json().catch(() => ({ ok: false }));
 
       if (!res.ok || !data.ok) {
+        // The server already consumed the single-use verification token, so a
+        // retry with the same one would fail — issue a fresh challenge.
+        humanCheckRef.current?.reset();
         setError(true);
         setMessage(data.message ?? "Could not send reset link. Please try again.");
         return;
@@ -89,6 +93,7 @@ export default function ForgotPasswordPage() {
       setSent(true);
       setMessage("If an account exists for that email, a reset link has been sent.");
     } catch {
+      humanCheckRef.current?.reset();
       setError(true);
       setMessage("Request timed out or failed. Please try again.");
     } finally {
@@ -131,7 +136,7 @@ export default function ForgotPasswordPage() {
         </motion.div>
 
         <motion.div variants={fadeUp}>
-          <HumanCheck action="forgot-password" onToken={setVerificationToken} />
+          <HumanCheck ref={humanCheckRef} action="forgot-password" onToken={setVerificationToken} />
         </motion.div>
 
         <motion.div variants={fadeUp}>
