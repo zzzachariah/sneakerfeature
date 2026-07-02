@@ -59,11 +59,14 @@ export function NativeBottomNav() {
   const { isAdmin } = useAuthState();
 
   // Build / rebuild the native bar whenever its contents change (admin gate,
-  // language). Only after configureTabBar resolves do we hide the web nav (via
-  // the `native-tabbar-active` class) — so a missing/broken plugin leaves the
-  // web nav in place instead of removing the bar entirely.
+  // language). SkinInitScript hides the web nav pre-paint via the provisional
+  // `native-tabbar-boot` class (so it never flashes under the persistent native
+  // bar on a reload); `native-tabbar-active` confirms it once configureTabBar
+  // resolves. If the plugin is missing or the call fails we lift the boot class
+  // so the web nav returns — there's always a bottom bar.
   useEffect(() => {
     if (!nativeBarAvailable()) {
+      document.documentElement.classList.remove("native-tabbar-boot");
       // Helpful breadcrumb in the Xcode/Safari console when running in-app.
       if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") {
         console.warn("[native-chrome] NativeChrome plugin not available — keeping the web nav. Did `npx cap sync ios` list it?");
@@ -75,7 +78,10 @@ export function NativeBottomNav() {
     const active = tabs.find((t) => t.match(pathname))?.key;
     NativeChrome.configureTabBar({ tabs: nativeTabs, active })
       .then(() => document.documentElement.classList.add("native-tabbar-active"))
-      .catch((err) => console.warn("[native-chrome] configureTabBar failed:", err));
+      .catch((err) => {
+        document.documentElement.classList.remove("native-tabbar-boot");
+        console.warn("[native-chrome] configureTabBar failed:", err);
+      });
     // pathname intentionally excluded — the separate effect below keeps the
     // active item in sync without rebuilding the whole bar on every navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps

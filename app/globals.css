@@ -524,22 +524,31 @@ a, button, [role="button"], label, input, select, textarea, summary {
 }
 
 /* Inside the iOS native app the bottom navigation is a real native Liquid Glass
-   UITabBar (see components/native/native-bottom-nav.tsx + /native-chrome). The
-   web capsule is hidden ONLY after the native bar is confirmed up — the JS adds
-   `native-tabbar-active` once configureTabBar resolves. If the plugin isn't
-   present (e.g. pod not synced) the class is never added and the web nav stays,
-   so there's always a bottom bar. Web + Android never get the class. */
-html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
+   UITabBar (see components/native/native-bottom-nav.tsx + /native-chrome).
+   Two classes hide the web capsule:
+   - `native-tabbar-boot`: set pre-paint by SkinInitScript from the WebView
+     User-Agent, so the web bar never flashes under the native one on a full
+     reload (the native bar persists across WebView reloads). Provisional —
+     NativeBottomNav removes it if the NativeChrome plugin is missing or its
+     configure call fails, restoring the web nav as the fallback bar.
+   - `native-tabbar-active`: the confirmation, added once configureTabBar
+     resolves.
+   Web + Android never get either class. */
+html.native-tabbar-active nav[aria-label="Primary mobile navigation"],
+html.native-tabbar-boot nav[aria-label="Primary mobile navigation"] {
   display: none !important;
 }
 
 /* Same for the top bar: in the iOS app the header becomes a native Liquid Glass
    UINavigationBar (see components/native/native-top-bar.tsx) — the reliable way
    to get glass on top in WKWebView. Hide the web header with visibility:hidden
-   (keeps its layout height so content stays offset below the native bar). The
-   `native-topbar-active` class is added only after configureNavBar resolves, so
-   a missing plugin leaves the web header visible. */
-html.native-topbar-active header[data-app-header] {
+   (keeps its layout height so content stays offset below the native bar).
+   `native-topbar-boot` is the pre-paint provisional hide (see SkinInitScript),
+   `native-topbar-active` the confirmation added once configureNavBar resolves;
+   NativeTopBar removes the boot class if the plugin is missing/broken so the
+   web header comes back. */
+html.native-topbar-active header[data-app-header],
+html.native-topbar-boot header[data-app-header] {
   visibility: hidden;
 }
 

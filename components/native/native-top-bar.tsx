@@ -19,8 +19,11 @@ import { CONTACT_EMAIL } from "@/lib/legal/content";
 // bar shows glass (CSS backdrop-filter doesn't render reliably in WKWebView).
 // On every other platform this renders only the (closed) About modal and never
 // touches the plugin; the web header stays in charge there. In-app, the web
-// header is hidden via the `native-topbar-active` class, added only after
-// configureNavBar resolves, so a missing/broken plugin leaves the web header.
+// header is hidden pre-paint via the provisional `native-topbar-boot` class
+// (SkinInitScript) so it never flashes under the persistent native bar on a
+// reload, then confirmed by `native-topbar-active` once configureNavBar
+// resolves; a missing/broken plugin lifts the boot class and the web header
+// returns.
 const nativeBarAvailable = () =>
   Capacitor.isNativePlatform() &&
   Capacitor.getPlatform() === "ios" &&
@@ -58,6 +61,9 @@ export function NativeTopBar() {
 
   useEffect(() => {
     if (!nativeBarAvailable()) {
+      // Lift the provisional pre-paint hide (see SkinInitScript) so the web
+      // header returns when the native bar can't take over.
+      document.documentElement.classList.remove("native-topbar-boot");
       if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === "ios") {
         console.warn("[native-chrome] plugin not available — keeping the web top bar.");
       }
@@ -119,7 +125,10 @@ export function NativeTopBar() {
 
     NativeChrome.configureNavBar({ title: "sneakerfeature", logoUrl, buttons })
       .then(() => document.documentElement.classList.add("native-topbar-active"))
-      .catch((err) => console.warn("[native-chrome] configureNavBar failed:", err));
+      .catch((err) => {
+        document.documentElement.classList.remove("native-topbar-boot");
+        console.warn("[native-chrome] configureNavBar failed:", err);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signedIn, isAdmin, locale, translate]);
 
