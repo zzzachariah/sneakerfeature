@@ -1,16 +1,19 @@
 "use client";
 
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 
 export type SubmissionSlidesHandle = {
   goTo: (index: number) => void;
+  // Re-run the human-verification challenge; tokens are single-use, so the
+  // form calls this after every attempt that reached the server.
+  resetVerification: () => void;
 };
 
 type FieldDef = {
@@ -67,6 +70,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
   ref
 ) {
   const { translate } = useLocale();
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
 
   useNavScrollSections([
     { id: "submit-identity", label: translate("Identity") },
@@ -81,7 +85,8 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
       goTo: (index: number) => {
         const id = SECTION_IDS[index];
         if (id) document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+      },
+      resetVerification: () => humanCheckRef.current?.reset()
     }),
     []
   );
@@ -185,7 +190,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
             </div>
           </div>
           <div className="relative ios-glass-submit-humancheck rounded-xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.5)] p-3">
-            <HumanCheck action="submission" onToken={onToken} />
+            <HumanCheck ref={humanCheckRef} action="submission" onToken={onToken} />
           </div>
           <div className="flex flex-col items-stretch gap-3 pt-1 sm:flex-row sm:items-center">
             <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>

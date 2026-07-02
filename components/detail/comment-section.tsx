@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, ThumbsDown, ThumbsUp, Trash2, LogIn, MoreHorizontal, Flag, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { DimRatingForm } from "@/components/detail/dim-rating-form";
 import { Reveal } from "@/components/motion/reveal";
 import { createClient } from "@/lib/supabase/client";
@@ -50,6 +50,7 @@ export function CommentSection({
   const [userId, setUserId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const [reportOpenId, setReportOpenId] = useState<string | null>(null);
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
 
   const focusReady = typeof specStars === "number";
   const ratingLoggedIn = isLoggedIn ?? Boolean(userId);
@@ -94,9 +95,11 @@ export function CommentSection({
     setIsError(!data.ok);
     setMessage(data.message ?? translate(data.ok ? "Comment posted" : "Failed"));
 
+    // The server consumed the single-use verification token (success or not),
+    // so run a fresh challenge before the next post.
+    humanCheckRef.current?.reset();
     if (data.ok) {
       setContent("");
-      setToken("");
       await loadComments();
     }
     setPosting(false);
@@ -217,7 +220,7 @@ export function CommentSection({
             onChange={(e) => setContent(e.target.value)}
             disabled={!userId}
           />
-          {userId && <HumanCheck action="comment" onToken={setToken} />}
+          {userId && <HumanCheck ref={humanCheckRef} action="comment" onToken={setToken} />}
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={submitComment} disabled={!canSubmit || posting}>{posting ? translate("Posting...") : translate("Post comment")}</Button>
             <p className="text-xs soft-text">{translate("Keep it constructive and specific to on-court experience.")}</p>

@@ -87,6 +87,7 @@ export function SubmissionForm({
         try {
           data = JSON.parse(rawTextResponse) as { ok?: boolean; message?: string };
         } catch {
+          slidesRef.current?.resetVerification();
           setIsError(true);
           setMessage(`Server returned invalid JSON (status ${res.status}).`);
           return;
@@ -95,12 +96,16 @@ export function SubmissionForm({
 
       if (!res.ok) {
         haptics.error();
+        // The server consumed the single-use verification token — run a fresh
+        // challenge so the retry doesn't fail verification.
+        slidesRef.current?.resetVerification();
         setIsError(true);
         setMessage(data?.message ?? `Submit failed with status ${res.status}.`);
         return;
       }
 
       if (!data) {
+        slidesRef.current?.resetVerification();
         setIsError(true);
         setMessage("Submit failed: server returned an empty response.");
         return;
@@ -113,9 +118,11 @@ export function SubmissionForm({
         setResultModalOpen(true);
       } else {
         haptics.error();
+        slidesRef.current?.resetVerification();
       }
     } catch {
       haptics.error();
+      slidesRef.current?.resetVerification();
       setIsError(true);
       setMessage("Network error while submitting. Please try again.");
     } finally {
@@ -127,6 +134,7 @@ export function SubmissionForm({
     setResultModalOpen(false);
     formRef.current?.reset();
     setToken("");
+    slidesRef.current?.resetVerification();
     setMessage("");
     setIsError(false);
     slidesRef.current?.goTo(0);

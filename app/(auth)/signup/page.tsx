@@ -11,7 +11,7 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { RequiredReadingGate } from "@/components/auth/required-reading-gate";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
@@ -104,6 +104,7 @@ export default function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [gateOpen, setGateOpen] = useState(true);
   const [agreed, setAgreed] = useState(false);
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
   const tilt = useTiltHandlers();
   const router = useRouter();
   const pathname = usePathname();
@@ -161,6 +162,9 @@ export default function SignupPage() {
       devLog("api response", data);
 
       if (!res.ok || !data.ok) {
+        // The server already consumed the single-use verification token, so a
+        // retry with the same one would fail — issue a fresh challenge.
+        humanCheckRef.current?.reset();
         setError(true);
         setMessage(data.message ?? "Sign up failed.");
         return;
@@ -179,6 +183,7 @@ export default function SignupPage() {
         );
 
         if (signInError) {
+          humanCheckRef.current?.reset();
           setError(true);
           setMessage(`Account created, but auto-login failed: ${signInError.message}`);
           return;
@@ -192,6 +197,7 @@ export default function SignupPage() {
         router.refresh();
       }
     } catch {
+      humanCheckRef.current?.reset();
       setError(true);
       setMessage("Signup request timed out or failed. Please try again.");
       devLog("flow failed");
@@ -261,7 +267,7 @@ export default function SignupPage() {
           </motion.div>
 
           <motion.div variants={fadeUp}>
-            <HumanCheck action="register" onToken={setVerificationToken} />
+            <HumanCheck ref={humanCheckRef} action="register" onToken={setVerificationToken} />
           </motion.div>
 
           <motion.div variants={fadeUp}>

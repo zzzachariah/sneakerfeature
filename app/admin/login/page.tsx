@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
-import { HumanCheck } from "@/components/ui/human-check";
+import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +15,7 @@ export default function AdminLoginPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const humanCheckRef = useRef<HumanCheckHandle>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -39,6 +40,9 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (!res.ok || !data.ok) {
+        // The server already consumed the single-use verification token, so a
+        // retry with the same one would fail — issue a fresh challenge.
+        humanCheckRef.current?.reset();
         setError(true);
         setMessage(data.message ?? "Admin login failed.");
         return;
@@ -51,6 +55,7 @@ export default function AdminLoginPage() {
         router.refresh();
       }
     } catch {
+      humanCheckRef.current?.reset();
       setError(true);
       setMessage("Admin login request failed. Please try again.");
     } finally {
@@ -75,7 +80,7 @@ export default function AdminLoginPage() {
           <label className="mb-1 block text-xs soft-text">Password</label>
           <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
-        <HumanCheck action="admin-login" onToken={setVerificationToken} />
+        <HumanCheck ref={humanCheckRef} action="admin-login" onToken={setVerificationToken} />
 
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Authorizing..." : "Enter admin workspace"}

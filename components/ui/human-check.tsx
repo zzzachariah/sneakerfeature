@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import Script from "next/script";
 
@@ -16,10 +16,20 @@ declare global {
   interface Window {
     turnstile?: {
       render: (selector: string | HTMLElement, options: Record<string, unknown>) => string;
+      reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
     };
   }
 }
+
+// Imperative handle for forms: tokens are single-use — the server burns one on
+// every verify call, even when the request itself fails (wrong password, taken
+// username, ...). Forms must call reset() after any attempt that reached the
+// server so the widget issues a fresh token; resubmitting the old token always
+// fails verification while the widget still shows its stale "Success" state.
+export type HumanCheckHandle = {
+  reset: () => void;
+};
 
 type Props = {
   // A short label for the action being protected (login/register/comment/...).
@@ -28,12 +38,27 @@ type Props = {
   onToken: (token: string) => void;
 };
 
-export function HumanCheck({ action, onToken }: Props) {
+export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanCheck({ action, onToken }, ref) {
   const { translate } = useLocale();
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const id = useId().replace(/:/g, "");
   const widgetId = useRef<string | null>(null);
   const [failed, setFailed] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    reset() {
+      // Demo mode / widget not rendered yet: nothing to reset (the demo token
+      // is not single-use, so it stays valid across attempts).
+      if (!widgetId.current || !window.turnstile) return;
+      onToken("");
+      try {
+        window.turnstile.reset(widgetId.current);
+      } catch {
+        // Widget was torn down (script removed on retry); the fresh render
+        // will call back with a new token anyway.
+      }
+    }
+  }));
 
   function handleScriptLoad() {
     const container = document.getElementById(id);
@@ -99,4 +124,4 @@ export function HumanCheck({ action, onToken }: Props) {
       <div id={id} />
     </div>
   );
-}
+});

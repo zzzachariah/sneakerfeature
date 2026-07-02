@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ArrowDown, Loader2 } from "lucide-react";
 import { haptics } from "@/lib/native/haptics";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -50,7 +49,6 @@ function findScroller(target: EventTarget | null): HTMLElement {
 }
 
 export function WebPullToRefresh() {
-  const router = useRouter();
   const { translate } = useLocale();
 
   // Defer rendering to after mount so SSR (always null) and the first client
@@ -150,15 +148,21 @@ export function WebPullToRefresh() {
           el.style.transform = `translate(-50%, ${THRESHOLD}px)`;
           el.style.opacity = "1";
         }
-        router.refresh();
-        // router.refresh() gives no completion signal, so clear after a short
-        // beat — long enough to read as a real reload, short enough to never
-        // feel stuck.
+        // A real reload of the current URL. router.refresh() only re-renders
+        // Server Components, so anything fetched client-side (feeds, comments,
+        // Supabase session data) stayed visibly stale — the gesture felt fake.
+        // location.reload() re-requests the document and remounts everything;
+        // the spinner stays up until the new page commits and tears this one
+        // down. Scroll position is moot: the gesture only fires at the top.
+        window.location.reload();
+        // Safety net: if the reload never commits (e.g. offline WebView keeps
+        // the current page alive), un-stick the pill instead of spinning
+        // forever.
         window.setTimeout(() => {
           s.refreshing = false;
           setPhase("idle");
           paint(0);
-        }, 800);
+        }, 10000);
       } else {
         setPhase("idle");
         paint(0);
@@ -178,7 +182,7 @@ export function WebPullToRefresh() {
       window.removeEventListener("touchend", onEnd);
       window.removeEventListener("touchcancel", onEnd);
     };
-  }, [router]);
+  }, []);
 
   if (!mounted) return null;
 
