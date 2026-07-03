@@ -444,6 +444,9 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "show identical specs": "展开相同的规格",
   "hide identical specs": "收起相同的规格",
 
+  // Compare radar — legend highlight toggles
+  "tap a shoe to highlight its line — tap several to compare.": "点按鞋名可高亮它的线条，可多选同时对比。",
+
   // Search prompts
   "name, tags, tech…": "名称、标签、科技……",
   "search shoes...": "搜索球鞋...",

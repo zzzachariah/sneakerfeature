@@ -33,6 +33,14 @@
   --score-high: 101 163 13;
   --score-mid: 202 138 4;
   --score-low: 234 88 12;
+  /* Compare-radar highlight palette — used ONLY for legend-selected shoes so
+     overlapping monochrome lines can be told apart. Slot N follows the shoe's
+     position in the lineup. Tuned separately for dark below. */
+  --radar-c1: 37 99 235;
+  --radar-c2: 234 88 12;
+  --radar-c3: 147 51 234;
+  --radar-c4: 13 148 136;
+  --radar-c5: 219 39 119;
   /* glass & stroke tokens keep legacy names but now map to the monochrome set */
   --glass-bg: 255 255 255;
   --glass-bg-strong: 251 251 253;
@@ -116,6 +124,11 @@ html[data-native-platform="android"] {
   --score-high: 163 230 53;
   --score-mid: 250 204 21;
   --score-low: 251 146 60;
+  --radar-c1: 96 165 250;
+  --radar-c2: 251 146 60;
+  --radar-c3: 192 132 252;
+  --radar-c4: 45 212 191;
+  --radar-c5: 244 114 182;
   --glass-bg: 18 18 20;
   --glass-bg-strong: 15 15 17;
   --glass-stroke: 54 54 60;
@@ -148,6 +161,11 @@ html[data-native-platform="android"] {
     --shoe-stage-hi: 38 38 43;
     --shoe-stage-lo: 20 20 23;
     --shoe-shadow: 0 0 0;
+    --radar-c1: 96 165 250;
+    --radar-c2: 251 146 60;
+    --radar-c3: 192 132 252;
+    --radar-c4: 45 212 191;
+    --radar-c5: 244 114 182;
     --glass-bg: 18 18 20;
     --glass-bg-strong: 15 15 17;
     --glass-stroke: 54 54 60;
