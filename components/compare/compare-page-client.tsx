@@ -74,9 +74,14 @@ export function ComparePageClient({ selected, allShoes }: Props) {
       } else {
         params.delete("ids");
       }
-      const next = (params.toString() ? `${pathname}?${params.toString()}` : pathname) as Route;
-      router.push(next, { scroll: false });
-      router.refresh();
+      const next = params.toString() ? `${pathname}?${params.toString()}` : pathname;
+      // Shallow URL sync via the native History API (Next keeps
+      // useSearchParams in step). The selection lives entirely in client
+      // state — a router.push + router.refresh here kicked off two RSC
+      // round-trips whose late commit yanked the page back to the top while
+      // the user was already scrolling (worst on iOS/WebKit, which has no
+      // scroll anchoring). The URL only needs to stay shareable/reloadable.
+      window.history.replaceState(null, "", next);
 
       if (typeof window !== "undefined") {
         if (ids.length) {
@@ -86,7 +91,7 @@ export function ComparePageClient({ selected, allShoes }: Props) {
         }
       }
     },
-    [pathname, router, searchParams]
+    [pathname, searchParams]
   );
 
   // Hydrate from localStorage on first mount when neither URL nor server selection is present.
