@@ -73,58 +73,64 @@ export function CompareVerdict({ shoes, active }: Props) {
 
   return (
     <Shell ref={ref} triggered={triggered} translate={translate}>
-      {/* Overall winner badge + gap (or evenly-matched call) */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.66rem] font-semibold tracking-[0.02em] ${
-            evenMatch
-              ? "border-[rgb(var(--muted)/0.4)] text-[rgb(var(--text)/0.75)]"
-              : "border-[rgb(var(--text)/0.25)] bg-[rgb(var(--text)/0.05)] text-[rgb(var(--text))]"
-          }`}
-        >
-          {evenMatch ? translate("Evenly matched") : `${averages[0].name} · ${translate("has the overall edge")}`}
-        </span>
-        <span className="num-display text-[0.66rem] soft-text">
-          {translate("avg score")} {Math.round(averages[0].avg)} vs {Math.round(averages[1].avg)}
-        </span>
+      {/* Stacked on mobile; three segments side by side on desktop so the
+          card uses the full two-column width instead of growing tall. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-8">
+        {/* Overall winner badge + gap (or evenly-matched call) */}
+        <div>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.66rem] font-semibold tracking-[0.02em] ${
+                evenMatch
+                  ? "border-[rgb(var(--muted)/0.4)] text-[rgb(var(--text)/0.75)]"
+                  : "border-[rgb(var(--text)/0.25)] bg-[rgb(var(--text)/0.05)] text-[rgb(var(--text))]"
+              }`}
+            >
+              {evenMatch ? translate("Evenly matched") : `${averages[0].name} · ${translate("has the overall edge")}`}
+            </span>
+            <span className="num-display text-[0.66rem] soft-text">
+              {translate("avg score")} {Math.round(averages[0].avg)} vs {Math.round(averages[1].avg)}
+            </span>
+          </div>
+          <p className="mb-3 text-[0.72rem] leading-[1.55] text-[rgb(var(--subtext)/0.9)] lg:mb-0">
+            {evenMatch
+              ? translate("Averages are within a couple of points — let the scenarios below decide.")
+              : translate("Higher average across all six metrics — the safer pick if you want balance.")}
+          </p>
+        </div>
+
+        {/* Scenario-based buying advice */}
+        {scenarios.length === 0 ? (
+          <p className="text-[0.8rem] leading-[1.5] text-[rgb(var(--text)/0.8)]">
+            {translate("Every metric is tied — these shoes are evenly matched.")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {scenarios.map((entry, i) => (
+              <p key={i} className="text-[0.8rem] leading-[1.55] tracking-[-0.005em] text-[rgb(var(--text)/0.85)]">
+                {translate("If you care most about")}{" "}
+                <span className="font-medium text-[rgb(var(--text))]">
+                  {entry.metrics.map((key) => metricLabel(key).toLowerCase()).join(locale === "zh" ? "、" : ", ")}
+                </span>{" "}
+                — {translate("pick")} <strong className="tracking-[-0.01em] text-[rgb(var(--text))]">{entry.name}</strong>
+              </p>
+            ))}
+          </div>
+        )}
+
+        {/* Metric legend — what each mentioned lead means on court */}
+        {mentionedMetrics.length > 0 ? (
+          <div className="mt-3.5 space-y-1 border-[rgb(var(--muted)/0.2)] border-t pt-3 lg:mt-0 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0">
+            {mentionedMetrics.map((metric) => (
+              <p key={metric.key} className="text-[0.66rem] leading-[1.5] text-[rgb(var(--subtext)/0.8)]">
+                <span className="font-medium text-[rgb(var(--subtext))]">{translate(metric.label)}</span>
+                {" · "}
+                {translate(METRIC_HINTS[metric.key])}
+              </p>
+            ))}
+          </div>
+        ) : null}
       </div>
-      <p className="mb-3 text-[0.72rem] leading-[1.55] text-[rgb(var(--subtext)/0.9)]">
-        {evenMatch
-          ? translate("Averages are within a couple of points — let the scenarios below decide.")
-          : translate("Higher average across all six metrics — the safer pick if you want balance.")}
-      </p>
-
-      {/* Scenario-based buying advice */}
-      {scenarios.length === 0 ? (
-        <p className="text-[0.8rem] leading-[1.5] text-[rgb(var(--text)/0.8)]">
-          {translate("Every metric is tied — these shoes are evenly matched.")}
-        </p>
-      ) : (
-        <div className="space-y-2">
-          {scenarios.map((entry, i) => (
-            <p key={i} className="text-[0.8rem] leading-[1.55] tracking-[-0.005em] text-[rgb(var(--text)/0.85)]">
-              {translate("If you care most about")}{" "}
-              <span className="font-medium text-[rgb(var(--text))]">
-                {entry.metrics.map((key) => metricLabel(key).toLowerCase()).join(locale === "zh" ? "、" : ", ")}
-              </span>{" "}
-              — {translate("pick")} <strong className="tracking-[-0.01em] text-[rgb(var(--text))]">{entry.name}</strong>
-            </p>
-          ))}
-        </div>
-      )}
-
-      {/* Metric legend — what each mentioned lead means on court */}
-      {mentionedMetrics.length > 0 ? (
-        <div className="mt-3.5 space-y-1 border-t border-[rgb(var(--muted)/0.2)] pt-3">
-          {mentionedMetrics.map((metric) => (
-            <p key={metric.key} className="text-[0.66rem] leading-[1.5] text-[rgb(var(--subtext)/0.8)]">
-              <span className="font-medium text-[rgb(var(--subtext))]">{translate(metric.label)}</span>
-              {" · "}
-              {translate(METRIC_HINTS[metric.key])}
-            </p>
-          ))}
-        </div>
-      ) : null}
     </Shell>
   );
 }
@@ -143,7 +149,7 @@ function Shell({
   return (
     <div
       ref={ref}
-      className="mt-6 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--surface)/0.7)] px-4 py-3.5 transition-opacity duration-500"
+      className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--surface)/0.7)] px-4 py-3.5 transition-opacity duration-500 lg:px-6 lg:py-4"
       style={{ opacity: triggered ? 1 : 0, transitionDelay: "200ms" }}
     >
       <p className="t-eyebrow mb-2">{translate("Verdict")}</p>
