@@ -42,8 +42,6 @@ export function CompareDiffRows({ shoes, active }: Props) {
           />
         ))}
       </div>
-
-      <Verdict shoes={shoes} triggered={triggered} />
     </div>
   );
 }
@@ -188,66 +186,6 @@ function Bar({
           transitionDelay: `${delay}ms`
         }}
       />
-    </div>
-  );
-}
-
-function Verdict({ shoes, triggered }: { shoes: Shoe[]; triggered: boolean }) {
-  const { translate } = useLocale();
-
-  if (shoes.length < 2) {
-    return (
-      <div
-        className="mt-5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--surface)/0.7)] px-4 py-3.5 transition-opacity duration-500"
-        style={{ opacity: triggered ? 1 : 0, transitionDelay: "500ms" }}
-      >
-        <p className="t-eyebrow mb-2">{translate("Verdict")}</p>
-        <p className="text-[0.8rem] leading-[1.5] text-[rgb(var(--text)/0.8)]">
-          {translate("Only one shoe selected — add another to compare.")}
-        </p>
-      </div>
-    );
-  }
-
-  const leaderByMetric = METRICS.map((metric) => {
-    const scores = shoes.map((shoe) => ({ id: shoe.id, name: shoe.shoe_name, score: scoreFor(shoe, metric.key) }));
-    const top = scores.reduce((best, cur) => (cur.score > best.score ? cur : best), scores[0]);
-    const tied = scores.filter((s) => s.score === top.score).length > 1;
-    return { metric, leader: tied ? null : top };
-  });
-
-  const byLeader = new Map<string, { name: string; metrics: string[] }>();
-  for (const { metric, leader } of leaderByMetric) {
-    if (!leader) continue;
-    const entry = byLeader.get(leader.id) ?? { name: leader.name, metrics: [] };
-    entry.metrics.push(translate(metric.label).toLowerCase());
-    byLeader.set(leader.id, entry);
-  }
-
-  const ranked = Array.from(byLeader.values()).sort((a, b) => b.metrics.length - a.metrics.length);
-
-  return (
-    <div
-      className="mt-5 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--surface)/0.7)] px-4 py-3.5 transition-opacity duration-500"
-      style={{ opacity: triggered ? 1 : 0, transitionDelay: "500ms" }}
-    >
-      <p className="t-eyebrow mb-2">{translate("Verdict")}</p>
-      {ranked.length === 0 ? (
-        <p className="text-[0.8rem] leading-[1.5] text-[rgb(var(--text)/0.8)]">
-          {translate("Every metric is tied — these shoes are evenly matched.")}
-        </p>
-      ) : (
-        <div className="space-y-1.5">
-          {ranked.map((entry, i) => (
-            <p key={i} className="text-[0.8rem] leading-[1.5] tracking-[-0.005em] text-[rgb(var(--text)/0.8)]">
-              <strong className="tracking-[-0.01em] text-[rgb(var(--text))]">{entry.name}</strong>{" "}
-              {translate("leads in")} <span className="num-display">{entry.metrics.length}</span>{" "}
-              {entry.metrics.length === 1 ? translate("metric") : translate("metrics")}{" "}
-              <span className="soft-text">({entry.metrics.join(", ")})</span>.
-            </p>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

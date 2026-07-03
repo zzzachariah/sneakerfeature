@@ -423,6 +423,27 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "metrics": "指标",
   "leads in": "领先于",
 
+  // Compare verdict — overall badge, scenario advice, metric legend
+  "evenly matched": "势均力敌",
+  "has the overall edge": "综合表现更全面",
+  "avg score": "平均分",
+  "averages are within a couple of points — let the scenarios below decide.":
+    "平均分相差无几 —— 参考下面的场景建议来做决定。",
+  "higher average across all six metrics — the safer pick if you want balance.":
+    "六项指标的平均分更高 —— 追求均衡表现时更稳妥的选择。",
+  "if you care most about": "如果你更看重",
+  "pick": "选",
+  "how well landings are absorbed and impact is protected": "落地冲击的吸收与保护程度",
+  "how directly you feel the floor for quick first steps": "贴地反馈是否直接，影响启动速度",
+  "energy return on jumps and sprints": "起跳与冲刺时的能量回馈",
+  "lateral support that keeps you safe on hard cuts": "大幅变向时的横向支撑与防侧翻",
+  "grip reliability on stops and direction changes": "急停与变向时的抓地可靠性",
+  "lockdown, containment and step-in comfort": "鞋面锁定、包裹与上脚贴合度",
+
+  // Compare spec table — mobile collapse of identical rows
+  "show identical specs": "展开相同的规格",
+  "hide identical specs": "收起相同的规格",
+
   // Search prompts
   "name, tags, tech…": "名称、标签、科技……",
   "search shoes...": "搜索球鞋...",

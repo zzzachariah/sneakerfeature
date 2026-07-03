@@ -9,6 +9,8 @@ import { SPEC_ROWS } from "@/components/compare/compare-metrics";
 
 const EMPTY_LABEL = "—";
 
+type SpecRow = { key: string; label: string; values: Array<string | null>; differs: boolean };
+
 type Props = {
   shoes: Shoe[];
   active?: boolean;
@@ -20,6 +22,9 @@ export function CompareSpecTable({ shoes, active = true }: Props) {
   // in-view flag resets once the table fully leaves the viewport).
   const { ref, inView } = useInView<HTMLDivElement>(0.1);
   const [pulse, setPulse] = useState(false);
+  // Mobile-only: identical rows start collapsed so the phone view leads with
+  // what actually differs. Desktop always shows every row.
+  const [showSame, setShowSame] = useState(false);
   const triggered = active && inView;
 
   useEffect(() => {
@@ -31,7 +36,7 @@ export function CompareSpecTable({ shoes, active = true }: Props) {
 
   if (!shoes.length) return null;
 
-  const rows = SPEC_ROWS.map((row) => {
+  const rows: SpecRow[] = SPEC_ROWS.map((row) => {
     // Pick the stored Chinese translation (fallback English) per locale — the
     // spec values are pre-translated in Supabase, no render-time MT.
     const values = shoes.map((shoe) => pickLocalized(locale, row.get(shoe), row.getZh(shoe)));
@@ -39,13 +44,37 @@ export function CompareSpecTable({ shoes, active = true }: Props) {
     return { key: row.key, label: row.label, values, differs: distinct.size > 1 };
   });
 
+  const sameCount = rows.filter((row) => !row.differs).length;
+  // Only collapse when there is a real split — a table that is all-same (or
+  // all-different, or single-shoe) renders in full.
+  const collapsible = shoes.length >= 2 && sameCount > 0 && sameCount < rows.length;
+
   return (
     <div ref={ref} className="num-display overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.3)] bg-[rgb(var(--bg-elev)/0.45)]">
       {shoes.length === 2 ? (
-        <PairedLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} />
+        <PairedLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} collapsed={collapsible && !showSame} />
       ) : (
-        <ColumnLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} />
+        <>
+          {/* Mobile (<md): stacked cards — no horizontal scrolling */}
+          <div className="md:hidden">
+            <StackedLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} collapsed={collapsible && !showSame} />
+          </div>
+          {/* Desktop (md+): full column grid */}
+          <div className="hidden md:block">
+            <ColumnLayout rows={rows} shoes={shoes} translate={translate} pulse={pulse} />
+          </div>
+        </>
       )}
+      {collapsible ? (
+        <button
+          type="button"
+          onClick={() => setShowSame((v) => !v)}
+          className="flex w-full items-center justify-center gap-2 border-t border-[rgb(var(--muted)/0.18)] bg-[rgb(var(--surface)/0.4)] px-4 py-3 text-[0.68rem] uppercase tracking-[0.14em] text-[rgb(var(--subtext)/0.9)] transition-colors hover:text-[rgb(var(--text))] md:hidden"
+        >
+          {showSame ? translate("Hide identical specs") : translate("Show identical specs")}
+          {!showSame ? <span className="num-display rounded-full bg-[rgb(var(--text)/0.08)] px-2 py-0.5">{sameCount}</span> : null}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -54,12 +83,14 @@ function PairedLayout({
   rows,
   shoes,
   translate,
-  pulse
+  pulse,
+  collapsed
 }: {
-  rows: Array<{ key: string; label: string; values: Array<string | null>; differs: boolean }>;
+  rows: SpecRow[];
   shoes: Shoe[];
   translate: (value: string) => string;
   pulse: boolean;
+  collapsed: boolean;
 }) {
   return (
     <div>
@@ -81,9 +112,11 @@ function PairedLayout({
       {rows.map((row, i) => (
         <div
           key={row.key}
-          className={`${i < rows.length - 1 ? "border-b border-[rgb(var(--muted)/0.14)]" : ""} ${
-            row.differs ? "border-l-2 border-l-[rgb(var(--text)/0.35)] bg-[rgb(var(--text)/0.02)]" : ""
-          } ${pulse && row.differs ? "accent-pulse" : ""}`}
+          className={`${collapsed && !row.differs ? "hidden md:block" : ""} ${
+            i < rows.length - 1 ? "border-b border-[rgb(var(--muted)/0.14)]" : ""
+          } ${row.differs ? "border-l-2 border-l-[rgb(var(--text)/0.35)] bg-[rgb(var(--text)/0.02)]" : ""} ${
+            pulse && row.differs ? "accent-pulse" : ""
+          }`}
         >
           {/* Mobile stacked layout (<md) */}
           <div className="flex flex-col gap-2 px-4 py-3 md:hidden">
@@ -109,13 +142,59 @@ function PairedLayout({
   );
 }
 
+/**
+ * Mobile layout for 3+ shoes: one card per spec, one "shoe name → value" line
+ * per shoe inside it. Replaces the horizontal-scroll grid, which forced long
+ * sideways drags on phones.
+ */
+function StackedLayout({
+  rows,
+  shoes,
+  translate,
+  pulse,
+  collapsed
+}: {
+  rows: SpecRow[];
+  shoes: Shoe[];
+  translate: (value: string) => string;
+  pulse: boolean;
+  collapsed: boolean;
+}) {
+  return (
+    <div>
+      {rows.map((row, i) => (
+        <div
+          key={row.key}
+          className={`${collapsed && !row.differs ? "hidden" : ""} px-4 py-3 ${
+            i < rows.length - 1 ? "border-b border-[rgb(var(--muted)/0.14)]" : ""
+          } ${row.differs ? "border-l-2 border-l-[rgb(var(--text)/0.35)] bg-[rgb(var(--text)/0.02)]" : ""} ${
+            pulse && row.differs ? "accent-pulse" : ""
+          }`}
+        >
+          <span className="text-[0.6rem] uppercase tracking-[0.16em] text-[rgb(var(--subtext)/0.85)]">
+            {translate(row.label)}
+          </span>
+          <div className="mt-2 space-y-1.5">
+            {shoes.map((shoe, vi) => (
+              <div key={shoe.id} className="grid grid-cols-[minmax(0,42%)_1fr] items-baseline gap-3">
+                <span className="truncate text-[0.68rem] tracking-[-0.01em] text-[rgb(var(--subtext)/0.9)]">{shoe.shoe_name}</span>
+                <SpecValue value={row.values[vi]} align="right" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ColumnLayout({
   rows,
   shoes,
   translate,
   pulse
 }: {
-  rows: Array<{ key: string; label: string; values: Array<string | null>; differs: boolean }>;
+  rows: SpecRow[];
   shoes: Shoe[];
   translate: (value: string) => string;
   pulse: boolean;

@@ -5,6 +5,7 @@ import { Bookmark, Plus, Share2 } from "lucide-react";
 import { ComparePlinths } from "@/components/compare/compare-plinths";
 import { CompareRadar } from "@/components/compare/compare-radar";
 import { CompareDiffRows } from "@/components/compare/compare-diff-rows";
+import { CompareVerdict } from "@/components/compare/compare-verdict";
 import { CompareSpecTable } from "@/components/compare/compare-spec-table";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -69,7 +70,10 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
       <section id="compare-profile" style={SECTION_OFFSET} className="container-shell py-8 md:py-12">
         <p className="t-eyebrow mb-6 text-center">{translate("Performance Profile")}</p>
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-          <CompareRadar shoes={shoes} />
+          <div>
+            <CompareRadar shoes={shoes} />
+            <CompareVerdict shoes={shoes} />
+          </div>
           <CompareDiffRows shoes={shoes} />
         </div>
       </section>
