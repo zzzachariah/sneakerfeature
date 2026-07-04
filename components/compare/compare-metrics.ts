@@ -90,6 +90,15 @@ export function getLineStyle(index: number) {
   return SHOE_LINE_STYLES[index] ?? SHOE_LINE_STYLES[SHOE_LINE_STYLES.length - 1];
 }
 
+// Fixed per-shoe identity colour, keyed by lineup position, from the --radar-c*
+// palette. Applied consistently across the radar (at rest — not only when a
+// shoe is legend-selected), the plinths, and the verdict so each shoe keeps one
+// recognizable colour throughout the whole comparison.
+export function identityColor(index: number, alpha?: number) {
+  const ref = `var(--radar-c${(index % 5) + 1})`;
+  return alpha == null ? `rgb(${ref})` : `rgb(${ref} / ${alpha})`;
+}
+
 export const SPEC_ROWS: Array<{
   key: string;
   label: string;

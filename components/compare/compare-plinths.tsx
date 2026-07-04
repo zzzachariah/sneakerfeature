@@ -1,8 +1,11 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import Link from "next/link";
+import type { Route } from "next";
+import { ArrowUpRight, Plus, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Shoe } from "@/lib/types";
+import { identityColor } from "@/components/compare/compare-metrics";
 import { Badge } from "@/components/ui/badge";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
@@ -36,8 +39,9 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
   const showAddGhost = count === 1 && canAdd;
   const gridClass = gridTemplate(count, showAddGhost);
 
-  const plinthProps = (shoe: Shoe) => ({
+  const plinthProps = (shoe: Shoe, index: number) => ({
     shoe,
+    index,
     hideDescriptor,
     tagLimit,
     onRemove,
@@ -49,7 +53,7 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
     <div className={`grid items-start gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-12 ${gridClass}`}>
       {count === 2 ? (
         <>
-          <ShoePlinth {...plinthProps(shoes[0])} />
+          <ShoePlinth {...plinthProps(shoes[0], 0)} />
           <div className="hidden flex-col items-center justify-center pt-24 opacity-50 md:flex">
             <div
               className="w-px"
@@ -61,10 +65,10 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
               style={{ height: 90, background: "linear-gradient(to bottom, rgb(var(--muted)/0.55), transparent)" }}
             />
           </div>
-          <ShoePlinth {...plinthProps(shoes[1])} />
+          <ShoePlinth {...plinthProps(shoes[1], 1)} />
         </>
       ) : (
-        shoes.map((shoe) => <ShoePlinth key={shoe.id} {...plinthProps(shoe)} />)
+        shoes.map((shoe, i) => <ShoePlinth key={shoe.id} {...plinthProps(shoe, i)} />)
       )}
       {showAddGhost ? <AddShoeGhost onClick={onAdd} label={translate("Add shoe")} /> : null}
     </div>
@@ -73,6 +77,7 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
 
 function ShoePlinth({
   shoe,
+  index,
   hideDescriptor,
   tagLimit,
   onRemove,
@@ -80,6 +85,7 @@ function ShoePlinth({
   translateLabel
 }: {
   shoe: Shoe;
+  index: number;
   hideDescriptor: boolean;
   tagLimit: number;
   onRemove: (id: string) => void;
@@ -88,6 +94,8 @@ function ShoePlinth({
 }) {
   // Pre-translated playstyle summary (stored zh, English fallback).
   const playstyleSummary = useLocalizedField(shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
+  const href = `/shoes/${shoe.slug}` as Route;
+  const color = identityColor(index);
   return (
     <motion.div
       layout
@@ -106,7 +114,14 @@ function ShoePlinth({
         <X className="h-4 w-4 md:h-3.5 md:w-3.5" />
       </button>
 
-      <div className="relative mb-3 flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-3 py-4 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] sm:min-h-[160px] sm:mb-5 sm:px-4 sm:py-6 md:min-h-[240px] md:px-10 md:py-14">
+      <Link
+        href={href}
+        aria-label={`${shoe.shoe_name} — ${translateLabel("View details")}`}
+        className="relative mb-3 flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-3 py-4 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] transition-[border-color] duration-[320ms] hover:border-[rgb(var(--text)/0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)] sm:min-h-[160px] sm:mb-5 sm:px-4 sm:py-6 md:min-h-[240px] md:px-10 md:py-14"
+      >
+        {/* Identity colour accent bar along the top edge, matching this shoe's
+            radar line + verdict colour. */}
+        <span aria-hidden className="absolute inset-x-0 top-0 h-[3px]" style={{ background: color }} />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100 motion-reduce:transition-none"
@@ -122,19 +137,22 @@ function ShoePlinth({
           variant="compare"
           className="relative w-full max-w-[18rem] transition-transform duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none"
         />
-      </div>
+      </Link>
 
-      <p className="t-eyebrow mb-1">
-        {shoe.brand}
+      <p className="t-eyebrow mb-1 flex items-center gap-1.5">
+        <span aria-hidden className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ background: color }} />
+        <span>{shoe.brand}</span>
         {shoe.release_year ? (
-          <span className="num-display ml-2 text-[rgb(var(--subtext))]">· {shoe.release_year}</span>
+          <span className="num-display text-[rgb(var(--subtext))]">· {shoe.release_year}</span>
         ) : null}
       </p>
-      <h2 className="mb-2 text-[1rem] font-extrabold leading-tight tracking-[-0.025em] sm:mb-3 sm:text-[1.25rem] md:text-[1.5rem] lg:text-[1.75rem]">
-        {shoe.shoe_name}
-      </h2>
+      <Link href={href} className="group/name mb-2 block sm:mb-3">
+        <h2 className="text-[1rem] font-extrabold leading-tight tracking-[-0.025em] underline-offset-4 group-hover/name:underline sm:text-[1.25rem] md:text-[1.5rem] lg:text-[1.75rem]">
+          {shoe.shoe_name}
+        </h2>
+      </Link>
 
-      <div className="mb-3">
+      <div className="mb-2">
         <StarRatingSlot
           value={shoe.finalStars ?? null}
           size="sm"
@@ -142,6 +160,14 @@ function ShoePlinth({
           count={shoe.userRatingCount ?? 0}
         />
       </div>
+
+      <Link
+        href={href}
+        className="mb-3 inline-flex items-center gap-1 text-[0.75rem] font-medium text-[rgb(var(--text))] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+      >
+        {translateLabel("View details")}
+        <ArrowUpRight className="h-3.5 w-3.5" />
+      </Link>
 
       {showRatingDetail && shoe.dimStars ? (
         <div className="mb-4 rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--bg-elev)/0.4)] p-3">
