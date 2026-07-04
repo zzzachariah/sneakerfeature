@@ -158,6 +158,15 @@ html[data-native-platform="android"] {
     --shadow: 0 0 0;
     --success: 52 211 153;
     --error: 248 113 113;
+    /* Brand + performance score scale — must mirror the .dark class block so
+       system-dark users (no explicit .dark class) don't fall back to the
+       light-tuned orange / score colors. */
+    --brand: 255 110 64;
+    --brand-contrast: 12 12 14;
+    --score-elite: 52 211 153;
+    --score-high: 163 230 53;
+    --score-mid: 250 204 21;
+    --score-low: 251 146 60;
     --shoe-stage-hi: 38 38 43;
     --shoe-stage-lo: 20 20 23;
     --shoe-shadow: 0 0 0;

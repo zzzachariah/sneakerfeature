@@ -10,6 +10,7 @@ import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { haptics } from "@/lib/native/haptics";
 import { EASE } from "@/lib/motion/constants";
+import { cn } from "@/lib/utils";
 
 // Heart toggle. Signed-out users are sent to log in (returning here). Works
 // inside a card <Link> — it stops propagation so it never triggers navigation.
@@ -58,7 +59,10 @@ export function FavoriteButton({
       }}
       aria-pressed={fav}
       aria-label={translate(fav ? "Saved" : "Save")}
-      className={`relative inline-flex items-center justify-center gap-1.5 rounded-md transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 motion-reduce:transition-none hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${className}`}
+      className={cn(
+        "relative inline-flex items-center justify-center gap-1.5 rounded-md transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 motion-reduce:transition-none hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]",
+        className
+      )}
     >
       <span className="relative inline-flex items-center justify-center">
         <AnimatePresence>
