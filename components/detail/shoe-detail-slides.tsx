@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowRight, Share2, Sliders, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
 import dynamic from "next/dynamic";
 const CardPreviewModal = dynamic(
   () => import("@/components/card/card-preview-modal").then((m) => ({ default: m.CardPreviewModal })),
@@ -212,6 +213,7 @@ function OverviewSection({
   onJumpToComments
 }: Props & { onShareCard: () => void; onJumpToComments: () => void }) {
   const { translate, locale } = useLocale();
+  const { focus, openModal } = useRatingFocus();
   const playstyleSummary = pickLocalized(locale, shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
   return (
     <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-10">
@@ -234,15 +236,23 @@ function OverviewSection({
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StarRatingSlot value={finalStars} size="lg" showNumber count={shoe.userRatingCount ?? 0} />
-          {finalStars !== null && (
-            <button
-              type="button"
-              onClick={onJumpToComments}
-              className="text-xs underline-offset-2 soft-text hover:underline"
-            >
-              {translate("Rate this")}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onJumpToComments}
+            className="text-xs underline-offset-2 soft-text hover:underline"
+          >
+            {translate("Rate this")}
+          </button>
+          {/* Playstyle is an enhancement layered on the community baseline, not a
+              gate: the rating always shows; this lets the viewer re-weight it. */}
+          <button
+            type="button"
+            onClick={openModal}
+            className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-1 text-[0.72rem] soft-text transition hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+          >
+            <Sliders className="h-3 w-3" />
+            {focus ? translate("Rated for your playstyle") : translate("Personalize for your playstyle")}
+          </button>
         </div>
 
         {shoe.dimStars ? (
