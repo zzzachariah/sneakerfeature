@@ -36,6 +36,8 @@ type Props = {
   digest: Digest;
   recentShoes: ForYouShoe[];
   popular: ForYouShoe[];
+  shoesCount?: number;
+  brandsCount?: number;
 };
 
 const item: Variants = {
@@ -62,7 +64,7 @@ const POSITION_EN: Record<string, string> = {
   C: "a center"
 };
 
-export function ForYouView({ signedIn, username, personaPosition, digest, recentShoes, popular }: Props) {
+export function ForYouView({ signedIn, username, personaPosition, digest, recentShoes, popular, shoesCount, brandsCount }: Props) {
   const { locale, translate, getRankLabel } = useLocale();
   const { persona, isLoggedIn, openModal } = usePersona();
 
@@ -111,20 +113,54 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
   return (
     <div className="container-shell py-8 sm:py-12">
       <div className="mx-auto w-full max-w-3xl">
-      {/* 1. Greeting + player avatar */}
+      {/* 1. Header. Signed-in users get their personalized daily greeting; a
+          first-time / anonymous visitor gets a real product value proposition
+          (and a real product <h1> instead of "Good evening", which crawlers and
+          first visitors would otherwise see). */}
       <motion.header {...sectionReveal}>
         <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
           <Sparkles className="h-5 w-5" />
-          <span className="text-xs font-semibold uppercase tracking-[0.18em]">{translate("Your weekly picks")}</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.18em]">
+            {signedIn ? translate("Your weekly picks") : translate("Basketball shoe intelligence")}
+          </span>
         </div>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
-          {greetWord}
-          {signedIn && username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
-        </h1>
-        <p className="mt-1 text-sm soft-text">
-          {dateStr}
-          {insight ? ` · ${insight}` : ""}
-        </p>
+        {signedIn ? (
+          <>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {greetWord}
+              {username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
+            </h1>
+            <p className="mt-1 text-sm soft-text">
+              {dateStr}
+              {insight ? ` · ${insight}` : ""}
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+              {translate("Every basketball shoe, compared in one place")}
+            </h1>
+            <p className="mt-2 text-sm leading-6 soft-text sm:text-[0.95rem]">
+              {shoesCount ? (
+                <>
+                  <span className="num-display font-semibold text-[rgb(var(--text))]">{shoesCount}</span>{" "}
+                  {translate("shoes indexed")}
+                  {brandsCount ? (
+                    <>
+                      {" · "}
+                      <span className="num-display font-semibold text-[rgb(var(--text))]">{brandsCount}</span>{" "}
+                      {translate("brands")}
+                    </>
+                  ) : null}
+                  {" · "}
+                  {translate("structured, comparable, unbiased")}
+                </>
+              ) : (
+                translate("Structured, comparable, unbiased sneaker data — explore, compare, and decide faster.")
+              )}
+            </p>
+          </>
+        )}
         {/* Player avatar on its own full-width row (it includes a stats panel, so
             squeezing it beside the greeting pushed it off-screen on phones). The
             frosted-glass card is a light glassmorphism touch. */}

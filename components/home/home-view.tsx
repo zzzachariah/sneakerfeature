@@ -41,7 +41,7 @@ export function HomeView({ shoes, shoesCount, brandsCount, initialQuery, forYou,
     <HomeModeProvider defaultMode={persona ? "personalized" : "browse"}>
       <div className="has-mobile-nav-pad">
         <section id="home-for-you" style={{ scrollMarginTop: "var(--top-nav-h)" }}>
-          <ForYouView {...forYou} />
+          <ForYouView {...forYou} shoesCount={shoesCount} brandsCount={brandsCount} />
         </section>
 
         <QuickPickerEntry />
@@ -70,7 +70,16 @@ export function HomeView({ shoes, shoesCount, brandsCount, initialQuery, forYou,
               <HomeFeedHeader shoesCount={shoesCount} brandsCount={brandsCount} />
               <button
                 type="button"
-                onClick={() => setBrowseOpen(true)}
+                onClick={() => {
+                  setBrowseOpen(true);
+                  // Give the expand real feedback: bring the freshly-revealed
+                  // grid to the top of the viewport (it otherwise replaces the
+                  // button in place and reads as "nothing happened" on desktop).
+                  setTimeout(
+                    () => document.getElementById("home-database")?.scrollIntoView({ behavior: "smooth", block: "start" }),
+                    60
+                  );
+                }}
                 className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[rgb(var(--text))] px-4 py-3 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90 active:scale-[0.99] sm:w-auto"
               >
                 {translate("Browse all")} ·{" "}
