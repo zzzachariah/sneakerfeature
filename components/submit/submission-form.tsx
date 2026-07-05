@@ -55,7 +55,7 @@ export function SubmissionForm({
       return;
     }
     if (!rawText) {
-      slidesRef.current?.goTo(3);
+      slidesRef.current?.goTo(0);
       setIsError(true);
       setMessage(translate("Raw notes are required."));
       return;
