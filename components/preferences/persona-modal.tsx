@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { Anchor, ArrowRight, Check, Cloud, Footprints, Hand, Info, Magnet, X, Zap } from "lucide-react";
+import { ArrowRight, Check, Footprints, Info, X } from "lucide-react";
+import { PlaystyleDimGrid } from "@/components/preferences/playstyle-dim-grid";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
@@ -36,19 +37,8 @@ import {
 } from "@/lib/foot-scan/types";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
-import { DIM_KEYS, DIM_LABELS, type DimKey, type RatingFocus } from "@/lib/star-rating";
+import { type DimKey, type RatingFocus } from "@/lib/star-rating";
 
-type Slot = "primary" | "secondary" | "tertiary";
-const SLOT_ORDER: Slot[] = ["primary", "secondary", "tertiary"];
-
-const DIM_ICON: Record<DimKey, typeof Cloud> = {
-  cushioning_feel: Cloud,
-  court_feel: Footprints,
-  bounce: Zap,
-  stability: Anchor,
-  traction: Magnet,
-  fit: Hand
-};
 
 function focusEquals(a: RatingFocus | null, b: RatingFocus | null) {
   if (!a && !b) return true;
@@ -185,11 +175,6 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
     const ok = await clearPersona();
     if (ok) setPendingClose(true);
   }
-
-  const playstyleSlotForKey = new Map<DimKey, Slot>();
-  playstylePicks.forEach((k, i) => {
-    if (i < SLOT_ORDER.length) playstyleSlotForKey.set(k, SLOT_ORDER[i]);
-  });
 
   return (
     <Modal open={open} onClose={onClose} title="Set up your player profile">
@@ -375,37 +360,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
               </label>
               <span className="text-[0.7rem] soft-text">{translate("Pick 3 in order (optional)")}</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {DIM_KEYS.map((key) => {
-                const slot = playstyleSlotForKey.get(key);
-                const isPicked = Boolean(slot);
-                const order = isPicked ? SLOT_ORDER.indexOf(slot!) + 1 : 0;
-                const Icon = DIM_ICON[key];
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => togglePlaystyle(key)}
-                    disabled={busy}
-                    className={`relative flex flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-2.5 text-center transition disabled:opacity-50 ${
-                      isPicked
-                        ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
-                        : "border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.4)] soft-text hover:border-[rgb(var(--text)/0.4)]"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-[0.74rem] font-medium leading-tight">
-                      {translate(DIM_LABELS[key])}
-                    </span>
-                    {isPicked && (
-                      <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1 text-[0.6rem] font-bold text-[rgb(var(--brand-contrast))]">
-                        {order}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
+            <PlaystyleDimGrid picks={playstylePicks} onToggle={togglePlaystyle} disabled={busy} />
             <p className="text-[0.7rem] soft-text">
               {translate("Primary 40% · Secondary 30% · Tertiary 20% · Others share 10%.")}
             </p>

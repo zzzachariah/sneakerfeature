@@ -1,23 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Info, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { SignInValue } from "@/components/auth/sign-in-value";
-import { DIM_KEYS, DIM_LABELS, type DimKey, type RatingFocus } from "@/lib/star-rating";
+import { type DimKey, type RatingFocus } from "@/lib/star-rating";
 import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
-
-type Slot = "primary" | "secondary" | "tertiary";
-const SLOT_ORDER: Slot[] = ["primary", "secondary", "tertiary"];
-
-const SLOT_PERCENT: Record<Slot, string> = {
-  primary: "40%",
-  secondary: "30%",
-  tertiary: "20%"
-};
+import { PlaystyleDimGrid } from "@/components/preferences/playstyle-dim-grid";
 
 export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { translate } = useLocale();
@@ -45,14 +37,6 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
   }, [pendingClose, saving, isRefreshing]);
 
   const busy = saving || isRefreshing;
-
-  const slotForKey = useMemo(() => {
-    const map = new Map<DimKey, Slot>();
-    picks.forEach((k, i) => {
-      if (i < SLOT_ORDER.length) map.set(k, SLOT_ORDER[i]);
-    });
-    return map;
-  }, [picks]);
 
   function togglePick(key: DimKey) {
     setPicks((prev) => {
@@ -101,43 +85,10 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
             )}
           </p>
 
-          <div className="grid grid-cols-2 gap-2">
-            {DIM_KEYS.map((key) => {
-              const slot = slotForKey.get(key);
-              const isPicked = Boolean(slot);
-              const indexLabel = isPicked
-                ? `${SLOT_ORDER.indexOf(slot!) + 1}°`
-                : "";
-              return (
-                <button
-                  type="button"
-                  key={key}
-                  onClick={() => togglePick(key)}
-                  disabled={busy}
-                  aria-pressed={isPicked}
-                  className={`relative flex flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition disabled:opacity-50 ${
-                    isPicked
-                      ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
-                      : "border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.4)] soft-text hover:border-[rgb(var(--text)/0.4)]"
-                  }`}
-                >
-                  <span className="flex w-full items-center justify-between gap-2">
-                    <span className="text-sm font-medium">{translate(DIM_LABELS[key])}</span>
-                    {isPicked && (
-                      <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--brand))] px-1.5 text-[0.65rem] font-bold text-[rgb(var(--brand-contrast))]">
-                        {indexLabel}
-                      </span>
-                    )}
-                  </span>
-                  {isPicked && slot && (
-                    <span className="text-[0.7rem] uppercase tracking-[0.12em] text-[rgb(var(--brand))]">
-                      {translate(slot)} · {SLOT_PERCENT[slot]}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          <PlaystyleDimGrid picks={picks} onToggle={togglePick} disabled={busy} />
+          <p className="text-[0.7rem] soft-text">
+            {translate("Primary 40% · Secondary 30% · Tertiary 20% · Others share 10%.")}
+          </p>
 
           <button
             type="button"
