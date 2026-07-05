@@ -191,6 +191,17 @@ export function AdjustImage({
         </Button>
       </div>
 
+      {/* Fast path: most captures don't need re-framing, so don't force the
+          pan/zoom/rotate step — one tap passes the original photo through. */}
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onConfirm(src)}
+        className="mx-auto text-xs soft-text underline-offset-2 transition hover:text-[rgb(var(--text))] hover:underline disabled:opacity-50"
+      >
+        {translate("Looks right already? Use as-is")}
+      </button>
+
       <div className="flex items-center gap-2">
         <Button variant="ghost" className="flex-1 gap-2" onClick={onRetake}>
           <RefreshCw className="h-4 w-4" />

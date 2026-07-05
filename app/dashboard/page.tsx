@@ -194,11 +194,17 @@ export default function DashboardPage() {
         const orderByCreated = (a: DashboardComment, b: DashboardComment) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 
+        // Exclude the user's own comments from the liked/disliked lists —
+        // otherwise self-voting made the same comment appear twice in Activity
+        // ("You commented" + "You liked").
+        const ownIds = new Set(normalizedMyComments.map((c) => c.id));
         const likedComments = likedIds
+          .filter((id) => !ownIds.has(id))
           .map((id) => lookup.get(id))
           .filter((c): c is DashboardComment => Boolean(c))
           .sort(orderByCreated);
         const dislikedComments = dislikedIds
+          .filter((id) => !ownIds.has(id))
           .map((id) => lookup.get(id))
           .filter((c): c is DashboardComment => Boolean(c))
           .sort(orderByCreated);

@@ -5,6 +5,7 @@ import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 const INITIAL_CHECKIN: CheckinStatus = { canClaim: false, nextClaimAt: null, dailyAmount: 3 };
 
@@ -18,6 +19,11 @@ async function getJson(input: string, init?: RequestInit) {
 }
 
 export function SmartPickerClient() {
+  // User-facing fallback strings were hardcoded Chinese; pick per locale so the
+  // English UI never shows untranslated zh (the rest of the app uses translate()).
+  const { locale } = useLocale();
+  const zhUI = locale === "zh";
+  const failMsg = zhUI ? "请求失败，请稍后重试。" : "Request failed — please try again.";
   const [chats, setChats] = useState<AiChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
@@ -160,7 +166,9 @@ export function SmartPickerClient() {
               {
                 id: `err-${Date.now()}`,
                 role: "assistant",
-                content: `积分不足（当前余额 ${data.balance}）。每日签到可领取免费积分。`,
+                content: zhUI
+                  ? `积分不足（当前余额 ${data.balance}）。每日签到可领取免费积分。`
+                  : `Not enough credits (balance ${data.balance}). Claim free daily credits with the check-in.`,
                 recommendations: null,
                 credits_charged: 0,
                 created_at: new Date().toISOString()
@@ -173,7 +181,7 @@ export function SmartPickerClient() {
             {
               id: `err-${Date.now()}`,
               role: "assistant",
-              content: data?.message ?? "请求失败，请稍后重试。",
+              content: data?.message ?? failMsg,
               recommendations: null,
               credits_charged: 0,
               created_at: new Date().toISOString()
@@ -235,7 +243,7 @@ export function SmartPickerClient() {
               case "search": {
                 const d = data as { query?: string; state?: "start" | "ok" | "fail"; resultCount?: number };
                 if (d.state === "start") {
-                  const text = `🔍 正在联网搜索：${d.query ?? ""}`;
+                  const text = zhUI ? `🔍 正在联网搜索：${d.query ?? ""}` : `🔍 Searching the web: ${d.query ?? ""}`;
                   patch((m) => ({ ...m, steps: [...(m.steps ?? []), { kind: "activity", text, state: "start" }] }));
                 } else if (d.state === "ok" || d.state === "fail") {
                   const state = d.state;
@@ -249,7 +257,7 @@ export function SmartPickerClient() {
                         steps[i] = {
                           ...s,
                           state,
-                          text: state === "ok" && resultCount ? `${s.text}（${resultCount} 条）` : s.text
+                          text: state === "ok" && resultCount ? (zhUI ? `${s.text}（${resultCount} 条）` : `${s.text} (${resultCount} results)`) : s.text
                         };
                         break;
                       }
@@ -286,7 +294,7 @@ export function SmartPickerClient() {
                 break;
               }
               case "error": {
-                const msg = (data as { message?: string }).message ?? "请求失败，请稍后重试。";
+                const msg = (data as { message?: string }).message ?? failMsg;
                 patch((m) => ({ ...m, content: msg, steps: undefined, recommendations: null }));
                 break;
               }
@@ -302,7 +310,7 @@ export function SmartPickerClient() {
           {
             id: `err-${Date.now()}`,
             role: "assistant",
-            content: "请求失败，请稍后重试。",
+            content: failMsg,
             recommendations: null,
             credits_charged: 0,
             created_at: new Date().toISOString()
@@ -312,7 +320,7 @@ export function SmartPickerClient() {
         setSending(false);
       }
     },
-    [activeChatId, refreshChats, sending]
+    [activeChatId, refreshChats, sending, zhUI, failMsg]
   );
 
   return (

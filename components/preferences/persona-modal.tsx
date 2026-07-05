@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Footprints, Info, X } from "lucide-react";
 import { PlaystyleDimGrid } from "@/components/preferences/playstyle-dim-grid";
 import { Modal } from "@/components/ui/modal";
@@ -48,6 +49,7 @@ function focusEquals(a: RatingFocus | null, b: RatingFocus | null) {
 
 export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { translate } = useLocale();
+  const router = useRouter();
   const { persona, isLoggedIn, savePersona, clearPersona, saving, isRefreshing, message, isError } =
     usePersona();
   const { focus, saveFocus, saving: focusSaving, isRefreshing: focusRefreshing } = useRatingFocus();
@@ -186,7 +188,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
             <Button variant="ghost" type="button" onClick={onClose}>
               {translate("Cancel")}
             </Button>
-            <Button type="button" onClick={() => (window.location.href = "/login")}>
+            <Button type="button" onClick={() => router.push("/login")}>
               {translate("Log in")}
             </Button>
           </div>

@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { SignInValue } from "@/components/auth/sign-in-value";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { confirmDialog } from "@/components/native/native-menu";
 
 const MAX_SHOES = 5;
 const MAX_CARD_SHOES = 4;
@@ -145,7 +146,16 @@ export function ComparePageClient({ selected, allShoes }: Props) {
     setDialogOpen(false);
   };
 
-  const onClearAll = () => setCompareIds([]);
+  // Clear-all wipes the whole lineup (and its localStorage) — confirm first via
+  // the native glass alert on iOS, window.confirm elsewhere.
+  const onClearAll = async () => {
+    const ok = await confirmDialog({
+      message: translate("Remove all shoes from this comparison?"),
+      okLabel: translate("Clear all"),
+      destructive: true
+    });
+    if (ok) setCompareIds([]);
+  };
 
   const canSave = localShoes.length >= 2;
   const canShare = localShoes.length >= 1;

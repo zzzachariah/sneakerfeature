@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Check, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
@@ -31,6 +32,7 @@ const NAV_LABELS: Record<(typeof NAV_ORDER)[number], string> = {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { locale, requestLocaleChange, translate } = useLocale();
   const zh = locale === "zh";
   const { reopen: reopenCookieConsent } = useCookieConsent();
@@ -190,7 +192,7 @@ export function Navbar() {
                   onClick={() => {
                     setMoreOpen(false);
                     if (!personaLoggedIn) {
-                      window.location.href = "/login";
+                      router.push("/login");
                       return;
                     }
                     openPersonaModal();
@@ -346,7 +348,7 @@ export function Navbar() {
                   type="button"
                   onClick={() => {
                     if (!personaLoggedIn) {
-                      window.location.href = "/login";
+                      router.push("/login");
                       return;
                     }
                     openPersonaModal();

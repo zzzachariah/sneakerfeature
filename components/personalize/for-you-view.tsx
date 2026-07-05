@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
 import {
   Sparkles,
@@ -66,12 +67,13 @@ const POSITION_EN: Record<string, string> = {
 
 export function ForYouView({ signedIn, username, personaPosition, digest, recentShoes, popular, shoesCount, brandsCount }: Props) {
   const { locale, translate, getRankLabel } = useLocale();
+  const router = useRouter();
   const { persona, isLoggedIn, openModal } = usePersona();
 
   function handleAvatarClick() {
     haptics.tap();
     if (!isLoggedIn) {
-      window.location.href = "/login";
+      router.push("/login");
       return;
     }
     openModal();

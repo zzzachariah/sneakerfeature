@@ -70,7 +70,8 @@ function Chip({
 
 export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const { translate } = useLocale();
-  const { persona: savedPersona } = usePersona();
+  const { persona: savedPersona, savePersona, isLoggedIn } = usePersona();
+  const [profileSaved, setProfileSaved] = useState(false);
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0); // 0..3 = questions, 4 = results
   const [dir, setDir] = useState(1); // slide direction: +1 forward, -1 back
@@ -318,6 +319,32 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                 </button>
               </div>
             </div>
+
+            {/* Echo the answers the ranking is based on ("we heard you"), and
+                let signed-in users persist them as their player profile so one
+                quiz feeds For You / personalized ordering site-wide. */}
+            {personaInput ? (
+              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.8rem] soft-text">
+                <span className="num-display">
+                  {positions.join(" / ")} · {translate(SKILL_LEVEL_LABEL[personaInput.skill_level])} ·{" "}
+                  {height}cm · {weight}kg
+                  {flatFoot ? ` · ${translate("flat foot")}` : ""}
+                </span>
+                {isLoggedIn ? (
+                  <button
+                    type="button"
+                    disabled={profileSaved}
+                    onClick={async () => {
+                      haptics.tap();
+                      if (await savePersona(personaInput)) setProfileSaved(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--brand)/0.4)] px-2.5 py-1 text-[0.72rem] font-medium text-[rgb(var(--brand))] transition hover:bg-[rgb(var(--brand)/0.1)] disabled:opacity-60"
+                  >
+                    {profileSaved ? translate("Saved to profile ✓") : translate("Save as my profile")}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
 
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {results.map(({ shoe, score, rank, reasons }, i) => (
