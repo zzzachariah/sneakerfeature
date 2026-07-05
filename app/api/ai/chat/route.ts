@@ -233,6 +233,15 @@ export async function POST(request: Request) {
         const fallbackUsed = validRaw.length === 0;
         if (fallbackUsed) {
           validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count });
+        } else if (validRaw.length < count) {
+          // PARTIAL result (e.g. a truncated payload salvaged 3 of 5) → top up
+          // to the promised count with deterministic picks, excluding shoes the
+          // AI already chose. AI picks stay first; top-ups follow.
+          const have = new Set(validRaw.map((r) => r.shoe_id));
+          const extras = pickFallbackShoes({ shoes, query: message, persona, focus, count: count + have.size })
+            .filter((r) => !have.has(r.shoe_id))
+            .slice(0, count - validRaw.length);
+          validRaw = [...validRaw, ...extras];
         }
 
         // Guarantee every card carries a reason + 3 pros + 3 cons. The AI's own
