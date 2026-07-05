@@ -224,6 +224,7 @@ export function SubmissionForm({
             <button
               type="button"
               onClick={() => {
+                haptics.tap();
                 clearDraft();
                 formRef.current?.reset();
               }}

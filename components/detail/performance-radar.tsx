@@ -44,6 +44,7 @@ function ringPath(radius: number, count: number) {
 }
 
 export function PerformanceRadar({ axes, active }: Props) {
+  const { translate } = useLocale();
   const count = axes.length;
   // `repeat` toggles inView false when the chart scrolls back out — so the
   // animation REPLAYS every time the user scrolls it back into view, not just
@@ -71,7 +72,7 @@ export function PerformanceRadar({ axes, active }: Props) {
         viewBox={`0 0 ${VIEW} ${VIEW}`}
         className="block h-auto w-full overflow-visible"
         role="img"
-        aria-label="Performance radar chart"
+        aria-label={`${translate("Performance radar chart")}: ${axes.map((a) => `${translate(a.label)} ${Math.round(a.score)}`).join(", ")}`}
       >
         {rings.map((r, i) => (
           <path
@@ -82,6 +83,24 @@ export function PerformanceRadar({ axes, active }: Props) {
             strokeWidth={1}
           />
         ))}
+
+        {/* Scale ticks on the top spoke so the rings read as 25/50/75/100
+            instead of unlabeled circles. */}
+        {rings.map((r) => {
+          const { y } = polar(MAX_RADIUS * r, 0);
+          return (
+            <text
+              key={`tick-${r}`}
+              x={CENTER + 5}
+              y={y + 3}
+              fontSize={7.5}
+              fontFamily='var(--font-geist-mono), ui-monospace, monospace'
+              fill="rgb(var(--subtext) / 0.75)"
+            >
+              {Math.round(100 * r)}
+            </text>
+          );
+        })}
 
         {axes.map((_, i) => {
           const theta = (i / count) * Math.PI * 2;
@@ -125,6 +144,22 @@ export function PerformanceRadar({ axes, active }: Props) {
           );
         })}
       </svg>
+
+      {/* Screen-reader fallback: the SVG is decorative detail; this table is
+          the accessible record of every axis score. */}
+      <table className="sr-only">
+        <caption>{translate("Performance scores")}</caption>
+        <tbody>
+          {axes.map((a) => (
+            <tr key={a.label}>
+              <th scope="row">{translate(a.label)}</th>
+              <td>
+                {Math.round(a.score)} / 100 · {translate(a.tier)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
       <div className="pointer-events-none absolute inset-0">
         {axes.map((axis, i) => (

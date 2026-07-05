@@ -1753,3 +1753,36 @@ html.dark { color-scheme: dark; }
     box-shadow: 0 0 0 3px rgb(var(--text) / 0.25);
   }
 }
+
+/* Quick Picker build slider — filled track + large ringed thumb. The fill
+   percentage arrives as an inline linear-gradient background. */
+.qp-range {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+}
+.qp-range::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgb(var(--bg-elev));
+  border: 2.5px solid rgb(var(--brand));
+  box-shadow: 0 2px 10px rgb(var(--shadow) / 0.35);
+  cursor: pointer;
+  transition: transform 120ms var(--ease);
+}
+.qp-range::-webkit-slider-thumb:active { transform: scale(1.12); }
+.qp-range::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgb(var(--bg-elev));
+  border: 2.5px solid rgb(var(--brand));
+  box-shadow: 0 2px 10px rgb(var(--shadow) / 0.35);
+  cursor: pointer;
+}
+.qp-range:focus-visible { box-shadow: 0 0 0 3px rgb(var(--ring) / 0.3); }

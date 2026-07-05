@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
 import { Button } from "@/components/ui/button";
 import { getDepthSupport } from "@/lib/native/foot-scan-native";
 import { requestMotionPermission } from "@/lib/foot-scan/orientation";
@@ -112,6 +113,7 @@ export function FootScanClient() {
   }, []);
 
   async function copyScanLink() {
+    haptics.tap();
     try {
       await navigator.clipboard.writeText(window.location.href);
       setLinkCopied(true);

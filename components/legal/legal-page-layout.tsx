@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { ArrowUp } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
 import type { BilingualLegalDoc } from "@/lib/legal/content";
 
 /**
@@ -139,7 +140,10 @@ export function LegalPageLayout({ doc }: { doc: BilingualLegalDoc }) {
       {showTop && (
         <button
           type="button"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          onClick={() => {
+            haptics.tap();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
           aria-label={locale === "zh" ? "回到顶部" : "Back to top"}
           className="glass glass-rim shadow-lift fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
           style={{ bottom: "calc(var(--mobile-nav-h) + 1rem)" }}

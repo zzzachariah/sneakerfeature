@@ -26,6 +26,7 @@ import { pickLocalized } from "@/components/i18n/localized-field";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
+import { ShoeCard } from "@/components/home/shoe-card";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { Reveal } from "@/components/motion/reveal";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
@@ -637,20 +638,13 @@ function RelatedSection({ related }: Props) {
         </Link>
       </div>
 
-      <div className="mt-4 grid gap-2 md:grid-cols-3">
+      {/* Real explore cards (image, rating, heart) instead of three bare text
+          links — this section is the page's lateral-discovery exit. */}
+      <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         {related.map((item, i) => (
-          <Reveal key={item.id} index={i}>
-            <Link
-              href={`/shoes/${item.slug}`}
-              onPointerEnter={() => router.prefetch(`/shoes/${item.slug}`)}
-              data-field-key="shoe_name"
-              className="block rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
-            >
-              {item.shoe_name}
-            </Link>
-          </Reveal>
+          <ShoeCard key={item.id} shoe={item} index={i} />
         ))}
-      </div>
+      </ul>
     </Card>
   );
 }
