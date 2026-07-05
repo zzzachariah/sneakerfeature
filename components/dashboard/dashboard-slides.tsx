@@ -3,8 +3,9 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
@@ -121,6 +122,25 @@ export function DashboardSlides(props: Props) {
   }, [props.comments, props.likedComments, props.dislikedComments]);
 
   const signedOut = !props.signedIn && !props.loading;
+
+  // Signed-out was a dead end: four sections each repeated "Please sign in to
+  // view your User Center." as plain text with no way to actually sign in.
+  // Replace the whole body with one clear call to action.
+  if (signedOut) {
+    return (
+      <main className="container-shell has-mobile-nav-pad flex min-h-[60vh] items-center justify-center py-12">
+        <EmptyState
+          icon={UserCircle}
+          title={translate("Sign in to your account")}
+          description={translate("Your comments, saved compares, submissions and settings all live here.")}
+        >
+          <Link href={"/login?next=/dashboard" as Route} className="block">
+            <Button className="w-full rounded-xl">{translate("Log in")}</Button>
+          </Link>
+        </EmptyState>
+      </main>
+    );
+  }
 
   return (
     <div className="has-mobile-nav-pad">
