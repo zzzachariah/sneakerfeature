@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
 const GeistMono = localFont({
@@ -79,9 +80,16 @@ export const viewport: Viewport = {
   userScalable: true,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Render in the user's chosen language on the SERVER (read from the cookie the
+  // LocaleProvider writes). Before this, the server always rendered English
+  // while a Chinese client re-rendered in Chinese on hydration — an app-wide
+  // hydration mismatch that corrupted the DOM and, most visibly, left the Smart
+  // Picker's suggestion chips and composer unresponsive.
+  const localeCookie = (await cookies()).get("locale")?.value;
+  const initialLocale = localeCookie === "zh" || localeCookie === "en" ? localeCookie : "en";
   return (
-    <html lang="en" suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang={initialLocale} suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
@@ -95,7 +103,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ServiceWorkerRegister />
         <RouteProgress />
         <RouteMemory />
-        <LocaleProvider>
+        <LocaleProvider initialLocale={initialLocale}>
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>

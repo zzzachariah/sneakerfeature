@@ -1,4 +1,4 @@
-import type OpenAI from "openai";
+import OpenAI from "openai";
 import type { Shoe, ShoeSpec, BloggerReview } from "@/lib/types";
 import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference, OnProgress } from "@/lib/ai/types";
 import type { Persona } from "@/lib/persona/types";
@@ -8,7 +8,44 @@ import { dimScores } from "@/lib/star-rating";
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
 import { normalizeSearchText, normalizeCompactText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { PACKY_MODEL } from "@/lib/ai/packy-client";
-import { bochaWebSearch, describeBochaError, isBochaConfigured, type BochaErrorKind } from "@/lib/ai/web-search";
+import { detectReplyLang } from "@/lib/ai/derive-proscons";
+import {
+  bochaWebSearch,
+  describeBochaError,
+  isBochaConfigured,
+  type BochaErrorKind,
+  type WebSearchResult
+} from "@/lib/ai/web-search";
+
+// ---------------------------------------------------------------------------
+// Process-lifetime web-search cache. The same shoe gets researched over and
+// over (follow-up turns, popular shoes across users on a warm instance) — a
+// repeat query within the TTL is pure duplicated spend, so successful results
+// are reused. Only successes are cached; failures always retry live.
+// ---------------------------------------------------------------------------
+const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — review chatter doesn't move faster
+const SEARCH_CACHE_MAX = 300;
+const searchCache = new Map<string, { at: number; result: WebSearchResult }>();
+
+async function cachedBochaSearch(
+  query: string,
+  opts?: Parameters<typeof bochaWebSearch>[1]
+): Promise<WebSearchResult & { cached?: boolean }> {
+  const key = query.trim();
+  const hit = searchCache.get(key);
+  if (hit && hit.result.ok && Date.now() - hit.at < SEARCH_CACHE_TTL_MS) {
+    return { ...hit.result, cached: true };
+  }
+  const result = await bochaWebSearch(key, opts);
+  if (result.ok) {
+    if (searchCache.size >= SEARCH_CACHE_MAX) {
+      const oldest = searchCache.keys().next().value;
+      if (oldest !== undefined) searchCache.delete(oldest);
+    }
+    searchCache.set(key, { at: Date.now(), result });
+  }
+  return result;
+}
 
 // Six performance axes for a shoe, mirroring the detail page's radar.
 function buildRadarAxes(spec: ShoeSpec): RecRadarAxis[] {
@@ -131,7 +168,13 @@ const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。�
 
 10. 【对话标题 title】在输出 JSON 中同时给出 title 字段：用 6-14 个汉字（或英文 3-6 个词）凝练概括用户「本次要求」的核心诉求，作为这次对话的标题。不要加引号或标点，不要带"推荐"、"求推荐"之类的多余前后缀，直接用关键词组合（例如"控卫低帮抓地好的鞋"、"扁平足后卫缓震首选"、"low-top guard shoes with grip"）。用户用什么语言你就用什么语言。
 
-输出 N 双，按推荐指数从高到低排序。尽量凑满 N 双；只要目录里有沾边的就返回最接近的。不要返回空列表，除非目录里没有任何篮球鞋。请用与用户「本次要求」相同的语言回复（用户用中文就全程中文，用英文就全程英文）。`;
+输出 N 双，按推荐指数从高到低排序。尽量凑满 N 双；只要目录里有沾边的就返回最接近的。不要返回空列表，除非目录里没有任何篮球鞋。请用与用户「本次要求」相同的语言回复（用户用中文就全程中文，用英文就全程英文）。
+
+11.【中文回复的表达规范】当用户用中文时，reply/reason/pros/cons 必须是自然中文，具体规则：
+- 目录的内部字段名（court_feel、traction、cushioning_feel、stability、fit、bounce、forefoot_midsole 等）**绝不能**原样出现在回复里，要用中文说法：场地感/贴地感、抓地力、缓震脚感、稳定性、包裹、弹性、前掌中底 等。
+- 英文的描述性评价词直接翻成中文：elite→顶级，excellent→出色，very good→很好，"firm but reactive"→"偏硬但反馈灵敏" 等。
+- 科技/材料/配置的**专有名词**（Zoom Air、Cut3 ZoomX、BOOM、Lightstrike Pro、Flywire 等）仍按【严格的事实要求】逐字保留英文原文，但可以在其后用括号补一句简短中文说明，例如 "saw-blade traction pattern（锯齿状抓地纹路）"。
+- 鞋款名称一律保留目录原文，不翻译。`;
 
 const SKILL_LABEL_ZH: Record<string, string> = {
   beginner: "初学者",
@@ -269,6 +312,263 @@ function sanitizeThinkingText(content: string): string | null {
   const cleaned = t.replace(/[ \t]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
   if (cleaned.length < 2 || /^[[\]{}"',:]+$/.test(cleaned)) return null;
   return cleaned;
+}
+
+// deepseek-v4-pro (thinking mode) rejects a forced `tool_choice` with HTTP 400
+// "Thinking mode does not support this tool_choice". Detect that exact family
+// of errors so callers can retry once with tool_choice "auto" instead of
+// abandoning the whole tool loop (which is what silently happened before).
+function isToolChoiceUnsupported(error: unknown): boolean {
+  if (!(error instanceof OpenAI.APIError)) return false;
+  if (error.status !== 400) return false;
+  return /tool[_\s-]?choice/i.test(error.message ?? "");
+}
+
+// Process-lifetime memo of models that rejected a forced tool_choice. Without
+// it, EVERY request re-paid a guaranteed-400 probe round-trip before the auto
+// retry — pure duplicated work. With it, the first request learns and every
+// later request (per warm serverless instance) goes straight to "auto".
+const forcedChoiceUnsupportedModels = new Set<string>();
+
+// Gates the live reasoning stream: batches tiny token deltas into readable
+// chunks, stops forever at the first sign of machine output (code fence or
+// JSON), and caps the total so a runaway thinking phase can't flood the SSE
+// pipe. Mirrors sanitizeThinkingText's cut heuristics, but works incrementally.
+const REASONING_STREAM_CAP = 4000;
+const REASONING_FLUSH_AT = 48;
+// Holdback so a code fence split across deltas ("`" then "``") can't slip out.
+const REASONING_HOLDBACK = 2;
+
+function createReasoningEmitter(onProgress?: OnProgress) {
+  let pending = "";
+  let emittedTotal = 0;
+  let stopped = false;
+
+  const emit = (text: string) => {
+    if (!text) return;
+    onProgress?.({ type: "text", delta: text });
+    emittedTotal += text.length;
+  };
+
+  const machineCutIndex = (text: string): number => {
+    const fence = text.indexOf("```");
+    const brace = text.indexOf("{");
+    const arr = text.match(/\[\s*[{"]/)?.index ?? -1;
+    const candidates = [fence, brace, arr].filter((i) => i >= 0);
+    return candidates.length ? Math.min(...candidates) : -1;
+  };
+
+  return {
+    push(delta: string) {
+      if (stopped || !onProgress || !delta) return;
+      pending += delta;
+      const cut = machineCutIndex(pending);
+      if (cut >= 0) {
+        emit(pending.slice(0, cut).trimEnd());
+        pending = "";
+        stopped = true;
+        return;
+      }
+      if (emittedTotal + pending.length > REASONING_STREAM_CAP) {
+        emit(pending.slice(0, Math.max(0, REASONING_STREAM_CAP - emittedTotal)) + "…");
+        pending = "";
+        stopped = true;
+        return;
+      }
+      if (pending.length >= REASONING_FLUSH_AT + REASONING_HOLDBACK) {
+        emit(pending.slice(0, pending.length - REASONING_HOLDBACK));
+        pending = pending.slice(pending.length - REASONING_HOLDBACK);
+      }
+    },
+    finish() {
+      if (stopped) return;
+      stopped = true;
+      if (pending && machineCutIndex(pending) < 0) emit(pending.trimEnd());
+      pending = "";
+    }
+  };
+}
+
+// The subset of an assistant message the pipeline consumes, normalized across
+// the streaming and non-streaming paths. `finishReason` distinguishes a payload
+// the model chose to end ("stop"/"tool_calls") from one the relay CUT OFF
+// ("length") — reasoning and answer share one max_tokens budget on this relay,
+// so a long think can truncate the recommend_shoes JSON mid-array.
+type StreamedMessage = {
+  content: string | null;
+  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+  finishReason?: string | null;
+};
+
+// One chat completion with live progress: streams the response so the model's
+// reasoning_content (deepseek thinking) is forwarded to the user as it is
+// generated, and a "writing" status fires the moment the model starts emitting
+// the recommend_shoes payload (that arguments stream is the single longest
+// silent phase). Falls back to a plain non-streaming call when the relay
+// rejects streaming for these params. Never streams `content` deltas live —
+// content routinely carries JSON on this relay; the caller sanitizes it whole.
+async function completeWithProgress(
+  client: OpenAI,
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+  onProgress?: OnProgress
+): Promise<StreamedMessage | null> {
+  let stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+  try {
+    stream = await client.chat.completions.create({ ...params, stream: true });
+  } catch (err) {
+    // A param-level rejection (e.g. unsupported tool_choice) would fail the
+    // non-streaming call identically — surface it to the caller's fallback.
+    if (isToolChoiceUnsupported(err)) throw err;
+    const c = await client.chat.completions.create(params);
+    const msg = c.choices?.[0]?.message;
+    return msg
+      ? { content: msg.content ?? null, tool_calls: msg.tool_calls, finishReason: c.choices?.[0]?.finish_reason ?? null }
+      : null;
+  }
+
+  const reasoning = createReasoningEmitter(onProgress);
+  let content = "";
+  let sawContent = false;
+  let sawChunk = false;
+  let announcedWriting = false;
+  let finishReason: string | null = null;
+  const partials: { id: string; name: string; args: string }[] = [];
+
+  try {
+    // Manual iteration instead of `for await`: the FIRST next() can reject
+    // before any chunk arrives (connection dropped right after headers), which
+    // is exactly the sawChunk===false case the catch below retries — spelled
+    // out this way so static analysis sees that path too.
+    const iterator = stream[Symbol.asyncIterator]();
+    for (;;) {
+      const step = await iterator.next();
+      if (step.done) break;
+      const chunk = step.value;
+      sawChunk = true;
+      if (chunk.choices?.[0]?.finish_reason) finishReason = chunk.choices[0].finish_reason;
+      const delta = chunk.choices?.[0]?.delta;
+      if (!delta) continue;
+      const think = (delta as { reasoning_content?: unknown }).reasoning_content;
+      if (typeof think === "string" && think) reasoning.push(think);
+      if (typeof delta.content === "string" && delta.content) {
+        content += delta.content;
+        sawContent = true;
+      }
+      for (const tc of delta.tool_calls ?? []) {
+        const slot = (partials[tc.index ?? 0] ??= { id: "", name: "", args: "" });
+        if (tc.id) slot.id = tc.id;
+        if (tc.function?.name) slot.name = tc.function.name;
+        if (tc.function?.arguments) slot.args += tc.function.arguments;
+        if (!announcedWriting && slot.name === "recommend_shoes") {
+          announcedWriting = true;
+          reasoning.finish();
+          onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
+        }
+      }
+    }
+  } catch (err) {
+    reasoning.finish();
+    // Stream died before producing anything → one plain retry; otherwise the
+    // partial state is unusable and the caller's error handling takes over.
+    if (!sawChunk) {
+      const c = await client.chat.completions.create(params);
+      const msg = c.choices?.[0]?.message;
+      return msg
+        ? { content: msg.content ?? null, tool_calls: msg.tool_calls, finishReason: c.choices?.[0]?.finish_reason ?? null }
+        : null;
+    }
+    throw err;
+  }
+  reasoning.finish();
+
+  const tool_calls = partials
+    .filter((t) => t && t.id && t.name)
+    .map((t) => ({ id: t.id, type: "function" as const, function: { name: t.name, arguments: t.args } }));
+  return { content: sawContent ? content : null, finishReason, ...(tool_calls.length ? { tool_calls } : {}) };
+}
+
+// ---------------------------------------------------------------------------
+// Truncation salvage. When the model's thinking eats most of the shared
+// max_tokens budget, the recommend_shoes JSON gets cut off mid-array and
+// JSON.parse fails — previously that threw away EVERYTHING the model wrote and
+// burned another full reasoning pass on a retry. Instead, walk the truncated
+// arguments and pull out every COMPLETE `{...}` object inside the
+// "recommendations" array (string/escape-aware brace matching), so a payload
+// cut at shoe 4 of 5 still yields 4 grounded recommendations.
+// ---------------------------------------------------------------------------
+function extractCompleteArrayObjects(text: string, arrayKey: string): string[] {
+  const keyAt = text.indexOf(`"${arrayKey}"`);
+  if (keyAt < 0) return [];
+  const arrStart = text.indexOf("[", keyAt);
+  if (arrStart < 0) return [];
+  const out: string[] = [];
+  let depth = 0;
+  let objStart = -1;
+  let inString = false;
+  let escaped = false;
+  for (let i = arrStart + 1; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{") {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === "}") {
+      depth--;
+      if (depth === 0 && objStart >= 0) {
+        out.push(text.slice(objStart, i + 1));
+        objStart = -1;
+      }
+    } else if (ch === "]" && depth === 0) {
+      break; // array closed cleanly — nothing truncated after this
+    }
+  }
+  return out;
+}
+
+function salvageTruncatedRecs(args: string): RecommendResult | null {
+  const objects = extractCompleteArrayObjects(args, "recommendations");
+  const recommendations: ParsedRec[] = [];
+  for (const objText of objects) {
+    try {
+      const r = JSON.parse(objText) as { name?: unknown; stars?: unknown; reason?: unknown; pros?: unknown; cons?: unknown; references?: unknown };
+      const name = typeof r.name === "string" ? r.name.trim() : "";
+      if (!name) continue;
+      const refs = coerceReferences(r.references, 5);
+      recommendations.push({
+        name,
+        stars: coerceStars(r.stars),
+        reason: typeof r.reason === "string" ? r.reason.trim() : "",
+        pros: coerceStringArray(r.pros, 3),
+        cons: coerceStringArray(r.cons, 3),
+        ...(refs.length > 0 ? { references: refs } : {})
+      });
+    } catch {
+      /* half-written object — skip */
+    }
+  }
+  if (!recommendations.length) return null;
+  // reply/title live BEFORE the array in the schema ordering the model tends to
+  // use; grab them if they parse, otherwise leave blank (route fills a default).
+  const reply = args.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
+  const title = args.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
+  const unescape = (s: string) => {
+    try {
+      return JSON.parse(`"${s}"`) as string;
+    } catch {
+      return s;
+    }
+  };
+  return {
+    reply: unescape(reply),
+    ...(title ? { title: unescape(title).slice(0, 30) } : {}),
+    recommendations
+  };
 }
 
 function coerceStars(value: unknown): number {
@@ -495,10 +795,20 @@ async function tryToolLoopWithSearch(
   initialMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   base: { model: string; temperature: number; max_tokens: number },
   currentInput: string,
-  onProgress?: OnProgress
+  onProgress?: OnProgress,
+  // Follow-up turns ("第一双太贵了") skip the forced first search: the thread is
+  // already grounded, and re-searching every follow-up doubled Bocha calls and
+  // stuffed another round of search results into the context for no new signal.
+  // The model can still CHOOSE to search; refs stay trustworthy either way
+  // (route only surfaces them when a search succeeded in the same turn).
+  isFollowUp = false
 ): Promise<LoopOutcome> {
   const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [...initialMessages];
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
+  // Best partial result recovered from a truncated payload (see
+  // salvageTruncatedRecs). Returned if no later iteration produces a full one —
+  // a payload cut at shoe 4 of 5 beats abandoning the model's work entirely.
+  let bestSalvage: RecommendResult | null = null;
 
   const finalize = (r: RecommendResult): LoopOutcome => {
     if (stats.attempts > 0) {
@@ -539,29 +849,56 @@ async function tryToolLoopWithSearch(
   // a couple of these we stop nudging and FORCE recommend_shoes so it commits
   // instead of rambling forever.
   let proseNudges = 0;
+  // Thinking-mode models (deepseek-v4-pro) reject any forced tool_choice with a
+  // 400. Learned once per process (memo above), then steer with explicit
+  // user-turn instructions instead — same convergence, no dead probe calls.
+  let forcingSupported = !forcedChoiceUnsupportedModels.has(base.model);
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-    // Iteration 0 forces web_search so every request makes at least one real
-    // Bocha call (grounding `references`). After that we let the model choose
-    // ("auto") UNTIL we decide to force a commit: once it has rambled twice,
-    // once it has searched enough, or on the final iteration. Forcing
-    // recommend_shoes is how we make the model actually produce an answer.
-    const forceRecommend =
-      i > 0 && (proseNudges >= 2 || stats.attempts >= MAX_SEARCHES || i === MAX_TOOL_ITERATIONS - 1);
-    const toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
-      i === 0
-        ? { type: "function", function: { name: "web_search" } }
-        : forceRecommend
-          ? { type: "function", function: { name: "recommend_shoes" } }
-          : "auto";
+    // SEARCH PHASE. Iteration 0 of a NEW conversation forces web_search so the
+    // first answer makes at least one real Bocha call (grounding `references`).
+    // Follow-up turns start on "auto" (see isFollowUp above). The phase ends —
+    // via the break below into the JSON commit phase — once the model has
+    // rambled twice, searched enough, or iterations run out. We deliberately do
+    // NOT force recommend_shoes via tool args anymore: on thinking models the
+    // reasoning eats the token budget before the args, so every forced-commit
+    // attempt truncated and burned a full pass (observed 3-4 wasted passes per
+    // request). The commit phase below uses response_format=json_object on the
+    // SAME searched context instead, which this relay handles reliably.
+    if (i > 0 && (proseNudges >= 2 || stats.attempts >= MAX_SEARCHES)) break;
+    const desiredChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
+      i === 0 && !isFollowUp ? { type: "function", function: { name: "web_search" } } : "auto";
 
-    const c = await client.chat.completions.create({
-      ...base,
-      messages: convo,
-      tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL],
-      tool_choice: toolChoice
-    });
-    const msg = c.choices?.[0]?.message;
+    onProgress?.(
+      i === 0
+        ? { type: "status", phase: "reading", message: "正在阅读鞋款目录，结合你的需求思考…" }
+        : { type: "status", phase: "round", round: i + 1, message: `继续深入分析（第 ${i + 1} 轮）…` }
+    );
+
+    const attempt = (tool_choice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption) =>
+      completeWithProgress(
+        client,
+        { ...base, messages: convo, tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL], tool_choice },
+        onProgress
+      );
+
+    let msg: StreamedMessage | null;
+    if (forcingSupported && desiredChoice !== "auto") {
+      try {
+        msg = await attempt(desiredChoice);
+      } catch (err) {
+        if (!isToolChoiceUnsupported(err)) throw err;
+        forcingSupported = false;
+        forcedChoiceUnsupportedModels.add(base.model);
+        console.warn("[ai/chat] forced tool_choice unsupported — downgrading to auto", {
+          model: base.model,
+          iteration: i
+        });
+        msg = await attempt("auto");
+      }
+    } else {
+      msg = await attempt("auto");
+    }
     if (!msg) return bail("no_choice_message");
 
     // Stream the model's natural-language preamble so the user sees "what it's
@@ -578,9 +915,22 @@ async function tryToolLoopWithSearch(
 
     // Terminal: model called recommend_shoes → parse and return.
     const recCall = toolCalls.find((t) => t.function?.name === "recommend_shoes");
+    const wasTruncated = msg.finishReason === "length";
     if (recCall?.function?.arguments) {
       const r = okIfRecs(recCall.function.arguments);
       if (r) return finalize(r);
+      // Full parse failed — usually the shared token budget ran out mid-JSON.
+      // Recover every complete recommendation object and keep the richest
+      // salvage seen so far, so the retries below can never end with less.
+      const salvaged = salvageTruncatedRecs(recCall.function.arguments);
+      if (salvaged && salvaged.recommendations.length > (bestSalvage?.recommendations.length ?? 0)) {
+        bestSalvage = salvaged;
+        console.warn("[ai/chat] salvaged partial payload", {
+          recs: salvaged.recommendations.length,
+          truncated: wasTruncated,
+          argChars: recCall.function.arguments.length
+        });
+      }
     }
 
     // No tool calls → model produced prose. If it happens to contain valid JSON,
@@ -604,13 +954,25 @@ async function tryToolLoopWithSearch(
 
     // Service every web_search call; append the assistant turn (with tool_calls)
     // and one `tool` message per call. Required by OpenAI tool protocol.
-    convo.push({ role: "assistant", content: msg.content ?? "", tool_calls: toolCalls });
+    // A failed recommend_shoes payload is echoed back as a SHORT stub, not the
+    // broken multi-KB JSON — re-sending it would only burn input tokens and
+    // confuse the retry.
+    const echoedToolCalls = toolCalls.map((tc) =>
+      tc.function?.name === "recommend_shoes"
+        ? { ...tc, function: { ...tc.function, arguments: '{"omitted":"invalid_or_truncated_payload"}' } }
+        : tc
+    );
+    convo.push({ role: "assistant", content: msg.content ?? "", tool_calls: echoedToolCalls });
     for (const call of toolCalls) {
       if (call.function?.name === "recommend_shoes") {
         convo.push({
           role: "tool",
           tool_call_id: call.id,
-          content: JSON.stringify({ error: "invalid_recommendation_payload, please retry" })
+          content: JSON.stringify({
+            error: wasTruncated
+              ? "输出因超出长度限制被截断。请立即重新调用 recommend_shoes，并大幅精简：思考不要起草文案，reason 一句话，每条 pros/cons ≤ 12 个字。"
+              : "invalid_recommendation_payload, please retry"
+          })
         });
         continue;
       }
@@ -632,7 +994,7 @@ async function tryToolLoopWithSearch(
         continue;
       }
       onProgress?.({ type: "search", query: q, state: "start" });
-      const sr = await bochaWebSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
+      const sr = await cachedBochaSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
       stats.attempts += 1;
       if (sr.ok) {
         stats.succeeded += 1;
@@ -646,8 +1008,75 @@ async function tryToolLoopWithSearch(
         : { query: sr.query, error: sr.error, message: describeBochaError(sr.error, sr.detail), results: [] };
       convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(payload) });
     }
-    // Tool turn handled (search or bad-args recommend_shoes). Loop again — the
-    // forced-commit step will make it produce a structured answer next.
+    // Tool turn handled (search or spontaneous bad-args recommend_shoes).
+    // Loop again — the commit phase below produces the structured answer.
+  }
+
+  // COMMIT PHASE — one (at most two) response_format=json_object call(s) on the
+  // searched conversation. No tools attached to generate ANOTHER search; the
+  // model just writes the final JSON. This is the path that reliably survives
+  // the thinking-mode token budget, and it reuses the identical convo prefix
+  // (catalog + searches), so the relay's prompt cache absorbs most input cost.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
+    convo.push({
+      role: "user",
+      content:
+        attempt === 0
+          ? "信息已足够。现在只输出最终结果的 JSON 对象（结构按之前给出的：reply/title/recommendations，含 name/stars/reason/pros/cons/references）。不要调用工具、不要 markdown、不要 JSON 之外的任何文字。思考尽量简短，不要在思考里起草文案。"
+          : "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字，其他内容一律省略。"
+    });
+    let msg: StreamedMessage | null = null;
+    try {
+      // Keep the tools declared (the convo contains tool-role turns some relays
+      // validate against) but pin tool_choice "none"; if the relay rejects that
+      // combination, retry bare — json_object alone is verified working.
+      msg = await completeWithProgress(
+        client,
+        {
+          ...base,
+          messages: convo,
+          tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL],
+          tool_choice: "none",
+          response_format: { type: "json_object" }
+        },
+        onProgress
+      );
+    } catch {
+      try {
+        msg = await completeWithProgress(
+          client,
+          { ...base, messages: convo, response_format: { type: "json_object" } },
+          onProgress
+        );
+      } catch (err) {
+        console.warn("[ai/chat] commit call failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
+        break; // fall through to salvage / bail
+      }
+    }
+    const out = typeof msg?.content === "string" ? msg.content : "";
+    const r = okIfRecs(out);
+    if (r) return finalize(r);
+    const salvaged = salvageTruncatedRecs(out);
+    if (salvaged && salvaged.recommendations.length > (bestSalvage?.recommendations.length ?? 0)) {
+      bestSalvage = salvaged;
+      console.warn("[ai/chat] salvaged partial commit payload", {
+        recs: salvaged.recommendations.length,
+        truncated: msg?.finishReason === "length",
+        chars: out.length
+      });
+    }
+    // Echo a stub, not the broken multi-KB blob — the retry only needs to know
+    // it was cut off, and re-sending the blob would just burn input tokens.
+    convo.push({ role: "assistant", content: '{"omitted":"truncated_payload"}' });
+  }
+
+  // A partial salvage is still the model's own grounded work — return it rather
+  // than dropping to the generic downstream strategies (each of which would
+  // burn another full reasoning pass over the whole catalog).
+  if (bestSalvage) {
+    console.warn("[ai/chat] finishing with salvaged partial payload", { recs: bestSalvage.recommendations.length });
+    return finalize(bestSalvage);
   }
   return bail("max_iterations");
 }
@@ -664,10 +1093,17 @@ async function getRecommendations(
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
   shoes: Shoe[],
   currentInput: string,
-  onProgress?: OnProgress
+  onProgress?: OnProgress,
+  isFollowUp = false
 ): Promise<RecommendResult> {
   onProgress?.({ type: "status", phase: "thinking", message: "正在分析你的需求…" });
-  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 3000 };
+  // max_tokens on this relay caps reasoning + answer TOGETHER (thinking models
+  // burn completion tokens on reasoning_content first). At 3000-6000 a long
+  // think truncated the JSON mid-array — parse failure, then a WHOLE retried
+  // reasoning pass (the real token waste). 16000 is a ceiling, not a spend:
+  // tokens are only billed as generated, and headroom means one pass finishes
+  // instead of two or three being thrown away.
+  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
   const ok = (text: string): RecommendResult | null => {
     const r = parseResult(text);
     return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
@@ -693,7 +1129,7 @@ async function getRecommendations(
   //    we fall through to JSON mode → prefill → plain, carrying loop diagnostics.
   if (isBochaConfigured()) {
     try {
-      const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput, onProgress);
+      const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput, onProgress, isFollowUp);
       loopStats = outcome.stats;
       loopExitReason = outcome.exitReason;
       if (outcome.result) return outcome.result;
@@ -708,16 +1144,16 @@ async function getRecommendations(
   //    primitive; the prompt contains the word "JSON" + an example as required.
   //    Shared fallback for the not-configured case and a bailed tool loop.
   try {
-    const c = await client.chat.completions.create({
-      ...base,
-      messages,
-      response_format: { type: "json_object" }
-    });
-    const content = c.choices?.[0]?.message?.content;
-    if (typeof content === "string") {
-      const r = ok(content);
+    onProgress?.({ type: "status", phase: "generating", message: "正在生成推荐结果…" });
+    const msg = await completeWithProgress(
+      client,
+      { ...base, messages, response_format: { type: "json_object" } },
+      onProgress
+    );
+    if (typeof msg?.content === "string") {
+      const r = ok(msg.content);
       if (r) return withLoop(r);
-      prose.push(content);
+      prose.push(msg.content);
     }
   } catch {
     /* response_format unsupported — try the next strategy */
@@ -725,19 +1161,27 @@ async function getRecommendations(
 
   // 2) Forced tool call — clean structured args when the relay supports tools.
   //    Only for the Bocha-not-configured case (the configured case already ran
-  //    the loop above); identical to the legacy single-call behavior.
+  //    the loop above); identical to the legacy single-call behavior. Thinking
+  //    models reject the forced choice — downgrade to "auto" once, like the loop.
   if (!isBochaConfigured()) {
     try {
-      const c = await client.chat.completions.create({
-        ...base,
-        messages,
-        tools: [RECOMMEND_TOOL],
-        tool_choice: { type: "function", function: { name: "recommend_shoes" } }
-      });
-      const msg = c.choices?.[0]?.message;
+      const attempt = (tool_choice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption) =>
+        completeWithProgress(client, { ...base, messages, tools: [RECOMMEND_TOOL], tool_choice }, onProgress);
+      let msg: StreamedMessage | null;
+      if (forcedChoiceUnsupportedModels.has(base.model)) {
+        msg = await attempt("auto"); // model already known to 400 on forcing — skip the dead probe
+      } else {
+        try {
+          msg = await attempt({ type: "function", function: { name: "recommend_shoes" } });
+        } catch (err) {
+          if (!isToolChoiceUnsupported(err)) throw err;
+          forcedChoiceUnsupportedModels.add(base.model);
+          msg = await attempt("auto");
+        }
+      }
       const args = msg?.tool_calls?.[0]?.function?.arguments;
       if (typeof args === "string") {
-        const r = ok(args);
+        const r = ok(args) ?? salvageTruncatedRecs(args);
         if (r) return r;
       }
       if (typeof msg?.content === "string") {
@@ -751,12 +1195,14 @@ async function getRecommendations(
 
   // 3) Assistant prefill — Claude continues the JSON object we started.
   try {
+    onProgress?.({ type: "status", phase: "generating", message: "换一种方式生成推荐…" });
     const prefill = '{"recommendations":';
-    const c = await client.chat.completions.create({
-      ...base,
-      messages: [...messages, { role: "assistant", content: prefill }]
-    });
-    const out = c.choices?.[0]?.message?.content;
+    const msg = await completeWithProgress(
+      client,
+      { ...base, messages: [...messages, { role: "assistant", content: prefill }] },
+      onProgress
+    );
+    const out = msg?.content;
     if (typeof out === "string") {
       const r = ok(prefill + out) ?? ok(out);
       if (r) return withLoop(r);
@@ -766,10 +1212,11 @@ async function getRecommendations(
   }
 
   // 4) Plain call — last resort; parse whatever comes back (may be prose).
-  const c = await client.chat.completions.create({ ...base, messages });
-  const content = c?.choices?.[0]?.message?.content;
+  onProgress?.({ type: "status", phase: "generating", message: "再次尝试生成推荐…" });
+  const msg4 = await completeWithProgress(client, { ...base, messages }, onProgress);
+  const content = msg4?.content;
   if (typeof content !== "string") {
-    const snippet = JSON.stringify(c ?? {}).slice(0, 300);
+    const snippet = JSON.stringify(msg4 ?? {}).slice(0, 300);
     throw new Error(
       `上游返回了非预期响应（缺少 choices/content）——通常是 Base URL 路径不对（应以 /v1 结尾）或上游报错。响应片段：${snippet}`
     );
@@ -788,19 +1235,356 @@ async function getRecommendations(
   return withLoop({ ...parsed, raw: content.slice(0, 600) });
 }
 
+export type RecommendOpts = {
+  shoes: Shoe[];
+  history: ChatTurn[];
+  currentInput: string;
+  count: number;
+  persona?: Persona | null;
+  footProfile?: FootProfile | null;
+  reviewsByShoe?: Record<string, BloggerReview[]>;
+};
+
+// Persona / foot-profile context appended to the ask in every pipeline phase.
+function personaFootSuffix(opts: Pick<RecommendOpts, "persona" | "footProfile">): string {
+  const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
+  const footSuffix = opts.footProfile
+    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
+    : "";
+  return personaSuffix + footSuffix;
+}
+
+// Opening turns shared by every phase: system prompt + a catalog + the chat
+// history, delivered as user/assistant alternation (this relay rejects a
+// `system` role — see recommendShoes).
+function buildBaseMessages(
+  catalogLabel: string,
+  catalogJson: string,
+  history: ChatTurn[]
+): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "user", content: `${SYSTEM_PROMPT}\n\n${catalogLabel}:\n${catalogJson}` },
+    { role: "assistant", content: "明白，我已读取鞋款目录，请告诉我你的需求。" }
+  ];
+  for (const turn of history) {
+    messages.push(turn.role === "user" ? { role: "user", content: turn.content } : { role: "assistant", content: turn.content });
+  }
+  return messages;
+}
+
+// ---------------------------------------------------------------------------
+// Candidate-first evidence pipeline (default when Bocha is configured).
+//
+//   A) SHORTLIST — one small json_object call over the full catalog: pick
+//      count+3 candidate shoes (semantic matching is the model's job).
+//   B) EVIDENCE — code fires one Bocha search PER CANDIDATE, all in parallel
+//      (plus one scenario search on the first turn). No model round-trips
+//      between searches, results cached process-wide.
+//   C) COMMIT — one json_object call whose context carries ONLY the candidate
+//      entries + the per-shoe search digests (not the whole catalog again),
+//      with references restricted to a whitelist of actually-searched URLs.
+//
+// vs. the legacy tool loop: 2 model calls instead of 3-6, searches about the
+// actual shoes instead of generic phrasing, wall-clock searches = one hop, and
+// fabricated reference URLs become impossible.
+// ---------------------------------------------------------------------------
+const SHORTLIST_EXTRA = 3;
+const MAX_CANDIDATES = 12;
+const MAX_CANDIDATE_SEARCHES = 8;
+const BACKUP_POOL_SIZE = 4;
+const DIGEST_HITS_PER_QUERY = 2;
+const DIGEST_SNIPPET_CHARS = 300;
+
+async function candidateEvidencePipeline(
+  client: OpenAI,
+  opts: RecommendOpts,
+  onProgress?: OnProgress
+): Promise<RecommendResult | null> {
+  const { shoes, history, currentInput, count } = opts;
+  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
+  const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
+  const suffix = personaFootSuffix(opts);
+  const zh = detectReplyLang(currentInput) === "zh";
+
+  // --- A) shortlist -------------------------------------------------------
+  onProgress?.({ type: "status", phase: "shortlist", message: "正在从目录圈定候选鞋款…" });
+  const wanted = Math.min(Math.max(count + SHORTLIST_EXTRA, 5), Math.max(count, MAX_CANDIDATES));
+  const fullCatalog = JSON.stringify(buildCompactCatalog(shoes, opts.persona, opts.reviewsByShoe));
+  const shortlistMessages = [
+    ...buildBaseMessages("鞋款目录(JSON)", fullCatalog, history),
+    {
+      role: "user" as const,
+      content:
+        `本次要求："${currentInput}"${suffix}\n\n` +
+        `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${BACKUP_POOL_SIZE} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
+        `只输出 JSON：{"candidates":["鞋名1","鞋名2",…],"backups":["鞋名A","鞋名B",…]}——鞋名必须逐字复制目录里的 name 字段。不要输出任何其他内容。思考尽量简短。`
+    }
+  ];
+  const msgA = await completeWithProgress(
+    client,
+    { ...base, messages: shortlistMessages, response_format: { type: "json_object" } },
+    onProgress
+  );
+  let candidateNames: string[] = [];
+  let backupNames: string[] = [];
+  try {
+    const parsed = JSON.parse(stripFences(msgA?.content ?? "")) as { candidates?: unknown; backups?: unknown };
+    candidateNames = coerceStringArray(parsed.candidates, MAX_CANDIDATES);
+    backupNames = coerceStringArray(parsed.backups, BACKUP_POOL_SIZE);
+  } catch {
+    /* fall through — no candidates means fall back to the legacy loop */
+  }
+  const seen = new Set<string>();
+  const candidates: Shoe[] = [];
+  for (const name of candidateNames) {
+    const shoe = matchShoeByName(name, shoes);
+    if (shoe && !seen.has(shoe.id)) {
+      seen.add(shoe.id);
+      candidates.push(shoe);
+    }
+  }
+  if (candidates.length === 0) {
+    console.warn("[ai/chat] shortlist produced no matchable candidates — falling back to tool loop");
+    return null;
+  }
+  // Backup pool: researched only if the commit step finds the candidates
+  // insufficient (explicitly via add_candidates, or by under-returning).
+  const backups: Shoe[] = [];
+  for (const name of backupNames) {
+    const shoe = matchShoeByName(name, shoes);
+    if (shoe && !seen.has(shoe.id)) {
+      seen.add(shoe.id);
+      backups.push(shoe);
+    }
+  }
+  onProgress?.({
+    type: "text",
+    delta:
+      `候选鞋款（${candidates.length}）：${candidates.map((s) => s.shoe_name).join("、")}` +
+      (backups.length ? `\n备选（暂不查证）：${backups.map((s) => s.shoe_name).join("、")}` : "")
+  });
+
+  // --- B) parallel evidence searches --------------------------------------
+  type Probe = { label: string; query: string; result?: WebSearchResult };
+  const probes: Probe[] = [];
+  const runProbes = async (targets: Shoe[], includeGeneric: boolean, statusMsg: string) => {
+    onProgress?.({ type: "status", phase: "searching", message: statusMsg });
+    const batch: Probe[] = targets.slice(0, MAX_CANDIDATE_SEARCHES).map((s) => ({
+      label: s.shoe_name,
+      query: zh
+        ? `${s.shoe_name} 篮球鞋 实战测评 优缺点 口碑`
+        : `${s.shoe_name} basketball shoe performance review pros cons`
+    }));
+    const generic = currentInput.trim().slice(0, 60);
+    if (includeGeneric && history.length === 0 && generic) batch.unshift({ label: generic, query: generic });
+    // Bounded concurrency: an unthrottled burst of 6-9 simultaneous calls trips
+    // Bocha's rate limit (observed HTTP 429). Three workers drain the queue,
+    // and a rate-limited query gets ONE retry after a short backoff.
+    const queue = [...batch];
+    const worker = async () => {
+      for (let p = queue.shift(); p; p = queue.shift()) {
+        onProgress?.({ type: "search", query: p.query, state: "start" });
+        let sr = await cachedBochaSearch(p.query, { count: 3, timeoutMs: 8000 });
+        if (!sr.ok && sr.error === "rate_limited") {
+          await new Promise((r) => setTimeout(r, 1200));
+          sr = await cachedBochaSearch(p.query, { count: 3, timeoutMs: 8000 });
+        }
+        p.result = sr;
+        stats.attempts += 1;
+        if (sr.ok) {
+          stats.succeeded += 1;
+          onProgress?.({ type: "search", query: p.query, state: "ok", resultCount: sr.results.length });
+        } else {
+          stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
+          onProgress?.({ type: "search", query: p.query, state: "fail", kind: sr.error });
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker));
+    probes.push(...batch);
+  };
+  await runProbes(candidates, true, "正在逐双联网查证实战口碑…");
+
+  // --- C) lean commit, with ONE optional extension round -------------------
+  // If the model judges the researched candidates insufficient (explicit
+  // add_candidates, or it returns fewer than N), the backup pool gets the same
+  // parallel research and the commit re-runs once with the extra evidence.
+  const researched: Shoe[] = [...candidates];
+  const researchedIds = new Set(researched.map((s) => s.id));
+  let pool: Shoe[] = backups;
+  let extensionUsed = false;
+  let bestSalvage: RecommendResult | null = null;
+  let allowedUrls = new Set<string>();
+
+  const buildCommitMessages = (extensionNote: string) => {
+    allowedUrls = new Set<string>();
+    const digestBlocks: string[] = [];
+    for (const p of probes) {
+      if (!p.result?.ok) continue;
+      const hits = p.result.results.slice(0, DIGEST_HITS_PER_QUERY);
+      if (!hits.length) continue;
+      const lines = hits.map((h) => {
+        if (h.url) allowedUrls.add(h.url);
+        return `  - ${h.title} | ${h.url}\n    ${h.snippet.slice(0, DIGEST_SNIPPET_CHARS)}`;
+      });
+      digestBlocks.push(`【${p.label}】\n${lines.join("\n")}`);
+    }
+    const digest = digestBlocks.join("\n");
+    const urlList = Array.from(allowedUrls)
+      .map((u) => `- ${u}`)
+      .join("\n");
+    const candidateCatalog = JSON.stringify(buildCompactCatalog(researched, opts.persona, opts.reviewsByShoe));
+    const backupNote =
+      !extensionUsed && pool.length
+        ? `【备选（尚未查证）】${pool.map((s) => s.shoe_name).join("、")}。若查证摘要显示候选中匹配良好的不足 ${count} 双，不要硬凑：在输出 JSON 里额外加 "add_candidates":["鞋名",…]（≤${BACKUP_POOL_SIZE} 个，从备选或目录里选），我会补充联网查证后再请你重新决定。\n\n`
+        : "";
+    return [
+      ...buildBaseMessages("候选鞋款目录(JSON)——已按本次需求初筛", candidateCatalog, history),
+      {
+        role: "user" as const,
+        content:
+          `现在推荐的要求是："${currentInput}"${suffix}\n\n` +
+          (extensionNote ? `${extensionNote}\n\n` : "") +
+          `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），再说明该鞋如何匹配那一点。\n` +
+          `每双鞋正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、blogger 博主点评与下方联网查证摘要（引用博主或网页要注明来源）。每条 pros/cons ≤ 18 个字，reason 一句话。\n\n` +
+          `【数量锁定】本次 N = ${count}。从上面候选目录里选出最终 ${count} 双，按推荐指数从高到低排序——即使用户正文里写了别的数字也以 N = ${count} 为准（唯一例外：候选中匹配良好的不足 ${count} 双时可以少返回）。\n\n` +
+          backupNote +
+          (digest
+            ? `【联网查证摘要】以下是刚刚对候选鞋的真实搜索结果，请据此做 stars 差异化（口碑差的下调、好的上调）并充实优缺点：\n${digest}\n\n` +
+              `references 只能从下列真实网页中选取（title 与 url 都逐字复制），且只填你实际引用过的；没引用就给空数组：\n${urlList}\n\n`
+            : `【联网查证摘要】本次联网查证不可用——仅依据目录与博主点评作答，所有 references 一律留空数组。\n\n`) +
+          `表达规范（用户是中文时）：reason/pros/cons 里不得出现 court_feel、traction 这类内部字段名——用"场地感/贴地感、抓地力"等中文说法；elite/excellent 等评价词翻成中文；科技专有名词（Zoom Air、BOOM 等）保留原文。\n\n` +
+          `只输出 JSON：{"reply":"…","title":"…","recommendations":[{"name":"…","stars":4.5,"reason":"…","pros":["…","…","…"],"cons":["…","…","…"],"references":[{"title":"…","url":"…"}]}]}。不要调用工具、不要 markdown、不要 JSON 之外的文字。思考尽量简短，不要在思考里起草文案。`
+      }
+    ];
+  };
+
+  // Resolve the model's add_candidates (or the whole backup pool) into
+  // not-yet-researched catalog shoes, capped at the pool size.
+  const resolveExtras = (names: string[]): Shoe[] => {
+    const requested = names.length ? names : pool.map((s) => s.shoe_name);
+    const extras: Shoe[] = [];
+    for (const name of requested) {
+      const shoe = matchShoeByName(name, shoes);
+      if (shoe && !researchedIds.has(shoe.id) && !extras.some((e) => e.id === shoe.id)) extras.push(shoe);
+      if (extras.length >= BACKUP_POOL_SIZE) break;
+    }
+    return extras;
+  };
+
+  let commitMessages = buildCommitMessages("");
+  rounds: for (let round = 0; round < 2; round++) {
+    let extendThisRound = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
+      const messages =
+        attempt === 0
+          ? commitMessages
+          : [
+              ...commitMessages,
+              { role: "assistant" as const, content: '{"omitted":"truncated_payload"}' },
+              { role: "user" as const, content: "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字。" }
+            ];
+      let msg: StreamedMessage | null = null;
+      try {
+        msg = await completeWithProgress(client, { ...base, messages, response_format: { type: "json_object" } }, onProgress);
+      } catch (err) {
+        console.warn("[ai/chat] candidate commit failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
+        break rounds;
+      }
+      const out = typeof msg?.content === "string" ? msg.content : "";
+      const full = okIfRecsText(out);
+      const parsed = full ?? salvageTruncatedRecs(out);
+      if (!parsed?.recommendations.length) {
+        if (msg?.finishReason === "length") continue; // truncated beyond salvage — retry briefer
+        break rounds; // unparseable for some other reason — bail to the legacy loop
+      }
+      // References must point at pages we actually searched THIS turn — any
+      // other URL is fabricated and gets dropped here, before the route's own
+      // trust check even runs.
+      const cleaned: RecommendResult = {
+        ...parsed,
+        recommendations: parsed.recommendations.map((rec) => {
+          const refs = (rec.references ?? []).filter((r) => allowedUrls.has(r.url));
+          return { ...rec, ...(refs.length ? { references: refs } : { references: undefined }) };
+        })
+      };
+      if (!full) {
+        // Truncated but salvageable — keep the best and retry once, briefer.
+        if (cleaned.recommendations.length > (bestSalvage?.recommendations.length ?? 0)) bestSalvage = cleaned;
+        continue;
+      }
+      // Extension trigger: the model asked for more shoes, or under-returned.
+      if (round === 0 && !extensionUsed) {
+        let addNames: string[] = [];
+        try {
+          addNames = coerceStringArray(
+            (JSON.parse(stripFences(out)) as { add_candidates?: unknown }).add_candidates,
+            BACKUP_POOL_SIZE
+          );
+        } catch {
+          /* no add_candidates */
+        }
+        if (addNames.length > 0 || cleaned.recommendations.length < count) {
+          const extras = resolveExtras(addNames);
+          if (extras.length) {
+            extensionUsed = true;
+            for (const s of extras) researchedIds.add(s.id);
+            researched.push(...extras);
+            pool = pool.filter((s) => !researchedIds.has(s.id));
+            onProgress?.({
+              type: "text",
+              delta: `候选不足，补充查证：${extras.map((s) => s.shoe_name).join("、")}`
+            });
+            await runProbes(extras, false, `正在补充查证 ${extras.length} 双备选…`);
+            commitMessages = buildCommitMessages(
+              `【补充说明】上一轮你认为已查证候选中匹配良好的不足 ${count} 双（或点名了备选）。现已补充查证：${extras.map((s) => s.shoe_name).join("、")}。请综合全部查证结果重新给出最终 ${count} 双。`
+            );
+            extendThisRound = true;
+            break; // → round 1 with the extended evidence
+          }
+        }
+      }
+      return { ...cleaned, searchStats: stats, loopExitReason: "success" };
+    }
+    if (!extendThisRound) break;
+  }
+  if (bestSalvage) {
+    console.warn("[ai/chat] candidate pipeline finishing with salvaged payload", {
+      recs: bestSalvage.recommendations.length
+    });
+    return { ...bestSalvage, searchStats: stats, loopExitReason: "success" };
+  }
+  console.warn("[ai/chat] candidate pipeline produced nothing usable — falling back to tool loop");
+  return null;
+}
+
+// Shared "parse if it has recommendations" used by the pipeline above (the
+// loop-scoped okIfRecs closures aren't visible here).
+function okIfRecsText(text: string): RecommendResult | null {
+  const r = parseResult(text);
+  return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
+}
+
 export async function recommendShoes(
   client: OpenAI,
-  opts: {
-    shoes: Shoe[];
-    history: ChatTurn[];
-    currentInput: string;
-    count: number;
-    persona?: Persona | null;
-    footProfile?: FootProfile | null;
-    reviewsByShoe?: Record<string, BloggerReview[]>;
-  },
+  opts: RecommendOpts,
   onProgress?: OnProgress
 ): Promise<RecommendResult> {
+  // Candidate-first pipeline is the default whenever web search is available;
+  // the legacy multi-strategy path below is the fallback when it can't produce
+  // a usable result (shortlist unparseable, relay hiccup, …).
+  if (isBochaConfigured()) {
+    try {
+      const viaCandidates = await candidateEvidencePipeline(client, opts, onProgress);
+      if (viaCandidates) return viaCandidates;
+    } catch (err) {
+      console.warn("[ai/chat] candidate pipeline threw — falling back", {
+        msg: err instanceof Error ? err.message.slice(0, 200) : "unknown"
+      });
+    }
+  }
+
   const catalog = buildCompactCatalog(opts.shoes, opts.persona, opts.reviewsByShoe);
 
   // The relay (packyapi) does NOT lift an OpenAI `system` turn into Anthropic's
@@ -809,14 +1593,11 @@ export async function recommendShoes(
   // So we deliver the prompt + catalog as the opening USER turn and prime a
   // one-line assistant ack, keeping strict user/assistant alternation on every
   // relay. The model reads it the same as a system preamble.
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "user", content: `${SYSTEM_PROMPT}\n\n鞋款目录(JSON):\n${JSON.stringify(catalog)}` },
-    { role: "assistant", content: "明白，我已读取鞋款目录，请告诉我你的需求。" }
-  ];
-  for (const turn of opts.history) {
-    if (turn.role === "user") messages.push({ role: "user", content: turn.content });
-    else messages.push({ role: "assistant", content: turn.content });
-  }
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = buildBaseMessages(
+    "鞋款目录(JSON)",
+    JSON.stringify(catalog),
+    opts.history
+  );
   const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
   const footSuffix = opts.footProfile
     ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
@@ -829,16 +1610,17 @@ export async function recommendShoes(
     content:
       `现在推荐的要求是："${opts.currentInput}"${personaSuffix}${footSuffix}\n\n` +
       `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），然后说明该鞋如何匹配那一点。\n` +
-      `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。\n\n` +
+      `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。每条 pros/cons 精炼在 18 个字以内，reason 一句话即可。\n\n` +
       `【数量锁定】本次 N = ${opts.count}。必须严格推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 里也只能提 ${opts.count}。` +
       `按推荐指数从高到低排序。（唯一例外：目录里匹配良好的鞋款不足 ${opts.count} 双时可以少返回。）\n\n` +
       `推荐流程：(1) 从目录里挑出 ${opts.count} 双初步候选；(2) 用 web_search 查与用户本次诉求/使用场景相关的通用常识（位置、打法、脚型、选鞋要点等；每次对话最多 3 次）；(3) 结合网络反馈给 stars 做差异化打分；(4) 把每双鞋引用过的网页 title/url 填到该鞋的 references 数组里。\n\n` +
       `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 围绕用户本次诉求/使用场景）。如果已经搜过：直接发 recommend_shoes。\n\n` +
+      `⏱️ 思考过程请精炼：选定候选后就直接调工具，不要在思考里逐字起草每双鞋的完整 reason/pros/cons 文案（那些直接写进工具参数即可）。\n\n` +
       `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
       `{"reply":"…","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2","优点3"],"cons":["缺点1","缺点2","缺点3"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。`
   });
 
-  return getRecommendations(client, messages, opts.shoes, opts.currentInput, onProgress);
+  return getRecommendations(client, messages, opts.shoes, opts.currentInput, onProgress, opts.history.length > 0);
 }
 
 export function enrichRecommendations(

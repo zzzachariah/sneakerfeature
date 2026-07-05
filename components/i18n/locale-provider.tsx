@@ -1,13 +1,36 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { Modal } from "@/components/ui/modal";
 
 export type Locale = "en" | "zh";
 
 const LOCALE_STORAGE_KEY = "locale";
+// Mirror of the localStorage preference, but readable by the server so it can
+// SSR in the user's language. The server can't see localStorage, so before this
+// cookie existed the server always rendered English while a zh client rendered
+// Chinese on its first pass — an app-wide hydration mismatch (see LocaleProvider).
+const LOCALE_COOKIE_KEY = "locale";
+const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 const SWITCH_OVERLAY_MS = 900;
+
+function isLocale(value: unknown): value is Locale {
+  return value === "en" || value === "zh";
+}
+
+// Persist the chosen locale to BOTH localStorage (long-standing client pref) and
+// the cookie the server reads for SSR, so the next server render matches the
+// client and hydration stays clean. No-ops during SSR.
+function persistLocale(next: Locale) {
+  if (typeof document === "undefined") return;
+  try {
+    window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+  } catch {
+    /* storage blocked (private mode) — the cookie still carries the choice */
+  }
+  document.cookie = `${LOCALE_COOKIE_KEY}=${next}; path=/; max-age=${LOCALE_COOKIE_MAX_AGE}; samesite=lax`;
+}
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
@@ -291,6 +314,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "source/evidence: seed dataset + community validation pipeline. admin review required before promotion to official records.":
     "来源/证据：种子数据集 + 社区验证流程。成为官方记录前需管理员审核。",
   "source": "来源",
+  "sources": "来源",
   "related shoes": "相关球鞋",
   "back to database": "返回数据库",
   "shoe name": "鞋名",
@@ -1206,12 +1230,47 @@ function shouldSkipDynamicTranslation(text: string) {
   return false;
 }
 
-export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(() => {
-    if (typeof window === "undefined") return "en";
-    const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-    return saved === "zh" || saved === "en" ? saved : "en";
-  });
+export function LocaleProvider({
+  children,
+  initialLocale = "en"
+}: {
+  children: React.ReactNode;
+  // Locale the server rendered with (read from the cookie in the root layout).
+  // MUST be used verbatim for the initial state so the first client render
+  // matches the SSR HTML.
+  initialLocale?: Locale;
+}) {
+  // Initialize from the SERVER-provided locale ONLY — never read localStorage
+  // during render. The server can't see localStorage, so reading it here made
+  // the first client render disagree with the SSR HTML for any non-default
+  // locale, and React's failed hydration corrupted the DOM (orphaned/duplicated
+  // trees, dead click handlers — e.g. Smart Picker's suggestion chips became
+  // unclickable and its composer wouldn't accept edits). Both the server and the
+  // first client render now start from `initialLocale`; the client-only
+  // localStorage preference is reconciled AFTER mount in the effect below.
+  const [locale, setLocale] = useState<Locale>(initialLocale);
+
+  // Reconcile the client-only localStorage preference once, after mount (never
+  // during render, so the initial render still matches SSR). For users who chose
+  // their language before the cookie existed, localStorage may hold a locale the
+  // server didn't know about; adopt it and write the cookie so the NEXT SSR is
+  // already correct — making any brief English flash a one-time event.
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+    } catch {
+      /* storage blocked — nothing to reconcile */
+    }
+    // Only act when a stored preference exists. When it doesn't, leave storage
+    // untouched so the first-run language picker (which keys off an absent
+    // "locale" entry) still appears for brand-new users.
+    if (isLocale(saved)) {
+      setLocale(saved); // no-op re-render when it already equals initialLocale
+      persistLocale(saved); // ensure the cookie mirrors the stored preference
+    }
+  }, [initialLocale]);
+
   const [pendingLocale, setPendingLocale] = useState<Locale | null>(null);
   const [warningOpen, setWarningOpen] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
@@ -1303,7 +1362,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       setPendingLocale(null);
       setIsTranslating(false);
       setLocale("en");
-      window.localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+      persistLocale("en");
     },
     [locale]
   );
@@ -1316,7 +1375,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setIsTranslating(true);
 
     setLocale(pendingLocale);
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, pendingLocale);
+    persistLocale(pendingLocale);
 
     window.setTimeout(() => {
       setIsTranslating(false);

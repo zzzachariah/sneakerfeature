@@ -127,5 +127,8 @@ export function createPackyClient(opts?: PackyClientOptions): OpenAI | null {
   const apiKey = readEnv(apiKeyNames(opts));
   const baseURL = readEnv(baseURLNames(opts));
   if (!apiKey || !baseURL) return null;
-  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL) });
+  // 3-minute per-request ceiling (reasoning models legitimately take 1-2 min on
+  // a big catalog) and a single retry — the SDK default of 10 min × 2 retries
+  // left users staring at a spinner for half an hour when the relay hung.
+  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1 });
 }

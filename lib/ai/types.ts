@@ -52,8 +52,21 @@ export type RecommendationItem = RecommendationRaw & {
 
 // Live progress emitted by the recommend loop (server-side). Each variant maps
 // 1:1 onto an SSE event whose name is `type` and whose payload is the object.
+// `message` is the zh-CN human-readable text; clients on other locales map
+// `phase` (+ `round`) to their own strings and use `message` as the fallback.
+export type StatusPhase =
+  | "start"      // request accepted, pipeline starting
+  | "thinking"   // analyzing the user's ask
+  | "reading"    // first model pass over the catalog
+  | "shortlist"  // picking the candidate shoes to research
+  | "round"      // a follow-up tool-loop iteration (carries `round`)
+  | "searching"  // web-search burst in progress
+  | "writing"    // model is writing the recommendation payload
+  | "generating" // non-tool-loop strategy generating the answer
+  | "finalizing";
+
 export type RecommendProgress =
-  | { type: "status"; phase: "start" | "thinking" | "searching" | "finalizing"; message: string }
+  | { type: "status"; phase: StatusPhase; message: string; round?: number }
   | { type: "search"; query: string; state: "start" | "ok" | "fail"; resultCount?: number; kind?: string }
   | { type: "text"; delta: string };
 
@@ -67,9 +80,13 @@ export type ChatSseEvent = RecommendProgress["type"] | "recommendations" | "done
 // A single rendered step in the live (streaming) assistant turn. EPHEMERAL —
 // kept only in client state during streaming; never persisted to the DB and
 // never returned by the messages GET route (reloaded turns show content + cards).
+// "status" steps are the coarse pipeline phases ("reading the catalog…",
+// "writing recommendations…"); the latest one is the panel's live headline and
+// earlier ones collapse into checked-off timeline rows.
 export type ChatStep =
   | { kind: "prose"; text: string }
-  | { kind: "activity"; text: string; state?: "start" | "ok" | "fail" };
+  | { kind: "activity"; text: string; state?: "start" | "ok" | "fail" }
+  | { kind: "status"; text: string; done?: boolean };
 
 export type AiChatMessage = {
   id: string;

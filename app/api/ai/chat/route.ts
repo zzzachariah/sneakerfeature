@@ -168,6 +168,18 @@ export async function POST(request: Request) {
       // Flush headers / open the pipe immediately so proxies don't buffer.
       send("status", { phase: "start", message: "开始为你挑选…" });
 
+      // SSE comment heartbeat: a thinking model can go 30s+ between real events,
+      // and idle streams get buffered or reaped by proxies. Comment frames are
+      // invisible to the client parser (no data line) but keep bytes flowing.
+      const heartbeat = setInterval(() => {
+        if (aborted) return;
+        try {
+          controller.enqueue(encoder.encode(":hb\n\n"));
+        } catch {
+          aborted = true;
+        }
+      }, 10_000);
+
       try {
         const onProgress: OnProgress = (ev) => send(ev.type, ev);
 
@@ -221,6 +233,15 @@ export async function POST(request: Request) {
         const fallbackUsed = validRaw.length === 0;
         if (fallbackUsed) {
           validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count });
+        } else if (validRaw.length < count) {
+          // PARTIAL result (e.g. a truncated payload salvaged 3 of 5) → top up
+          // to the promised count with deterministic picks, excluding shoes the
+          // AI already chose. AI picks stay first; top-ups follow.
+          const have = new Set(validRaw.map((r) => r.shoe_id));
+          const extras = pickFallbackShoes({ shoes, query: message, persona, focus, count: count + have.size })
+            .filter((r) => !have.has(r.shoe_id))
+            .slice(0, count - validRaw.length);
+          validRaw = [...validRaw, ...extras];
         }
 
         // Guarantee every card carries a reason + 3 pros + 3 cons. The AI's own
@@ -339,6 +360,7 @@ export async function POST(request: Request) {
         console.error("[ai/chat] stream failed", error);
         send("error", { message: "请求失败，请稍后重试。" });
       } finally {
+        clearInterval(heartbeat);
         if (!aborted) {
           try {
             controller.close();

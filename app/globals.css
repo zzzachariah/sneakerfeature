@@ -616,7 +616,18 @@ html[data-native-platform="ios"] [data-download-entry] {
 }
 
 /* Touch-friendly tap target. Use on icon buttons that need ≥40-44px hit area
-   without altering visual size — pairs with relative+absolute pseudo. */
+   without altering visual size — a -6px inset ::before enlarges the hit area.
+   That pseudo-element is absolutely positioned, so the host MUST establish a
+   positioning context; otherwise the overlay anchors to a distant positioned
+   ancestor, balloons over a whole region, and (painted last) the final such
+   control swallows clicks meant for its neighbors. This silently broke the
+   Smart Picker suggestion chips — tapping any chip hit the last chip's runaway
+   overlay, so only one ever responded, and it also blocked the composer. Set
+   the context by default via :where() (zero specificity) so it never overrides
+   an explicit position utility such as `absolute` (used on card buttons). */
+:where(.tap-44) {
+  position: relative;
+}
 .tap-44::before {
   content: "";
   position: absolute;

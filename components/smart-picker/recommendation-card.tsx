@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ChevronDown, Globe } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { PerformanceRadar } from "@/components/detail/performance-radar";
 import { ShoeImage } from "@/components/shoe/shoe-image";
@@ -41,6 +41,11 @@ function ProsCons({ label, items, tone }: { label: string; items: string[]; tone
 export function RecommendationCard({ rec, rank, selected, disabled, onToggle, className }: Props) {
   const { translate } = useLocale();
   const [detailOpen, setDetailOpen] = useState(false);
+  // Web sources this recommendation cites (from the AI's live search). Shown as
+  // a collapsed row on the card itself so the grounding is visible at a glance,
+  // not buried at the bottom of the detail sheet.
+  const [refsOpen, setRefsOpen] = useState(false);
+  const refs = rec.references ?? [];
   const href = `/shoes/${rec.slug}` as Route;
   const hasProsCons = rec.pros.length > 0 || rec.cons.length > 0;
 
@@ -114,6 +119,43 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
             <ArrowUpRight className="h-3.5 w-3.5" />
           </button>
         </div>
+
+        {/* Sources — collapsed row listing the web pages this pick cites. Only
+            rendered when the AI actually searched (references survive the
+            route's same-turn-search trust check). */}
+        {refs.length > 0 && (
+          <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.3)]">
+            <button
+              type="button"
+              onClick={() => setRefsOpen((o) => !o)}
+              aria-expanded={refsOpen}
+              className="flex w-full items-center gap-1.5 px-3.5 py-2 text-[0.72rem] font-medium soft-text transition hover:bg-[rgb(var(--text)/0.03)]"
+            >
+              <Globe className="h-3 w-3 shrink-0" />
+              {translate("Sources")}
+              <span className="num-display">· {refs.length}</span>
+              <ChevronDown className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform ${refsOpen ? "rotate-180" : ""}`} />
+            </button>
+            {refsOpen && (
+              <ul className="space-y-1.5 px-3.5 pb-2.5">
+                {refs.map((ref, i) => (
+                  <li key={i} className="flex gap-1.5 text-[0.74rem] leading-snug">
+                    <span className="num-display shrink-0 soft-text">[{i + 1}]</span>
+                    <a
+                      href={ref.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 truncate text-[rgb(var(--text))] underline-offset-2 hover:underline"
+                      title={ref.url}
+                    >
+                      {ref.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Detail bottom sheet */}

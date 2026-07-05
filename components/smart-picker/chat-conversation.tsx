@@ -54,11 +54,11 @@ export function ChatConversation({
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement | null>(null);
-  // Prefill text flows to the composer; suggestion chips on the empty state set
-  // it so a fresh conversation has concrete starting points instead of a blank
-  // box. A trailing space keeps the value distinct if the same chip is tapped
-  // twice (the effect in MessageInput only fires on change).
-  const [prefillText, setPrefillText] = useState("");
+  // Prefill flows to the composer; suggestion chips on the empty state set it so
+  // a fresh conversation has concrete starting points instead of a blank box.
+  // The `nonce` bumps on every tap so MessageInput re-fills even when the same
+  // chip is tapped twice (identical text, so a text-keyed effect would skip it).
+  const [prefill, setPrefill] = useState<{ text: string; nonce: number }>({ text: "", nonce: 0 });
   const suggestions =
     locale === "zh"
       ? ["适合控卫的强抓地球鞋", "给体重较大球员的稳定支撑", "贴地、适合快速后卫", "室外场耐磨又缓震"]
@@ -178,7 +178,7 @@ export function ChatConversation({
                     type="button"
                     onClick={() => {
                       haptics.selection();
-                      setPrefillText(s + " ");
+                      setPrefill((p) => ({ text: s + " ", nonce: p.nonce + 1 }));
                     }}
                     className="tap-44 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.6)] px-3.5 py-2 text-[0.8rem] font-medium text-[rgb(var(--text)/0.85)] transition hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
                   >
@@ -253,7 +253,14 @@ export function ChatConversation({
         </div>
       </div>
 
-      <MessageInput balance={balance} unlimited={unlimited} sending={sending} onSend={onSend} prefillText={prefillText} />
+      <MessageInput
+        balance={balance}
+        unlimited={unlimited}
+        sending={sending}
+        onSend={onSend}
+        prefillText={prefill.text}
+        prefillNonce={prefill.nonce}
+      />
 
       <CardPreviewModal
         open={!!report}
