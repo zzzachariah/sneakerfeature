@@ -337,7 +337,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.8rem] soft-text">
                 <span className="num-display">
                   {positions.join(" / ")} · {translate(SKILL_LEVEL_LABEL[personaInput.skill_level])} ·{" "}
-                  {height}cm · {weight}kg
+                  {fmtH(height)} · {fmtW(weight)}
                   {flatFoot ? ` · ${translate("flat foot")}` : ""}
                 </span>
                 {isLoggedIn ? (

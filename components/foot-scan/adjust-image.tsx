@@ -213,7 +213,7 @@ export function AdjustImage({
             <RefreshCw className="h-4 w-4" />
             {translate("Retake")}
           </Button>
-          <Button variant="secondary" className="gap-2" onClick={() => setEditing(true)}>
+          <Button variant="secondary" className="gap-2 whitespace-nowrap" onClick={() => setEditing(true)}>
             {translate("Adjust framing")}
           </Button>
           <Button variant="primary" className="flex-1 gap-2" disabled={busy} onClick={() => onConfirm(src)}>
