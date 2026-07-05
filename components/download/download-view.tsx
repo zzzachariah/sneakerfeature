@@ -28,6 +28,10 @@ import { useLocale } from "@/components/i18n/locale-provider";
 // streams through our own domain which is reachable there.
 const PROXY_APK_URL = "/api/download/android";
 const IOS_APP_STORE_URL = "https://apps.apple.com/us/app/sneakerfeature/id6780938606";
+// The GitHub releases list (every version + notes). The desktop download URLs
+// point straight at a .dmg/.exe binary, so the "All releases" link must use
+// this page instead of re-downloading the same file.
+const RELEASES_URL = "https://github.com/zzzachariah/sneakerfeature/releases";
 
 type Platform = "ios" | "android" | "macos" | "windows";
 
@@ -753,33 +757,41 @@ function DesktopContent({
 
       <div className="flex flex-wrap items-center gap-2 text-sm soft-text">
         <span>{meta.note}</span>
-        {version && (
+        {version && available && (
           <span className="rounded-full bg-[rgb(var(--text)/0.06)] px-2 py-0.5 text-[0.65rem] font-medium tracking-wide text-[rgb(var(--text)/0.65)]">
             v{version}
           </span>
         )}
       </div>
 
-      {meta.appStoreNote && (
-        <div className="flex items-start gap-2 rounded-2xl bg-[rgb(var(--accent)/0.07)] px-4 py-3 text-sm">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--accent))]" aria-hidden />
-          <p className="leading-[1.55] text-[rgb(var(--text)/0.85)]">{meta.appStoreNote}</p>
-        </div>
+      {/* Only teach installation for a build that actually exists — otherwise a
+          "coming soon" state contradicted itself with step-by-step install
+          instructions for a file that can't be downloaded. */}
+      {available ? (
+        <>
+          {meta.appStoreNote && (
+            <div className="flex items-start gap-2 rounded-2xl bg-[rgb(var(--accent)/0.07)] px-4 py-3 text-sm">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--accent))]" aria-hidden />
+              <p className="leading-[1.55] text-[rgb(var(--text)/0.85)]">{meta.appStoreNote}</p>
+            </div>
+          )}
+          <Steps title={zh ? "安装步骤" : "How to install"} steps={meta.steps} />
+        </>
+      ) : (
+        <p className="text-sm soft-text">
+          {zh ? "版本发布后会第一时间在此提供下载。" : "It'll be available here the moment it ships."}
+        </p>
       )}
 
-      <Steps title={zh ? "安装步骤" : "How to install"} steps={meta.steps} />
-
-      {available && (
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
-        >
-          {zh ? "查看所有版本" : "All releases"}
-          <ExternalLink className="h-2.5 w-2.5" />
-        </a>
-      )}
+      <a
+        href={RELEASES_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1 text-xs font-medium text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
+      >
+        {zh ? "在 GitHub 查看所有版本" : "All releases on GitHub"}
+        <ExternalLink className="h-2.5 w-2.5" />
+      </a>
     </div>
   );
 }
