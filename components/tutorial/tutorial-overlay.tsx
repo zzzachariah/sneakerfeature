@@ -388,7 +388,7 @@ export function TutorialOverlay() {
           y="0"
           width="100%"
           height="100%"
-          fill="rgb(8,8,10)"
+          fill="rgb(var(--shadow))"
           fillOpacity={missingTarget ? 0.78 : 0.62}
           mask="url(#sneaker-tutorial-mask)"
           style={{ transition: "fill-opacity 280ms cubic-bezier(0.22,1,0.36,1)" }}
