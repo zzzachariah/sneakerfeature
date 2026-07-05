@@ -435,7 +435,15 @@ async function completeWithProgress(
   const partials: { id: string; name: string; args: string }[] = [];
 
   try {
-    for await (const chunk of stream) {
+    // Manual iteration instead of `for await`: the FIRST next() can reject
+    // before any chunk arrives (connection dropped right after headers), which
+    // is exactly the sawChunk===false case the catch below retries — spelled
+    // out this way so static analysis sees that path too.
+    const iterator = stream[Symbol.asyncIterator]();
+    for (;;) {
+      const step = await iterator.next();
+      if (step.done) break;
+      const chunk = step.value;
       sawChunk = true;
       if (chunk.choices?.[0]?.finish_reason) finishReason = chunk.choices[0].finish_reason;
       const delta = chunk.choices?.[0]?.delta;
