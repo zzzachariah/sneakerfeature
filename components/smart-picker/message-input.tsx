@@ -11,9 +11,13 @@ type Props = {
   sending: boolean;
   onSend: (message: string, count: number) => void;
   prefillText?: string;
+  // Bumps on every suggestion tap. Keying the prefill effect on this (not on the
+  // text) makes tapping the SAME suggestion twice re-fill the box — two taps
+  // produce identical text, so a text-keyed effect would skip the second one.
+  prefillNonce?: number;
 };
 
-export function MessageInput({ balance, unlimited, sending, onSend, prefillText }: Props) {
+export function MessageInput({ balance, unlimited, sending, onSend, prefillText, prefillNonce = 0 }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
   // String state so the user can clear "1" and retype — enforce range only on blur.
@@ -27,11 +31,13 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText 
   const isReady = canSend && !insufficient;
 
   useEffect(() => {
-    if (prefillText) {
+    if (prefillNonce > 0 && prefillText) {
       setText(prefillText);
       requestAnimationFrame(() => growTextarea());
     }
-  }, [prefillText]);
+    // Keyed on the nonce so every tap fires, even when prefillText is unchanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillNonce]);
 
   const growTextarea = () => {
     const el = textareaRef.current;

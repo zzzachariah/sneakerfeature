@@ -168,6 +168,18 @@ export async function POST(request: Request) {
       // Flush headers / open the pipe immediately so proxies don't buffer.
       send("status", { phase: "start", message: "开始为你挑选…" });
 
+      // SSE comment heartbeat: a thinking model can go 30s+ between real events,
+      // and idle streams get buffered or reaped by proxies. Comment frames are
+      // invisible to the client parser (no data line) but keep bytes flowing.
+      const heartbeat = setInterval(() => {
+        if (aborted) return;
+        try {
+          controller.enqueue(encoder.encode(":hb\n\n"));
+        } catch {
+          aborted = true;
+        }
+      }, 10_000);
+
       try {
         const onProgress: OnProgress = (ev) => send(ev.type, ev);
 
@@ -339,6 +351,7 @@ export async function POST(request: Request) {
         console.error("[ai/chat] stream failed", error);
         send("error", { message: "请求失败，请稍后重试。" });
       } finally {
+        clearInterval(heartbeat);
         if (!aborted) {
           try {
             controller.close();

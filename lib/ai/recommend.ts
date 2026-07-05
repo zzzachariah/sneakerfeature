@@ -1,4 +1,4 @@
-import type OpenAI from "openai";
+import OpenAI from "openai";
 import type { Shoe, ShoeSpec, BloggerReview } from "@/lib/types";
 import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference, OnProgress } from "@/lib/ai/types";
 import type { Persona } from "@/lib/persona/types";
@@ -271,6 +271,155 @@ function sanitizeThinkingText(content: string): string | null {
   return cleaned;
 }
 
+// deepseek-v4-pro (thinking mode) rejects a forced `tool_choice` with HTTP 400
+// "Thinking mode does not support this tool_choice". Detect that exact family
+// of errors so callers can retry once with tool_choice "auto" instead of
+// abandoning the whole tool loop (which is what silently happened before).
+function isToolChoiceUnsupported(error: unknown): boolean {
+  if (!(error instanceof OpenAI.APIError)) return false;
+  if (error.status !== 400) return false;
+  return /tool[_\s-]?choice/i.test(error.message ?? "");
+}
+
+// Gates the live reasoning stream: batches tiny token deltas into readable
+// chunks, stops forever at the first sign of machine output (code fence or
+// JSON), and caps the total so a runaway thinking phase can't flood the SSE
+// pipe. Mirrors sanitizeThinkingText's cut heuristics, but works incrementally.
+const REASONING_STREAM_CAP = 4000;
+const REASONING_FLUSH_AT = 48;
+// Holdback so a code fence split across deltas ("`" then "``") can't slip out.
+const REASONING_HOLDBACK = 2;
+
+function createReasoningEmitter(onProgress?: OnProgress) {
+  let pending = "";
+  let emittedTotal = 0;
+  let stopped = false;
+
+  const emit = (text: string) => {
+    if (!text) return;
+    onProgress?.({ type: "text", delta: text });
+    emittedTotal += text.length;
+  };
+
+  const machineCutIndex = (text: string): number => {
+    const fence = text.indexOf("```");
+    const brace = text.indexOf("{");
+    const arr = text.match(/\[\s*[{"]/)?.index ?? -1;
+    const candidates = [fence, brace, arr].filter((i) => i >= 0);
+    return candidates.length ? Math.min(...candidates) : -1;
+  };
+
+  return {
+    push(delta: string) {
+      if (stopped || !onProgress || !delta) return;
+      pending += delta;
+      const cut = machineCutIndex(pending);
+      if (cut >= 0) {
+        emit(pending.slice(0, cut).trimEnd());
+        pending = "";
+        stopped = true;
+        return;
+      }
+      if (emittedTotal + pending.length > REASONING_STREAM_CAP) {
+        emit(pending.slice(0, Math.max(0, REASONING_STREAM_CAP - emittedTotal)) + "…");
+        pending = "";
+        stopped = true;
+        return;
+      }
+      if (pending.length >= REASONING_FLUSH_AT + REASONING_HOLDBACK) {
+        emit(pending.slice(0, pending.length - REASONING_HOLDBACK));
+        pending = pending.slice(pending.length - REASONING_HOLDBACK);
+      }
+    },
+    finish() {
+      if (stopped) return;
+      stopped = true;
+      if (pending && machineCutIndex(pending) < 0) emit(pending.trimEnd());
+      pending = "";
+    }
+  };
+}
+
+// The subset of an assistant message the pipeline consumes, normalized across
+// the streaming and non-streaming paths.
+type StreamedMessage = {
+  content: string | null;
+  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+};
+
+// One chat completion with live progress: streams the response so the model's
+// reasoning_content (deepseek thinking) is forwarded to the user as it is
+// generated, and a "writing" status fires the moment the model starts emitting
+// the recommend_shoes payload (that arguments stream is the single longest
+// silent phase). Falls back to a plain non-streaming call when the relay
+// rejects streaming for these params. Never streams `content` deltas live —
+// content routinely carries JSON on this relay; the caller sanitizes it whole.
+async function completeWithProgress(
+  client: OpenAI,
+  params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
+  onProgress?: OnProgress
+): Promise<StreamedMessage | null> {
+  let stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+  try {
+    stream = await client.chat.completions.create({ ...params, stream: true });
+  } catch (err) {
+    // A param-level rejection (e.g. unsupported tool_choice) would fail the
+    // non-streaming call identically — surface it to the caller's fallback.
+    if (isToolChoiceUnsupported(err)) throw err;
+    const c = await client.chat.completions.create(params);
+    const msg = c.choices?.[0]?.message;
+    return msg ? { content: msg.content ?? null, tool_calls: msg.tool_calls } : null;
+  }
+
+  const reasoning = createReasoningEmitter(onProgress);
+  let content = "";
+  let sawContent = false;
+  let sawChunk = false;
+  let announcedWriting = false;
+  const partials: { id: string; name: string; args: string }[] = [];
+
+  try {
+    for await (const chunk of stream) {
+      sawChunk = true;
+      const delta = chunk.choices?.[0]?.delta;
+      if (!delta) continue;
+      const think = (delta as { reasoning_content?: unknown }).reasoning_content;
+      if (typeof think === "string" && think) reasoning.push(think);
+      if (typeof delta.content === "string" && delta.content) {
+        content += delta.content;
+        sawContent = true;
+      }
+      for (const tc of delta.tool_calls ?? []) {
+        const slot = (partials[tc.index ?? 0] ??= { id: "", name: "", args: "" });
+        if (tc.id) slot.id = tc.id;
+        if (tc.function?.name) slot.name = tc.function.name;
+        if (tc.function?.arguments) slot.args += tc.function.arguments;
+        if (!announcedWriting && slot.name === "recommend_shoes") {
+          announcedWriting = true;
+          reasoning.finish();
+          onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
+        }
+      }
+    }
+  } catch (err) {
+    reasoning.finish();
+    // Stream died before producing anything → one plain retry; otherwise the
+    // partial state is unusable and the caller's error handling takes over.
+    if (!sawChunk) {
+      const c = await client.chat.completions.create(params);
+      const msg = c.choices?.[0]?.message;
+      return msg ? { content: msg.content ?? null, tool_calls: msg.tool_calls } : null;
+    }
+    throw err;
+  }
+  reasoning.finish();
+
+  const tool_calls = partials
+    .filter((t) => t && t.id && t.name)
+    .map((t) => ({ id: t.id, type: "function" as const, function: { name: t.name, arguments: t.args } }));
+  return { content: sawContent ? content : null, ...(tool_calls.length ? { tool_calls } : {}) };
+}
+
 function coerceStars(value: unknown): number {
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return 3;
@@ -539,6 +688,10 @@ async function tryToolLoopWithSearch(
   // a couple of these we stop nudging and FORCE recommend_shoes so it commits
   // instead of rambling forever.
   let proseNudges = 0;
+  // Thinking-mode models (deepseek-v4-pro) reject any forced tool_choice with a
+  // 400. Once we see that, stop forcing for the rest of the loop and steer with
+  // explicit user-turn instructions instead — same convergence, no dead calls.
+  let forcingSupported = true;
 
   for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
     // Iteration 0 forces web_search so every request makes at least one real
@@ -548,20 +701,59 @@ async function tryToolLoopWithSearch(
     // recommend_shoes is how we make the model actually produce an answer.
     const forceRecommend =
       i > 0 && (proseNudges >= 2 || stats.attempts >= MAX_SEARCHES || i === MAX_TOOL_ITERATIONS - 1);
-    const toolChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
+    const desiredChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
       i === 0
         ? { type: "function", function: { name: "web_search" } }
         : forceRecommend
           ? { type: "function", function: { name: "recommend_shoes" } }
           : "auto";
 
-    const c = await client.chat.completions.create({
-      ...base,
-      messages: convo,
-      tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL],
-      tool_choice: toolChoice
-    });
-    const msg = c.choices?.[0]?.message;
+    // When we can't force via tool_choice, force via instruction — the model
+    // treats a direct user command nearly as reliably as a hard constraint.
+    if (!forcingSupported && forceRecommend) {
+      convo.push({
+        role: "user",
+        content: "请立即调用 recommend_shoes 工具输出最终推荐（不要再调用 web_search，也不要用文字解释）。"
+      });
+    }
+
+    onProgress?.(
+      i === 0
+        ? { type: "status", phase: "reading", message: "正在阅读鞋款目录，结合你的需求思考…" }
+        : forceRecommend
+          ? { type: "status", phase: "finalizing", message: "正在敲定最终推荐…" }
+          : { type: "status", phase: "round", round: i + 1, message: `继续深入分析（第 ${i + 1} 轮）…` }
+    );
+
+    const attempt = (tool_choice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption) =>
+      completeWithProgress(
+        client,
+        { ...base, messages: convo, tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL], tool_choice },
+        onProgress
+      );
+
+    let msg: StreamedMessage | null;
+    if (forcingSupported && desiredChoice !== "auto") {
+      try {
+        msg = await attempt(desiredChoice);
+      } catch (err) {
+        if (!isToolChoiceUnsupported(err)) throw err;
+        forcingSupported = false;
+        console.warn("[ai/chat] forced tool_choice unsupported — downgrading to auto", {
+          model: base.model,
+          iteration: i
+        });
+        if (forceRecommend) {
+          convo.push({
+            role: "user",
+            content: "请立即调用 recommend_shoes 工具输出最终推荐（不要再调用 web_search，也不要用文字解释）。"
+          });
+        }
+        msg = await attempt("auto");
+      }
+    } else {
+      msg = await attempt("auto");
+    }
     if (!msg) return bail("no_choice_message");
 
     // Stream the model's natural-language preamble so the user sees "what it's
@@ -667,7 +859,11 @@ async function getRecommendations(
   onProgress?: OnProgress
 ): Promise<RecommendResult> {
   onProgress?.({ type: "status", phase: "thinking", message: "正在分析你的需求…" });
-  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 3000 };
+  // max_tokens on this relay caps reasoning + answer TOGETHER (thinking models
+  // burn completion tokens on reasoning_content first). 3000 let a long think
+  // truncate the JSON payload mid-array — parse failure, strategy churn, and a
+  // fallback answer. 6000 leaves room for both.
+  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 6000 };
   const ok = (text: string): RecommendResult | null => {
     const r = parseResult(text);
     return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
@@ -708,16 +904,16 @@ async function getRecommendations(
   //    primitive; the prompt contains the word "JSON" + an example as required.
   //    Shared fallback for the not-configured case and a bailed tool loop.
   try {
-    const c = await client.chat.completions.create({
-      ...base,
-      messages,
-      response_format: { type: "json_object" }
-    });
-    const content = c.choices?.[0]?.message?.content;
-    if (typeof content === "string") {
-      const r = ok(content);
+    onProgress?.({ type: "status", phase: "generating", message: "正在生成推荐结果…" });
+    const msg = await completeWithProgress(
+      client,
+      { ...base, messages, response_format: { type: "json_object" } },
+      onProgress
+    );
+    if (typeof msg?.content === "string") {
+      const r = ok(msg.content);
       if (r) return withLoop(r);
-      prose.push(content);
+      prose.push(msg.content);
     }
   } catch {
     /* response_format unsupported — try the next strategy */
@@ -725,16 +921,19 @@ async function getRecommendations(
 
   // 2) Forced tool call — clean structured args when the relay supports tools.
   //    Only for the Bocha-not-configured case (the configured case already ran
-  //    the loop above); identical to the legacy single-call behavior.
+  //    the loop above); identical to the legacy single-call behavior. Thinking
+  //    models reject the forced choice — downgrade to "auto" once, like the loop.
   if (!isBochaConfigured()) {
     try {
-      const c = await client.chat.completions.create({
-        ...base,
-        messages,
-        tools: [RECOMMEND_TOOL],
-        tool_choice: { type: "function", function: { name: "recommend_shoes" } }
-      });
-      const msg = c.choices?.[0]?.message;
+      const attempt = (tool_choice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption) =>
+        completeWithProgress(client, { ...base, messages, tools: [RECOMMEND_TOOL], tool_choice }, onProgress);
+      let msg: StreamedMessage | null;
+      try {
+        msg = await attempt({ type: "function", function: { name: "recommend_shoes" } });
+      } catch (err) {
+        if (!isToolChoiceUnsupported(err)) throw err;
+        msg = await attempt("auto");
+      }
       const args = msg?.tool_calls?.[0]?.function?.arguments;
       if (typeof args === "string") {
         const r = ok(args);
@@ -751,12 +950,14 @@ async function getRecommendations(
 
   // 3) Assistant prefill — Claude continues the JSON object we started.
   try {
+    onProgress?.({ type: "status", phase: "generating", message: "换一种方式生成推荐…" });
     const prefill = '{"recommendations":';
-    const c = await client.chat.completions.create({
-      ...base,
-      messages: [...messages, { role: "assistant", content: prefill }]
-    });
-    const out = c.choices?.[0]?.message?.content;
+    const msg = await completeWithProgress(
+      client,
+      { ...base, messages: [...messages, { role: "assistant", content: prefill }] },
+      onProgress
+    );
+    const out = msg?.content;
     if (typeof out === "string") {
       const r = ok(prefill + out) ?? ok(out);
       if (r) return withLoop(r);
@@ -766,10 +967,11 @@ async function getRecommendations(
   }
 
   // 4) Plain call — last resort; parse whatever comes back (may be prose).
-  const c = await client.chat.completions.create({ ...base, messages });
-  const content = c?.choices?.[0]?.message?.content;
+  onProgress?.({ type: "status", phase: "generating", message: "再次尝试生成推荐…" });
+  const msg4 = await completeWithProgress(client, { ...base, messages }, onProgress);
+  const content = msg4?.content;
   if (typeof content !== "string") {
-    const snippet = JSON.stringify(c ?? {}).slice(0, 300);
+    const snippet = JSON.stringify(msg4 ?? {}).slice(0, 300);
     throw new Error(
       `上游返回了非预期响应（缺少 choices/content）——通常是 Base URL 路径不对（应以 /v1 结尾）或上游报错。响应片段：${snippet}`
     );
@@ -834,6 +1036,7 @@ export async function recommendShoes(
       `按推荐指数从高到低排序。（唯一例外：目录里匹配良好的鞋款不足 ${opts.count} 双时可以少返回。）\n\n` +
       `推荐流程：(1) 从目录里挑出 ${opts.count} 双初步候选；(2) 用 web_search 查与用户本次诉求/使用场景相关的通用常识（位置、打法、脚型、选鞋要点等；每次对话最多 3 次）；(3) 结合网络反馈给 stars 做差异化打分；(4) 把每双鞋引用过的网页 title/url 填到该鞋的 references 数组里。\n\n` +
       `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 围绕用户本次诉求/使用场景）。如果已经搜过：直接发 recommend_shoes。\n\n` +
+      `⏱️ 思考过程请精炼：选定候选后就直接调工具，不要在思考里逐字起草每双鞋的完整 reason/pros/cons 文案（那些直接写进工具参数即可）。\n\n` +
       `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
       `{"reply":"…","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2","优点3"],"cons":["缺点1","缺点2","缺点3"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。`
   });

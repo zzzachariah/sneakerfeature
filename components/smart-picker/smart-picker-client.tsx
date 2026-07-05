@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
@@ -15,6 +15,36 @@ async function getJson(input: string, init?: RequestInit) {
     return await res.json();
   } catch {
     return null;
+  }
+}
+
+// Localized text for a server `status` progress event. The server's `message`
+// is zh-CN; English UI maps the machine-readable `phase` instead and only falls
+// back to the raw message for phases this build doesn't know yet.
+function statusText(
+  d: { phase?: string; message?: string; round?: number },
+  zhUI: boolean
+): string {
+  if (zhUI) return d.message ?? "";
+  switch (d.phase) {
+    case "start":
+      return "Getting started…";
+    case "thinking":
+      return "Analyzing your request…";
+    case "reading":
+      return "Reading the shoe catalog and thinking…";
+    case "round":
+      return `Digging deeper${typeof d.round === "number" ? ` (round ${d.round})` : ""}…`;
+    case "searching":
+      return "Searching the web…";
+    case "writing":
+      return "Writing up each recommendation…";
+    case "generating":
+      return "Generating recommendations…";
+    case "finalizing":
+      return "Putting the picks together…";
+    default:
+      return d.message ?? "";
   }
 }
 
@@ -33,6 +63,12 @@ export function SmartPickerClient() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
+  // Chat id created inside handleSend for a fresh conversation. The activeChatId
+  // effect must NOT fetch messages for it — the async GET (empty list) would
+  // land mid-stream and wipe the optimistic user bubble + the streaming
+  // assistant turn, which is exactly the "message vanishes, then nothing ever
+  // appears" bug on the first send of a new conversation.
+  const skipLoadForChat = useRef<string | null>(null);
 
   // Initial load: chats + balance.
   // Note: we intentionally do NOT auto-select the most recent conversation.
@@ -57,6 +93,10 @@ export function SmartPickerClient() {
   useEffect(() => {
     if (!activeChatId) {
       setMessages([]);
+      return;
+    }
+    if (skipLoadForChat.current === activeChatId) {
+      skipLoadForChat.current = null;
       return;
     }
     let cancelled = false;
@@ -125,17 +165,10 @@ export function SmartPickerClient() {
     async (message: string, count: number) => {
       if (sending) return;
 
-      // Ensure there's a chat to post into.
-      let chatId = activeChatId;
-      if (!chatId) {
-        const created = await getJson("/api/ai/chats", { method: "POST" });
-        if (!created?.ok) return;
-        chatId = created.chat.id as string;
-        setChats((prev) => [created.chat as AiChatSummary, ...prev]);
-        setMessages([]);
-        setActiveChatId(chatId);
-      }
-
+      // Optimistic UI FIRST: the user's bubble and the thinking indicator must
+      // appear the instant they hit send. The old order awaited chat creation
+      // before touching state, leaving a dead, feedback-free window on the
+      // first message of every fresh conversation.
       const tempUser: AiChatMessage = {
         id: `temp-${Date.now()}`,
         role: "user",
@@ -148,6 +181,30 @@ export function SmartPickerClient() {
       setSending(true);
 
       try {
+        // Ensure there's a chat to post into.
+        let chatId = activeChatId;
+        if (!chatId) {
+          const created = await getJson("/api/ai/chats", { method: "POST" });
+          if (!created?.ok) {
+            setMessages((prev) => [
+              ...prev.filter((m) => m.id !== tempUser.id),
+              {
+                id: `err-${Date.now()}`,
+                role: "assistant",
+                content: failMsg,
+                recommendations: null,
+                credits_charged: 0,
+                created_at: new Date().toISOString()
+              }
+            ]);
+            return;
+          }
+          chatId = created.chat.id as string;
+          setChats((prev) => [created.chat as AiChatSummary, ...prev]);
+          skipLoadForChat.current = chatId;
+          setActiveChatId(chatId);
+        }
+
         const res = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -233,6 +290,28 @@ export function SmartPickerClient() {
               continue;
             }
             switch (event) {
+              case "status": {
+                // Live pipeline phase — the "what am I doing right now" line the
+                // user asked for. Each new phase checks off the previous one.
+                const d = data as { phase?: string; message?: string; round?: number };
+                const text = statusText(d, zhUI);
+                if (!text) break;
+                patch((m) => {
+                  const steps = [...(m.steps ?? [])];
+                  const last = steps[steps.length - 1];
+                  if (last?.kind === "status" && last.text === text) return m; // dedupe repeats
+                  for (let i = steps.length - 1; i >= 0; i--) {
+                    const s = steps[i];
+                    if (s.kind === "status" && !s.done) {
+                      steps[i] = { ...s, done: true };
+                      break;
+                    }
+                  }
+                  steps.push({ kind: "status", text });
+                  return { ...m, steps };
+                });
+                break;
+              }
               case "text": {
                 const delta = (data as { delta?: string }).delta;
                 if (delta) {
@@ -286,7 +365,9 @@ export function SmartPickerClient() {
                   id: d.assistantMessageId ?? m.id,
                   content: d.content ?? m.content,
                   credits_charged: d.creditsCharged ?? 0,
-                  created_at: d.createdAt ?? m.created_at
+                  created_at: d.createdAt ?? m.created_at,
+                  // The turn is over — check off any status still shown as running.
+                  steps: m.steps?.map((s) => (s.kind === "status" && !s.done ? { ...s, done: true } : s))
                 }));
                 if (typeof d.balance === "number") setBalance(d.balance);
                 if (typeof d.unlimited === "boolean") setUnlimited(d.unlimited);

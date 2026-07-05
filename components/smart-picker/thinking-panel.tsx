@@ -1,9 +1,42 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Search, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Sparkles, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { ChatStep } from "@/lib/ai/types";
+
+// A coarse pipeline phase ("reading the catalog…"). Spins while it's the
+// current phase, checks off once the next phase (or `done`) supersedes it.
+function StatusRow({ step, active, isLast }: { step: Extract<ChatStep, { kind: "status" }>; active: boolean; isLast: boolean }) {
+  const running = !step.done && active;
+  return (
+    <div className="relative flex items-start gap-3">
+      {!isLast && (
+        <span className="absolute left-[0.4375rem] top-5 h-full w-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+      )}
+      <span
+        className={`relative z-10 mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border ${
+          running
+            ? "border-[rgb(var(--text)/0.4)] bg-[rgb(var(--bg))]"
+            : "border-[rgb(var(--success))] bg-[rgb(var(--success)/0.15)]"
+        }`}
+      >
+        {running ? (
+          <Loader2 className="h-2.5 w-2.5 animate-spin text-[rgb(var(--text)/0.7)]" />
+        ) : (
+          <Check className="h-2.5 w-2.5 text-[rgb(var(--success))]" />
+        )}
+      </span>
+      <p
+        className={`min-w-0 flex-1 pb-2.5 text-[0.8rem] font-medium leading-relaxed ${
+          running ? "text-[rgb(var(--text)/0.9)]" : "soft-text"
+        }`}
+      >
+        {step.text}
+      </p>
+    </div>
+  );
+}
 
 function ActivityRow({ step, isLast }: { step: Extract<ChatStep, { kind: "activity" }>; isLast: boolean }) {
   const working = step.state === "start";
@@ -69,6 +102,18 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
 
   const hasBody = steps.length > 0;
 
+  // While streaming, the header IS the live status line — "what is it doing
+  // right now" — instead of a static "AI is thinking…". The most recent
+  // unchecked status step is the current phase.
+  let currentPhase: string | null = null;
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const s = steps[i];
+    if (s.kind === "status" && !s.done) {
+      currentPhase = s.text;
+      break;
+    }
+  }
+
   return (
     <div className="w-fit max-w-[92%] rounded-2xl rounded-bl-md border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3.5 py-2.5">
       <button
@@ -81,7 +126,7 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
           className={`h-4 w-4 shrink-0 transition-opacity ${active ? "thinking-glow text-[rgb(var(--text))]" : "opacity-50"}`}
         />
         <span className={`text-[0.82rem] font-medium ${active ? "thinking-shimmer" : "soft-text"}`}>
-          {active ? translate("AI is thinking…") : translate("Thought process")}
+          {active ? currentPhase ?? translate("AI is thinking…") : translate("Thought process")}
         </span>
         {active ? (
           <span className="ml-0.5 inline-flex items-end gap-[3px] pb-0.5">
@@ -104,6 +149,8 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
             const isLast = i === arr.length - 1;
             return step.kind === "prose" ? (
               <ProseRow key={i} text={step.text} isLast={isLast} />
+            ) : step.kind === "status" ? (
+              <StatusRow key={i} step={step} active={active} isLast={isLast} />
             ) : (
               <ActivityRow key={i} step={step} isLast={isLast} />
             );
