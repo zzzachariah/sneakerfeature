@@ -36,6 +36,9 @@ type Props = {
   revealRootMargin?: string;
   /** When true, loads the image eagerly to avoid lazy-loading LCP images. */
   priority?: boolean;
+  /** Optional one-line caption under the card (e.g. a Quick Picker match reason
+   * like "Great for guards"). Only rendered when provided. */
+  footnote?: string;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -49,7 +52,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority, footnote }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const href = `/shoes/${shoe.slug}` as Route;
@@ -143,6 +146,12 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
           />
         </label>
       )}
+
+      {footnote ? (
+        <p className="mt-1.5 flex items-start gap-1 px-0.5 text-[0.7rem] leading-snug text-[rgb(var(--brand))]">
+          {footnote}
+        </p>
+      ) : null}
     </>
   );
 

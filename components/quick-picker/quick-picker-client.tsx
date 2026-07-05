@@ -125,6 +125,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
 
   const canNext = step === 0 ? positions.length >= 1 : step === 1 ? Boolean(skill) : true;
   const top3 = results.slice(0, 3).map((r) => r.shoe.id);
+  const priorityLabel = priority ? PRIORITY_OPTIONS.find((o) => o.key === priority)?.label ?? null : null;
 
   const savedSummary = savedPersona
     ? `${savedPersona.positions.join(" / ")} · ${translate(SKILL_LEVEL_LABEL[savedPersona.skill_level])} · ${savedPersona.height_cm}cm · ${savedPersona.weight_kg}kg`
@@ -291,7 +292,14 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
         ) : (
           <div>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">{translate("Your top matches")}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold">{translate("Your top matches")}</h2>
+                {priorityLabel ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--brand)/0.35)] bg-[rgb(var(--brand)/0.1)] px-2.5 py-1 text-[0.72rem] font-medium text-[rgb(var(--brand))]">
+                    {translate("Ranked by")} {translate(priorityLabel)}
+                  </span>
+                ) : null}
+              </div>
               <div className="flex flex-wrap gap-2">
                 {top3.length >= 2 && (
                   <Link
@@ -312,8 +320,18 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
             </div>
 
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {results.map(({ shoe, score }, i) => (
-                <ShoeCard key={shoe.id} shoe={shoe} matchScore={score} showChips index={i} />
+              {results.map(({ shoe, score, rank, reasons }, i) => (
+                <ShoeCard
+                  key={shoe.id}
+                  shoe={shoe}
+                  // Show the number the list is actually ordered by, so the
+                  // percentages never look out of order: the priority-blended
+                  // rank when a priority is chosen, otherwise the raw match%.
+                  matchScore={priority ? rank : score}
+                  footnote={reasons[0] ? translate(reasons[0]) : undefined}
+                  showChips
+                  index={i}
+                />
               ))}
             </ul>
 
