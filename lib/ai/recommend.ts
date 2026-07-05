@@ -8,7 +8,44 @@ import { dimScores } from "@/lib/star-rating";
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
 import { normalizeSearchText, normalizeCompactText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { PACKY_MODEL } from "@/lib/ai/packy-client";
-import { bochaWebSearch, describeBochaError, isBochaConfigured, type BochaErrorKind } from "@/lib/ai/web-search";
+import { detectReplyLang } from "@/lib/ai/derive-proscons";
+import {
+  bochaWebSearch,
+  describeBochaError,
+  isBochaConfigured,
+  type BochaErrorKind,
+  type WebSearchResult
+} from "@/lib/ai/web-search";
+
+// ---------------------------------------------------------------------------
+// Process-lifetime web-search cache. The same shoe gets researched over and
+// over (follow-up turns, popular shoes across users on a warm instance) — a
+// repeat query within the TTL is pure duplicated spend, so successful results
+// are reused. Only successes are cached; failures always retry live.
+// ---------------------------------------------------------------------------
+const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — review chatter doesn't move faster
+const SEARCH_CACHE_MAX = 300;
+const searchCache = new Map<string, { at: number; result: WebSearchResult }>();
+
+async function cachedBochaSearch(
+  query: string,
+  opts?: Parameters<typeof bochaWebSearch>[1]
+): Promise<WebSearchResult & { cached?: boolean }> {
+  const key = query.trim();
+  const hit = searchCache.get(key);
+  if (hit && hit.result.ok && Date.now() - hit.at < SEARCH_CACHE_TTL_MS) {
+    return { ...hit.result, cached: true };
+  }
+  const result = await bochaWebSearch(key, opts);
+  if (result.ok) {
+    if (searchCache.size >= SEARCH_CACHE_MAX) {
+      const oldest = searchCache.keys().next().value;
+      if (oldest !== undefined) searchCache.delete(oldest);
+    }
+    searchCache.set(key, { at: Date.now(), result });
+  }
+  return result;
+}
 
 // Six performance axes for a shoe, mirroring the detail page's radar.
 function buildRadarAxes(spec: ShoeSpec): RecRadarAxis[] {
@@ -949,7 +986,7 @@ async function tryToolLoopWithSearch(
         continue;
       }
       onProgress?.({ type: "search", query: q, state: "start" });
-      const sr = await bochaWebSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
+      const sr = await cachedBochaSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
       stats.attempts += 1;
       if (sr.ok) {
         stats.succeeded += 1;
@@ -1190,19 +1227,356 @@ async function getRecommendations(
   return withLoop({ ...parsed, raw: content.slice(0, 600) });
 }
 
+export type RecommendOpts = {
+  shoes: Shoe[];
+  history: ChatTurn[];
+  currentInput: string;
+  count: number;
+  persona?: Persona | null;
+  footProfile?: FootProfile | null;
+  reviewsByShoe?: Record<string, BloggerReview[]>;
+};
+
+// Persona / foot-profile context appended to the ask in every pipeline phase.
+function personaFootSuffix(opts: Pick<RecommendOpts, "persona" | "footProfile">): string {
+  const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
+  const footSuffix = opts.footProfile
+    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
+    : "";
+  return personaSuffix + footSuffix;
+}
+
+// Opening turns shared by every phase: system prompt + a catalog + the chat
+// history, delivered as user/assistant alternation (this relay rejects a
+// `system` role — see recommendShoes).
+function buildBaseMessages(
+  catalogLabel: string,
+  catalogJson: string,
+  history: ChatTurn[]
+): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "user", content: `${SYSTEM_PROMPT}\n\n${catalogLabel}:\n${catalogJson}` },
+    { role: "assistant", content: "明白，我已读取鞋款目录，请告诉我你的需求。" }
+  ];
+  for (const turn of history) {
+    messages.push(turn.role === "user" ? { role: "user", content: turn.content } : { role: "assistant", content: turn.content });
+  }
+  return messages;
+}
+
+// ---------------------------------------------------------------------------
+// Candidate-first evidence pipeline (default when Bocha is configured).
+//
+//   A) SHORTLIST — one small json_object call over the full catalog: pick
+//      count+3 candidate shoes (semantic matching is the model's job).
+//   B) EVIDENCE — code fires one Bocha search PER CANDIDATE, all in parallel
+//      (plus one scenario search on the first turn). No model round-trips
+//      between searches, results cached process-wide.
+//   C) COMMIT — one json_object call whose context carries ONLY the candidate
+//      entries + the per-shoe search digests (not the whole catalog again),
+//      with references restricted to a whitelist of actually-searched URLs.
+//
+// vs. the legacy tool loop: 2 model calls instead of 3-6, searches about the
+// actual shoes instead of generic phrasing, wall-clock searches = one hop, and
+// fabricated reference URLs become impossible.
+// ---------------------------------------------------------------------------
+const SHORTLIST_EXTRA = 3;
+const MAX_CANDIDATES = 12;
+const MAX_CANDIDATE_SEARCHES = 8;
+const BACKUP_POOL_SIZE = 4;
+const DIGEST_HITS_PER_QUERY = 2;
+const DIGEST_SNIPPET_CHARS = 300;
+
+async function candidateEvidencePipeline(
+  client: OpenAI,
+  opts: RecommendOpts,
+  onProgress?: OnProgress
+): Promise<RecommendResult | null> {
+  const { shoes, history, currentInput, count } = opts;
+  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
+  const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
+  const suffix = personaFootSuffix(opts);
+  const zh = detectReplyLang(currentInput) === "zh";
+
+  // --- A) shortlist -------------------------------------------------------
+  onProgress?.({ type: "status", phase: "shortlist", message: "正在从目录圈定候选鞋款…" });
+  const wanted = Math.min(Math.max(count + SHORTLIST_EXTRA, 5), Math.max(count, MAX_CANDIDATES));
+  const fullCatalog = JSON.stringify(buildCompactCatalog(shoes, opts.persona, opts.reviewsByShoe));
+  const shortlistMessages = [
+    ...buildBaseMessages("鞋款目录(JSON)", fullCatalog, history),
+    {
+      role: "user" as const,
+      content:
+        `本次要求："${currentInput}"${suffix}\n\n` +
+        `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${BACKUP_POOL_SIZE} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
+        `只输出 JSON：{"candidates":["鞋名1","鞋名2",…],"backups":["鞋名A","鞋名B",…]}——鞋名必须逐字复制目录里的 name 字段。不要输出任何其他内容。思考尽量简短。`
+    }
+  ];
+  const msgA = await completeWithProgress(
+    client,
+    { ...base, messages: shortlistMessages, response_format: { type: "json_object" } },
+    onProgress
+  );
+  let candidateNames: string[] = [];
+  let backupNames: string[] = [];
+  try {
+    const parsed = JSON.parse(stripFences(msgA?.content ?? "")) as { candidates?: unknown; backups?: unknown };
+    candidateNames = coerceStringArray(parsed.candidates, MAX_CANDIDATES);
+    backupNames = coerceStringArray(parsed.backups, BACKUP_POOL_SIZE);
+  } catch {
+    /* fall through — no candidates means fall back to the legacy loop */
+  }
+  const seen = new Set<string>();
+  const candidates: Shoe[] = [];
+  for (const name of candidateNames) {
+    const shoe = matchShoeByName(name, shoes);
+    if (shoe && !seen.has(shoe.id)) {
+      seen.add(shoe.id);
+      candidates.push(shoe);
+    }
+  }
+  if (candidates.length === 0) {
+    console.warn("[ai/chat] shortlist produced no matchable candidates — falling back to tool loop");
+    return null;
+  }
+  // Backup pool: researched only if the commit step finds the candidates
+  // insufficient (explicitly via add_candidates, or by under-returning).
+  const backups: Shoe[] = [];
+  for (const name of backupNames) {
+    const shoe = matchShoeByName(name, shoes);
+    if (shoe && !seen.has(shoe.id)) {
+      seen.add(shoe.id);
+      backups.push(shoe);
+    }
+  }
+  onProgress?.({
+    type: "text",
+    delta:
+      `候选鞋款（${candidates.length}）：${candidates.map((s) => s.shoe_name).join("、")}` +
+      (backups.length ? `\n备选（暂不查证）：${backups.map((s) => s.shoe_name).join("、")}` : "")
+  });
+
+  // --- B) parallel evidence searches --------------------------------------
+  type Probe = { label: string; query: string; result?: WebSearchResult };
+  const probes: Probe[] = [];
+  const runProbes = async (targets: Shoe[], includeGeneric: boolean, statusMsg: string) => {
+    onProgress?.({ type: "status", phase: "searching", message: statusMsg });
+    const batch: Probe[] = targets.slice(0, MAX_CANDIDATE_SEARCHES).map((s) => ({
+      label: s.shoe_name,
+      query: zh
+        ? `${s.shoe_name} 篮球鞋 实战测评 优缺点 口碑`
+        : `${s.shoe_name} basketball shoe performance review pros cons`
+    }));
+    const generic = currentInput.trim().slice(0, 60);
+    if (includeGeneric && history.length === 0 && generic) batch.unshift({ label: generic, query: generic });
+    // Bounded concurrency: an unthrottled burst of 6-9 simultaneous calls trips
+    // Bocha's rate limit (observed HTTP 429). Three workers drain the queue,
+    // and a rate-limited query gets ONE retry after a short backoff.
+    const queue = [...batch];
+    const worker = async () => {
+      for (let p = queue.shift(); p; p = queue.shift()) {
+        onProgress?.({ type: "search", query: p.query, state: "start" });
+        let sr = await cachedBochaSearch(p.query, { count: 3, timeoutMs: 8000 });
+        if (!sr.ok && sr.error === "rate_limited") {
+          await new Promise((r) => setTimeout(r, 1200));
+          sr = await cachedBochaSearch(p.query, { count: 3, timeoutMs: 8000 });
+        }
+        p.result = sr;
+        stats.attempts += 1;
+        if (sr.ok) {
+          stats.succeeded += 1;
+          onProgress?.({ type: "search", query: p.query, state: "ok", resultCount: sr.results.length });
+        } else {
+          stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
+          onProgress?.({ type: "search", query: p.query, state: "fail", kind: sr.error });
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(3, queue.length) }, worker));
+    probes.push(...batch);
+  };
+  await runProbes(candidates, true, "正在逐双联网查证实战口碑…");
+
+  // --- C) lean commit, with ONE optional extension round -------------------
+  // If the model judges the researched candidates insufficient (explicit
+  // add_candidates, or it returns fewer than N), the backup pool gets the same
+  // parallel research and the commit re-runs once with the extra evidence.
+  const researched: Shoe[] = [...candidates];
+  const researchedIds = new Set(researched.map((s) => s.id));
+  let pool: Shoe[] = backups;
+  let extensionUsed = false;
+  let bestSalvage: RecommendResult | null = null;
+  let allowedUrls = new Set<string>();
+
+  const buildCommitMessages = (extensionNote: string) => {
+    allowedUrls = new Set<string>();
+    const digestBlocks: string[] = [];
+    for (const p of probes) {
+      if (!p.result?.ok) continue;
+      const hits = p.result.results.slice(0, DIGEST_HITS_PER_QUERY);
+      if (!hits.length) continue;
+      const lines = hits.map((h) => {
+        if (h.url) allowedUrls.add(h.url);
+        return `  - ${h.title} | ${h.url}\n    ${h.snippet.slice(0, DIGEST_SNIPPET_CHARS)}`;
+      });
+      digestBlocks.push(`【${p.label}】\n${lines.join("\n")}`);
+    }
+    const digest = digestBlocks.join("\n");
+    const urlList = Array.from(allowedUrls)
+      .map((u) => `- ${u}`)
+      .join("\n");
+    const candidateCatalog = JSON.stringify(buildCompactCatalog(researched, opts.persona, opts.reviewsByShoe));
+    const backupNote =
+      !extensionUsed && pool.length
+        ? `【备选（尚未查证）】${pool.map((s) => s.shoe_name).join("、")}。若查证摘要显示候选中匹配良好的不足 ${count} 双，不要硬凑：在输出 JSON 里额外加 "add_candidates":["鞋名",…]（≤${BACKUP_POOL_SIZE} 个，从备选或目录里选），我会补充联网查证后再请你重新决定。\n\n`
+        : "";
+    return [
+      ...buildBaseMessages("候选鞋款目录(JSON)——已按本次需求初筛", candidateCatalog, history),
+      {
+        role: "user" as const,
+        content:
+          `现在推荐的要求是："${currentInput}"${suffix}\n\n` +
+          (extensionNote ? `${extensionNote}\n\n` : "") +
+          `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），再说明该鞋如何匹配那一点。\n` +
+          `每双鞋正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、blogger 博主点评与下方联网查证摘要（引用博主或网页要注明来源）。每条 pros/cons ≤ 18 个字，reason 一句话。\n\n` +
+          `【数量锁定】本次 N = ${count}。从上面候选目录里选出最终 ${count} 双，按推荐指数从高到低排序——即使用户正文里写了别的数字也以 N = ${count} 为准（唯一例外：候选中匹配良好的不足 ${count} 双时可以少返回）。\n\n` +
+          backupNote +
+          (digest
+            ? `【联网查证摘要】以下是刚刚对候选鞋的真实搜索结果，请据此做 stars 差异化（口碑差的下调、好的上调）并充实优缺点：\n${digest}\n\n` +
+              `references 只能从下列真实网页中选取（title 与 url 都逐字复制），且只填你实际引用过的；没引用就给空数组：\n${urlList}\n\n`
+            : `【联网查证摘要】本次联网查证不可用——仅依据目录与博主点评作答，所有 references 一律留空数组。\n\n`) +
+          `表达规范（用户是中文时）：reason/pros/cons 里不得出现 court_feel、traction 这类内部字段名——用"场地感/贴地感、抓地力"等中文说法；elite/excellent 等评价词翻成中文；科技专有名词（Zoom Air、BOOM 等）保留原文。\n\n` +
+          `只输出 JSON：{"reply":"…","title":"…","recommendations":[{"name":"…","stars":4.5,"reason":"…","pros":["…","…","…"],"cons":["…","…","…"],"references":[{"title":"…","url":"…"}]}]}。不要调用工具、不要 markdown、不要 JSON 之外的文字。思考尽量简短，不要在思考里起草文案。`
+      }
+    ];
+  };
+
+  // Resolve the model's add_candidates (or the whole backup pool) into
+  // not-yet-researched catalog shoes, capped at the pool size.
+  const resolveExtras = (names: string[]): Shoe[] => {
+    const requested = names.length ? names : pool.map((s) => s.shoe_name);
+    const extras: Shoe[] = [];
+    for (const name of requested) {
+      const shoe = matchShoeByName(name, shoes);
+      if (shoe && !researchedIds.has(shoe.id) && !extras.some((e) => e.id === shoe.id)) extras.push(shoe);
+      if (extras.length >= BACKUP_POOL_SIZE) break;
+    }
+    return extras;
+  };
+
+  let commitMessages = buildCommitMessages("");
+  rounds: for (let round = 0; round < 2; round++) {
+    let extendThisRound = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
+      const messages =
+        attempt === 0
+          ? commitMessages
+          : [
+              ...commitMessages,
+              { role: "assistant" as const, content: '{"omitted":"truncated_payload"}' },
+              { role: "user" as const, content: "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字。" }
+            ];
+      let msg: StreamedMessage | null = null;
+      try {
+        msg = await completeWithProgress(client, { ...base, messages, response_format: { type: "json_object" } }, onProgress);
+      } catch (err) {
+        console.warn("[ai/chat] candidate commit failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
+        break rounds;
+      }
+      const out = typeof msg?.content === "string" ? msg.content : "";
+      const full = okIfRecsText(out);
+      const parsed = full ?? salvageTruncatedRecs(out);
+      if (!parsed?.recommendations.length) {
+        if (msg?.finishReason === "length") continue; // truncated beyond salvage — retry briefer
+        break rounds; // unparseable for some other reason — bail to the legacy loop
+      }
+      // References must point at pages we actually searched THIS turn — any
+      // other URL is fabricated and gets dropped here, before the route's own
+      // trust check even runs.
+      const cleaned: RecommendResult = {
+        ...parsed,
+        recommendations: parsed.recommendations.map((rec) => {
+          const refs = (rec.references ?? []).filter((r) => allowedUrls.has(r.url));
+          return { ...rec, ...(refs.length ? { references: refs } : { references: undefined }) };
+        })
+      };
+      if (!full) {
+        // Truncated but salvageable — keep the best and retry once, briefer.
+        if (cleaned.recommendations.length > (bestSalvage?.recommendations.length ?? 0)) bestSalvage = cleaned;
+        continue;
+      }
+      // Extension trigger: the model asked for more shoes, or under-returned.
+      if (round === 0 && !extensionUsed) {
+        let addNames: string[] = [];
+        try {
+          addNames = coerceStringArray(
+            (JSON.parse(stripFences(out)) as { add_candidates?: unknown }).add_candidates,
+            BACKUP_POOL_SIZE
+          );
+        } catch {
+          /* no add_candidates */
+        }
+        if (addNames.length > 0 || cleaned.recommendations.length < count) {
+          const extras = resolveExtras(addNames);
+          if (extras.length) {
+            extensionUsed = true;
+            for (const s of extras) researchedIds.add(s.id);
+            researched.push(...extras);
+            pool = pool.filter((s) => !researchedIds.has(s.id));
+            onProgress?.({
+              type: "text",
+              delta: `候选不足，补充查证：${extras.map((s) => s.shoe_name).join("、")}`
+            });
+            await runProbes(extras, false, `正在补充查证 ${extras.length} 双备选…`);
+            commitMessages = buildCommitMessages(
+              `【补充说明】上一轮你认为已查证候选中匹配良好的不足 ${count} 双（或点名了备选）。现已补充查证：${extras.map((s) => s.shoe_name).join("、")}。请综合全部查证结果重新给出最终 ${count} 双。`
+            );
+            extendThisRound = true;
+            break; // → round 1 with the extended evidence
+          }
+        }
+      }
+      return { ...cleaned, searchStats: stats, loopExitReason: "success" };
+    }
+    if (!extendThisRound) break;
+  }
+  if (bestSalvage) {
+    console.warn("[ai/chat] candidate pipeline finishing with salvaged payload", {
+      recs: bestSalvage.recommendations.length
+    });
+    return { ...bestSalvage, searchStats: stats, loopExitReason: "success" };
+  }
+  console.warn("[ai/chat] candidate pipeline produced nothing usable — falling back to tool loop");
+  return null;
+}
+
+// Shared "parse if it has recommendations" used by the pipeline above (the
+// loop-scoped okIfRecs closures aren't visible here).
+function okIfRecsText(text: string): RecommendResult | null {
+  const r = parseResult(text);
+  return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
+}
+
 export async function recommendShoes(
   client: OpenAI,
-  opts: {
-    shoes: Shoe[];
-    history: ChatTurn[];
-    currentInput: string;
-    count: number;
-    persona?: Persona | null;
-    footProfile?: FootProfile | null;
-    reviewsByShoe?: Record<string, BloggerReview[]>;
-  },
+  opts: RecommendOpts,
   onProgress?: OnProgress
 ): Promise<RecommendResult> {
+  // Candidate-first pipeline is the default whenever web search is available;
+  // the legacy multi-strategy path below is the fallback when it can't produce
+  // a usable result (shortlist unparseable, relay hiccup, …).
+  if (isBochaConfigured()) {
+    try {
+      const viaCandidates = await candidateEvidencePipeline(client, opts, onProgress);
+      if (viaCandidates) return viaCandidates;
+    } catch (err) {
+      console.warn("[ai/chat] candidate pipeline threw — falling back", {
+        msg: err instanceof Error ? err.message.slice(0, 200) : "unknown"
+      });
+    }
+  }
+
   const catalog = buildCompactCatalog(opts.shoes, opts.persona, opts.reviewsByShoe);
 
   // The relay (packyapi) does NOT lift an OpenAI `system` turn into Anthropic's
@@ -1211,14 +1585,11 @@ export async function recommendShoes(
   // So we deliver the prompt + catalog as the opening USER turn and prime a
   // one-line assistant ack, keeping strict user/assistant alternation on every
   // relay. The model reads it the same as a system preamble.
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "user", content: `${SYSTEM_PROMPT}\n\n鞋款目录(JSON):\n${JSON.stringify(catalog)}` },
-    { role: "assistant", content: "明白，我已读取鞋款目录，请告诉我你的需求。" }
-  ];
-  for (const turn of opts.history) {
-    if (turn.role === "user") messages.push({ role: "user", content: turn.content });
-    else messages.push({ role: "assistant", content: turn.content });
-  }
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = buildBaseMessages(
+    "鞋款目录(JSON)",
+    JSON.stringify(catalog),
+    opts.history
+  );
   const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
   const footSuffix = opts.footProfile
     ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`

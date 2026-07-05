@@ -58,6 +58,7 @@ export type StatusPhase =
   | "start"      // request accepted, pipeline starting
   | "thinking"   // analyzing the user's ask
   | "reading"    // first model pass over the catalog
+  | "shortlist"  // picking the candidate shoes to research
   | "round"      // a follow-up tool-loop iteration (carries `round`)
   | "searching"  // web-search burst in progress
   | "writing"    // model is writing the recommendation payload

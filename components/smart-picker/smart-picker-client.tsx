@@ -33,6 +33,8 @@ function statusText(
       return "Analyzing your request…";
     case "reading":
       return "Reading the shoe catalog and thinking…";
+    case "shortlist":
+      return "Picking candidate shoes…";
     case "round":
       return `Digging deeper${typeof d.round === "number" ? ` (round ${d.round})` : ""}…`;
     case "searching":
