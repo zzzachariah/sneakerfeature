@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { ArrowUp } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { BilingualLegalDoc } from "@/lib/legal/content";
 
@@ -19,6 +21,33 @@ export function LegalPageLayout({ doc }: { doc: BilingualLegalDoc }) {
   const { locale } = useLocale();
   const d = doc[locale];
   const tocLabel = locale === "zh" ? "目录" : "Contents";
+
+  // Scrollspy: highlight the section the reader is currently in, and reveal a
+  // back-to-top control once they've scrolled down a long document.
+  const [activeId, setActiveId] = useState("");
+  const [showTop, setShowTop] = useState(false);
+  useEffect(() => {
+    const els = d.sections
+      .map((s) => document.getElementById(s.id))
+      .filter((el): el is HTMLElement => el != null);
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible[0]) setActiveId(visible[0].target.id);
+      },
+      { rootMargin: "-20% 0px -70% 0px" }
+    );
+    els.forEach((el) => obs.observe(el));
+    const onScroll = () => setShowTop(window.scrollY > 600);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => {
+      obs.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [d.sections]);
 
   return (
     <main
@@ -56,7 +85,12 @@ export function LegalPageLayout({ doc }: { doc: BilingualLegalDoc }) {
               <li key={s.id}>
                 <a
                   href={`#${s.id}`}
-                  className="text-[0.86rem] text-[rgb(var(--subtext))] underline-offset-4 transition-colors hover:text-[rgb(var(--text))] hover:underline"
+                  aria-current={activeId === s.id ? "true" : undefined}
+                  className={`text-[0.86rem] underline-offset-4 transition-colors hover:underline ${
+                    activeId === s.id
+                      ? "font-medium text-[rgb(var(--text))]"
+                      : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
+                  }`}
                 >
                   {s.heading}
                 </a>
@@ -101,6 +135,18 @@ export function LegalPageLayout({ doc }: { doc: BilingualLegalDoc }) {
           </p>
         </div>
       </div>
+
+      {showTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label={locale === "zh" ? "回到顶部" : "Back to top"}
+          className="glass glass-rim shadow-lift fixed right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+          style={{ bottom: "calc(var(--mobile-nav-h) + 1rem)" }}
+        >
+          <ArrowUp className="h-5 w-5" />
+        </button>
+      )}
     </main>
   );
 }
