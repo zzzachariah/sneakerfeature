@@ -12,7 +12,6 @@ import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
-import { RequiredReadingGate } from "@/components/auth/required-reading-gate";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -102,7 +101,6 @@ export default function SignupPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [gateOpen, setGateOpen] = useState(true);
   const [agreed, setAgreed] = useState(false);
   const humanCheckRef = useRef<HumanCheckHandle>(null);
   const tilt = useTiltHandlers();
@@ -209,8 +207,6 @@ export default function SignupPage() {
 
   return (
     <>
-      {gateOpen && <RequiredReadingGate onContinue={() => setGateOpen(false)} />}
-
       <AuthShell
         eyebrow="new account"
         heading="Build your shelf on sneakerfeature."
@@ -225,7 +221,7 @@ export default function SignupPage() {
           whileInView="animate"
           viewport={{ once: false, amount: "some" }}
           variants={stagger}
-          className={`glass-card tilt-3d mx-auto w-full max-w-md space-y-5 p-5 md:p-8 ${gateOpen ? "pointer-events-none select-none opacity-60" : ""}`}
+          className="glass-card tilt-3d mx-auto w-full max-w-md space-y-5 p-5 md:p-8"
         >
           <motion.div variants={fadeUp} className="space-y-1.5">
             <p className="auth-eyebrow">{translate("sign up")}</p>
