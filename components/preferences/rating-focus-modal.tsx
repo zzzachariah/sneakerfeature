@@ -114,6 +114,7 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
                   key={key}
                   onClick={() => togglePick(key)}
                   disabled={busy}
+                  aria-pressed={isPicked}
                   className={`relative flex flex-col items-start gap-1 rounded-2xl border px-3 py-2.5 text-left transition disabled:opacity-50 ${
                     isPicked
                       ? "border-[rgb(var(--brand)/0.6)] bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--text))]"
@@ -129,7 +130,7 @@ export function RatingFocusModal({ open, onClose }: { open: boolean; onClose: ()
                     )}
                   </span>
                   {isPicked && slot && (
-                    <span className="text-[0.7rem] uppercase tracking-[0.12em] text-amber-600 dark:text-amber-400">
+                    <span className="text-[0.7rem] uppercase tracking-[0.12em] text-[rgb(var(--brand))]">
                       {translate(slot)} · {SLOT_PERCENT[slot]}
                     </span>
                   )}
