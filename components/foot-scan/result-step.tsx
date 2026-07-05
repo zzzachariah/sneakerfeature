@@ -35,7 +35,7 @@ import {
 const CONF_STYLE: Record<Confidence, string> = {
   low: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   medium: "bg-[rgb(var(--text)/0.08)] text-[rgb(var(--subtext))]",
-  high: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+  high: "bg-[rgb(var(--success)/0.15)] text-[rgb(var(--success))] dark:text-[rgb(var(--success))]"
 };
 
 function ConfBadge({ level }: { level: Confidence }) {
@@ -167,9 +167,9 @@ export function ResultStep({
     <div className="flex flex-col gap-4">
       {/* auto-saved confirmation — anchors the player-profile CTA below */}
       {saved && isLoggedIn && (
-        <div className="flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/8 px-3 py-1.5 text-xs">
-          <Check className="h-3.5 w-3.5 text-emerald-500" />
-          <span className="font-medium text-emerald-700 dark:text-emerald-400">
+        <div className="flex items-center gap-2 rounded-full border border-[rgb(var(--success)/0.25)] bg-[rgb(var(--success)/0.08)] px-3 py-1.5 text-xs">
+          <Check className="h-3.5 w-3.5 text-[rgb(var(--success))]" />
+          <span className="font-medium text-[rgb(var(--success))] dark:text-[rgb(var(--success))]">
             {translate("Saved to your player profile")}
           </span>
         </div>

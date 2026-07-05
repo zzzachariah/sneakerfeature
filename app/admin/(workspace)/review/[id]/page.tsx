@@ -406,10 +406,10 @@ export default function AdminSubmissionDetailPage() {
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button disabled={saving !== null} onClick={() => submitAction("save_draft")}>{saving === "save_draft" ? "Saving..." : "Save draft"}</Button>
           <Button disabled={saving !== null} variant="secondary" onClick={() => submitAction("approve_publish")}>{saving === "approve_publish" ? "Publishing..." : "Approve & publish"}</Button>
-          <Button disabled={saving !== null} variant="ghost" className="border border-red-500/35 text-red-500 hover:bg-red-500/10" onClick={() => setConfirmRejectOpen(true)}>{saving === "reject" ? "Deleting..." : "Reject"}</Button>
+          <Button disabled={saving !== null} variant="ghost" className="border border-[rgb(var(--error)/0.35)] text-[rgb(var(--error))] hover:bg-[rgb(var(--error)/0.1)]" onClick={() => setConfirmRejectOpen(true)}>{saving === "reject" ? "Deleting..." : "Reject"}</Button>
         </div>
         {message && (
-          <p className={`mt-2 text-sm ${error ? "text-red-500" : "text-emerald-500"}`}>
+          <p className={`mt-2 text-sm ${error ? "text-[rgb(var(--error))]" : "text-[rgb(var(--success))]"}`}>
             {message}
           </p>
         )}
@@ -428,7 +428,7 @@ export default function AdminSubmissionDetailPage() {
           <Button variant="secondary" disabled={saving === "reject"} onClick={() => setConfirmRejectOpen(false)}>
             Cancel
           </Button>
-          <Button className="border border-red-500/35 bg-red-500/10 text-red-500 hover:bg-red-500/20" disabled={saving === "reject"} onClick={() => submitAction("reject")}>
+          <Button className="border border-[rgb(var(--error)/0.35)] bg-[rgb(var(--error)/0.1)] text-[rgb(var(--error))] hover:bg-[rgb(var(--error)/0.2)]" disabled={saving === "reject"} onClick={() => submitAction("reject")}>
             {saving === "reject" ? "Deleting..." : "Confirm delete"}
           </Button>
         </div>

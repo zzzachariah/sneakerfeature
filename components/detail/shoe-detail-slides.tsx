@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { ArrowRight, Share2, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowRight, Share2, Sliders, ThumbsUp, ThumbsDown } from "lucide-react";
+import { useRatingFocus } from "@/components/preferences/rating-focus-provider";
 import dynamic from "next/dynamic";
 const CardPreviewModal = dynamic(
   () => import("@/components/card/card-preview-modal").then((m) => ({ default: m.CardPreviewModal })),
@@ -25,6 +26,7 @@ import { pickLocalized } from "@/components/i18n/localized-field";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
+import { ShoeCard } from "@/components/home/shoe-card";
 import { DimRatingList } from "@/components/shoe/dim-rating-list";
 import { Reveal } from "@/components/motion/reveal";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
@@ -212,6 +214,7 @@ function OverviewSection({
   onJumpToComments
 }: Props & { onShareCard: () => void; onJumpToComments: () => void }) {
   const { translate, locale } = useLocale();
+  const { focus, openModal } = useRatingFocus();
   const playstyleSummary = pickLocalized(locale, shoe.spec.playstyle_summary, shoe.spec.playstyle_summary_zh);
   return (
     <div className="grid gap-6 md:grid-cols-[1.1fr_1fr] md:items-center md:gap-10">
@@ -234,15 +237,23 @@ function OverviewSection({
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <StarRatingSlot value={finalStars} size="lg" showNumber count={shoe.userRatingCount ?? 0} />
-          {finalStars !== null && (
-            <button
-              type="button"
-              onClick={onJumpToComments}
-              className="text-xs underline-offset-2 soft-text hover:underline"
-            >
-              {translate("Rate this")}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onJumpToComments}
+            className="text-xs underline-offset-2 soft-text hover:underline"
+          >
+            {translate("Rate this")}
+          </button>
+          {/* Playstyle is an enhancement layered on the community baseline, not a
+              gate: the rating always shows; this lets the viewer re-weight it. */}
+          <button
+            type="button"
+            onClick={openModal}
+            className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-1 text-[0.72rem] soft-text transition hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+          >
+            <Sliders className="h-3 w-3" />
+            {focus ? translate("Rated for your playstyle") : translate("Personalize for your playstyle")}
+          </button>
         </div>
 
         {shoe.dimStars ? (
@@ -438,13 +449,13 @@ function VerdictBlock({ shoe }: { shoe: Shoe }) {
         <div className={cn("space-y-2", verdict ? "mt-3" : "mt-2")}>
           {pro && (
             <div className="flex items-start gap-2 text-sm md:text-[0.95rem]">
-              <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--success))]" />
               <span className="soft-text">{pro}</span>
             </div>
           )}
           {con && (
             <div className="flex items-start gap-2 text-sm md:text-[0.95rem]">
-              <ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+              <ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--error))]" />
               <span className="soft-text">{con}</span>
             </div>
           )}
@@ -627,20 +638,13 @@ function RelatedSection({ related }: Props) {
         </Link>
       </div>
 
-      <div className="mt-4 grid gap-2 md:grid-cols-3">
+      {/* Real explore cards (image, rating, heart) instead of three bare text
+          links — this section is the page's lateral-discovery exit. */}
+      <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         {related.map((item, i) => (
-          <Reveal key={item.id} index={i}>
-            <Link
-              href={`/shoes/${item.slug}`}
-              onPointerEnter={() => router.prefetch(`/shoes/${item.slug}`)}
-              data-field-key="shoe_name"
-              className="block rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.04)]"
-            >
-              {item.shoe_name}
-            </Link>
-          </Reveal>
+          <ShoeCard key={item.id} shoe={item} index={i} />
         ))}
-      </div>
+      </ul>
     </Card>
   );
 }

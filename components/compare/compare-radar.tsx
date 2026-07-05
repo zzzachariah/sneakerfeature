@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView, useProgress } from "@/components/motion/use-progress";
-import { METRICS, getLineStyle, scoreFor } from "@/components/compare/compare-metrics";
+import { METRICS, getLineStyle, identityColor, scoreFor } from "@/components/compare/compare-metrics";
 
 const SIZE = 360;
 const CX = SIZE / 2;
@@ -18,13 +18,11 @@ type Props = {
   active?: boolean;
 };
 
-// Highlight palette slot for a shoe's lineup position (see --radar-c* in
-// globals.css). Only applied to legend-SELECTED shoes — the resting chart
-// stays monochrome.
-function highlightColor(index: number, alpha?: number) {
-  const ref = `var(--radar-c${(index % 5) + 1})`;
-  return alpha == null ? `rgb(${ref})` : `rgb(${ref} / ${alpha})`;
-}
+// Each shoe's fixed identity colour by lineup position (--radar-c* tokens).
+// Applied at rest now — not only when legend-selected — so 3–5 overlapping
+// lines are told apart by colour, and each shoe keeps the same colour across
+// the plinths and verdict.
+const highlightColor = identityColor;
 
 export function CompareRadar({ shoes, active }: Props) {
   const { translate } = useLocale();
@@ -98,8 +96,8 @@ export function CompareRadar({ shoes, active }: Props) {
             <polygon
               key={shoe.id}
               points={shoePoints(shoe)}
-              fill={selected ? highlightColor(si, 0.12) : `rgb(var(--text) / ${fillBase})`}
-              stroke={selected ? highlightColor(si) : `rgb(var(--text) / ${style.opacity})`}
+              fill={highlightColor(si, selected ? 0.14 : Math.min(0.16, fillBase))}
+              stroke={highlightColor(si, selected ? 1 : Math.min(1, style.opacity + 0.08))}
               strokeWidth={selected ? style.strokeWidth + 0.8 : style.strokeWidth}
               strokeDasharray={style.dashArray}
               strokeLinejoin="round"
@@ -124,7 +122,7 @@ export function CompareRadar({ shoes, active }: Props) {
                 cx={CX + v * R * Math.cos(a)}
                 cy={CY + v * R * Math.sin(a)}
                 r={3}
-                fill={anySelected ? highlightColor(si, 0.95) : "rgb(var(--text) / 0.9)"}
+                fill={highlightColor(si, 0.95)}
               />
             );
           });
@@ -184,7 +182,7 @@ export function CompareRadar({ shoes, active }: Props) {
                   y1={3}
                   x2={22}
                   y2={3}
-                  stroke={selected ? highlightColor(si) : "rgb(var(--subtext) / 0.65)"}
+                  stroke={highlightColor(si, selected ? 1 : 0.85)}
                   strokeWidth={selected ? style.strokeWidth + 0.6 : style.strokeWidth}
                   strokeDasharray={style.dashArray}
                   style={{ transition: "stroke 180ms cubic-bezier(0.22,1,0.36,1)" }}

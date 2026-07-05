@@ -70,7 +70,8 @@ function Chip({
 
 export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const { translate } = useLocale();
-  const { persona: savedPersona } = usePersona();
+  const { persona: savedPersona, savePersona, isLoggedIn } = usePersona();
+  const [profileSaved, setProfileSaved] = useState(false);
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0); // 0..3 = questions, 4 = results
   const [dir, setDir] = useState(1); // slide direction: +1 forward, -1 back
@@ -88,6 +89,16 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const [height, setHeight] = useState(185);
   const [weight, setWeight] = useState(80);
   const [flatFoot, setFlatFoot] = useState(false);
+  // Unit system for the build step — basketball's audience is split between
+  // metric and imperial, and cm/kg-only was a real usability gap.
+  const [units, setUnits] = useState<"metric" | "imperial">("metric");
+  const fmtH = (cm: number) => {
+    if (units === "metric") return `${cm} cm`;
+    const inches = cm / 2.54;
+    const ft = Math.floor(inches / 12);
+    return `${ft}'${Math.round(inches - ft * 12)}"`;
+  };
+  const fmtW = (kg: number) => (units === "metric" ? `${kg} kg` : `${Math.round(kg * 2.20462)} lb`);
   const [priority, setPriority] = useState<MetricKey | null>(null);
 
   const personaInput = useMemo<Persona | null>(() => {
@@ -125,6 +136,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
 
   const canNext = step === 0 ? positions.length >= 1 : step === 1 ? Boolean(skill) : true;
   const top3 = results.slice(0, 3).map((r) => r.shoe.id);
+  const priorityLabel = priority ? PRIORITY_OPTIONS.find((o) => o.key === priority)?.label ?? null : null;
 
   const savedSummary = savedPersona
     ? `${savedPersona.positions.join(" / ")} · ${translate(SKILL_LEVEL_LABEL[savedPersona.skill_level])} · ${savedPersona.height_cm}cm · ${savedPersona.weight_kg}kg`
@@ -205,34 +217,34 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               {step === 2 && (
                 <div className="space-y-6">
                   <h2 className="text-lg font-semibold">{translate("Your build")}</h2>
-                  <label className="block">
-                    <span className="mb-1 flex items-center justify-between text-sm soft-text">
-                      {translate("Height (cm)")}
-                      <span className="num-display font-semibold text-[rgb(var(--text))]">{height}</span>
-                    </span>
-                    <input
-                      type="range"
-                      min={HEIGHT_MIN}
-                      max={HEIGHT_MAX}
-                      value={height}
-                      onChange={(e) => setHeight(Number(e.target.value))}
-                      className="w-full accent-[rgb(var(--brand))]"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 flex items-center justify-between text-sm soft-text">
-                      {translate("Weight (kg)")}
-                      <span className="num-display font-semibold text-[rgb(var(--text))]">{weight}</span>
-                    </span>
-                    <input
-                      type="range"
-                      min={WEIGHT_MIN}
-                      max={WEIGHT_MAX}
-                      value={weight}
-                      onChange={(e) => setWeight(Number(e.target.value))}
-                      className="w-full accent-[rgb(var(--brand))]"
-                    />
-                  </label>
+                  <div className="flex gap-2">
+                    <Chip active={units === "metric"} onClick={() => setUnits("metric")}>
+                      cm / kg
+                    </Chip>
+                    <Chip active={units === "imperial"} onClick={() => setUnits("imperial")}>
+                      ft / lb
+                    </Chip>
+                  </div>
+                  <BuildSlider
+                    label={translate("Height")}
+                    value={height}
+                    display={fmtH(height)}
+                    min={HEIGHT_MIN}
+                    max={HEIGHT_MAX}
+                    onChange={setHeight}
+                    minLabel={fmtH(HEIGHT_MIN)}
+                    maxLabel={fmtH(HEIGHT_MAX)}
+                  />
+                  <BuildSlider
+                    label={translate("Weight")}
+                    value={weight}
+                    display={fmtW(weight)}
+                    min={WEIGHT_MIN}
+                    max={WEIGHT_MAX}
+                    onChange={setWeight}
+                    minLabel={fmtW(WEIGHT_MIN)}
+                    maxLabel={fmtW(WEIGHT_MAX)}
+                  />
                   <div>
                     <span className="mb-2 block text-sm soft-text">{translate("Are you flat-footed?")}</span>
                     <div className="flex gap-2">
@@ -291,7 +303,14 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
         ) : (
           <div>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">{translate("Your top matches")}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold">{translate("Your top matches")}</h2>
+                {priorityLabel ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--brand)/0.35)] bg-[rgb(var(--brand)/0.1)] px-2.5 py-1 text-[0.72rem] font-medium text-[rgb(var(--brand))]">
+                    {translate("Ranked by")} {translate(priorityLabel)}
+                  </span>
+                ) : null}
+              </div>
               <div className="flex flex-wrap gap-2">
                 {top3.length >= 2 && (
                   <Link
@@ -311,9 +330,45 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               </div>
             </div>
 
+            {/* Echo the answers the ranking is based on ("we heard you"), and
+                let signed-in users persist them as their player profile so one
+                quiz feeds For You / personalized ordering site-wide. */}
+            {personaInput ? (
+              <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[0.8rem] soft-text">
+                <span className="num-display">
+                  {positions.join(" / ")} · {translate(SKILL_LEVEL_LABEL[personaInput.skill_level])} ·{" "}
+                  {fmtH(height)} · {fmtW(weight)}
+                  {flatFoot ? ` · ${translate("flat foot")}` : ""}
+                </span>
+                {isLoggedIn ? (
+                  <button
+                    type="button"
+                    disabled={profileSaved}
+                    onClick={async () => {
+                      haptics.tap();
+                      if (await savePersona(personaInput)) setProfileSaved(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--brand)/0.4)] px-2.5 py-1 text-[0.72rem] font-medium text-[rgb(var(--brand))] transition hover:bg-[rgb(var(--brand)/0.1)] disabled:opacity-60"
+                  >
+                    {profileSaved ? translate("Saved to profile ✓") : translate("Save as my profile")}
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-              {results.map(({ shoe, score }, i) => (
-                <ShoeCard key={shoe.id} shoe={shoe} matchScore={score} showChips index={i} />
+              {results.map(({ shoe, score, rank, reasons }, i) => (
+                <ShoeCard
+                  key={shoe.id}
+                  shoe={shoe}
+                  // Show the number the list is actually ordered by, so the
+                  // percentages never look out of order: the priority-blended
+                  // rank when a priority is chosen, otherwise the raw match%.
+                  matchScore={priority ? rank : score}
+                  footnote={reasons[0] ? translate(reasons[0]) : undefined}
+                  showChips
+                  index={i}
+                />
               ))}
             </ul>
 
@@ -327,5 +382,56 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
         )}
       </div>
     </main>
+  );
+}
+
+
+// Premium build slider: filled track, large ringed thumb (.qp-range in
+// globals.css), live converted value, and a haptic tick on release.
+function BuildSlider({
+  label,
+  value,
+  display,
+  min,
+  max,
+  onChange,
+  minLabel,
+  maxLabel
+}: {
+  label: string;
+  value: number;
+  display: string;
+  min: number;
+  max: number;
+  onChange: (v: number) => void;
+  minLabel: string;
+  maxLabel: string;
+}) {
+  const pct = ((value - min) / (max - min)) * 100;
+  return (
+    <label className="block">
+      <span className="mb-1.5 flex items-center justify-between text-sm soft-text">
+        {label}
+        <span className="num-display text-base font-semibold text-[rgb(var(--text))]">{display}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={() => haptics.tap()}
+        className="qp-range w-full"
+        style={{
+          background: `linear-gradient(to right, rgb(var(--brand)) ${pct}%, rgb(var(--muted) / 0.45) ${pct}%)`
+        }}
+        aria-label={label}
+        aria-valuetext={display}
+      />
+      <span className="mt-1 flex justify-between text-[0.68rem] soft-text">
+        <span className="num-display">{minLabel}</span>
+        <span className="num-display">{maxLabel}</span>
+      </span>
+    </label>
   );
 }

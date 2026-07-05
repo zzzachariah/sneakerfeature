@@ -111,6 +111,23 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
             }
           />
           <FieldGrid fields={IDENTITY_FIELDS} valueOf={valueOf} translate={translate} cols={2} />
+          {/* The one required free-text field lives here, next to the other
+              required fields — not buried at the bottom after ~14 optional ones. */}
+          <div>
+            <label className="mb-1 flex items-center gap-2 text-xs soft-text">
+              <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[rgb(var(--accent))]" />
+              {translate("Raw notes (required)")}
+            </label>
+            <Textarea
+              name="raw_text"
+              defaultValue={valueOf("raw_text")}
+              className="min-h-32"
+              placeholder={translate("Paste your full performance observations and source snippets...")}
+            />
+            <p className="mt-1.5 text-[11px] soft-text">
+              {translate("This is the only required field — everything after it is optional enrichment.")}
+            </p>
+          </div>
         </div>
       </section>
 
@@ -144,7 +161,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
           <SlideHeader
             eyebrow={translate("Step 4 of 4")}
             title={translate("Story")}
-            description={translate("Add story + raw notes + verification, then submit.")}
+            description={translate("Add story context and verification, then submit.")}
           />
           <div>
             <label className="mb-1 block text-xs soft-text">{translate("Story title")}</label>
@@ -161,18 +178,6 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
               defaultValue={valueOf("story_notes")}
               className="min-h-24"
               placeholder={translate("Release context, design intent, notable versions, community notes.")}
-            />
-          </div>
-          <div>
-            <label className="mb-1 flex items-center gap-2 text-xs soft-text">
-              <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-[rgb(var(--accent))]" />
-              {translate("Raw notes (required)")}
-            </label>
-            <Textarea
-              name="raw_text"
-              defaultValue={valueOf("raw_text")}
-              className="min-h-32"
-              placeholder={translate("Paste your full performance observations and source snippets...")}
             />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
@@ -196,7 +201,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
             <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
               {isSubmitting ? translate("Submitting...") : translate("Submit for review")}
             </Button>
-            {message && isError && <p className="text-xs text-red-400">{message}</p>}
+            {message && isError && <p className="text-xs text-[rgb(var(--error))]">{message}</p>}
             {!token && (
               <p className="text-[11px] soft-text">{translate("Complete verification above to enable submit.")}</p>
             )}

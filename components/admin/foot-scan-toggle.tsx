@@ -49,7 +49,7 @@ export function FootScanToggle({ initialEnabled }: Props) {
           </p>
           <p className="mt-2 text-xs">
             Current status:{" "}
-            <span className={enabled ? "font-semibold text-emerald-600 dark:text-emerald-400" : "font-semibold text-amber-600 dark:text-amber-400"}>
+            <span className={enabled ? "font-semibold text-[rgb(var(--success))] dark:text-[rgb(var(--success))]" : "font-semibold text-amber-600 dark:text-amber-400"}>
               {enabled ? "ON — open to all users" : "OFF — admins only"}
             </span>
           </p>
@@ -58,7 +58,7 @@ export function FootScanToggle({ initialEnabled }: Props) {
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : enabled ? "Disable for non-admins" : "Enable for all users"}
         </Button>
       </div>
-      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-xs text-[rgb(var(--error))]">{error}</p>}
     </div>
   );
 }

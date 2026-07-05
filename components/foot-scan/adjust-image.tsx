@@ -43,6 +43,9 @@ export function AdjustImage({
   const drag = useRef<{ x: number; y: number } | null>(null);
   const raf = useRef<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // Confirm-first: most captures don't need re-framing, so the pan/zoom/rotate
+  // editor is opt-in behind "Adjust framing" instead of a forced step.
+  const [editing, setEditing] = useState(false);
 
   const apply = useCallback(() => {
     raf.current = null;
@@ -140,10 +143,10 @@ export function AdjustImage({
     <div className="flex flex-col gap-3">
       <div
         className="relative aspect-[3/4] w-full touch-none overflow-hidden rounded-2xl bg-black"
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerLeave={onUp}
+        onPointerDown={editing ? onDown : undefined}
+        onPointerMove={editing ? onMove : undefined}
+        onPointerUp={editing ? onUp : undefined}
+        onPointerLeave={editing ? onUp : undefined}
       >
         <div ref={captureRef} className="absolute inset-0 overflow-hidden bg-black">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -162,45 +165,63 @@ export function AdjustImage({
         </div>
       </div>
 
-      <p className="text-center text-xs soft-text">
-        {translate("Drag to move · zoom and rotate to match the outline")}
-      </p>
+      {editing ? (
+        <>
+          <p className="text-center text-xs soft-text">
+            {translate("Drag to move · zoom and rotate to match the outline")}
+          </p>
 
-      <input
-        type="range"
-        min={1}
-        max={4}
-        step={0.02}
-        defaultValue={1}
-        onInput={(e) => {
-          t.current.scale = Number((e.target as HTMLInputElement).value);
-          schedule();
-        }}
-        className="w-full accent-[rgb(var(--text))]"
-        aria-label={translate("Zoom")}
-      />
+          <input
+            type="range"
+            min={1}
+            max={4}
+            step={0.02}
+            defaultValue={1}
+            onInput={(e) => {
+              t.current.scale = Number((e.target as HTMLInputElement).value);
+              schedule();
+            }}
+            className="w-full accent-[rgb(var(--text))]"
+            aria-label={translate("Zoom")}
+          />
 
-      <div className="grid grid-cols-2 gap-2">
-        <Button variant="secondary" className="gap-2" onClick={() => rotate(-90)}>
-          <RotateCcw className="h-4 w-4" />
-          {translate("Rotate left")}
-        </Button>
-        <Button variant="secondary" className="gap-2" onClick={() => rotate(90)}>
-          <RotateCw className="h-4 w-4" />
-          {translate("Rotate right")}
-        </Button>
-      </div>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" className="gap-2" onClick={() => rotate(-90)}>
+              <RotateCcw className="h-4 w-4" />
+              {translate("Rotate left")}
+            </Button>
+            <Button variant="secondary" className="gap-2" onClick={() => rotate(90)}>
+              <RotateCw className="h-4 w-4" />
+              {translate("Rotate right")}
+            </Button>
+          </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" className="flex-1 gap-2" onClick={onRetake}>
-          <RefreshCw className="h-4 w-4" />
-          {translate("Retake")}
-        </Button>
-        <Button variant="primary" className="flex-1 gap-2" disabled={busy} onClick={confirm}>
-          <Check className="h-4 w-4" />
-          {translate(busy ? "Saving…" : "Use this")}
-        </Button>
-      </div>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" className="flex-1 gap-2" onClick={onRetake}>
+              <RefreshCw className="h-4 w-4" />
+              {translate("Retake")}
+            </Button>
+            <Button variant="primary" className="flex-1 gap-2" disabled={busy} onClick={confirm}>
+              <Check className="h-4 w-4" />
+              {translate(busy ? "Saving…" : "Use this")}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" className="gap-2" onClick={onRetake}>
+            <RefreshCw className="h-4 w-4" />
+            {translate("Retake")}
+          </Button>
+          <Button variant="secondary" className="gap-2 whitespace-nowrap" onClick={() => setEditing(true)}>
+            {translate("Adjust framing")}
+          </Button>
+          <Button variant="primary" className="flex-1 gap-2" disabled={busy} onClick={() => onConfirm(src)}>
+            <Check className="h-4 w-4" />
+            {translate("Use photo")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

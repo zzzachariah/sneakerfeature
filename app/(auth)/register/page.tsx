@@ -1,71 +1,13 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useRef, useState } from "react";
-import Link from "next/link";
-import { SneakerLoader } from "@/components/ui/sneaker-loader";
-import { FeedbackMessage } from "@/components/ui/feedback-message";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
-import { RequiredReadingGate } from "@/components/auth/required-reading-gate";
-import { useLocale } from "@/components/i18n/locale-provider";
-
-export default function RegisterPage() {
-  const { translate } = useLocale();
-  const [form, setForm] = useState({ username: "", email: "", password: "" });
-  const [verificationToken, setVerificationToken] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [gateOpen, setGateOpen] = useState(true);
-  const humanCheckRef = useRef<HumanCheckHandle>(null);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(false);
-    setSubmitting(true);
-    if (form.password.length < 8) {
-      setSubmitting(false);
-      setError(true);
-      return setMessage("Password must be at least 8 characters.");
-    }
-    if (!verificationToken) {
-      setSubmitting(false);
-      setError(true);
-      return setMessage("Please complete human verification.");
-    }
-
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, verificationToken })
-    });
-    const data = await res.json();
-    setSubmitting(false);
-    if (!res.ok || !data.ok) {
-      // The server already consumed the single-use verification token, so a
-      // retry with the same one would fail — issue a fresh challenge.
-      humanCheckRef.current?.reset();
-    }
-    setError(!res.ok || !data.ok);
-    setMessage(data.message ?? (data.ok ? "Account created." : "Registration failed."));
-  }
-
-  return (
-    <main className="container-shell pt-10" style={{ paddingBottom: "calc(var(--mobile-nav-h) + 2.5rem)" }}>
-      {gateOpen && <RequiredReadingGate onContinue={() => setGateOpen(false)} />}
-      <form onSubmit={onSubmit} className={`surface-card premium-border mx-auto max-w-md space-y-4 rounded-3xl p-7 ${gateOpen ? "pointer-events-none select-none" : ""}`}>
-        <h1 className="text-2xl font-semibold tracking-[0.02em]">{translate("Register")}</h1>
-        <p className="text-sm soft-text">{translate("Create your sneakerfeature account. Public identity is username-based.")}</p>
-        <div><label className="mb-1 block text-xs soft-text">{translate("Username")}</label><Input value={form.username} onChange={(e) => setForm((p) => ({ ...p, username: e.target.value }))} placeholder={translate("sneakerfan23")} required /></div>
-        <div><label className="mb-1 block text-xs soft-text">{translate("Email")}</label><Input value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder={translate("you@domain.com")} type="email" required /></div>
-        <div><label className="mb-1 block text-xs soft-text">{translate("Password")}</label><Input value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder={translate("At least 8 characters")} type="password" required /></div>
-        <HumanCheck ref={humanCheckRef} action="register" onToken={setVerificationToken} />
-        <Button type="submit" className="w-full" disabled={submitting}>{submitting ? translate("Creating account...") : translate("Create account")}</Button>
-        {submitting && <SneakerLoader compact label="Setting up your profile" />}
-        {message && <FeedbackMessage message={message} isError={error} />}
-        <p className="text-xs soft-text">{translate("Already have an account?")} <Link href="/login" className="text-[rgb(var(--accent))] hover:underline">{translate("Log in")}</Link></p>
-      </form>
-    </main>
-  );
+// The old register form (weaker validation, no AuthShell, no auto-login, and a
+// full-screen reading wall) is consolidated into /signup. Keep the route as a
+// redirect so existing links and bookmarks still resolve.
+export default async function RegisterPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  redirect(next ? `/signup?next=${encodeURIComponent(next)}` : "/signup");
 }

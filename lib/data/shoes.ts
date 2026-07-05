@@ -11,6 +11,7 @@ import {
   combineDimScores,
   DIM_KEYS,
   dimScores,
+  equalWeightScore,
   isValidFocus,
   percentileToStars,
   rankScoresToPercentiles,
@@ -242,7 +243,17 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
   const finalStarsByIndex: (number | null)[] = rows.map(() => null);
   const specStarsByIndex: (number | null)[] = rows.map(() => null);
 
-  if (focus) {
+  {
+    // Ratings are always computed now — not gated behind a Rating Focus. The
+    // per-dimension stars are focus-independent (community + spec per dim), and
+    // the overall / spec stars use the viewer's Rating Focus weighting when
+    // present, else an equal-weight baseline. This means anonymous / no-
+    // playstyle users still get a real rating everywhere (cards, detail,
+    // "Top rated" collections), with playstyle re-weighting it as an
+    // enhancement rather than a gate.
+    const scoreOf = (c: Record<DimKey, number>) =>
+      focus ? weightedCombinedScore(c, focus) : equalWeightScore(c);
+
     const combinedByShoe: Record<DimKey, number>[] = rows.map((row, i) => {
       const agg = aggregates.get(row.id);
       const userDimAvg: Partial<Record<DimKey, number>> = {};
@@ -252,7 +263,7 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
       return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0);
     });
 
-    const weighted = combinedByShoe.map((c) => weightedCombinedScore(c, focus));
+    const weighted = combinedByShoe.map(scoreOf);
     const finalPercentiles = rankScoresToPercentiles(weighted);
     finalPercentiles.forEach((p, i) => {
       finalStarsByIndex[i] = percentileToStars(p);
@@ -260,7 +271,7 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
 
     // Spec-only stars (no user blending) for components that compare /
     // re-blend client-side.
-    const specOnly = specs.map((spec) => weightedCombinedScore(dimScores(spec), focus));
+    const specOnly = specs.map((spec) => scoreOf(dimScores(spec)));
     const specPercentiles = rankScoresToPercentiles(specOnly);
     specPercentiles.forEach((p, i) => {
       specStarsByIndex[i] = percentileToStars(p);

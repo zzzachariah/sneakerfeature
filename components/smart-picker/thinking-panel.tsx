@@ -100,8 +100,8 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
 
       {open && hasBody && (
         <div className="mt-3">
-          {steps.map((step, i) => {
-            const isLast = i === steps.length - 1;
+          {mergeProse(steps).map((step, i, arr) => {
+            const isLast = i === arr.length - 1;
             return step.kind === "prose" ? (
               <ProseRow key={i} text={step.text} isLast={isLast} />
             ) : (
@@ -112,4 +112,17 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
       )}
     </div>
   );
+}
+
+// Stream text deltas arrive as many tiny prose fragments (one step per token
+// chunk), which used to render as a jittery dotted row per fragment. Coalesce
+// consecutive prose steps into one paragraph run; activity chips stay discrete.
+function mergeProse(steps: ChatStep[]): ChatStep[] {
+  const merged: ChatStep[] = [];
+  for (const s of steps) {
+    const last = merged[merged.length - 1];
+    if (s.kind === "prose" && last?.kind === "prose") last.text += s.text;
+    else merged.push({ ...s });
+  }
+  return merged;
 }

@@ -123,6 +123,38 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     }
   }, [signedIn, loaded, begin]);
 
+  // Anonymous first visit: most first-time visitors are signed out, and the
+  // login-transition trigger above meant they never saw the tour at all. Fire
+  // it once per device — after the language first-run has been answered and no
+  // announcement overlay is on screen (retry briefly until both clear). The
+  // done-flag is persisted up front so an abandoned tour never re-fires.
+  useEffect(() => {
+    if (!loaded || signedIn || active) return;
+    try {
+      if (window.localStorage.getItem(STORAGE_KEY)) return;
+    } catch {
+      return;
+    }
+    let cancelled = false;
+    let tries = 0;
+    const attempt = () => {
+      if (cancelled) return;
+      const langPending = window.localStorage.getItem("locale") === null;
+      const overlayOpen = Boolean(document.querySelector('div[class*="z-[120]"]'));
+      if (langPending || overlayOpen) {
+        if (++tries < 20) window.setTimeout(attempt, 1000);
+        return;
+      }
+      persistDone();
+      begin();
+    };
+    const t = window.setTimeout(attempt, 1200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [loaded, signedIn, active, begin, persistDone]);
+
   const value = useMemo<TutorialContextValue>(
     () => ({
       active,

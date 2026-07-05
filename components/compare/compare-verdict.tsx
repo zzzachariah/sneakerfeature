@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
+import type { Route } from "next";
+import { ArrowUpRight } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView } from "@/components/motion/use-progress";
-import { METRICS, MetricKey, scoreFor } from "@/components/compare/compare-metrics";
+import { METRICS, MetricKey, identityColor, scoreFor } from "@/components/compare/compare-metrics";
 
 // Plain-language, on-court meaning of each metric — rendered as a small
 // legend so newcomers know what a "traction lead" actually buys them.
@@ -47,11 +50,15 @@ export function CompareVerdict({ shoes, active }: Props) {
   const averages = shoes
     .map((shoe) => {
       const scores = METRICS.map((metric) => scoreFor(shoe, metric.key));
-      return { id: shoe.id, name: shoe.shoe_name, avg: scores.reduce((a, b) => a + b, 0) / scores.length };
+      return { id: shoe.id, name: shoe.shoe_name, slug: shoe.slug, avg: scores.reduce((a, b) => a + b, 0) / scores.length };
     })
     .sort((a, b) => b.avg - a.avg);
   const gap = averages[0].avg - averages[1].avg;
   const evenMatch = gap < EVEN_MATCH_GAP;
+  // Winner's fixed identity colour (its lineup position, matching the radar
+  // line + plinth accent) so the recommendation reads as "this one".
+  const winnerIndex = shoes.findIndex((s) => s.id === averages[0].id);
+  const winnerColor = identityColor(winnerIndex < 0 ? 0 : winnerIndex);
 
   // Per-metric leaders (ties excluded), grouped by shoe for scenario advice.
   const byLeader = new Map<string, { name: string; metrics: MetricKey[] }>();
@@ -78,16 +85,23 @@ export function CompareVerdict({ shoes, active }: Props) {
       <div className="lg:grid lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-8">
         {/* Overall winner badge + gap (or evenly-matched call) */}
         <div>
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[0.66rem] font-semibold tracking-[0.02em] ${
-                evenMatch
-                  ? "border-[rgb(var(--muted)/0.4)] text-[rgb(var(--text)/0.75)]"
-                  : "border-[rgb(var(--text)/0.25)] bg-[rgb(var(--text)/0.05)] text-[rgb(var(--text))]"
-              }`}
-            >
-              {evenMatch ? translate("Evenly matched") : `${averages[0].name} · ${translate("has the overall edge")}`}
-            </span>
+          <div className="mb-3 flex flex-wrap items-center gap-2.5">
+            {evenMatch ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--muted)/0.4)] px-3 py-1.5 text-sm font-semibold tracking-[-0.01em] text-[rgb(var(--text)/0.8)]">
+                {translate("Evenly matched")}
+              </span>
+            ) : (
+              <Link
+                href={`/shoes/${averages[0].slug}` as Route}
+                className="group inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold tracking-[-0.01em] text-[rgb(var(--text))] transition hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)]"
+                style={{ borderColor: identityColor(winnerIndex < 0 ? 0 : winnerIndex, 0.5), background: identityColor(winnerIndex < 0 ? 0 : winnerIndex, 0.12) }}
+              >
+                <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: winnerColor }} />
+                {averages[0].name}
+                <span className="font-normal soft-text">· {translate("overall pick")}</span>
+                <ArrowUpRight className="h-4 w-4 shrink-0 opacity-70 transition group-hover:opacity-100" />
+              </Link>
+            )}
             <span className="num-display text-[0.66rem] soft-text">
               {translate("avg score")} {Math.round(averages[0].avg)} vs {Math.round(averages[1].avg)}
             </span>
@@ -149,10 +163,10 @@ function Shell({
   return (
     <div
       ref={ref}
-      className="rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.32)] bg-[rgb(var(--surface)/0.7)] px-4 py-3.5 transition-opacity duration-500 lg:px-6 lg:py-4"
+      className="rounded-2xl border border-[rgb(var(--text)/0.14)] bg-[rgb(var(--bg-elev)/0.7)] px-5 py-4 shadow-lift transition-opacity duration-500 lg:px-7 lg:py-5"
       style={{ opacity: triggered ? 1 : 0, transitionDelay: "200ms" }}
     >
-      <p className="t-eyebrow mb-2">{translate("Verdict")}</p>
+      <p className="t-eyebrow mb-2.5 text-[rgb(var(--text)/0.7)]">{translate("Verdict")}</p>
       {children}
     </div>
   );

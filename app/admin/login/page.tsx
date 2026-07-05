@@ -86,7 +86,7 @@ export default function AdminLoginPage() {
           {loading ? "Authorizing..." : "Enter admin workspace"}
         </Button>
 
-        {message && <p className={`text-sm ${error ? "text-red-500" : "text-emerald-500"}`}>{message}</p>}
+        {message && <p className={`text-sm ${error ? "text-[rgb(var(--error))]" : "text-[rgb(var(--success))]"}`}>{message}</p>}
 
         <p className="text-xs soft-text">
           Need normal access? <Link href="/login" className="text-[rgb(var(--accent))]">Use user login</Link>.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -33,6 +33,74 @@ export function SubmissionForm({
   const [isError, setIsError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resultModalOpen, setResultModalOpen] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  // ---- Draft autosave -------------------------------------------------------
+  // The form is uncontrolled (defaultValue), so a stray back-swipe or a failed
+  // network call used to throw away everything typed. Field values are saved
+  // to localStorage (debounced) on every input, restored once after mount by
+  // writing straight into the inputs (no re-render → no hydration mismatch),
+  // and cleared on a successful submit. Corrections draft per target shoe.
+  const draftKey = `sf-submit-draft:${mode}:${targetShoeId ?? "new"}`;
+  const draftTimer = useRef<number | null>(null);
+  const DRAFT_SKIP = useRef(new Set(["submission_type", "target_shoe_id", "original_snapshot"]));
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as Record<string, string>;
+      const form = formRef.current;
+      if (!form) return;
+      let applied = false;
+      for (const [name, value] of Object.entries(draft)) {
+        const el = form.elements.namedItem(name);
+        if ((el instanceof HTMLInputElement && el.type !== "hidden") || el instanceof HTMLTextAreaElement) {
+          el.value = value;
+          applied = true;
+        }
+      }
+      if (applied) setDraftRestored(true);
+    } catch {
+      /* unreadable draft — ignore */
+    }
+  }, [draftKey]);
+
+  useEffect(() => () => {
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+  }, []);
+
+  function saveDraftSoon() {
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    draftTimer.current = window.setTimeout(() => {
+      const form = formRef.current;
+      if (!form) return;
+      const out: Record<string, string> = {};
+      let hasContent = false;
+      new FormData(form).forEach((v, k) => {
+        if (DRAFT_SKIP.current.has(k) || typeof v !== "string") return;
+        out[k] = v;
+        if (v.trim()) hasContent = true;
+      });
+      try {
+        if (hasContent) window.localStorage.setItem(draftKey, JSON.stringify(out));
+        else window.localStorage.removeItem(draftKey);
+      } catch {
+        /* storage full/blocked — ignore */
+      }
+    }, 800);
+  }
+
+  function clearDraft() {
+    if (draftTimer.current) window.clearTimeout(draftTimer.current);
+    try {
+      window.localStorage.removeItem(draftKey);
+    } catch {
+      /* ignore */
+    }
+    setDraftRestored(false);
+  }
+  // ---------------------------------------------------------------------------
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -55,7 +123,7 @@ export function SubmissionForm({
       return;
     }
     if (!rawText) {
-      slidesRef.current?.goTo(3);
+      slidesRef.current?.goTo(0);
       setIsError(true);
       setMessage(translate("Raw notes are required."));
       return;
@@ -115,6 +183,7 @@ export function SubmissionForm({
       setMessage(data.message ?? "Submitted");
       if (data.ok !== false) {
         haptics.success();
+        clearDraft();
         setResultModalOpen(true);
       } else {
         haptics.error();
@@ -141,11 +210,30 @@ export function SubmissionForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={onSubmit}>
+    <form ref={formRef} onSubmit={onSubmit} onInput={saveDraftSoon}>
       <input type="hidden" name="submission_type" value={mode} />
       {targetShoeId && <input type="hidden" name="target_shoe_id" value={targetShoeId} />}
       {originalSnapshot && (
         <input type="hidden" name="original_snapshot" value={JSON.stringify(originalSnapshot)} />
+      )}
+
+      {draftRestored && (
+        <div className="container-shell pt-4">
+          <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-2 rounded-xl border border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--surface)/0.7)] px-4 py-2.5 text-sm">
+            <span className="soft-text">{translate("Restored your unsaved draft.")}</span>
+            <button
+              type="button"
+              onClick={() => {
+                haptics.tap();
+                clearDraft();
+                formRef.current?.reset();
+              }}
+              className="text-xs font-medium underline-offset-2 soft-text hover:text-[rgb(var(--text))] hover:underline"
+            >
+              {translate("Discard draft")}
+            </button>
+          </div>
+        </div>
       )}
 
       <SubmissionSlides

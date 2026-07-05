@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "lint:tokens": "sh -c \"! grep -rEn '(text|bg|border|ring)-(red|rose|emerald|green)-[0-9]{3}' components app --include=*.tsx\"",
     "cap:sync": "cap sync",
     "cap:ios": "cap sync ios && cap open ios",
     "cap:android": "cap sync android && cap open android",

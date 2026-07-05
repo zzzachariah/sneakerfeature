@@ -11,6 +11,7 @@ import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
 import { scoreColor } from "@/lib/score-tone";
 import { Reveal } from "@/components/motion/reveal";
+import { FavoriteButton } from "@/components/favorites/favorite-button";
 
 type Props = {
   shoe: Shoe;
@@ -35,6 +36,9 @@ type Props = {
   revealRootMargin?: string;
   /** When true, loads the image eagerly to avoid lazy-loading LCP images. */
   priority?: boolean;
+  /** Optional one-line caption under the card (e.g. a Quick Picker match reason
+   * like "Great for guards"). Only rendered when provided. */
+  footnote?: string;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -48,7 +52,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority, footnote }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const href = `/shoes/${shoe.slug}` as Route;
@@ -83,7 +87,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
             className="!w-full !max-w-none !rounded-none !border-0"
           />
           {matchScore != null && (
-            <span className="pop-in absolute right-2 top-2 inline-flex items-center gap-0.5 rounded-full bg-amber-400/95 px-2 py-0.5 text-[0.7rem] font-bold text-black shadow-[0_2px_8px_rgb(var(--shadow)/0.25)]">
+            <span className="pop-in absolute bottom-2 left-2 inline-flex items-center gap-0.5 rounded-full bg-[rgb(var(--brand))] px-2 py-0.5 text-[0.7rem] font-bold text-[rgb(var(--brand-contrast))] shadow-[0_2px_8px_rgb(var(--shadow)/0.25)]">
               <span className="num-display">{matchScore}%</span> {translate("match")}
             </span>
           )}
@@ -115,10 +119,20 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
         </div>
       </Link>
 
+      {/* Heart — present on every card so favoriting is discoverable everywhere
+          (home / search / collections / favorites), which is what the favorites
+          empty-state copy promises. Sibling of the <Link> (not nested) so it
+          stays valid markup; FavoriteButton stops propagation itself. */}
+      <FavoriteButton
+        shoeId={shoe.id}
+        className="tap-44 glass-lite absolute right-2 top-2 h-9 w-9 rounded-full text-[rgb(var(--text))] hover:bg-[rgb(var(--text)/0.06)]"
+        iconClassName="h-[17px] w-[17px]"
+      />
+
       {compareEnabled && (
         <label
           onClick={(e) => e.stopPropagation()}
-          className="tap-44 glass-lite absolute left-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full"
+          className="tap-44 glass-lite absolute left-2 top-2 inline-flex h-9 w-9 items-center justify-center rounded-full"
         >
           <input
             type="checkbox"
@@ -132,6 +146,12 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
           />
         </label>
       )}
+
+      {footnote ? (
+        <p className="mt-1.5 flex items-start gap-1 px-0.5 text-[0.7rem] leading-snug text-[rgb(var(--brand))]">
+          {footnote}
+        </p>
+      ) : null}
     </>
   );
 

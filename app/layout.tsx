@@ -16,6 +16,7 @@ import { ServiceWorkerRegister } from "@/components/native/service-worker-regist
 import { RouteProgress } from "@/components/layout/route-progress";
 import { PushRegistration } from "@/components/native/push-registration";
 import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { NativeBottomNav } from "@/components/native/native-bottom-nav";
 import { NativeTopBar } from "@/components/native/native-top-bar";
 import { WebPullToRefresh } from "@/components/native/web-pull-to-refresh";
@@ -108,6 +109,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <Navbar />
                         <NativeTopBar />
                         <div className="flex-1">{children}</div>
+                        <SiteFooter />
                         <MobileBottomNav />
                         <NativeBottomNav />
                       </div>

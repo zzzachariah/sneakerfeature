@@ -45,9 +45,9 @@ type Draft = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  ready: "text-emerald-400",
+  ready: "text-[rgb(var(--success))]",
   pending: "text-amber-400",
-  error: "text-rose-400"
+  error: "text-[rgb(var(--error))]"
 };
 
 // 16px font + ~44px height on mobile (no iOS focus-zoom); compact on md+.
@@ -204,7 +204,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
             <Card key={r.id} className="space-y-3 p-4">
               <div className="flex flex-wrap items-center gap-2 min-w-0">
                 {r.platform === "youtube" ? (
-                  <Youtube className="h-4 w-4 text-rose-400" />
+                  <Youtube className="h-4 w-4 text-[rgb(var(--error))]" />
                 ) : (
                   <PlayCircle className="h-4 w-4 text-sky-400" />
                 )}
@@ -217,7 +217,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
                 </a>
               </div>
 
-              {r.error_detail && <p className="text-xs text-rose-400">error: {r.error_detail}</p>}
+              {r.error_detail && <p className="text-xs text-[rgb(var(--error))]">error: {r.error_detail}</p>}
 
               <div className="grid gap-2 md:grid-cols-3">
                 <label className="text-xs soft-text">
@@ -276,7 +276,7 @@ export function ShoeReviewsClient({ shoeId }: { shoeId: string }) {
                 <button
                   onClick={() => remove(r.id)}
                   disabled={busy}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2.5 text-sm text-rose-400 transition hover:border-rose-300/70 active:bg-rose-400/10 disabled:opacity-50 sm:ml-auto md:min-h-0 md:py-1.5 md:text-xs"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2.5 text-sm text-[rgb(var(--error))] transition hover:border-[rgb(var(--error)/0.7)] active:bg-[rgb(var(--error)/0.1)] disabled:opacity-50 sm:ml-auto md:min-h-0 md:py-1.5 md:text-xs"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Delete

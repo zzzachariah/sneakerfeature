@@ -19,6 +19,7 @@ import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
 import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
+import { haptics } from "@/lib/native/haptics";
 import { useInView } from "@/components/motion/use-progress";
 import { Capacitor } from "@capacitor/core";
 import { NativeChrome } from "@/components/native/native-chrome";
@@ -384,6 +385,36 @@ export function HomeFeed({
           // the query). The CSS pill below stays the web/Android/no-plugin path.
           style={!toolbarVisible || nativeSearchActive ? { display: "none" } : undefined}
         >
+          {/* Personalized/browse switch — the context's setMode was fully wired
+              but nothing ever called it, so users couldn't turn the match%
+              ordering on or off. Only shown once a player profile exists
+              (without one, personalized mode has no scores to show). */}
+          {persona ? (
+            <div
+              role="group"
+              aria-label={translate("Feed mode")}
+              className="glass-lite inline-flex shrink-0 items-center gap-0.5 rounded-full p-1"
+            >
+              {(["personalized", "browse"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={mode === m}
+                  onClick={() => {
+                    haptics.selection();
+                    setMode(m);
+                  }}
+                  className={`rounded-full px-2.5 py-1.5 text-[0.72rem] font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)] ${
+                    mode === m
+                      ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
+                      : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
+                  }`}
+                >
+                  {m === "personalized" ? translate("For you") : translate("All")}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <form
             onSubmit={runSearch}
             className="flex flex-1 flex-row items-center gap-2"

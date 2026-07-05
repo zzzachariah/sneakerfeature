@@ -4,13 +4,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Check, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, Search, Sparkles, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { NavScrollIndicator } from "@/components/layout/nav-scroll-indicator";
 import { AboutModal } from "@/components/layout/about-modal";
-import { TutorialTrigger } from "@/components/tutorial/tutorial-trigger";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
@@ -32,18 +32,19 @@ const NAV_LABELS: Record<(typeof NAV_ORDER)[number], string> = {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { locale, requestLocaleChange, translate } = useLocale();
   const zh = locale === "zh";
   const { reopen: reopenCookieConsent } = useCookieConsent();
   const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
   const { isAdmin } = useAuthState();
   const { start: startTutorial } = useTutorial();
-  const [langOpen, setLangOpen] = useState(false);
-  const [legalOpen, setLegalOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -52,18 +53,11 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
-    if (!langOpen) return;
-    const onClick = () => setLangOpen(false);
+    if (!moreOpen) return;
+    const onClick = () => setMoreOpen(false);
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
-  }, [langOpen]);
-
-  useEffect(() => {
-    if (!legalOpen) return;
-    const onClick = () => setLegalOpen(false);
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, [legalOpen]);
+  }, [moreOpen]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -112,7 +106,7 @@ export function Navbar() {
         <Link
           href="/"
           aria-label="sneakerfeature — home"
-          className="inline-flex items-center transition-opacity hover:opacity-80"
+          className="inline-flex shrink-0 items-center transition-opacity hover:opacity-80"
         >
           <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
             <Image src="/logo.png" alt="sneakerfeature" width={28} height={28} priority className="nav-logo" />
@@ -120,7 +114,7 @@ export function Navbar() {
         </Link>
 
         <nav
-          className="pointer-events-auto absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex"
+          className="pointer-events-auto hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
           data-tutorial="nav-links"
         >
           {navItems.map((item) => {
@@ -158,8 +152,8 @@ export function Navbar() {
           <NavScrollIndicator />
         </div>
 
-        <div className="ml-auto flex items-center gap-2 md:gap-1">
-          <Tooltip label={translate("Advanced Search")} className="hidden md:inline-flex">
+        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-1">
+          <Tooltip label={translate("Search")} className="hidden md:inline-flex">
             <Link
               href="/search/advanced"
               className={iconBtn}
@@ -170,146 +164,148 @@ export function Navbar() {
             </Link>
           </Tooltip>
 
-          {/* Get-the-app entry. data-download-entry is hidden inside the iOS app
-              via globals.css (they already have it + App Store external-link
-              rules); iOS web and the Android app still show it. */}
-          <Tooltip label={zh ? "下载 App" : "Get the app"} className="hidden md:inline-flex">
-            <Link
-              href="/download"
-              className={iconBtn}
-              aria-label={zh ? "下载 App" : "Get the app"}
-              data-download-entry
-            >
-              <Download className="h-[18px] w-[18px] md:h-4 md:w-4" />
-            </Link>
-          </Tooltip>
+          <span className="hidden md:inline-flex" data-tutorial="nav-theme">
+            <ThemeToggle />
+          </span>
 
-          <div className="relative hidden md:block" onClick={(e) => e.stopPropagation()} data-tutorial="nav-language">
-            <Tooltip label={locale === "en" ? "English" : "中文"}>
+          {/* Secondary actions consolidated into a single "More" menu so the
+              desktop bar stays compact and the centered nav can't collide with
+              a wall of icons at narrow widths. The mobile hamburger below is
+              intentionally left unchanged. */}
+          <div ref={moreRef} className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
+            <Tooltip label={zh ? "更多" : "More"}>
               <button
                 type="button"
-                onClick={() => setLangOpen((prev) => !prev)}
+                onClick={() => setMoreOpen((prev) => !prev)}
                 className={iconBtn}
                 aria-haspopup="menu"
-                aria-expanded={langOpen}
-                aria-label={translate("Language")}
-                data-translation-lock="true"
+                aria-expanded={moreOpen}
+                aria-label={zh ? "更多" : "More"}
               >
-                <Languages className="h-[18px] w-[18px] md:h-4 md:w-4" />
+                <MoreHorizontal className="h-[18px] w-[18px] md:h-4 md:w-4" />
               </button>
             </Tooltip>
-            {langOpen && (
-              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[9rem] rounded-xl p-1">
+            {moreOpen && (
+              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                  onClick={() => {
+                    setMoreOpen(false);
+                    if (!personaLoggedIn) {
+                      router.push("/login");
+                      return;
+                    }
+                    openPersonaModal();
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                >
+                  <User className="h-4 w-4 shrink-0" />
+                  {translate("Player profile")}
+                </button>
+                <Link
+                  href="/download"
+                  onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  data-download-entry
+                >
+                  <Download className="h-4 w-4 shrink-0" />
+                  {zh ? "下载 App" : "Get the app"}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    startTutorial();
+                    setMoreOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                >
+                  <HelpCircle className="h-4 w-4 shrink-0" />
+                  {translate("Site tour")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAboutOpen(true);
+                    setMoreOpen(false);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                >
+                  <Sparkles className="h-4 w-4 shrink-0" />
+                  {translate("About")}
+                </button>
+
+                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+                <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
+                  {translate("Language")}
+                </div>
+                <button
+                  type="button"
+                  data-translation-lock="true"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   onClick={() => {
                     requestLocaleChange("en");
-                    setLangOpen(false);
+                    setMoreOpen(false);
                   }}
                 >
-                  English
+                  <span className="flex items-center gap-3">
+                    <Languages className="h-4 w-4 shrink-0" /> English
+                  </span>
                   {locale === "en" ? <Check className="h-4 w-4" /> : null}
                 </button>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                  data-translation-lock="true"
+                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   onClick={() => {
                     requestLocaleChange("zh");
-                    setLangOpen(false);
+                    setMoreOpen(false);
                   }}
                 >
-                  中文
+                  <span className="flex items-center gap-3">
+                    <Languages className="h-4 w-4 shrink-0" /> 中文
+                  </span>
                   {locale === "zh" ? <Check className="h-4 w-4" /> : null}
                 </button>
-              </div>
-            )}
-          </div>
 
-          <Tooltip label={translate("Player profile")} className="hidden md:inline-flex">
-            <button
-              type="button"
-              onClick={() => {
-                if (!personaLoggedIn) {
-                  window.location.href = "/login";
-                  return;
-                }
-                openPersonaModal();
-              }}
-              className={iconBtn}
-              aria-label={translate("Player profile")}
-              data-tutorial="nav-persona"
-            >
-              <User className="h-[18px] w-[18px] md:h-4 md:w-4" />
-            </button>
-          </Tooltip>
-
-          <span className="hidden md:inline-flex" data-tutorial="nav-theme">
-            <ThemeToggle />
-          </span>
-          <Tooltip label={translate("About")} className="hidden md:inline-flex">
-            <button
-              type="button"
-              onClick={() => setAboutOpen(true)}
-              className={iconBtn}
-              aria-label={translate("About")}
-            >
-              <Sparkles className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <div className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
-            <Tooltip label={zh ? "法律信息" : "Legal"}>
-              <button
-                type="button"
-                onClick={() => setLegalOpen((prev) => !prev)}
-                className={iconBtn}
-                aria-haspopup="menu"
-                aria-expanded={legalOpen}
-                aria-label={zh ? "法律信息" : "Legal"}
-              >
-                <Gavel className="h-[18px] w-[18px] md:h-4 md:w-4" />
-              </button>
-            </Tooltip>
-            {legalOpen && (
-              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[11rem] rounded-xl p-1">
+                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
                 {[
-                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use" },
-                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy" },
-                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer" },
-                  { href: "/announcements" as const, label: zh ? "公告" : "Announcements" }
+                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
+                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
+                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
+                  { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
                 ].map((l) => (
                   <Link
                     key={l.href}
                     href={l.href}
-                    onClick={() => setLegalOpen(false)}
-                    className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                    onClick={() => setMoreOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
+                    <l.icon className="h-4 w-4 shrink-0" />
                     {l.label}
                   </Link>
                 ))}
                 <a
                   href={`mailto:${CONTACT_EMAIL}`}
-                  onClick={() => setLegalOpen(false)}
-                  className="block rounded-lg px-3 py-2 text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                  onClick={() => setMoreOpen(false)}
+                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                 >
+                  <Gavel className="h-4 w-4 shrink-0" />
                   {zh ? "联系" : "Contact"}
                 </a>
                 <button
                   type="button"
                   onClick={() => {
                     reopenCookieConsent();
-                    setLegalOpen(false);
+                    setMoreOpen(false);
                   }}
-                  className="block w-full rounded-lg px-3 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)]"
+                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                 >
+                  <Gavel className="h-4 w-4 shrink-0" />
                   {zh ? "Cookie 设置" : "Cookie settings"}
                 </button>
               </div>
             )}
           </div>
-          <span className="hidden md:inline-flex">
-            <TutorialTrigger className={iconBtn} />
-          </span>
 
           {/* Mobile-only hamburger: collapses the icon cluster into a labeled menu.
               `order-last` keeps it at the far right of the cluster (after the
@@ -352,7 +348,7 @@ export function Navbar() {
                   type="button"
                   onClick={() => {
                     if (!personaLoggedIn) {
-                      window.location.href = "/login";
+                      router.push("/login");
                       return;
                     }
                     openPersonaModal();

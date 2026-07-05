@@ -60,6 +60,14 @@ export function AuthShell({
         </Reveal>
 
         <div className="relative">
+          {/* Value proposition for phones/tablets, where the marketing column
+              on the left is hidden — otherwise mobile visitors saw a bare form
+              with no reason to sign up. */}
+          <div className="mb-6 lg:hidden">
+            <p className="auth-eyebrow">{translate(eyebrow)}</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.02em]">{translate(heading)}</h2>
+            <p className="mt-2 text-sm leading-relaxed soft-text">{translate(subheading)}</p>
+          </div>
           {children}
         </div>
       </div>

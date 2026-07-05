@@ -50,7 +50,7 @@ export function ThemeToggle({ className }: { className?: string }) {
   const translatedTheme = translate(theme);
 
   return (
-    <Tooltip label={`${translate("Theme")}: ${translatedTheme}`}>
+    <Tooltip label={translate("Theme")}>
       <button
         type="button"
         onClick={cycleTheme}

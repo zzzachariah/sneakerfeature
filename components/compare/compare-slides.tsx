@@ -66,20 +66,21 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
         </div>
       </section>
 
-      {/* Profile: radar + diff rows */}
+      {/* Profile: the verdict is the decision headline up top, then the radar
+          + diff rows that back it up. */}
       <section id="compare-profile" style={SECTION_OFFSET} className="container-shell py-8 md:py-12">
         <p className="t-eyebrow mb-6 text-center">{translate("Performance Profile")}</p>
-        {/* Mobile order: radar → verdict → diff rows. Desktop: radar | diff
-            rows side by side, verdict spanning both columns below. */}
+        {shoes.length > 1 ? (
+          <div className="mb-8 md:mb-10">
+            <CompareVerdict shoes={shoes} />
+          </div>
+        ) : null}
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-14 lg:gap-y-8">
-          <div className="order-1">
+          <div>
             <CompareRadar shoes={shoes} />
           </div>
-          <div className="order-3 lg:order-2">
+          <div>
             <CompareDiffRows shoes={shoes} />
-          </div>
-          <div className="order-2 lg:order-3 lg:col-span-2">
-            <CompareVerdict shoes={shoes} />
           </div>
         </div>
       </section>

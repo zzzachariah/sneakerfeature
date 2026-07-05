@@ -96,7 +96,7 @@ export default async function AdminUserDetailPage({
               </h2>
               <RolePill role={profile.role} />
               {profile.personalizedPushEnabled ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-emerald-600">
+                <span className="inline-flex items-center gap-1 rounded-full bg-[rgb(var(--success)/0.15)] px-2 py-0.5 text-[0.65rem] font-medium uppercase tracking-wide text-[rgb(var(--success))]">
                   <Bell className="h-3 w-3" />
                   Push on
                 </span>
@@ -178,7 +178,7 @@ export default async function AdminUserDetailPage({
             extra: (
               <span
                 className={`num-display font-semibold ${
-                  t.delta > 0 ? "text-emerald-500" : "text-rose-500"
+                  t.delta > 0 ? "text-[rgb(var(--success))]" : "text-[rgb(var(--error))]"
                 }`}
               >
                 {t.delta > 0 ? `+${t.delta}` : t.delta}
@@ -417,7 +417,7 @@ function NotificationCard({
       <div className="space-y-2 text-sm">
         <p>
           Personalized push:{" "}
-          <span className={enabled ? "font-semibold text-emerald-500" : "font-semibold soft-text"}>
+          <span className={enabled ? "font-semibold text-[rgb(var(--success))]" : "font-semibold soft-text"}>
             {enabled ? "Enabled" : "Disabled"}
           </span>
         </p>

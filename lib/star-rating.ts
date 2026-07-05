@@ -98,6 +98,15 @@ export function weightedCombinedScore(
 }
 
 /**
+ * Neutral, focus-independent score: an equal-weight average of the six
+ * dimensions. Used as the baseline when the viewer has no Rating Focus so a
+ * shoe still gets a real overall rating (a Rating Focus then re-weights it).
+ */
+export function equalWeightScore(combined: Record<DimKey, number>): number {
+  return DIM_KEYS.reduce((sum, k) => sum + combined[k], 0) / DIM_KEYS.length;
+}
+
+/**
  * Blend spec-derived 0-100 dim scores with average user dim ratings (0.5-5
  * stars, scaled by ×20 to align with the 0-100 spec scale). When no users
  * have rated a shoe, fall back to spec-only.

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/native/haptics";
 
 const buttonStyles = cva(
-  "liquid-interactive inline-flex min-h-[44px] items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium tracking-[-0.01em] transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.35)] md:min-h-[36px]",
+  "liquid-interactive inline-flex min-h-[44px] items-center justify-center rounded-lg border px-4 py-2 text-sm font-medium tracking-[-0.01em] transition duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)] md:min-h-[36px]",
   {
     variants: {
       variant: {
@@ -16,6 +16,10 @@ const buttonStyles = cva(
           "border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] text-[rgb(var(--text))] hover:border-[rgb(var(--text)/0.4)] hover:bg-[rgb(var(--surface))] active:scale-[0.98]",
         ghost:
           "border-transparent bg-transparent text-[rgb(var(--subtext))] hover:border-[rgb(var(--text)/0.4)] hover:text-[rgb(var(--text))] active:scale-[0.98]",
+        brand:
+          "border-[rgb(var(--brand))] bg-[rgb(var(--brand))] font-semibold text-[rgb(var(--brand-contrast))] hover:brightness-105 active:scale-[0.98]",
+        destructive:
+          "border-[rgb(var(--error))] bg-[rgb(var(--error))] font-semibold text-[rgb(var(--bg))] hover:opacity-90 active:scale-[0.98]",
         glass:
           "glass-rim glass-interactive relative border-[rgb(var(--glass-stroke-soft)/0.5)] bg-[rgb(var(--glass-tint)/0.5)] text-[rgb(var(--text))] backdrop-blur-md backdrop-saturate-[180%] hover:bg-[rgb(var(--glass-tint)/0.7)] active:scale-[0.98]"
       }

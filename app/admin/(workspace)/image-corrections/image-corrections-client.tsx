@@ -58,7 +58,7 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
 
       {corrections.length === 0 ? (
         <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-8 text-center sm:p-10">
-          <ShieldCheck className="h-8 w-8 text-emerald-400" />
+          <ShieldCheck className="h-8 w-8 text-[rgb(var(--success))]" />
           <p className="font-medium">No pending image corrections</p>
           <p className="text-sm soft-text">The review queue is clear.</p>
         </div>
@@ -108,11 +108,11 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                 <ArrowRight className="h-5 w-5 rotate-90 soft-text sm:rotate-0" />
 
                 <figure className="flex flex-col items-center gap-1">
-                  <div className="aspect-square w-full max-w-[10rem] overflow-hidden rounded-xl border border-emerald-400/50 bg-white">
+                  <div className="aspect-square w-full max-w-[10rem] overflow-hidden rounded-xl border border-[rgb(var(--success)/0.5)] bg-white">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={correction.submittedImageUrl} alt="Suggested" className="h-full w-full object-contain" />
                   </div>
-                  <figcaption className="text-[0.65rem] uppercase tracking-[0.12em] text-emerald-400">Suggested</figcaption>
+                  <figcaption className="text-[0.65rem] uppercase tracking-[0.12em] text-[rgb(var(--success))]">Suggested</figcaption>
                 </figure>
               </div>
 
@@ -128,7 +128,7 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                   type="button"
                   disabled={busy === correction.id}
                   onClick={() => act(correction, "approve")}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-emerald-400/60 px-3 text-sm text-emerald-400 transition hover:bg-emerald-400/10 active:bg-emerald-400/10 disabled:opacity-50 sm:min-h-0 sm:py-1.5"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--success)/0.6)] px-3 text-sm text-[rgb(var(--success))] transition hover:bg-[rgb(var(--success)/0.1)] active:bg-[rgb(var(--success)/0.1)] disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <Check className="h-4 w-4" /> Approve &amp; apply
                 </button>
@@ -136,7 +136,7 @@ export function ImageCorrectionsClient({ initialCorrections }: { initialCorrecti
                   type="button"
                   disabled={busy === correction.id}
                   onClick={() => act(correction, "reject")}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 text-sm text-rose-400 transition hover:bg-rose-400/10 active:bg-rose-400/10 disabled:opacity-50 sm:min-h-0 sm:py-1.5"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--error)/0.6)] px-3 text-sm text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] active:bg-[rgb(var(--error)/0.1)] disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <X className="h-4 w-4" /> Reject
                 </button>

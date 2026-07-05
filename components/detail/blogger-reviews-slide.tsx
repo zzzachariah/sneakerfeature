@@ -105,7 +105,7 @@ function MobileGalleries({ platforms }: { platforms: PlatformReviews[] }) {
                   on ? "bg-[rgb(var(--accent)/0.15)] font-medium text-[rgb(var(--accent))]" : "soft-text"
                 }`}
               >
-                <Icon className={`h-4 w-4 shrink-0 ${p.platform === "youtube" ? "text-rose-400" : "text-sky-400"}`} />
+                <Icon className={`h-4 w-4 shrink-0 ${p.platform === "youtube" ? "text-[rgb(var(--error))]" : "text-sky-400"}`} />
                 {label}
                 <span className="opacity-60">{p.reviews.length}</span>
               </button>
@@ -127,7 +127,7 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
   const len = reviews.length;
   const cur = len ? Math.min(index, len - 1) : 0;
   const Icon = platform === "youtube" ? Youtube : PlayCircle;
-  const accent = platform === "youtube" ? "text-rose-400" : "text-sky-400";
+  const accent = platform === "youtube" ? "text-[rgb(var(--error))]" : "text-sky-400";
   const label = platform === "youtube" ? "YouTube" : zh ? "B站" : "Bilibili";
 
   const go = (delta: number) => {
@@ -214,13 +214,13 @@ function ReviewGallery({ platform, reviews }: { platform: Platform; reviews: Blo
               <div className="mt-3 space-y-2">
                 {pros.map((p, k) => (
                   <p key={`p${k}`} className="flex items-start gap-2 text-sm md:text-base">
-                    <ThumbsUp className="mt-1 h-4 w-4 shrink-0 text-emerald-400" />
+                    <ThumbsUp className="mt-1 h-4 w-4 shrink-0 text-[rgb(var(--success))]" />
                     <span>{p}</span>
                   </p>
                 ))}
                 {cons.map((c, k) => (
                   <p key={`c${k}`} className="flex items-start gap-2 text-sm md:text-base">
-                    <ThumbsDown className="mt-1 h-4 w-4 shrink-0 text-rose-400" />
+                    <ThumbsDown className="mt-1 h-4 w-4 shrink-0 text-[rgb(var(--error))]" />
                     <span>{c}</span>
                   </p>
                 ))}

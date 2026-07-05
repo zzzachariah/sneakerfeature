@@ -127,7 +127,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                   onClick={() => changeRole(row)}
                   className={
                     row.role === "admin"
-                      ? "mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 py-2 text-xs text-rose-400 transition active:bg-rose-400/10 disabled:opacity-50"
+                      ? "mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--error)/0.6)] px-3 py-2 text-xs text-[rgb(var(--error))] transition active:bg-[rgb(var(--error)/0.1)] disabled:opacity-50"
                       : "mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.6)] px-3 py-2 text-xs text-[rgb(var(--accent))] transition active:bg-[rgb(var(--accent)/0.1)] disabled:opacity-50"
                   }
                 >
@@ -218,7 +218,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                         onClick={() => changeRole(row)}
                         className={
                           row.role === "admin"
-                            ? "inline-flex items-center gap-1.5 rounded-lg border border-rose-400/60 px-3 py-1.5 text-xs text-rose-400 transition hover:bg-rose-400/10 disabled:opacity-50"
+                            ? "inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--error)/0.6)] px-3 py-1.5 text-xs text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] disabled:opacity-50"
                             : "inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--accent)/0.6)] px-3 py-1.5 text-xs text-[rgb(var(--accent))] transition hover:bg-[rgb(var(--accent)/0.1)] disabled:opacity-50"
                         }
                       >

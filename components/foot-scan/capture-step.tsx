@@ -409,7 +409,7 @@ export function CaptureStep({
               <div className="pointer-events-none absolute left-1/2 top-3 max-w-[calc(100%-1.5rem)] -translate-x-1/2">
                 <span
                   className={`block whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium backdrop-blur-md ${
-                    tilt.permission === "granted" && tilt.level ? "bg-emerald-500/85 text-white" : "bg-black/55 text-white"
+                    tilt.permission === "granted" && tilt.level ? "bg-[rgb(var(--success)/0.85)] text-white" : "bg-black/55 text-white"
                   }`}
                 >
                   {tilt.permission === "granted" && tilt.level ? translate("Looks level") : levelHint}

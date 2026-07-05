@@ -236,7 +236,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           </div>
 
           {error ? (
-            <p className="shrink-0 px-5 pb-2 text-xs text-rose-400 md:px-6">{error}</p>
+            <p className="shrink-0 px-5 pb-2 text-xs text-[rgb(var(--error))] md:px-6">{error}</p>
           ) : null}
 
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[rgb(var(--muted)/0.25)] bg-[rgb(var(--bg-elev)/0.55)] px-5 py-3 md:px-6 md:py-4">
