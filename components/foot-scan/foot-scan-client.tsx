@@ -95,6 +95,31 @@ export function FootScanClient() {
   // Depth-sensor capability for the Beta high-precision path (false until proven
   // — web / no native plugin / unsupported device all stay false).
   const [depthSupported, setDepthSupported] = useState(false);
+  // Desktop visitors get a "continue on your phone" handoff: a laptop webcam
+  // physically can't reach a foot on the floor, so without this the flow was a
+  // dead end. Touch-capable devices never see it.
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  useEffect(() => {
+    try {
+      const finePointer = window.matchMedia("(pointer: fine)").matches;
+      const noTouch = !("ontouchstart" in window) && navigator.maxTouchPoints === 0;
+      setShowHandoff(finePointer && noTouch);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  async function copyScanLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 1800);
+    } catch {
+      /* clipboard blocked — ignore */
+    }
+  }
 
   useEffect(() => {
     let alive = true;
@@ -239,6 +264,28 @@ export function FootScanClient() {
         <h1 className="text-2xl font-semibold tracking-[-0.02em]">{translate("Foot Scan")}</h1>
         <p className="mt-1 text-sm soft-text">{translate("Discover your foot shape in about a minute.")}</p>
       </header>
+
+      {step === "checklist" && showHandoff && (
+        <div className="mb-5 rounded-2xl border border-[rgb(var(--brand)/0.35)] bg-[rgb(var(--brand)/0.08)] p-4">
+          <p className="text-sm font-semibold">
+            {locale === "zh" ? "用手机扫描效果最好" : "This works best on your phone"}
+          </p>
+          <p className="mt-1 text-[0.82rem] leading-relaxed soft-text">
+            {locale === "zh"
+              ? "扫描需要俯拍地面上的脚，电脑摄像头够不到。在手机浏览器打开这个页面即可继续。"
+              : "The scan photographs your foot on the floor from above — a laptop webcam can't reach it. Open this page in your phone's browser to continue."}
+          </p>
+          <button
+            type="button"
+            onClick={copyScanLink}
+            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--brand)/0.4)] px-3 text-xs font-medium text-[rgb(var(--brand))] transition hover:bg-[rgb(var(--brand)/0.1)]"
+          >
+            {linkCopied
+              ? locale === "zh" ? "已复制 ✓" : "Copied ✓"
+              : locale === "zh" ? "复制链接" : "Copy link"}
+          </button>
+        </div>
+      )}
 
       {step === "checklist" && (
         <ChecklistStep
