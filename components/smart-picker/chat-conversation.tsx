@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Download, History, Plus, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { haptics } from "@/lib/native/haptics";
 import { DUR, EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
@@ -48,12 +49,25 @@ export function ChatConversation({
   onSelectChat,
   onNewChat
 }: Props) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement | null>(null);
-  const [prefillText] = useState("");
+  // Prefill text flows to the composer; suggestion chips on the empty state set
+  // it so a fresh conversation has concrete starting points instead of a blank
+  // box. A trailing space keeps the value distinct if the same chip is tapped
+  // twice (the effect in MessageInput only fires on change).
+  const [prefillText, setPrefillText] = useState("");
+  const suggestions =
+    locale === "zh"
+      ? ["适合控卫的强抓地球鞋", "给体重较大球员的稳定支撑", "贴地、适合快速后卫", "室外场耐磨又缓震"]
+      : [
+          "Best traction for quick guards",
+          "Stable and supportive for a heavier player",
+          "Low-to-the-ground court feel",
+          "Great cushioning for outdoor courts"
+        ];
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -156,6 +170,22 @@ export function ChatConversation({
               <p className="mt-2 max-w-[22rem] text-sm soft-text">
                 {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
               </p>
+              {/* Concrete starting points — tap to drop one into the composer. */}
+              <div className="mt-6 flex max-w-lg flex-wrap justify-center gap-2">
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => {
+                      haptics.selection();
+                      setPrefillText(s + " ");
+                    }}
+                    className="tap-44 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.6)] px-3.5 py-2 text-[0.8rem] font-medium text-[rgb(var(--text)/0.85)] transition hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
