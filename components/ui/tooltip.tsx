@@ -4,13 +4,14 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Lightweight, CSS-only hover/focus tooltip for navbar icon buttons.
+ * Hover/focus label for navbar icon buttons.
  *
- * The label is absolutely positioned beside the trigger and unfurls horizontally
- * (frosted-glass pill matching the dropdown menus). Because the bubble is
- * `absolute` + `pointer-events-none`, it never affects layout and never steals the
- * cursor — so hovering across the icon row stays perfectly still (no jitter/flicker).
- * The reveal animates opacity + transform only, for a smooth GPU-composited feel.
+ * Instead of floating an absolute bubble ON TOP of the neighbouring icons, the
+ * label lives IN FLOW next to its icon and expands from zero width on hover /
+ * focus — so the surrounding icons smoothly slide aside to make room and slide
+ * back when the pointer leaves. The width animation uses the grid `0fr → 1fr`
+ * technique (GPU-friendly, animates to the label's natural width) and the pill
+ * fades in over it. Respects reduced-motion.
  */
 export function Tooltip({
   label,
@@ -23,25 +24,33 @@ export function Tooltip({
   side?: "left" | "right";
   className?: string;
 }) {
-  return (
-    <span className={cn("group/nav-tip relative inline-flex", className)}>
-      {children}
-      <span
-        role="tooltip"
-        aria-hidden
-        className={cn(
-          "pointer-events-none absolute top-1/2 z-[80] -translate-y-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[0.72rem] font-medium text-[rgb(var(--text))]",
-          "nav-dropdown-panel opacity-0 scale-95",
-          "transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none motion-reduce:duration-0",
-          "group-hover/nav-tip:translate-x-0 group-hover/nav-tip:scale-100 group-hover/nav-tip:opacity-100",
-          "group-[:has(:focus-visible)]/nav-tip:translate-x-0 group-[:has(:focus-visible)]/nav-tip:scale-100 group-[:has(:focus-visible)]/nav-tip:opacity-100",
-          side === "left"
-            ? "right-[calc(100%+0.4rem)] origin-right translate-x-1.5"
-            : "left-[calc(100%+0.4rem)] origin-left -translate-x-1.5"
-        )}
-      >
-        {label}
+  const labelEl = (
+    <span
+      aria-hidden
+      className={cn(
+        "grid grid-cols-[0fr] transition-[grid-template-columns] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+        "group-hover/nav-tip:grid-cols-[1fr] group-[:has(:focus-visible)]/nav-tip:grid-cols-[1fr]"
+      )}
+    >
+      <span className="overflow-hidden">
+        <span
+          className={cn(
+            "nav-dropdown-panel block whitespace-nowrap rounded-full px-2.5 py-1 text-[0.72rem] font-medium text-[rgb(var(--text))]",
+            "opacity-0 transition-opacity duration-150 group-hover/nav-tip:opacity-100 group-[:has(:focus-visible)]/nav-tip:opacity-100 motion-reduce:transition-none",
+            side === "left" ? "mr-1.5" : "ml-1.5"
+          )}
+        >
+          {label}
+        </span>
       </span>
+    </span>
+  );
+
+  return (
+    <span className={cn("group/nav-tip inline-flex items-center", className)}>
+      {side === "left" ? labelEl : null}
+      {children}
+      {side === "right" ? labelEl : null}
     </span>
   );
 }
