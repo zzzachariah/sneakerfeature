@@ -95,7 +95,7 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
 
   if (failed) {
     return (
-      <div className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs text-rose-700 dark:text-rose-200">
+      <div className="rounded-xl border border-[rgb(var(--error)/0.4)] bg-[rgb(var(--error)/0.1)] px-3 py-2 text-xs text-[rgb(var(--error))] dark:text-[rgb(var(--error))]">
         {translate("Verification failed to load. Check your network or try again.")}
         <button
           type="button"

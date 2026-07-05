@@ -270,7 +270,7 @@ export function CommentSection({
                     <p className="num-display text-xs soft-text">{new Date(comment.createdAt).toLocaleString()}</p>
                   </div>
                   {isOwn ? (
-                    <button type="button" className="inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2 py-1 text-xs soft-text transition hover:border-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]" onClick={() => deleteComment(comment.id)} aria-label={translate("Delete my comment")}>
+                    <button type="button" className="inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.5)] px-2 py-1 text-xs soft-text transition hover:border-[rgb(var(--error))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]" onClick={() => deleteComment(comment.id)} aria-label={translate("Delete my comment")}>
                       <Trash2 className="h-3.5 w-3.5" /> {translate("Delete")}
                     </button>
                   ) : userId ? (
@@ -307,7 +307,7 @@ export function CommentSection({
                               </button>
                               <button
                                 type="button"
-                                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-rose-500 transition hover:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-400/10"
+                                className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-left text-xs text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] dark:text-[rgb(var(--error))] dark:hover:bg-[rgb(var(--error)/0.1)]"
                                 onClick={() => blockUser(comment.userId)}
                               >
                                 <Ban className="h-3.5 w-3.5" /> {translate("Block user")}
@@ -325,14 +325,14 @@ export function CommentSection({
                 <div className="mt-3 flex items-center gap-2 text-xs">
                   <button
                     type="button"
-                    className={`inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${comment.myVote === "like" ? "border-emerald-400/80 bg-emerald-400/10 text-emerald-600 dark:text-emerald-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-emerald-300/70"}`}
+                    className={`inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${comment.myVote === "like" ? "border-[rgb(var(--success)/0.8)] bg-[rgb(var(--success)/0.1)] text-[rgb(var(--success))] dark:text-[rgb(var(--success))]" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-[rgb(var(--success)/0.7)]"}`}
                     onClick={() => submitVote(comment.id, "like")}
                   >
                     <ThumbsUp className="h-3.5 w-3.5" /> <span className="num-display">{comment.likes}</span>
                   </button>
                   <button
                     type="button"
-                    className={`inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${comment.myVote === "dislike" ? "border-rose-400/80 bg-rose-400/10 text-rose-500 dark:text-rose-400" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-rose-300/70"}`}
+                    className={`inline-flex min-h-[44px] md:min-h-[36px] items-center gap-1 rounded-md border px-2.5 py-1 transition active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${comment.myVote === "dislike" ? "border-[rgb(var(--error)/0.8)] bg-[rgb(var(--error)/0.1)] text-[rgb(var(--error))] dark:text-[rgb(var(--error))]" : "border-[rgb(var(--muted)/0.5)] soft-text hover:border-[rgb(var(--error)/0.7)]"}`}
                     onClick={() => submitVote(comment.id, "dislike")}
                   >
                     <ThumbsDown className="h-3.5 w-3.5" /> <span className="num-display">{comment.dislikes}</span>

@@ -80,8 +80,8 @@ export function DailyCheckinCreditsField({ initialCredits, maxCredits }: Props) 
           Enter a whole number between 0 and {maxCredits}.
         </p>
       )}
-      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
-      {showSaved && <p className="mt-2 text-xs text-emerald-600">Saved.</p>}
+      {error && <p className="mt-2 text-xs text-[rgb(var(--error))]">{error}</p>}
+      {showSaved && <p className="mt-2 text-xs text-[rgb(var(--success))]">Saved.</p>}
     </div>
   );
 }

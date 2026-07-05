@@ -449,13 +449,13 @@ function VerdictBlock({ shoe }: { shoe: Shoe }) {
         <div className={cn("space-y-2", verdict ? "mt-3" : "mt-2")}>
           {pro && (
             <div className="flex items-start gap-2 text-sm md:text-[0.95rem]">
-              <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
+              <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--success))]" />
               <span className="soft-text">{pro}</span>
             </div>
           )}
           {con && (
             <div className="flex items-start gap-2 text-sm md:text-[0.95rem]">
-              <ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+              <ThumbsDown className="mt-0.5 h-4 w-4 shrink-0 text-[rgb(var(--error))]" />
               <span className="soft-text">{con}</span>
             </div>
           )}

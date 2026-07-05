@@ -506,7 +506,7 @@ function DeleteAccountSection({
           // blank WebView while the home page fetched). Instead we confirm the
           // result here and let the user return home via a soft navigation.
           <div className="space-y-5 text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-500/15 text-green-400">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--success)/0.15)] text-[rgb(var(--success))]">
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <p className="text-sm leading-relaxed soft-text">

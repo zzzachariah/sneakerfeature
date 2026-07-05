@@ -201,7 +201,7 @@ export const SubmissionSlides = forwardRef<SubmissionSlidesHandle, Props>(functi
             <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
               {isSubmitting ? translate("Submitting...") : translate("Submit for review")}
             </Button>
-            {message && isError && <p className="text-xs text-red-400">{message}</p>}
+            {message && isError && <p className="text-xs text-[rgb(var(--error))]">{message}</p>}
             {!token && (
               <p className="text-[11px] soft-text">{translate("Complete verification above to enable submit.")}</p>
             )}

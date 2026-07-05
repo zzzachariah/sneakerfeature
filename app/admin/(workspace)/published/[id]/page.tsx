@@ -258,7 +258,7 @@ export default function AdminPublishedDetailPage() {
           {data.shoe.is_published ? (
             <Button
               variant="ghost"
-              className="border border-red-500/35 text-red-500 hover:bg-red-500/10"
+              className="border border-[rgb(var(--error)/0.35)] text-[rgb(var(--error))] hover:bg-[rgb(var(--error)/0.1)]"
               onClick={() => setShowConfirm(true)}
             >
               Unpublish
@@ -271,11 +271,11 @@ export default function AdminPublishedDetailPage() {
         </div>
 
         {showConfirm && (
-          <div className="rounded-xl border border-red-500/35 bg-red-500/10 p-3 text-sm">
+          <div className="rounded-xl border border-[rgb(var(--error)/0.35)] bg-[rgb(var(--error)/0.1)] p-3 text-sm">
             <p>Unpublish this live record? It will be hidden from public listing until republished.</p>
             <div className="mt-2 flex gap-2">
               <Button
-                className="bg-red-500 hover:bg-red-500/80"
+                className="bg-[rgb(var(--error))] hover:bg-[rgb(var(--error)/0.8)]"
                 onClick={() => act("unpublish")}
               >
                 Confirm unpublish
@@ -288,7 +288,7 @@ export default function AdminPublishedDetailPage() {
         )}
 
         {message && (
-          <p className={`text-sm ${error ? "text-red-500" : "text-emerald-500"}`}>
+          <p className={`text-sm ${error ? "text-[rgb(var(--error))]" : "text-[rgb(var(--success))]"}`}>
             {message}
           </p>
         )}

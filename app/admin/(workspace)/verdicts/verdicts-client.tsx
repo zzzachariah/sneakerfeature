@@ -237,7 +237,7 @@ export function VerdictsImportClient() {
                 onClick={() => {
                   cancelRef.current = true;
                 }}
-                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 text-sm font-medium text-rose-300 transition hover:bg-rose-400/10 active:bg-rose-400/10 sm:flex-none md:min-h-0 md:py-1.5"
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--error)/0.6)] px-3 text-sm font-medium text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] active:bg-[rgb(var(--error)/0.1)] sm:flex-none md:min-h-0 md:py-1.5"
               >
                 <Ban className="h-4 w-4" />
                 Cancel
@@ -258,7 +258,7 @@ export function VerdictsImportClient() {
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-2xl border border-rose-400/50 bg-rose-400/10 p-4 text-sm text-rose-300">
+        <div className="flex items-start gap-2 rounded-2xl border border-[rgb(var(--error)/0.5)] bg-[rgb(var(--error)/0.1)] p-4 text-sm text-[rgb(var(--error))]">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{error}</span>
         </div>
@@ -299,7 +299,7 @@ export function VerdictsImportClient() {
           </div>
 
           {phase === "done" && !error && (
-            <div className={cn("flex items-center gap-2", warn ? "text-amber-300" : "text-emerald-400")}>
+            <div className={cn("flex items-center gap-2", warn ? "text-amber-300" : "text-[rgb(var(--success))]")}>
               {warn ? <AlertTriangle className="h-5 w-5 shrink-0" /> : <CheckCircle2 className="h-5 w-5 shrink-0" />}
               <p className="font-medium">
                 {cancelled ? "Cancelled — " : ""}
@@ -318,9 +318,9 @@ export function VerdictsImportClient() {
           )}
 
           {errors.length > 0 && (
-            <div className="rounded-xl border border-rose-400/40 bg-rose-400/10 p-3 text-sm">
-              <p className="font-medium text-rose-300">Write errors:</p>
-              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-rose-200/90">
+            <div className="rounded-xl border border-[rgb(var(--error)/0.4)] bg-[rgb(var(--error)/0.1)] p-3 text-sm">
+              <p className="font-medium text-[rgb(var(--error))]">Write errors:</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[rgb(var(--error)/0.9)]">
                 {errors.slice(0, 50).map((u, i) => (
                   <li key={`${u}-${i}`} className="break-all">
                     {u}

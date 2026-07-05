@@ -55,7 +55,7 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
 
       {reports.length === 0 ? (
         <div className="surface-card premium-border flex flex-col items-center gap-2 rounded-2xl p-8 text-center sm:p-10">
-          <ShieldCheck className="h-8 w-8 text-emerald-400" />
+          <ShieldCheck className="h-8 w-8 text-[rgb(var(--success))]" />
           <p className="font-medium">No open reports</p>
           <p className="text-sm soft-text">The moderation queue is clear.</p>
         </div>
@@ -83,7 +83,7 @@ export function ReportsClient({ initialReports }: { initialReports: ReportRow[] 
                   type="button"
                   disabled={busy === report.id || !report.commentExists}
                   onClick={() => act(report, "delete_comment")}
-                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-rose-400/60 px-3 text-sm text-rose-400 transition hover:bg-rose-400/10 active:bg-rose-400/10 disabled:opacity-50 sm:min-h-0 sm:py-1.5"
+                  className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border border-[rgb(var(--error)/0.6)] px-3 text-sm text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] active:bg-[rgb(var(--error)/0.1)] disabled:opacity-50 sm:min-h-0 sm:py-1.5"
                 >
                   <Trash2 className="h-4 w-4" /> Delete comment
                 </button>

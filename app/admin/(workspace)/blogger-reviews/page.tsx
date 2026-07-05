@@ -146,7 +146,7 @@ export default async function AdminBloggerReviewsPage({
                     ) : (
                       <>
                         <span className="inline-flex items-center gap-1 tabular-nums" title="YouTube">
-                          <Youtube className="h-4 w-4 text-rose-400" />
+                          <Youtube className="h-4 w-4 text-[rgb(var(--error))]" />
                           {c.youtube}
                         </span>
                         <span className="inline-flex items-center gap-1 tabular-nums" title="Bilibili">
@@ -198,7 +198,7 @@ export default async function AdminBloggerReviewsPage({
                     ) : (
                       <span className="inline-flex items-center gap-3">
                         <span className="inline-flex items-center gap-1 tabular-nums" title="YouTube">
-                          <Youtube className="h-4 w-4 text-rose-400" />
+                          <Youtube className="h-4 w-4 text-[rgb(var(--error))]" />
                           {c.youtube}
                         </span>
                         <span className="inline-flex items-center gap-1 tabular-nums" title="Bilibili">

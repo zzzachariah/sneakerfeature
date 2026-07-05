@@ -751,7 +751,7 @@ function IconButton({
 }) {
   const tonal =
     tone === "danger"
-      ? "border-red-500/30 text-red-600 hover:bg-red-500/10"
+      ? "border-[rgb(var(--error)/0.3)] text-[rgb(var(--error))] hover:bg-[rgb(var(--error)/0.1)]"
       : "border-[rgb(var(--glass-stroke-soft)/0.5)] text-[rgb(var(--text)/0.7)] hover:bg-[rgb(var(--text)/0.06)]";
   return (
     <button
