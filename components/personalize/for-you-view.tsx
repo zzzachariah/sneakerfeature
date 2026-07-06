@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
@@ -301,13 +302,39 @@ function ShoeThumb({
   fit?: "cover" | "contain";
 }) {
   if (shoe.image) {
+    const fitClass = fit === "contain" ? "object-contain" : "object-cover";
+    // Route Supabase-hosted images through the Next optimizer (resize + AVIF/
+    // WebP); other hosts keep the plain <img> path so they can't 400 at the
+    // optimizer. Sizing stays fully CSS-driven (h-24/h-28 w-full from callers);
+    // width/height are only intrinsic hints for the generated srcset.
+    let optimizable = shoe.image.startsWith("/") && !shoe.image.startsWith("//");
+    if (!optimizable) {
+      try {
+        const url = new URL(shoe.image);
+        optimizable = url.protocol === "https:" && url.hostname.endsWith(".supabase.co");
+      } catch {
+        optimizable = false;
+      }
+    }
+    if (optimizable) {
+      return (
+        <Image
+          src={shoe.image}
+          alt={shoe.name}
+          width={256}
+          height={128}
+          loading="lazy"
+          className={`${fitClass} ${className ?? ""}`}
+        />
+      );
+    }
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={shoe.image}
         alt={shoe.name}
         loading="lazy"
-        className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className ?? ""}`}
+        className={`${fitClass} ${className ?? ""}`}
       />
     );
   }

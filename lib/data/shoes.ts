@@ -22,6 +22,12 @@ import {
 
 type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
 type ShoeStory = NonNullable<Shoe["story"]>;
+// Cached/assembled row: spec + approved image already resolved, the raw
+// shoe_specs / shoe_images arrays dropped. Those arrays (every historical
+// image record with prompts/rejection reasons, per shoe) used to ride along
+// via object spread into BOTH the unstable_cache entry — pushing it past the
+// 2MB data-cache limit, so the catalog silently never cached and every
+// request re-scanned Supabase — AND into every page's RSC payload.
 type ShoeStoryRow = {
   shoe_id: string;
   title?: string | null;
@@ -32,7 +38,7 @@ type ShoeStoryRow = {
   source_url?: string | null;
   created_at?: string | null;
 };
-type ShoeQueryRow = ShoeRow & { story: ShoeStory | null };
+type ShoeQueryRow = Omit<Shoe, "story"> & { story: ShoeStory | null };
 export type ShoeImageState = {
   approved: ShoeImageRecord | null;
   pending: ShoeImageRecord | null;
@@ -163,10 +169,15 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
 
   const storyByShoeId = buildStoryMap(storyRows ?? []);
 
-  const rows: ShoeQueryRow[] = (shoesRes.data as Array<ShoeRow & { id: string }>).map((row) => ({
-    ...row,
-    story: storyByShoeId.get(row.id) ?? null
-  }));
+  const rows: ShoeQueryRow[] = (shoesRes.data as Array<ShoeRow & { id: string }>).map((row) => {
+    const { shoe_specs, shoe_images, ...rest } = row;
+    return {
+      ...rest,
+      spec: shoe_specs?.[0] ?? {},
+      image_url: resolveApprovedImage(shoe_images)?.public_url ?? null,
+      story: storyByShoeId.get(row.id) ?? null
+    };
+  });
 
   const aggregates = new Map<string, DimAggregate>();
   for (const r of (ratingsRes.data ?? []) as DimRow[]) {
@@ -182,7 +193,7 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v3"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v4"], {
   tags: ["shoes"],
   // Auto-refresh at most once a minute so edits made directly in Supabase (which
   // don't call revalidateTag) still show up within ~60s instead of going stale.
@@ -238,7 +249,7 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
   const { myDimRatings, focus } = userCtx;
   const aggregates = new Map<string, DimAggregate>(aggregateEntries);
 
-  const specs = rows.map((row) => row.shoe_specs?.[0] ?? {});
+  const specs = rows.map((row) => row.spec ?? {});
   const dimStarsByIndex: (Partial<Record<DimKey, number>> | null)[] = rows.map(() => null);
   const finalStarsByIndex: (number | null)[] = rows.map(() => null);
   const specStarsByIndex: (number | null)[] = rows.map(() => null);
@@ -295,7 +306,6 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
     const userRatingCount = agg?.count ?? 0;
     return {
       ...row,
-      image_url: resolveApprovedImage(row.shoe_images)?.public_url ?? null,
       spec: specs[idx],
       userRatingCount,
       specStars: specStarsByIndex[idx],
@@ -321,8 +331,29 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
   return built;
 }
 
+// Fully assembled non-personalized catalog, cached alongside the base data.
+// assembleShoes runs ~8 full-catalog sorts (percentile ranking per dimension),
+// which used to execute on EVERY request even when the base was a cache hit.
+// For anonymous viewers (no focus, no own ratings) the result is identical for
+// everyone, so cache the assembled output and skip that CPU in the hot path.
+const getPublicShoesAssembled = unstable_cache(
+  async () => {
+    const base = await loadShoesBase();
+    if (!base) return null;
+    return assembleShoes(base, EMPTY_USER_CONTEXT);
+  },
+  ["shoes-assembled-v1"],
+  { tags: ["shoes"], revalidate: 60 }
+);
+
 export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
-  const [base, userCtx] = await Promise.all([getShoesBase(), loadUserContext()]);
+  const userCtx = await loadUserContext();
+  // Anonymous / non-personalized viewers all see the same catalog — serve the
+  // cached assembled list instead of recomputing rankings per request.
+  if (!userCtx.focus && userCtx.myDimRatings.size === 0) {
+    return (await getPublicShoesAssembled()) ?? demoShoes;
+  }
+  const base = await getShoesBase();
   if (!base) return demoShoes;
   return assembleShoes(base, userCtx);
 });
@@ -331,9 +362,7 @@ export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
 // serve from /api/shoes for the on-device (IndexedDB) library. Same shape as
 // getShoes but with an empty user context, so no per-user blending/ordering.
 export async function getPublicShoes(): Promise<Shoe[]> {
-  const base = await getShoesBase();
-  if (!base) return demoShoes;
-  return assembleShoes(base, EMPTY_USER_CONTEXT);
+  return (await getPublicShoesAssembled()) ?? demoShoes;
 }
 
 export async function getShoeBySlug(slug: string): Promise<Shoe | null> {

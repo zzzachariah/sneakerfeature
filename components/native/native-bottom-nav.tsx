@@ -81,6 +81,15 @@ export function NativeBottomNav() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin, translate]);
 
+  // Warm the router cache for every tab destination. The web navs get this for
+  // free from <Link> prefetching; the native bar navigates via router.push, so
+  // without this each first tap paid a completely cold fetch.
+  useEffect(() => {
+    if (!nativeBarAvailable()) return;
+    const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
+    for (const t of tabs) router.prefetch(t.href);
+  }, [isAdmin, router]);
+
   // Tab tap (native) → navigate the web view.
   useEffect(() => {
     if (!nativeBarAvailable()) return;

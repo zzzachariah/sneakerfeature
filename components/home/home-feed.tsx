@@ -49,10 +49,13 @@ function useReducedMotion() {
   return r;
 }
 
-// Initial paint window. Once the user scrolls anywhere near the bottom,
-// we jump straight to rendering the WHOLE filtered list so fast flicks
-// never outrun progressive batches — see the IntersectionObserver below.
+// Initial paint window and per-step growth. The sentinel below grows the
+// window one BATCH at a time (re-observing after each grow) instead of
+// mounting the whole filtered list in a single commit — mounting ~500 cards
+// at once (each with an image + reveal observer) stalls the main thread for
+// seconds on phone WebViews and was a hard-freeze trigger in the iOS app.
 const INITIAL_VISIBLE = 96;
+const BATCH_SIZE = 72;
 
 // Tracks the phone breakpoint so filters open as a native-feeling bottom sheet on
 // phones and stay as an inline panel on desktop. Defaults to false (desktop) for
@@ -286,12 +289,14 @@ export function HomeFeed({
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
-          // Jump straight to the full result set on first sentinel hit so
-          // fast scrolls never outrun the progressive batches.
-          setVisibleCount(filtered.length);
+          // One batch per hit. The effect re-runs after every grow (visibleCount
+          // is a dep), re-observing the sentinel, so a held scroll keeps feeding
+          // batches; the generous rootMargin keeps them ahead of fast flicks
+          // without ever paying one giant render commit.
+          setVisibleCount((count) => Math.min(count + BATCH_SIZE, filtered.length));
         }
       },
-      { rootMargin: "3200px 0px" }
+      { rootMargin: "1600px 0px" }
     );
     io.observe(node);
     return () => io.disconnect();
