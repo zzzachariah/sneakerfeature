@@ -83,6 +83,21 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     sku: shoe.id,
   };
 
+  // Only mark up an aggregateRating when real users have rated the shoe, and use
+  // the exact star value shown on the page (shoe.finalStars, 1–5) so the markup
+  // matches visible content — a Google requirement for review rich results.
+  const ratingCount = shoe.userRatingCount ?? 0;
+  const ratingValue = shoe.finalStars ?? 0;
+  if (ratingCount > 0 && ratingValue > 0) {
+    productSchema.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: Number(ratingValue.toFixed(1)),
+      bestRating: 5,
+      worstRating: 1,
+      ratingCount,
+    };
+  }
+
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",

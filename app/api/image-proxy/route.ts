@@ -94,10 +94,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "path not allowed" }, { status: 403 });
   }
 
+  // SSRF guard: do NOT follow redirects. The allowlist above only vetted the
+  // initial URL; an open-redirect on an allowlisted host could otherwise bounce
+  // us to an internal address (e.g. cloud metadata at 169.254.169.254). Any 3xx
+  // is treated as a failure rather than followed.
   const upstream = await fetch(parsed.toString(), {
     headers: { Accept: "image/*" },
     cache: "no-store",
+    redirect: "manual",
   });
+
+  if (upstream.status >= 300 && upstream.status < 400) {
+    return NextResponse.json({ error: "redirect not allowed" }, { status: 502 });
+  }
 
   if (!upstream.ok || !upstream.body) {
     return NextResponse.json(
@@ -107,6 +116,12 @@ export async function GET(request: NextRequest) {
   }
 
   const contentType = upstream.headers.get("content-type") ?? "image/jpeg";
+  // Only ever stream back actual images, so this can't be used to exfiltrate
+  // arbitrary internal responses (HTML/JSON) even if an allowlisted host serves
+  // them.
+  if (!contentType.toLowerCase().startsWith("image/")) {
+    return NextResponse.json({ error: "not an image" }, { status: 502 });
+  }
   const headers = new Headers({
     "Content-Type": contentType,
     "Access-Control-Allow-Origin": process.env.NEXT_PUBLIC_SITE_URL ?? "https://snkrfeature.com",

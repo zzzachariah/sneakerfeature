@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/route-auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminApi();
@@ -10,7 +11,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const submissionRes = await supabase
     .from("user_submissions")
-    .select("*, profiles!user_submissions_user_id_fkey(username,email)")
+    .select("*, profiles!user_submissions_user_id_fkey(username)")
     .eq("id", id)
     .maybeSingle();
 
@@ -18,6 +19,31 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (!submissionRes.data) return NextResponse.json({ ok: false, message: "Submission not found." }, { status: 404 });
 
   const submission = submissionRes.data;
+
+  // profiles.email is no longer readable via the anon/authenticated key
+  // (migration 038 restricts the column to service-role). Fetch the submitter's
+  // email through the service-role client and merge it back for the admin view.
+  const submissionWithProfile = submission as {
+    user_id?: string | null;
+    profiles?: { username?: string; email?: string } | { username?: string; email?: string }[] | null;
+  };
+  const submitterId = submissionWithProfile.user_id;
+  if (submitterId) {
+    const serviceClient = createAdminClient();
+    if (serviceClient) {
+      const { data: emailRow } = await serviceClient
+        .from("profiles")
+        .select("email")
+        .eq("id", submitterId)
+        .maybeSingle();
+      if (emailRow?.email) {
+        const prof = Array.isArray(submissionWithProfile.profiles)
+          ? submissionWithProfile.profiles[0]
+          : submissionWithProfile.profiles;
+        submissionWithProfile.profiles = { username: prof?.username, email: emailRow.email };
+      }
+    }
+  }
 
   const [normalizedRes, draftRes, historyRes, publishedShoeRes, targetShoeRes] = await Promise.all([
     supabase.from("normalized_submission_results").select("*").eq("submission_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),

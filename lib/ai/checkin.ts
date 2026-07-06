@@ -14,6 +14,12 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
   const admin = createAdminClient();
   if (!admin) return { canClaim: false, nextClaimAt: null, dailyAmount };
 
+  // Admin disabled check-in: report it as not claimable so the UI doesn't show
+  // an enabled button that would then 409 (claimDailyCheckin rejects amount<=0).
+  if (dailyAmount <= 0) {
+    return { canClaim: false, nextClaimAt: null, dailyAmount };
+  }
+
   const { data } = await admin
     .from("ai_credits")
     .select("last_checkin_at")
@@ -31,9 +37,10 @@ export async function getCheckinStatus(userId: string): Promise<CheckinStatus> {
   return { canClaim: false, nextClaimAt: nextClaim.toISOString(), dailyAmount };
 }
 
-// Claim the daily bonus. Uses an optimistic-concurrency UPDATE so two
-// simultaneous clicks can't both succeed: the update guards on the exact
-// last_checkin_at value we read, so only one wins.
+// Claim the daily bonus. Delegates to the claim_daily_checkin DB function
+// (migration 039), which grants atomically only if the interval has elapsed, so
+// two simultaneous clicks can't both succeed and a concurrent spend can't lose
+// the grant.
 export async function claimDailyCheckin(
   userId: string
 ): Promise<{ ok: true; balance: number; credits: number } | { ok: false; nextClaimAt: string }> {
@@ -41,21 +48,7 @@ export async function claimDailyCheckin(
   if (!admin) throw new Error("Service-role client unavailable");
 
   const dailyAmount = await getDailyCheckinCredits();
-
-  const { data: row } = await admin
-    .from("ai_credits")
-    .select("balance, last_checkin_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-
   const now = new Date();
-  const lastClaim = row?.last_checkin_at ? new Date(row.last_checkin_at) : null;
-  if (lastClaim && now.getTime() - lastClaim.getTime() < DAILY_CHECKIN_INTERVAL_MS) {
-    return {
-      ok: false,
-      nextClaimAt: new Date(lastClaim.getTime() + DAILY_CHECKIN_INTERVAL_MS).toISOString()
-    };
-  }
 
   if (dailyAmount <= 0) {
     // Daily check-in disabled by admin: treat as already-claimed for the full
@@ -66,47 +59,23 @@ export async function claimDailyCheckin(
     };
   }
 
-  const newBalance = (row?.balance ?? 0) + dailyAmount;
-  const nowIso = now.toISOString();
+  // Atomic grant-if-eligible in the DB (migration 039). The function only
+  // credits when the interval has elapsed and does the balance += amount and
+  // ledger insert in one transaction, so it can neither be double-claimed nor
+  // lost to a concurrent spend. Returns null when the claim is rejected.
+  const { data: newBalance, error } = await admin.rpc("claim_daily_checkin", {
+    p_user_id: userId,
+    p_amount: dailyAmount,
+    p_interval_ms: DAILY_CHECKIN_INTERVAL_MS
+  });
 
-  if (row) {
-    let updateQuery = admin
-      .from("ai_credits")
-      .update({ balance: newBalance, last_checkin_at: nowIso, updated_at: nowIso })
-      .eq("user_id", userId);
-    updateQuery = row.last_checkin_at
-      ? updateQuery.eq("last_checkin_at", row.last_checkin_at)
-      : updateQuery.is("last_checkin_at", null);
-
-    const { data: updated } = await updateQuery.select("balance").maybeSingle();
-    if (!updated) {
-      const status = await getCheckinStatus(userId);
-      return {
-        ok: false,
-        nextClaimAt: status.nextClaimAt ?? new Date(now.getTime() + DAILY_CHECKIN_INTERVAL_MS).toISOString()
-      };
-    }
-  } else {
-    const { error } = await admin
-      .from("ai_credits")
-      .insert({ user_id: userId, balance: newBalance, last_checkin_at: nowIso, updated_at: nowIso });
-    if (error) {
-      // Row was just created by another request — surface the resulting cooldown.
-      const status = await getCheckinStatus(userId);
-      return {
-        ok: false,
-        nextClaimAt: status.nextClaimAt ?? new Date(now.getTime() + DAILY_CHECKIN_INTERVAL_MS).toISOString()
-      };
-    }
+  if (error || newBalance == null) {
+    const status = await getCheckinStatus(userId);
+    return {
+      ok: false,
+      nextClaimAt: status.nextClaimAt ?? new Date(now.getTime() + DAILY_CHECKIN_INTERVAL_MS).toISOString()
+    };
   }
 
-  const { error: txError } = await admin
-    .from("ai_credit_transactions")
-    .insert({ user_id: userId, delta: dailyAmount, reason: "daily_checkin" });
-  if (txError) {
-    console.error("[checkin] transaction log failed", txError);
-    // Credit was granted; surface the success anyway.
-  }
-
-  return { ok: true, balance: newBalance, credits: dailyAmount };
+  return { ok: true, balance: newBalance as number, credits: dailyAmount };
 }

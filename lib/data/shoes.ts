@@ -338,7 +338,10 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
 // everyone, so cache the assembled output and skip that CPU in the hot path.
 const getPublicShoesAssembled = unstable_cache(
   async () => {
-    const base = await loadShoesBase();
+    // Use the cached base loader, not loadShoesBase directly — otherwise every
+    // assembled-cache miss triggers its own full-table base fetch in addition to
+    // the one behind getShoesBase, doubling the catalog scan.
+    const base = await getShoesBase();
     if (!base) return null;
     return assembleShoes(base, EMPTY_USER_CONTEXT);
   },

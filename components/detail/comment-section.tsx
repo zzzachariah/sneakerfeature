@@ -85,63 +85,88 @@ export function CommentSection({
     if (!canSubmit) return;
 
     setPosting(true);
-    const response = await fetch("/api/comments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shoeId, content, verificationToken: token })
-    });
+    try {
+      const response = await fetch("/api/comments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ shoeId, content, verificationToken: token })
+      });
 
-    const data = await response.json();
-    setIsError(!data.ok);
-    setMessage(data.message ?? translate(data.ok ? "Comment posted" : "Failed"));
+      const data = await response.json();
+      setIsError(!data.ok);
+      setMessage(data.message ?? translate(data.ok ? "Comment posted" : "Failed"));
 
-    // The server consumed the single-use verification token (success or not),
-    // so run a fresh challenge before the next post.
-    humanCheckRef.current?.reset();
-    if (data.ok) {
-      setContent("");
-      await loadComments();
+      // The server consumed the single-use verification token (success or not),
+      // so run a fresh challenge before the next post.
+      humanCheckRef.current?.reset();
+      if (data.ok) {
+        setContent("");
+        await loadComments();
+      }
+    } catch {
+      // Network error: surface it and re-arm the challenge so the user can retry.
+      setIsError(true);
+      setMessage(translate("Network error. Please try again."));
+      humanCheckRef.current?.reset();
+    } finally {
+      // Always release the button — otherwise a dropped request leaves it stuck
+      // on "Posting…" forever.
+      setPosting(false);
     }
-    setPosting(false);
   }
 
   async function submitVote(commentId: string, voteType: "like" | "dislike") {
-    const response = await fetch("/api/comments/vote", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commentId, voteType })
-    });
+    try {
+      const response = await fetch("/api/comments/vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId, voteType })
+      });
 
-    const data = await response.json();
-    setIsError(!data.ok);
-    setMessage(data.message ?? translate(data.ok ? "Vote updated" : "Vote failed"));
-    if (data.ok) await loadComments();
+      const data = await response.json();
+      setIsError(!data.ok);
+      setMessage(data.message ?? translate(data.ok ? "Vote updated" : "Vote failed"));
+      if (data.ok) await loadComments();
+    } catch {
+      setIsError(true);
+      setMessage(translate("Network error. Please try again."));
+    }
   }
 
   async function deleteComment(commentId: string) {
-    const response = await fetch("/api/comments", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commentId })
-    });
+    try {
+      const response = await fetch("/api/comments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId })
+      });
 
-    const data = await response.json();
-    setIsError(!data.ok);
-    setMessage(data.message ?? translate(data.ok ? "Comment deleted" : "Delete failed"));
-    if (data.ok) await loadComments();
+      const data = await response.json();
+      setIsError(!data.ok);
+      setMessage(data.message ?? translate(data.ok ? "Comment deleted" : "Delete failed"));
+      if (data.ok) await loadComments();
+    } catch {
+      setIsError(true);
+      setMessage(translate("Network error. Please try again."));
+    }
   }
 
   async function reportComment(commentId: string, reason: "spam" | "harassment" | "inappropriate" | "other") {
     setMenuOpenId(null);
     setReportOpenId(null);
-    const response = await fetch("/api/comments/report", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ commentId, reason })
-    });
-    const data = await response.json();
-    setIsError(!data.ok);
-    setMessage(data.message ?? translate(data.ok ? "Report submitted" : "Failed"));
+    try {
+      const response = await fetch("/api/comments/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ commentId, reason })
+      });
+      const data = await response.json();
+      setIsError(!data.ok);
+      setMessage(data.message ?? translate(data.ok ? "Report submitted" : "Failed"));
+    } catch {
+      setIsError(true);
+      setMessage(translate("Network error. Please try again."));
+    }
   }
 
   // Comment overflow menu. Inside the app, present a native (Liquid Glass) action
@@ -175,15 +200,20 @@ export function CommentSection({
 
   async function blockUser(targetUserId: string) {
     setMenuOpenId(null);
-    const response = await fetch("/api/blocks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: targetUserId, action: "block" })
-    });
-    const data = await response.json();
-    setIsError(!data.ok);
-    setMessage(data.message ?? translate(data.ok ? "User blocked" : "Failed"));
-    if (data.ok) await loadComments();
+    try {
+      const response = await fetch("/api/blocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: targetUserId, action: "block" })
+      });
+      const data = await response.json();
+      setIsError(!data.ok);
+      setMessage(data.message ?? translate(data.ok ? "User blocked" : "Failed"));
+      if (data.ok) await loadComments();
+    } catch {
+      setIsError(true);
+      setMessage(translate("Network error. Please try again."));
+    }
   }
 
   return (

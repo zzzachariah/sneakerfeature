@@ -49,17 +49,32 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (existingError) return NextResponse.json({ ok: false, message: existingError.message }, { status: 400 });
+  // Never surface raw Postgres/PostgREST error strings to the client — they leak
+  // table/column/constraint names. Log server-side, return a generic message.
+  const voteError = () => {
+    return NextResponse.json({ ok: false, message: "Could not record your vote." }, { status: 400 });
+  };
+
+  if (existingError) {
+    console.error("[comment-vote] lookup failed", existingError);
+    return voteError();
+  }
 
   if (existing && existing.vote_type === voteType) {
     const { error: deleteError } = await supabase.from("comment_votes").delete().eq("id", existing.id);
-    if (deleteError) return NextResponse.json({ ok: false, message: deleteError.message }, { status: 400 });
+    if (deleteError) {
+      console.error("[comment-vote] delete failed", deleteError);
+      return voteError();
+    }
     return NextResponse.json({ ok: true, message: "Vote removed." });
   }
 
   if (existing) {
     const { error: updateError } = await supabase.from("comment_votes").update({ vote_type: voteType }).eq("id", existing.id);
-    if (updateError) return NextResponse.json({ ok: false, message: updateError.message }, { status: 400 });
+    if (updateError) {
+      console.error("[comment-vote] update failed", updateError);
+      return voteError();
+    }
     return NextResponse.json({ ok: true, message: "Vote updated." });
   }
 
@@ -69,7 +84,10 @@ export async function POST(request: Request) {
     vote_type: voteType
   });
 
-  if (insertError) return NextResponse.json({ ok: false, message: insertError.message }, { status: 400 });
+  if (insertError) {
+    console.error("[comment-vote] insert failed", insertError);
+    return voteError();
+  }
 
   return NextResponse.json({ ok: true, message: "Vote recorded." });
 }

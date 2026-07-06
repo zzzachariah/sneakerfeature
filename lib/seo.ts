@@ -1,5 +1,7 @@
 export const SITE_URL = "https://snkrfeature.com";
-export const DEFAULT_OG_IMAGE_URL = `${SITE_URL}/icon.ico`;
+// Generated 1200x630 social card (see app/api/og/route.tsx). The old value
+// pointed at /icon.ico, which does not exist and is not a valid OG image size.
+export const DEFAULT_OG_IMAGE_URL = `${SITE_URL}/api/og`;
 export const SITE_NAME = "sneakerfeature";
 
 export const HOME_TITLE = "sneakerfeature | Basketball sneaker recommendations & specs";

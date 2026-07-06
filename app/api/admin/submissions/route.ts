@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from("user_submissions")
-    .select("id, user_id, status, created_at, updated_at, raw_payload, profiles!user_submissions_user_id_fkey(username, email)")
+    // email is not consumed in this list view (only username is), and the anon
+    // key can no longer read profiles.email (migration 038), so don't embed it.
+    .select("id, user_id, status, created_at, updated_at, raw_payload, profiles!user_submissions_user_id_fkey(username)")
     .order("created_at", { ascending: false })
     .limit(200);
 

@@ -42,7 +42,10 @@ export async function GET(request: Request) {
     .eq("shoe_id", shoeId)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("[comments] list failed", error);
+    return NextResponse.json({ ok: false, message: "Could not load comments." }, { status: 400 });
+  }
 
   type CommentRow = {
     id: string;
@@ -76,7 +79,10 @@ export async function GET(request: Request) {
       .select("comment_id, vote_type, user_id")
       .in("comment_id", commentIds);
 
-    if (voteError) return NextResponse.json({ ok: false, message: voteError.message }, { status: 400 });
+    if (voteError) {
+      console.error("[comments] vote tally failed", voteError);
+      return NextResponse.json({ ok: false, message: "Could not load comments." }, { status: 400 });
+    }
 
     for (const vote of votes ?? []) {
       const current = votesByComment.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
@@ -136,7 +142,10 @@ export async function POST(request: Request) {
     user_id: user.id
   });
 
-  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("[comments] insert failed", error);
+    return NextResponse.json({ ok: false, message: "Could not post comment." }, { status: 400 });
+  }
 
   return NextResponse.json({ ok: true, message: "Comment posted." });
 }
@@ -165,7 +174,10 @@ export async function DELETE(request: Request) {
   if (!user) return NextResponse.json({ ok: false, message: "Authentication required." }, { status: 401 });
 
   const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("user_id", user.id);
-  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("[comments] delete failed", error);
+    return NextResponse.json({ ok: false, message: "Could not delete comment." }, { status: 400 });
+  }
 
   return NextResponse.json({ ok: true, message: "Comment deleted." });
 }

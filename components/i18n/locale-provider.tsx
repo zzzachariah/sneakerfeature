@@ -1165,7 +1165,28 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "your foot type": "你的脚型",
   "re-scan my feet": "重新测量我的脚",
   "scan your feet": "测量你的脚",
-  "measure width, instep & toe shape": "测量脚宽、脚背与脚趾型"
+  "measure width, instep & toe shape": "测量脚宽、脚背与脚趾型",
+  // Form feedback / status messages (login, signup, submit, compare) that were
+  // passed through translate() but had no zh entries, so Chinese users saw
+  // English toasts inside otherwise-Chinese forms. (Keys already present
+  // elsewhere in this dictionary are intentionally not repeated here.)
+  "login failed.": "登录失败。",
+  "login successful. redirecting...": "登录成功，正在跳转…",
+  "login request timed out or failed. please try again.": "登录请求超时或失败，请重试。",
+  "incorrect password. please try again.": "密码不正确，请重试。",
+  "please fill in username, email, and password.": "请填写用户名、邮箱和密码。",
+  "password must be at least 8 characters.": "密码至少需要 8 个字符。",
+  "please complete verification before signing up.": "注册前请先完成验证。",
+  "sign up failed.": "注册失败。",
+  "account created successfully. redirecting...": "账号创建成功，正在跳转…",
+  "signup request timed out or failed. please try again.": "注册请求超时或失败，请重试。",
+  "submit failed: server returned an empty response.": "提交失败：服务器返回了空响应。",
+  "submitted": "已提交",
+  "network error while submitting. please try again.": "提交时发生网络错误，请重试。",
+  "please add a title.": "请填写标题。",
+  "unexpected response.": "服务器响应异常。",
+  "failed to save.": "保存失败。",
+  "saved to your dashboard.": "已保存到你的面板。"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

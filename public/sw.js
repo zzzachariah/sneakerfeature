@@ -19,8 +19,14 @@ const KEEP = new Set([STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE]);
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
+  // Precache the offline fallback, but never let a failed fetch abort the whole
+  // install (which would leave the site with no active SW at all). If /offline
+  // can't be fetched, networkFirst just falls through to the browser error.
   event.waitUntil(
-    caches.open(PAGE_CACHE).then((cache) => cache.add("/offline"))
+    caches
+      .open(PAGE_CACHE)
+      .then((cache) => cache.add("/offline"))
+      .catch(() => undefined)
   );
 });
 

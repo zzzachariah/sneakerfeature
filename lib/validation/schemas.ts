@@ -107,11 +107,17 @@ export const submissionSchema = z.object({
   stability: z.string().optional(),
   traction: z.string().optional(),
   fit: z.string().optional(),
-  tags: z.string().optional(),
-  story_title: z.string().optional(),
-  story_notes: z.string().optional(),
-  raw_text: z.string().min(20, "Please add detailed notes so normalization is reliable."),
-  source_links: z.string().optional(),
+  tags: z.string().max(500).optional(),
+  story_title: z.string().max(300).optional(),
+  story_notes: z.string().max(5000).optional(),
+  // Cap raw_text: it was min(20) with no upper bound, so a single request could
+  // store multi-megabyte payloads (and trigger one OpenAI normalization call
+  // each) with no per-user throttle.
+  raw_text: z
+    .string()
+    .min(20, "Please add detailed notes so normalization is reliable.")
+    .max(20000, "Notes are too long. Please keep them under 20,000 characters."),
+  source_links: z.string().max(2000).optional(),
   submission_type: z.enum(["new_shoe", "correction"]).optional().default("new_shoe"),
   target_shoe_id: z.string().uuid().optional(),
   original_snapshot: z.string().optional(),

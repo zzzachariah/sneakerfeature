@@ -101,9 +101,27 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
           type="button"
           className="ml-2 underline"
           onClick={() => {
-            const existing = document.getElementById("cf-turnstile-script");
-            existing?.parentNode?.removeChild(existing);
+            // Clear any stale widget id so handleScriptLoad will re-render.
+            if (widgetId.current && window.turnstile) {
+              try {
+                window.turnstile.remove(widgetId.current);
+              } catch {
+                // already gone
+              }
+            }
+            widgetId.current = null;
             setFailed(false);
+            if (window.turnstile) {
+              // Script already loaded (the challenge errored, not the script):
+              // re-render the widget once the container is back in the DOM.
+              // next/script won't re-fire onLoad, so drive it ourselves.
+              setTimeout(() => handleScriptLoad(), 0);
+            } else {
+              // The script itself never loaded (blocked/offline). It can't be
+              // re-fetched under the same next/script id, so a clean reload is
+              // the only reliable way to get the widget back.
+              window.location.reload();
+            }
           }}
         >
           {translate("Retry")}

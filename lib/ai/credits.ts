@@ -23,20 +23,16 @@ export async function grantCredits(userId: string, credits: number, packageLabel
   const admin = createAdminClient();
   if (!admin) throw new Error("Service-role client unavailable");
 
-  const current = await getBalance(userId);
-  const next = current + credits;
-
-  const { error: balanceError } = await admin
-    .from("ai_credits")
-    .upsert({ user_id: userId, balance: next, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
-  if (balanceError) throw balanceError;
-
-  const { error: txError } = await admin
-    .from("ai_credit_transactions")
-    .insert({ user_id: userId, delta: credits, reason: "recharge", package_label: packageLabel });
-  if (txError) throw txError;
-
-  return next;
+  // Atomic `balance = balance + credits` + ledger insert in one DB call so a
+  // concurrent spend/check-in can't clobber the grant (see migration 039).
+  const { data, error } = await admin.rpc("adjust_credits", {
+    p_user_id: userId,
+    p_delta: credits,
+    p_reason: "recharge",
+    p_label: packageLabel
+  });
+  if (error) throw error;
+  return (data as number) ?? 0;
 }
 
 // Admin reset: zero out a user's balance and record the deduction as a
@@ -48,18 +44,14 @@ export async function clearCreditsAsAdmin(userId: string, note: string): Promise
   const current = await getBalance(userId);
   if (current === 0) return 0;
 
-  const { error: balanceError } = await admin
-    .from("ai_credits")
-    .upsert(
-      { user_id: userId, balance: 0, updated_at: new Date().toISOString() },
-      { onConflict: "user_id" }
-    );
-  if (balanceError) throw balanceError;
-
-  const { error: txError } = await admin
-    .from("ai_credit_transactions")
-    .insert({ user_id: userId, delta: -current, reason: "admin_clear", package_label: note });
-  if (txError) throw txError;
+  // Subtract exactly the balance we observed; the ledger records -current.
+  const { error } = await admin.rpc("adjust_credits", {
+    p_user_id: userId,
+    p_delta: -current,
+    p_reason: "admin_clear",
+    p_label: note
+  });
+  if (error) throw error;
 
   return current;
 }
@@ -68,26 +60,17 @@ export async function deductCredits(userId: string, amount: number): Promise<num
   const admin = createAdminClient();
   if (!admin) throw new Error("Service-role client unavailable");
 
-  const current = await getBalance(userId);
-  if (current < amount) throw new InsufficientCreditsError(current);
-  const next = current - amount;
-
-  // Guard the update on the current balance so a concurrent spend can't drive
-  // the balance negative (the table's balance >= 0 CHECK is the final backstop).
-  const { data, error } = await admin
-    .from("ai_credits")
-    .update({ balance: next, updated_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .eq("balance", current)
-    .select("balance")
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) throw new InsufficientCreditsError(current);
-
-  const { error: txError } = await admin
-    .from("ai_credit_transactions")
-    .insert({ user_id: userId, delta: -amount, reason: "spend" });
-  if (txError) throw txError;
-
-  return next;
+  // Atomic check-and-decrement in the DB: the function guards on balance so a
+  // concurrent spend or check-in can't drive the balance negative or be lost.
+  const { data, error } = await admin.rpc("spend_credits", {
+    p_user_id: userId,
+    p_amount: amount
+  });
+  if (error) {
+    if (error.message?.includes("insufficient_credits") || error.code === "23514") {
+      throw new InsufficientCreditsError(await getBalance(userId));
+    }
+    throw error;
+  }
+  return (data as number) ?? 0;
 }
