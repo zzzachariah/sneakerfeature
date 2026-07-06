@@ -222,11 +222,24 @@ export function AnnouncementModal() {
       }
     };
 
-    // First check immediately on mount, then keep checking in the background so
-    // a long-open tab will pick up newly published announcements without a
-    // reload. Browsers throttle setInterval in hidden tabs, so we also re-check
-    // on visibilitychange to wake up cleanly after sleep / tab switches.
-    check();
+    // Defer the first check to browser idle so the announcement fetch (+ its
+    // view-tracking POSTs) doesn't compete with hydration and first paint on a
+    // cold start. Announcements are non-critical and already open on a delay, so
+    // arriving a beat later is invisible; falling back to a short timeout where
+    // requestIdleCallback is unavailable (older WebViews). Then keep checking in
+    // the background so a long-open tab picks up newly published announcements
+    // without a reload. Browsers throttle setInterval in hidden tabs, so we also
+    // re-check on visibilitychange to wake up cleanly after sleep / tab switches.
+    const runWhenIdle = (cb: () => void) => {
+      const w = window as unknown as {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      };
+      if (typeof w.requestIdleCallback === "function") w.requestIdleCallback(cb, { timeout: 3000 });
+      else window.setTimeout(cb, 1500);
+    };
+    runWhenIdle(() => {
+      if (!cancelled) check();
+    });
     const POLL_MS = 5 * 60 * 1000;
     const interval = window.setInterval(check, POLL_MS);
     const onVisibility = () => {

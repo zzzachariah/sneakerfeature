@@ -14,17 +14,17 @@ export function ServiceWorkerRegister() {
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
     const register = () => {
-      navigator.serviceWorker.register("/sw.js").then((reg) => {
-        reg.addEventListener("updatefound", () => {
-          const newWorker = reg.installing;
-          newWorker?.addEventListener("statechange", () => {
-            if (newWorker.state === "activated") window.location.reload();
-          });
-        });
-      }).catch(() => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
         /* registration unsupported / blocked — ignore */
       });
     };
+    // No forced reload on SW activation. The old updatefound → reload() handler
+    // hard-reloaded whatever page the user was on every time a deploy shipped a
+    // new sw.js — in the Capacitor WebView that reload of a dynamic page shows a
+    // long blank screen and reads as the app freezing. sw.js uses skipWaiting +
+    // clients.claim, and its caching is conservative (network-first navigations,
+    // RSC/API passthrough), so the new worker safely takes over in place and
+    // fresh content arrives with the next navigation anyway.
     if (document.readyState === "complete") register();
     else {
       window.addEventListener("load", register, { once: true });

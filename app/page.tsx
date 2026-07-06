@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { HomeView } from "@/components/home/home-view";
+import { PageLoader } from "@/components/ui/page-loader";
 import { getForYouData } from "@/lib/personalize/for-you-data";
 import { buildCollections } from "@/lib/home/collections";
 import { getShoes } from "@/lib/data/shoes";
@@ -35,13 +37,29 @@ function safeJsonLd(obj: unknown): string {
     .replace(/>/g, '\\u003e');
 }
 
-export default async function HomePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+// Awaits the full data pipeline (catalog + personalization). Lives below a
+// Suspense boundary so the document shell + loader flush to the WebView
+// immediately instead of blocking first byte on Supabase.
+async function HomeContent({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
   const shoes = await getShoes();
   const brands = new Set(shoes.map((s) => s.brand)).size;
   const forYou = await getForYouData(shoes);
   const collections = buildCollections(shoes);
 
+  return (
+    <HomeView
+      shoes={shoes}
+      shoesCount={shoes.length}
+      brandsCount={brands}
+      initialQuery={q ?? ""}
+      forYou={forYou}
+      collections={collections}
+    />
+  );
+}
+
+export default function HomePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   return (
     <main>
       <script
@@ -60,14 +78,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           }),
         }}
       />
-      <HomeView
-        shoes={shoes}
-        shoesCount={shoes.length}
-        brandsCount={brands}
-        initialQuery={q ?? ""}
-        forYou={forYou}
-        collections={collections}
-      />
+      <Suspense fallback={<PageLoader label="Loading" />}>
+        <HomeContent searchParams={searchParams} />
+      </Suspense>
     </main>
   );
 }

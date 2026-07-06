@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { Heart } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 
 type FavoritesValue = {
   favorites: Set<string>;
@@ -23,12 +24,24 @@ const TOAST_MS = 3500;
 // to /favorites. Degrades silently when the DB/table is absent.
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
   const { translate } = useLocale();
+  // Auth state resolves the session locally (no network) — gate the fetch on it
+  // so anonymous visitors (the common cold-start case) don't fire /api/favorites,
+  // which for a signed-out user only does a wasted server-side auth.getUser()
+  // round-trip and returns an empty list.
+  const { signedIn, loaded: authLoaded } = useAuthState();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!authLoaded) return; // wait for the local session check to settle
+    if (!signedIn) {
+      // No account → nothing saved server-side; skip the request entirely.
+      setFavorites(new Set());
+      setLoaded(true);
+      return;
+    }
     let active = true;
     void (async () => {
       try {
@@ -44,7 +57,7 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     return () => {
       active = false;
     };
-  }, []); // run once on mount; auth cookie is included automatically
+  }, [authLoaded, signedIn]); // re-run when the session resolves / changes
 
   const showToast = useCallback((message: string, added: boolean, href?: string) => {
     setToast({ key: Date.now(), message, added, href });

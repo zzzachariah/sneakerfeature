@@ -47,12 +47,33 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Moved out of `experimental` in Next 15.5 (was `experimental.typedRoutes`).
+  typedRoutes: true,
   experimental: {
-    typedRoutes: true,
-    optimizePackageImports: ["framer-motion", "lucide-react"]
+    optimizePackageImports: ["framer-motion", "lucide-react"],
+    // Client router cache: reuse a visited route's payload for 30s so tab
+    // switches / back-navigation are instant instead of re-running the full
+    // dynamic SSR round-trip on every tap. Personalized bits (favorites,
+    // session state) live in client providers that refresh themselves, so a
+    // 30s-stale RSC payload is safe.
+    staleTimes: { dynamic: 30, static: 300 }
   },
   compiler: {
     removeConsole: { exclude: ["error", "warn"] }
+  },
+  // Shoe imagery lives in Supabase storage. Serving it through the Next image
+  // optimizer resizes to the rendered size and converts to AVIF/WebP — grid
+  // thumbnails no longer download full-resolution originals. ShoeImage only
+  // opts a source into optimization when it matches these patterns.
+  images: {
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+        pathname: "/storage/v1/object/public/**"
+      }
+    ]
   },
   async headers() {
     return [

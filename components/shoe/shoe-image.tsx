@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 type ShoeImageProps = {
@@ -11,7 +12,7 @@ type ShoeImageProps = {
   className?: string;
   /** When inside a `.group` (e.g. a card), gently zooms the image on hover/press. */
   interactive?: boolean;
-  /** Kept for call-site compatibility; native <img> handles eager loading via decoding. */
+  /** Eager-load above-the-fold images (maps to next/image `priority`). */
   priority?: boolean;
 };
 
@@ -29,10 +30,35 @@ const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
   compare: 1.08
 };
 
+// Rendered size hints so the optimizer serves appropriately small variants —
+// keep in sync with VARIANT_CLASS above. Thumbnails used to download the
+// full-resolution original just to paint a 56px square.
+const VARIANT_SIZES: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
+  thumbnail: "56px",
+  suggestion: "64px",
+  compare: "(max-width: 767px) 45vw, 208px",
+  detail: "(max-width: 767px) 100vw, 480px"
+};
+
+// Only route sources through the Next image optimizer when they match the
+// hosts allowed in next.config.ts `images.remotePatterns` (plus same-origin
+// paths). Anything else — legacy rows pointing at arbitrary hosts, data/blob
+// URLs — keeps the plain <img> path instead of erroring at request time.
+function canOptimize(src: string): boolean {
+  if (src.startsWith("/") && !src.startsWith("//")) return true;
+  try {
+    const url = new URL(src);
+    return url.protocol === "https:" && url.hostname.endsWith(".supabase.co");
+  } catch {
+    return false;
+  }
+}
+
 export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "", interactive = false, priority = false }: ShoeImageProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const hasImage = Boolean(src) && !failed;
+  const trimmedSrc = src?.trim() ?? "";
+  const hasImage = Boolean(trimmedSrc) && !failed;
 
   useEffect(() => {
     setLoaded(false);
@@ -42,24 +68,44 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
     if (node && node.complete && node.naturalWidth > 0) setLoaded(true);
   }, []);
 
+  const imgClassName = cn(
+    "shoe-img h-full w-full object-contain object-center",
+    interactive && "shoe-img--zoom",
+    loaded ? "img-loaded" : "img-loading"
+  );
+  const imgStyle = { ["--img-scale" as string]: VARIANT_SCALE[variant] };
+
   return (
     <div
       className={`shoe-stage relative mx-auto overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.42)] ${VARIANT_CLASS[variant]} ${className}`}
     >
       {hasImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          ref={handleImgRef}
-          src={src ?? ""}
-          alt={alt}
-          loading={priority ? "eager" : "lazy"}
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          className={cn("shoe-img h-full w-full object-contain object-center", interactive && "shoe-img--zoom", loaded ? "img-loaded" : "img-loading")}
-          style={{
-            ["--img-scale" as string]: VARIANT_SCALE[variant]
-          }}
-        />
+        canOptimize(trimmedSrc) ? (
+          <Image
+            ref={handleImgRef}
+            src={trimmedSrc}
+            alt={alt}
+            fill
+            sizes={VARIANT_SIZES[variant]}
+            {...(priority ? { priority: true } : { loading: "lazy" as const })}
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
+            className={imgClassName}
+            style={imgStyle}
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            ref={handleImgRef}
+            src={trimmedSrc}
+            alt={alt}
+            loading={priority ? "eager" : "lazy"}
+            onLoad={() => setLoaded(true)}
+            onError={() => setFailed(true)}
+            className={imgClassName}
+            style={imgStyle}
+          />
+        )
       ) : (
         <div className="flex h-full w-full items-center justify-center bg-[rgb(var(--bg-elev)/0.72)] px-2 text-center">
           <span className="text-[11px] font-medium uppercase tracking-[0.08em] soft-text">{fallbackLabel}</span>

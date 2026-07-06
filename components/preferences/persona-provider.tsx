@@ -84,10 +84,20 @@ export function PersonaProvider({
         fetchPersona();
       } else {
         setPersona(null);
+        setLoaded(true);
       }
     });
 
-    fetchPersona();
+    // Only hit /api/preferences/persona when there's actually a session. For an
+    // anonymous cold start the fetch just does a wasted server-side
+    // auth.getUser() and returns null, so resolve locally instead. getSession()
+    // reads the session from storage without a network round-trip; the listener
+    // above still picks up a later sign-in.
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      if (data.session?.user) fetchPersona();
+      else setLoaded(true);
+    });
 
     return () => {
       cancelled = true;

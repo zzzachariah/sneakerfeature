@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/data/auth";
 import { getShoes } from "@/lib/data/shoes";
 import { isValidPersona } from "@/lib/persona/types";
 import type { Shoe } from "@/lib/types";
@@ -41,14 +42,15 @@ export async function getForYouData(shoesInput?: Shoe[]): Promise<ForYouData> {
     popular
   };
 
-  const supabase = await createClient();
-  if (!supabase) return data;
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  // Reuse the request-scoped getCurrentUser() (react cache) rather than making
+  // a second remote supabase.auth.getUser() round-trip — getShoes()'s user
+  // context already resolved the same user this request.
+  const user = await getCurrentUser();
   data.signedIn = Boolean(user);
   if (!user) return data;
+
+  const supabase = await createClient();
+  if (!supabase) return data;
 
   const [{ data: profile }, { data: dig }, { data: views }] = await Promise.all([
     supabase.from("profiles").select("username, persona").eq("id", user.id).maybeSingle(),

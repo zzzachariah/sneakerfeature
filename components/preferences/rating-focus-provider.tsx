@@ -68,9 +68,16 @@ export function RatingFocusProvider({
       };
     }
 
+    // Gate the fetch on a real session. getSession() resolves locally (no
+    // network), so an anonymous cold start resolves to null here instead of
+    // firing /api/preferences/rating-focus — which for a signed-out user only
+    // does a wasted server-side auth.getUser() and returns null.
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
-      setIsLoggedIn(Boolean(data.session?.user?.id));
+      const signedIn = Boolean(data.session?.user?.id);
+      setIsLoggedIn(signedIn);
+      if (signedIn) fetchFocus();
+      else setLoaded(true);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -81,10 +88,9 @@ export function RatingFocusProvider({
         fetchFocus();
       } else {
         setFocus(null);
+        setLoaded(true);
       }
     });
-
-    fetchFocus();
 
     return () => {
       cancelled = true;
