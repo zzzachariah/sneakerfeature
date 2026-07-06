@@ -47,8 +47,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Moved out of `experimental` in Next 15.5 (was `experimental.typedRoutes`).
+  typedRoutes: true,
   experimental: {
-    typedRoutes: true,
     optimizePackageImports: ["framer-motion", "lucide-react"],
     // Client router cache: reuse a visited route's payload for 30s so tab
     // switches / back-navigation are instant instead of re-running the full
