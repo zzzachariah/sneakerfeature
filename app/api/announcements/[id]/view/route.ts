@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getAnnouncement } from "@/lib/announcements/store";
 import { recordAnnouncementView } from "@/lib/announcements/views";
 
 export const dynamic = "force-dynamic";
@@ -56,15 +56,12 @@ export async function POST(
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false }, { status: 400 });
 
-  // Verify the announcement exists before recording a view, preventing orphaned rows.
-  const admin = createAdminClient();
-  if (!admin) return NextResponse.json({ ok: false }, { status: 500 });
-  const { data: announcement, error: lookupError } = await admin
-    .from("announcements")
-    .select("id")
-    .eq("id", id)
-    .maybeSingle();
-  if (lookupError || !announcement) {
+  // Verify the announcement exists before recording a view, preventing orphaned
+  // rows. Use getAnnouncement (not a direct DB lookup) so announcements that
+  // still live only in the legacy static JSON — which the views table was
+  // deliberately built to support (migration 036) — also count.
+  const announcement = await getAnnouncement(id);
+  if (!announcement) {
     return NextResponse.json({ ok: false }, { status: 404 });
   }
 

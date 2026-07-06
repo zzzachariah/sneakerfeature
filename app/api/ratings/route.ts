@@ -72,9 +72,13 @@ export async function GET(request: Request) {
   }
 
   const isPersonal = myDimRatings !== null;
+  // Mutations call revalidateTag/revalidatePath, which only touch Next's data
+  // cache — they cannot purge this route's own CDN s-maxage. Keep the window
+  // short so a fresh rating shows up quickly for viewers who haven't rated
+  // (raters get the no-store path and always see live aggregates).
   const cacheHeader = isPersonal
     ? "private, no-store"
-    : "public, s-maxage=60, stale-while-revalidate=300";
+    : "public, s-maxage=15, stale-while-revalidate=30";
 
   return NextResponse.json(
     { ok: true, count, dimAvgs, myDimRatings },
@@ -113,37 +117,22 @@ export async function POST(request: Request) {
     fit: parsed.data.fit
   };
 
-  const { data: existing, error: existingError } = await supabase
-    .from("shoe_ratings")
-    .select("id")
-    .eq("shoe_id", parsed.data.shoeId)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  // Single atomic upsert keyed on the (shoe_id, user_id) unique constraint.
+  // The previous select-then-insert path let two near-simultaneous submissions
+  // from the same user both miss the existing row and race into a raw unique
+  // violation surfaced to the client.
+  const { error: upsertError } = await supabase.from("shoe_ratings").upsert(
+    {
+      shoe_id: parsed.data.shoeId,
+      user_id: user.id,
+      ...payload,
+      updated_at: new Date().toISOString()
+    },
+    { onConflict: "shoe_id,user_id" }
+  );
 
-  if (existingError) {
-    return NextResponse.json({ ok: false, message: existingError.message }, { status: 400 });
-  }
-
-  if (existing) {
-    const { error: updateError } = await supabase
-      .from("shoe_ratings")
-      .update({ ...payload, updated_at: new Date().toISOString() })
-      .eq("id", existing.id);
-    if (updateError) {
-      return NextResponse.json({ ok: false, message: updateError.message }, { status: 400 });
-    }
-    invalidateRatingViews();
-    return NextResponse.json({ ok: true, message: "Rating updated." });
-  }
-
-  const { error: insertError } = await supabase.from("shoe_ratings").insert({
-    shoe_id: parsed.data.shoeId,
-    user_id: user.id,
-    ...payload
-  });
-
-  if (insertError) {
-    return NextResponse.json({ ok: false, message: insertError.message }, { status: 400 });
+  if (upsertError) {
+    return NextResponse.json({ ok: false, message: "Could not save rating." }, { status: 400 });
   }
 
   invalidateRatingViews();

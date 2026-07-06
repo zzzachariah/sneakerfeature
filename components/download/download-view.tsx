@@ -589,6 +589,7 @@ function SharedAppleAccountPanel({
 /* Stacked label/value so the label can never crowd the value. The copy button
  * lives on the same row as the value for easy reach. */
 function CopyField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  const { translate } = useLocale();
   const [copied, setCopied] = useState(false);
   const copy = useCallback(async () => {
     try {
@@ -616,7 +617,7 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
           type="button"
           onClick={copy}
           className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--bg-elev)/0.7)] px-3 text-xs font-medium text-[rgb(var(--text)/0.75)] transition hover:border-[rgb(var(--text)/0.3)] hover:text-[rgb(var(--text))]"
-          aria-label={`Copy ${label}`}
+          aria-label={`${translate("Copy")} ${label}`}
         >
           <AnimatePresence mode="wait" initial={false}>
             {copied ? (
@@ -629,7 +630,7 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
                 className="inline-flex items-center gap-1 text-[rgb(var(--success))]"
               >
                 <Check className="h-3.5 w-3.5" />
-                Copied
+                {translate("Copied")}
               </motion.span>
             ) : (
               <motion.span
@@ -641,7 +642,7 @@ function CopyField({ label, value, mono }: { label: string; value: string; mono?
                 className="inline-flex items-center gap-1"
               >
                 <Copy className="h-3.5 w-3.5" />
-                Copy
+                {translate("Copy")}
               </motion.span>
             )}
           </AnimatePresence>

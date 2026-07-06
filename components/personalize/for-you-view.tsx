@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
@@ -84,28 +84,41 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
   const recommendations = (digest?.recommendations as DigestRecommendation[] | null) ?? [];
   const hasDigest = compareShoes.length > 0 || recommendations.length > 0;
 
-  const hour = new Date().getHours();
+  // The greeting and date depend on the viewer's local clock/timezone, which the
+  // server doesn't know. Computing them during render would make the SSR HTML
+  // (UTC) disagree with the client on hydration (a React error + a flash of the
+  // wrong greeting). Defer both to after mount so they only ever run client-side.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    setNow(new Date());
+  }, []);
+
+  const hour = now?.getHours() ?? -1;
   const greetWord =
-    locale === "zh"
-      ? hour < 5
-        ? "夜深了"
-        : hour < 12
-          ? "早上好"
-          : hour < 18
-            ? "下午好"
-            : "晚上好"
-      : hour < 5
-        ? "Still up"
-        : hour < 12
-          ? "Good morning"
-          : hour < 18
-            ? "Good afternoon"
-            : "Good evening";
-  const dateStr = new Date().toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
-    month: "long",
-    day: "numeric",
-    weekday: "long"
-  });
+    hour < 0
+      ? ""
+      : locale === "zh"
+        ? hour < 5
+          ? "夜深了"
+          : hour < 12
+            ? "早上好"
+            : hour < 18
+              ? "下午好"
+              : "晚上好"
+        : hour < 5
+          ? "Still up"
+          : hour < 12
+            ? "Good morning"
+            : hour < 18
+              ? "Good afternoon"
+              : "Good evening";
+  const dateStr = now
+    ? now.toLocaleDateString(locale === "zh" ? "zh-CN" : "en-US", {
+        month: "long",
+        day: "numeric",
+        weekday: "long"
+      })
+    : "";
   const insight =
     personaPosition && (locale === "zh" ? POSITION_ZH : POSITION_EN)[personaPosition]
       ? locale === "zh"
