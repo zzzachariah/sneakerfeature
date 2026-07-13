@@ -14,6 +14,13 @@ type ShoeImageProps = {
   interactive?: boolean;
   /** Eager-load above-the-fold images (maps to next/image `priority`). */
   priority?: boolean;
+  /**
+   * The mid-tone "stage" backdrop + hairline border behind the cut-out. On by
+   * default (contrast for very light/dark shoes on list/compare tiles). Pass
+   * `false` when the image already sits on its own clean card — e.g. the detail
+   * hero — so it isn't a grey box nested inside a white card.
+   */
+  stage?: boolean;
 };
 
 const VARIANT_CLASS: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
@@ -54,7 +61,7 @@ function canOptimize(src: string): boolean {
   }
 }
 
-export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "", interactive = false, priority = false }: ShoeImageProps) {
+export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "", interactive = false, priority = false, stage = true }: ShoeImageProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const trimmedSrc = src?.trim() ?? "";
@@ -77,7 +84,13 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
 
   return (
     <div
-      className={`shoe-stage relative mx-auto overflow-hidden rounded-xl border border-[rgb(var(--muted)/0.42)] ${VARIANT_CLASS[variant]} ${className}`}
+      // `overflow-hidden` stays even without the stage: the fill variants scale the
+      // shoe past 100% (--img-scale), so the box must clip. When `stage` is off we
+      // drop the grey backdrop, hairline, and rounding so the image reads as part of
+      // its host card rather than a nested box.
+      className={`relative mx-auto overflow-hidden ${
+        stage ? "shoe-stage rounded-xl border border-[rgb(var(--muted)/0.42)]" : ""
+      } ${VARIANT_CLASS[variant]} ${className}`}
     >
       {hasImage ? (
         canOptimize(trimmedSrc) ? (
