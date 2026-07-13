@@ -29,7 +29,7 @@ export function RemoveBackgroundButton({ shoeId, imageUrl }: { shoeId: string; i
     try {
       // Pull the current image through the same-origin proxy so the worker isn't
       // blocked by cross-origin restrictions.
-      const srcRes = await fetch(`/api/image-proxy?url=${encodeURIComponent(imageUrl)}`);
+      const srcRes = await fetch(`/api/image-proxy?url=${encodeURIComponent(imageUrl)}`, { headers: { "x-sf-app": "1" } });
       if (!srcRes.ok) throw new Error(translate("Could not load the current image."));
       const srcBlob = await srcRes.blob();
 

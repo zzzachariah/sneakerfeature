@@ -21,6 +21,21 @@ that: the app just shows the already-transparent PNGs.
 - History is kept: the script inserts a new `approved` row and demotes the old
   one to `rejected`. **Fully reversible** — nothing is deleted.
 
+## Two ways to run it
+
+- **In-admin bulk job** (no local setup) — `/admin/settings` → **Bulk background
+  removal**. Works like **Bulk image import**: pick shoes or a quantity, hit
+  start, watch the progress bar, stop anytime. The cut-out itself runs in the
+  admin's **browser** with `@imgly/background-removal` (Vercel's serverless
+  runtime can't host a model), one shoe at a time; the server only swaps the
+  result in. Keep the tab open until it finishes. Targets shoes whose approved
+  image still has a background (provider not `rembg` / `imgly-bg` /
+  `imgly-bg-bulk`); same QA gate and centered-square framing as the batch below.
+  Needs no extra env — just `SUPABASE_SERVICE_ROLE_KEY` (already required).
+- **Offline batch** (below) — heavier `rembg` model, better for a first
+  full-catalog pass from your machine. The two are interchangeable and both keep
+  history (old image demoted to `rejected`, fully reversible).
+
 ## Prerequisites
 
 1. **rembg** (the cut-out engine) on your PATH:

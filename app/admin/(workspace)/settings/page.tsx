@@ -10,6 +10,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { BulkImageImportButton } from "@/components/admin/bulk-image-import-button";
+import { BulkNobgButton } from "@/components/admin/bulk-nobg-button";
 import { BulkTranslationButton } from "@/components/admin/bulk-translation-button";
 import { SmartPickerToggle } from "@/components/admin/smart-picker-toggle";
 import { FootScanToggle } from "@/components/admin/foot-scan-toggle";
@@ -73,6 +74,18 @@ export default async function AdminSettingsPage() {
           </p>
           <div className="mt-3">
             <BulkImageImportButton />
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <p className="text-sm font-medium">Bulk background removal</p>
+          <p className="mt-1 text-xs soft-text">
+            Cut the background out of shoes whose approved image still has one. Removal runs in this
+            browser (@imgly) — one shoe at a time — and swaps in the transparent version (reversible;
+            the old image is kept as rejected history). Keep the tab open until it finishes.
+          </p>
+          <div className="mt-3">
+            <BulkNobgButton />
           </div>
         </Card>
 
