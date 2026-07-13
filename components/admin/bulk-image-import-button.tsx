@@ -64,7 +64,9 @@ export function BulkImageImportButton() {
   const [stopping, setStopping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tickHalted, setTickHalted] = useState(false);
   const isMountedRef = useRef(true);
+  const tickFailStreakRef = useRef(0);
 
   const progressPercent = useMemo(() => {
     const total = activeJob?.total_count ?? latestJob?.total_count ?? 0;
@@ -94,7 +96,10 @@ export function BulkImageImportButton() {
   const tickJob = useCallback(async () => {
     const response = await fetch("/api/admin/shoes/images/bulk/tick", { method: "POST" });
     const json = await response.json();
-    if (!response.ok || !json?.ok) throw new Error(json?.error ?? "Failed to update bulk image progress");
+    if (!response.ok || !json?.ok) {
+      const detail = typeof json?.detail === "string" && json.detail ? ` (${json.detail})` : "";
+      throw new Error(`${json?.error ?? "Failed to update bulk image progress"}${detail}`);
+    }
     setStats((prev) => json?.stats ?? prev);
     setActiveJob(json?.job?.status === "running" || json?.job?.status === "cancel_requested" ? json.job : null);
     setLatestJob((prev) => json?.job ?? prev);
@@ -150,16 +155,24 @@ export function BulkImageImportButton() {
   }, [loadStatus]);
 
   useEffect(() => {
-    if (!activeJob || activeJob.status !== "running") return;
+    if (!activeJob || activeJob.status !== "running" || tickHalted) return;
 
     let cancelled = false;
     const timer = setInterval(async () => {
       if (cancelled) return;
       try {
         await tickJob();
+        tickFailStreakRef.current = 0;
         await loadStatus();
-      } catch {
-        // continue polling
+      } catch (err) {
+        // Transient failures keep polling, but a consistently failing tick
+        // (e.g. missing server env config) would otherwise hammer the API
+        // every 1.5s forever without ever surfacing the problem.
+        tickFailStreakRef.current += 1;
+        if (tickFailStreakRef.current >= 3 && !cancelled && isMountedRef.current) {
+          setTickHalted(true);
+          setError(err instanceof Error ? err.message : translate("Failed to update bulk image progress"));
+        }
       }
     }, 1500);
 
@@ -167,7 +180,7 @@ export function BulkImageImportButton() {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [activeJob, tickJob, loadStatus]);
+  }, [activeJob, tickJob, loadStatus, tickHalted, translate]);
 
   useEffect(() => {
     if (selectedShoeIds.length === 0) return;
@@ -190,6 +203,8 @@ export function BulkImageImportButton() {
     setLoading(true);
     setError(null);
     setMessage(null);
+    tickFailStreakRef.current = 0;
+    setTickHalted(false);
 
     const parsedQuantity = Number(quantityInput.trim());
 
@@ -224,6 +239,8 @@ export function BulkImageImportButton() {
 
     setStopping(true);
     setError(null);
+    tickFailStreakRef.current = 0;
+    setTickHalted(false);
     try {
       const response = await fetch("/api/admin/shoes/images/bulk/abort", { method: "POST" });
       const json = await response.json();
