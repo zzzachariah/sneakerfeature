@@ -19,13 +19,15 @@ async function getJson(input: string, init?: RequestInit) {
 }
 
 // Localized text for a server `status` progress event. The server's `message`
-// is zh-CN; English UI maps the machine-readable `phase` instead and only falls
-// back to the raw message for phases this build doesn't know yet.
+// is zh-CN; a non-Chinese request maps the machine-readable `phase` instead and
+// only falls back to the raw message for phases this build doesn't know yet.
+// Keyed on the user's INPUT language (not the UI locale) so the live "thought
+// process" follows whatever language they typed in.
 function statusText(
   d: { phase?: string; message?: string; round?: number },
-  zhUI: boolean
+  zhInput: boolean
 ): string {
-  if (zhUI) return d.message ?? "";
+  if (zhInput) return d.message ?? "";
   switch (d.phase) {
     case "start":
       return "Getting started…";
@@ -167,6 +169,11 @@ export function SmartPickerClient() {
     async (message: string, count: number) => {
       if (sending) return;
 
+      // The live "thought process" (status rows + search chips) follows the
+      // language the user typed in — matching the model's own thinking/output —
+      // rather than the UI locale. CJK present → treat the request as Chinese.
+      const zhInput = /[㐀-鿿]/.test(message);
+
       // Optimistic UI FIRST: the user's bubble and the thinking indicator must
       // appear the instant they hit send. The old order awaited chat creation
       // before touching state, leaving a dead, feedback-free window on the
@@ -296,7 +303,7 @@ export function SmartPickerClient() {
                 // Live pipeline phase — the "what am I doing right now" line the
                 // user asked for. Each new phase checks off the previous one.
                 const d = data as { phase?: string; message?: string; round?: number };
-                const text = statusText(d, zhUI);
+                const text = statusText(d, zhInput);
                 if (!text) break;
                 patch((m) => {
                   const steps = [...(m.steps ?? [])];
@@ -324,7 +331,7 @@ export function SmartPickerClient() {
               case "search": {
                 const d = data as { query?: string; state?: "start" | "ok" | "fail"; resultCount?: number };
                 if (d.state === "start") {
-                  const text = zhUI ? `🔍 正在联网搜索：${d.query ?? ""}` : `🔍 Searching the web: ${d.query ?? ""}`;
+                  const text = zhInput ? `🔍 正在联网搜索：${d.query ?? ""}` : `🔍 Searching the web: ${d.query ?? ""}`;
                   patch((m) => ({ ...m, steps: [...(m.steps ?? []), { kind: "activity", text, state: "start" }] }));
                 } else if (d.state === "ok" || d.state === "fail") {
                   const state = d.state;
@@ -338,7 +345,7 @@ export function SmartPickerClient() {
                         steps[i] = {
                           ...s,
                           state,
-                          text: state === "ok" && resultCount ? (zhUI ? `${s.text}（${resultCount} 条）` : `${s.text} (${resultCount} results)`) : s.text
+                          text: state === "ok" && resultCount ? (zhInput ? `${s.text}（${resultCount} 条）` : `${s.text} (${resultCount} results)`) : s.text
                         };
                         break;
                       }

@@ -130,6 +130,8 @@ export type RecommendResult = {
 
 const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。你只能从下方「鞋款目录」(JSON 数组) 中挑选球鞋，绝不能编造目录里没有的鞋，也不要使用目录之外的网络知识。
 
+【语言规则 · 最高优先级】你的**思考过程(reasoning / thinking)**和**最终输出(reply、reason、pros、cons、title)**都必须使用与用户「本次要求」完全相同的语言：用户用中文→全程中文；用户用 English→everything, including your reasoning, in English；其他任何语言同理，始终镜像用户输入所用的语言。本提示词只是用中文写给你的说明——绝不能因为它是中文，就用中文思考或回复一个并非用中文提问的用户。判断语言时以用户「本次要求」正文为准。
+
 用户随后会给出「本次要求」和需要推荐的数量 N，可能还会给出「球员档案」。请：
 1. 自行理解「本次要求」的真实意图——中英文、口语、同义词、跨品牌的科技等价你都要靠自己的知识理解（例如"气垫/airsole"指 Zoom Air、Boost 等中底科技；"抓地"指 traction），不要拘泥字面、不要被某几个关键词限制。
 2. 在目录里找出最匹配的鞋（用目录里每双鞋的 name 字段作为它的名称）。
@@ -168,7 +170,7 @@ const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。�
 
 10. 【对话标题 title】在输出 JSON 中同时给出 title 字段：用 6-14 个汉字（或英文 3-6 个词）凝练概括用户「本次要求」的核心诉求，作为这次对话的标题。不要加引号或标点，不要带"推荐"、"求推荐"之类的多余前后缀，直接用关键词组合（例如"控卫低帮抓地好的鞋"、"扁平足后卫缓震首选"、"low-top guard shoes with grip"）。用户用什么语言你就用什么语言。
 
-输出 N 双，按推荐指数从高到低排序。尽量凑满 N 双；只要目录里有沾边的就返回最接近的。不要返回空列表，除非目录里没有任何篮球鞋。请用与用户「本次要求」相同的语言回复（用户用中文就全程中文，用英文就全程英文）。
+输出 N 双，按推荐指数从高到低排序。尽量凑满 N 双；只要目录里有沾边的就返回最接近的。不要返回空列表，除非目录里没有任何篮球鞋。请用与用户「本次要求」相同的语言**思考并回复**（用户用中文就全程中文，用英文就 think and reply entirely in English），见上方【语言规则】。
 
 11.【中文回复的表达规范】当用户用中文时，reply/reason/pros/cons 必须是自然中文，具体规则：
 - 目录的内部字段名（court_feel、traction、cushioning_feel、stability、fit、bounce、forefoot_midsole 等）**绝不能**原样出现在回复里，要用中文说法：场地感/贴地感、抓地力、缓震脚感、稳定性、包裹、弹性、前掌中底 等。
@@ -182,6 +184,20 @@ const SKILL_LABEL_ZH: Record<string, string> = {
   semi_pro: "半职业",
   pro: "职业"
 };
+
+// The user's ask can be in any language, yet this whole prompt scaffold is
+// written in Chinese — which biases the model to think and answer in Chinese
+// even for a non-Chinese user. Inject an explicit, unmissable directive into
+// each final-instruction turn so BOTH the reasoning stream ("思考") and the
+// answer ("输出") mirror the request's own language. A CJK request gets a
+// concrete Chinese instruction; everything else is told to mirror the request
+// verbatim, which covers English and any other language detectReplyLang folds
+// into "en".
+function languageDirective(input: string): string {
+  return detectReplyLang(input) === "zh"
+    ? "【语言】请全程用中文思考与作答：推理过程、reply、reason、pros、cons、title 全部用中文。"
+    : "【Language】Think and answer ENTIRELY in the same language as the request above — your reasoning/thinking, reply, reason, pros, cons and title must all be in that language. Do NOT switch to Chinese just because these instructions happen to be written in Chinese.";
+}
 
 function formatPersona(persona: Persona): string {
   const skill = SKILL_LABEL_ZH[persona.skill_level] ?? persona.skill_level;
@@ -1022,9 +1038,10 @@ async function tryToolLoopWithSearch(
     convo.push({
       role: "user",
       content:
-        attempt === 0
+        `${languageDirective(currentInput)}\n\n` +
+        (attempt === 0
           ? "信息已足够。现在只输出最终结果的 JSON 对象（结构按之前给出的：reply/title/recommendations，含 name/stars/reason/pros/cons/references）。不要调用工具、不要 markdown、不要 JSON 之外的任何文字。思考尽量简短，不要在思考里起草文案。"
-          : "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字，其他内容一律省略。"
+          : "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字，其他内容一律省略。")
     });
     let msg: StreamedMessage | null = null;
     try {
@@ -1315,6 +1332,7 @@ async function candidateEvidencePipeline(
     {
       role: "user" as const,
       content:
+        `${languageDirective(currentInput)}\n\n` +
         `本次要求："${currentInput}"${suffix}\n\n` +
         `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${BACKUP_POOL_SIZE} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
         `只输出 JSON：{"candidates":["鞋名1","鞋名2",…],"backups":["鞋名A","鞋名B",…]}——鞋名必须逐字复制目录里的 name 字段。不要输出任何其他内容。思考尽量简短。`
@@ -1359,9 +1377,11 @@ async function candidateEvidencePipeline(
   }
   onProgress?.({
     type: "text",
-    delta:
-      `候选鞋款（${candidates.length}）：${candidates.map((s) => s.shoe_name).join("、")}` +
-      (backups.length ? `\n备选（暂不查证）：${backups.map((s) => s.shoe_name).join("、")}` : "")
+    delta: zh
+      ? `候选鞋款（${candidates.length}）：${candidates.map((s) => s.shoe_name).join("、")}` +
+        (backups.length ? `\n备选（暂不查证）：${backups.map((s) => s.shoe_name).join("、")}` : "")
+      : `Candidate shoes (${candidates.length}): ${candidates.map((s) => s.shoe_name).join(", ")}` +
+        (backups.length ? `\nBackups (not verified yet): ${backups.map((s) => s.shoe_name).join(", ")}` : "")
   });
 
   // --- B) parallel evidence searches --------------------------------------
@@ -1443,6 +1463,7 @@ async function candidateEvidencePipeline(
       {
         role: "user" as const,
         content:
+          `${languageDirective(currentInput)}\n\n` +
           `现在推荐的要求是："${currentInput}"${suffix}\n\n` +
           (extensionNote ? `${extensionNote}\n\n` : "") +
           `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），再说明该鞋如何匹配那一点。\n` +
@@ -1534,7 +1555,9 @@ async function candidateEvidencePipeline(
             pool = pool.filter((s) => !researchedIds.has(s.id));
             onProgress?.({
               type: "text",
-              delta: `候选不足，补充查证：${extras.map((s) => s.shoe_name).join("、")}`
+              delta: zh
+                ? `候选不足，补充查证：${extras.map((s) => s.shoe_name).join("、")}`
+                : `Not enough strong matches — researching backups: ${extras.map((s) => s.shoe_name).join(", ")}`
             });
             await runProbes(extras, false, `正在补充查证 ${extras.length} 双备选…`);
             commitMessages = buildCommitMessages(
@@ -1608,6 +1631,7 @@ export async function recommendShoes(
   messages.push({
     role: "user",
     content:
+      `${languageDirective(opts.currentInput)}\n\n` +
       `现在推荐的要求是："${opts.currentInput}"${personaSuffix}${footSuffix}\n\n` +
       `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），然后说明该鞋如何匹配那一点。\n` +
       `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。每条 pros/cons 精炼在 18 个字以内，reason 一句话即可。\n\n` +
