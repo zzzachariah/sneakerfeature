@@ -13,17 +13,20 @@ export async function POST() {
   const adminClient = createAdminClient();
 
   if (!adminClient) {
+    console.error("[admin] bulk-image tick step=env fail: SUPABASE_SERVICE_ROLE_KEY is not configured");
     return NextResponse.json({ ok: false, error: "Supabase service role key is not configured." }, { status: 500 });
   }
 
   const config = getSerpApiConfig();
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   if (!config || !supabaseUrl) {
+    const detail = `SERP_API_PROVIDER=${Boolean(process.env.SERP_API_PROVIDER)} SERP_API_KEY=${Boolean(process.env.SERP_API_KEY)} SERP_API_ENGINE=${Boolean(process.env.SERP_API_ENGINE)} supabaseUrl=${Boolean(supabaseUrl)}`;
+    console.error(`[admin] bulk-image tick step=env fail: ${detail}`);
     return NextResponse.json(
       {
         ok: false,
         error: "Search/import environment variables are incomplete.",
-        detail: `SERP_API_PROVIDER=${Boolean(process.env.SERP_API_PROVIDER)} SERP_API_KEY=${Boolean(process.env.SERP_API_KEY)} SERP_API_ENGINE=${Boolean(process.env.SERP_API_ENGINE)} supabaseUrl=${Boolean(supabaseUrl)}`
+        detail
       },
       { status: 500 }
     );
@@ -42,6 +45,7 @@ export async function POST() {
     revalidateTag("shoes");
     return NextResponse.json({ ok: true, ...tick, stats });
   } catch (error) {
+    console.error("[admin] bulk-image tick step=process fail:", error);
     return NextResponse.json(
       { ok: false, error: "Failed to process bulk image job tick.", detail: error instanceof Error ? error.message : "unknown_error" },
       { status: 500 }

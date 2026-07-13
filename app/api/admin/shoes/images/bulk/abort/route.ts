@@ -19,6 +19,7 @@ export async function POST() {
       stats
     });
   } catch (error) {
+    console.error("[admin] bulk-image abort step=cancel fail:", error);
     return NextResponse.json(
       { ok: false, error: "Failed to request bulk job stop.", detail: error instanceof Error ? error.message : "unknown_error" },
       { status: 500 }
