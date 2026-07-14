@@ -6,6 +6,7 @@ import { Scissors } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { normalizeForImgly } from "@/lib/imgly/normalize-source";
 
 // Admin-only control on the shoe detail page. Cuts the background out of the
 // current image IN THE BROWSER (@imgly/background-removal, dynamically imported
@@ -33,8 +34,9 @@ export function RemoveBackgroundButton({ shoeId, imageUrl }: { shoeId: string; i
       if (!srcRes.ok) throw new Error(translate("Could not load the current image."));
       const srcBlob = await srcRes.blob();
 
+      const normalized = await normalizeForImgly(srcBlob);
       const { removeBackground } = await import("@imgly/background-removal");
-      const cutBlob = await removeBackground(srcBlob);
+      const cutBlob = await removeBackground(normalized);
 
       const fd = new FormData();
       fd.append("file", cutBlob, "cutout.png");
