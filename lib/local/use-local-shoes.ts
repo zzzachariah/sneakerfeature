@@ -4,9 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Shoe } from "@/lib/types";
 import { readCatalog, writeCatalog } from "@/lib/local/shoe-store";
+import { isDemoCatalog } from "@/lib/data/demo-shoes";
 
 // Don't re-pull more than this often when the app keeps gaining focus.
 const REFRESH_THROTTLE_MS = 20_000;
+
+// The SSR list counts as real server data only when it's non-empty AND not the
+// 3-shoe demo fallback. Treating the demo fallback as "server data" (it passes a
+// naive length > 0 check) is what used to strand the home on 3 shoes: it
+// suppressed both the on-device fallback and the live /api/shoes refresh, so a
+// single transient Supabase blip at SSR time never self-healed in that view.
+function hasRealServerData(shoes: Shoe[]): boolean {
+  return shoes.length > 0 && !isDemoCatalog(shoes);
+}
 
 // Returns the freshest shoe list to render, backed by an on-device IndexedDB
 // copy of the public catalog:
@@ -24,11 +34,13 @@ const REFRESH_THROTTLE_MS = 20_000;
 export function useLocalShoes(initialShoes: Shoe[]): Shoe[] {
   const router = useRouter();
   const [shoes, setShoes] = useState<Shoe[]>(initialShoes);
-  const hadServerData = initialShoes.length > 0;
+  const hadServerData = hasRealServerData(initialShoes);
 
-  // Keep the rendered list in step with the (personalized) SSR list.
+  // Keep the rendered list in step with the (personalized) SSR list — but never
+  // let a degraded SSR (demo fallback) clobber a fuller catalog we've already
+  // swapped in from the local copy / a live refresh.
   useEffect(() => {
-    if (initialShoes.length > 0) setShoes(initialShoes);
+    if (hasRealServerData(initialShoes)) setShoes(initialShoes);
   }, [initialShoes]);
 
   useEffect(() => {

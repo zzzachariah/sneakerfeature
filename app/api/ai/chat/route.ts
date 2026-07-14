@@ -304,15 +304,27 @@ export async function POST(request: Request) {
         }
 
         // User-facing reply text — no diagnostics. The deterministic fallback gets
-        // a gentle note instead of the old "暂时没有找到匹配的鞋款" error.
+        // a gentle note instead of the old "暂时没有找到匹配的鞋款" error. All of
+        // these app-authored strings follow the user's input language (replyLang),
+        // so the answer matches whatever language the user typed in.
+        const zhReply = replyLang === "zh";
         let replyText: string;
         if (fallbackUsed && charge > 0) {
-          replyText = "根据你的描述，这几双可能比较合适（综合场上定位、脚型与性能匹配挑选）：";
+          replyText = zhReply
+            ? "根据你的描述，这几双可能比较合适（综合场上定位、脚型与性能匹配挑选）："
+            : "Based on what you described, these could be a good fit (picked by on-court position, foot shape and performance match):";
         } else {
-          replyText = result.reply.trim() || (charge > 0 ? "为你推荐如下：" : "暂时没有找到匹配的鞋款，换个描述再试试？");
+          const noResult = zhReply
+            ? "暂时没有找到匹配的鞋款，换个描述再试试？"
+            : "I couldn't find a good match yet — try describing it a bit differently?";
+          const gotResult = zhReply ? "为你推荐如下：" : "Here are my picks for you:";
+          replyText = result.reply.trim() || (charge > 0 ? gotResult : noResult);
         }
         if (usingDemo) {
-          replyText = `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。\n${replyText}`;
+          const demoNote = zhReply
+            ? `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。`
+            : `⚠️ Using built-in sample data (${shoes.length} shoes only) — no database connected.`;
+          replyText = `${demoNote}\n${replyText}`;
         }
 
         const { data: assistantRow, error: assistantErr } = await admin

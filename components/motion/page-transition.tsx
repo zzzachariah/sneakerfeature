@@ -41,12 +41,26 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
     if (!el) return;
     const cls = pickClass(consumeRouteDirection());
     el.classList.add(cls);
+    // Deliberately NO `will-change` here. The slide keyframes already run on the
+    // compositor via translate3d, and a persistent `will-change: transform` (in
+    // any form — class rule or lingering inline style) would make this wrapper the
+    // containing block for every `position: fixed` descendant and collapse/
+    // re-anchor non-portaled overlays like the Smart Picker detail sheet (see the
+    // note in globals.css). The transform from the keyframes is a containing block
+    // only for the animation's short duration, then clears on `transform: none`.
+    let cleaned = false;
     const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
       el.classList.remove(cls);
-      el.style.willChange = "";
     };
     el.addEventListener("animationend", cleanup, { once: true });
-    return () => el.removeEventListener("animationend", cleanup);
+    return () => {
+      el.removeEventListener("animationend", cleanup);
+      // Drop the class on unmount too, so reduced-motion navigations (which skip
+      // `animationend` because the animation is `none`) never leave it dangling.
+      cleanup();
+    };
     // Run once per mount (template gives us a fresh mount per navigation).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
