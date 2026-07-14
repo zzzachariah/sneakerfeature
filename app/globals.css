@@ -317,7 +317,19 @@ a, button, [role="button"], label, input, select, textarea, summary {
 /* Route/screen transition — see components/motion/page-transition.tsx. The fade
    variant is opacity-only (never breaks sticky/fixed). The directional slide ends
    on `transform: none`, and the class is removed on animationend, so no residual
-   transform lingers to break fixed descendants once the page has settled. */
+   transform lingers to break fixed descendants once the page has settled.
+
+   CRITICAL: `.route-anim` must NOT carry a persistent `will-change: transform`.
+   That is a class rule, so it can't be cleared by the component's inline reset —
+   it sticks forever, and `will-change: transform` makes `.route-anim` the
+   containing block for EVERY `position: fixed` descendant. Because `.route-anim`
+   is only as tall as the page content, that silently re-anchored and collapsed
+   every non-portaled fixed overlay (the Smart Picker detail bottom sheet's dim
+   shrank to a thin band instead of covering the page; the shoe-detail back button
+   drifted onto the title). The transform/opacity keyframes below already run on
+   the compositor via translate3d, so no `will-change` hint is needed at all — and
+   the keyframe transform is a containing block only for the animation's short
+   duration, then clears on `transform: none`. */
 @keyframes routeEnter {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -331,7 +343,6 @@ a, button, [role="button"], label, input, select, textarea, summary {
   to   { opacity: 1; transform: none; }
 }
 .route-enter { animation: routeEnter 240ms var(--ease); }
-.route-anim { will-change: transform, opacity; }
 .route-anim--fade { animation: routeEnter var(--dur-base) var(--ease) both; }
 .route-anim--fwd  { animation: routeSlideFwd var(--dur-slow) var(--ease) both; }
 .route-anim--back { animation: routeSlideBack var(--dur-slow) var(--ease) both; }

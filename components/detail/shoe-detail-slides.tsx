@@ -292,7 +292,11 @@ function OverviewSection({
       </div>
 
       <div className="order-1 flex flex-col items-center gap-3 md:order-2">
-        <div className="shimmer-on-hover shimmer-on-hover-inverse w-full max-w-[220px] overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.22)] bg-[rgb(var(--surface))] p-4 shadow-cinematic sm:max-w-[260px] md:max-w-xs md:p-6">
+        {/* One clean card: the shoe sits directly on the card surface (no nested
+            grey stage box), with a soft edge shadow and rounded corners. The card
+            is `overflow-hidden rounded-2xl`, and the image no longer carries its own
+            box, so the parallax drift can't clip a nested box's corners square. */}
+        <div className="shimmer-on-hover shimmer-on-hover-inverse w-full max-w-[220px] overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.4)] bg-[rgb(var(--surface))] p-4 shadow-[0_10px_30px_-14px_rgb(var(--shadow)/0.28)] sm:max-w-[260px] md:max-w-xs md:p-6">
           {/* Parallax drifts the shot WITHIN the (overflow-hidden) card, so the card
               box never moves and nothing around it shifts. */}
           <Parallax distance={16}>
@@ -301,6 +305,7 @@ function OverviewSection({
               alt={`${shoe.brand} ${shoe.shoe_name}`}
               fallbackLabel={translate("No image")}
               variant="detail"
+              stage={false}
               priority
             />
           </Parallax>

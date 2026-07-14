@@ -33,11 +33,13 @@ function useReducedMotion() {
 //
 // Rendered through a portal to <body> so its `position: fixed` resolves against
 // the viewport and the cluster truly floats — it stays pinned bottom-right while
-// the shoe list scrolls. The page content is wrapped in `.route-anim`
-// (will-change: transform), which would otherwise become the fixed cluster's
-// containing block and make it scroll away with the content instead of floating.
-// This mirrors how the bottom nav / pull-to-refresh live at the layout root,
-// outside `.route-anim`. The `visible` prop (driven by an IntersectionObserver on
+// the shoe list scrolls. The page content is wrapped in `.route-anim`, which
+// briefly carries a `transform` while the route transition plays and would
+// otherwise become the fixed cluster's containing block and make it scroll away
+// with the content instead of floating. (That wrapper no longer holds a
+// persistent `will-change`, but portaling stays the robust pattern.) This mirrors
+// how the bottom nav / pull-to-refresh live at the layout root, outside
+// `.route-anim`. The `visible` prop (driven by an IntersectionObserver on
 // the grid) keeps it shown only while the shoe list is on screen. Reuses the
 // .glass material so it's real Liquid Glass in the iOS app.
 export function FeedFab({
