@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Input } from "@/components/ui/input";
+import { normalizeForImgly } from "@/lib/imgly/normalize-source";
 
 type NobgStats = {
   totalShoes: number;
@@ -200,8 +201,9 @@ export function BulkNobgButton() {
 
     let cutBlob: Blob;
     try {
+      const normalized = await normalizeForImgly(srcBlob);
       const { removeBackground } = await import("@imgly/background-removal");
-      cutBlob = await removeBackground(srcBlob);
+      cutBlob = await removeBackground(normalized);
     } catch (err) {
       return { kind: "failed", error: err instanceof Error ? err.message : "Background removal failed." };
     }
