@@ -119,14 +119,28 @@ function buildStoryMap(rows: ShoeStoryRow[]): Map<string, ShoeStory> {
   return storyByShoeId;
 }
 
-async function loadShoesBase(): Promise<ShoesBase | null> {
+// Thrown when the live catalog can't be loaded. We THROW rather than return null
+// so unstable_cache does NOT persist the failure: a cached null would be served
+// (→ demo shoes) to every visitor for up to `revalidate` seconds after a single
+// transient Supabase blip. Throwing leaves the cache empty, so the very next
+// request retries Supabase instead of being stuck on the 3 demo shoes. Callers
+// (getShoes / getPublicShoes) catch this and fall back to demo for that one
+// request only.
+class CatalogUnavailableError extends Error {
+  constructor(reason: string) {
+    super(`catalog unavailable: ${reason}`);
+    this.name = "CatalogUnavailableError";
+  }
+}
+
+async function loadShoesBase(): Promise<ShoesBase> {
   const supabase = createPublicClient();
   if (!supabase) {
     console.warn(
       "[getShoesBase] Supabase public client unavailable — falling back to demo shoes. " +
         "Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the deployment environment."
     );
-    return null;
+    throw new CatalogUnavailableError("public client unavailable");
   }
 
   const [shoesRes, ratingsRes, storiesRes] = await Promise.all([
@@ -142,9 +156,9 @@ async function loadShoesBase(): Promise<ShoesBase | null> {
 
   if (shoesRes.error) {
     console.error("[getShoesBase] supabase error", shoesRes.error);
-    return null;
+    throw new CatalogUnavailableError("shoes query error");
   }
-  if (!shoesRes.data?.length) return null;
+  if (!shoesRes.data?.length) throw new CatalogUnavailableError("empty catalog");
 
   let storyRows = (storiesRes.data ?? null) as ShoeStoryRow[] | null;
   if (storiesRes.error) {
@@ -340,32 +354,49 @@ const getPublicShoesAssembled = unstable_cache(
   async () => {
     // Use the cached base loader, not loadShoesBase directly — otherwise every
     // assembled-cache miss triggers its own full-table base fetch in addition to
-    // the one behind getShoesBase, doubling the catalog scan.
+    // the one behind getShoesBase, doubling the catalog scan. getShoesBase throws
+    // on failure (so the failure isn't cached); we let it propagate here so this
+    // assembled entry isn't cached either — the boundary callers fall back.
     const base = await getShoesBase();
-    if (!base) return null;
     return assembleShoes(base, EMPTY_USER_CONTEXT);
   },
   ["shoes-assembled-v1"],
   { tags: ["shoes"], revalidate: 60 }
 );
 
+// Distinguishes a Next.js framework control-flow error (dynamic server usage /
+// redirect / notFound), which must propagate, from a real catalog failure, which
+// we swallow into the demo fallback.
+function fallbackToDemo(context: string, error: unknown): Shoe[] {
+  if (isFrameworkError(error)) throw error;
+  console.error(`[${context}] catalog unavailable — serving demo shoes for this request`, error);
+  return demoShoes;
+}
+
 export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
   const userCtx = await loadUserContext();
-  // Anonymous / non-personalized viewers all see the same catalog — serve the
-  // cached assembled list instead of recomputing rankings per request.
-  if (!userCtx.focus && userCtx.myDimRatings.size === 0) {
-    return (await getPublicShoesAssembled()) ?? demoShoes;
+  try {
+    // Anonymous / non-personalized viewers all see the same catalog — serve the
+    // cached assembled list instead of recomputing rankings per request.
+    if (!userCtx.focus && userCtx.myDimRatings.size === 0) {
+      return await getPublicShoesAssembled();
+    }
+    const base = await getShoesBase();
+    return assembleShoes(base, userCtx);
+  } catch (error) {
+    return fallbackToDemo("getShoes", error);
   }
-  const base = await getShoesBase();
-  if (!base) return demoShoes;
-  return assembleShoes(base, userCtx);
 });
 
 // Public, non-personalized catalog (reads no cookies) — safe to cache and to
 // serve from /api/shoes for the on-device (IndexedDB) library. Same shape as
 // getShoes but with an empty user context, so no per-user blending/ordering.
 export async function getPublicShoes(): Promise<Shoe[]> {
-  return (await getPublicShoesAssembled()) ?? demoShoes;
+  try {
+    return await getPublicShoesAssembled();
+  } catch (error) {
+    return fallbackToDemo("getPublicShoes", error);
+  }
 }
 
 export async function getShoeBySlug(slug: string): Promise<Shoe | null> {

@@ -82,3 +82,16 @@ export const demoShoes: Shoe[] = [
     }
   }
 ];
+
+// Sentinel ids of the built-in demo catalog, served only when the live catalog
+// can't be loaded (Supabase down / transient error / empty).
+const DEMO_SHOE_IDS = new Set(demoShoes.map((s) => s.id));
+
+// True when a shoe list is exactly the built-in demo fallback. The client uses
+// this to recognize that the SSR list is a placeholder — so it prefers the
+// on-device (IndexedDB) catalog or a live /api/shoes refresh instead of locking
+// onto these 3 demo shoes. Requires an exact id match, so a real 3-shoe catalog
+// (with real UUIDs) is never mistaken for the demo set.
+export function isDemoCatalog(shoes: Pick<Shoe, "id">[]): boolean {
+  return shoes.length === DEMO_SHOE_IDS.size && shoes.every((s) => DEMO_SHOE_IDS.has(s.id));
+}
