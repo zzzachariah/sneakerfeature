@@ -6,6 +6,8 @@ function isPublicPath(pathname: string) {
     pathname === "/sitemap.xml" ||
     pathname === "/robots.txt" ||
     pathname === "/compare" ||
+    pathname === "/download" ||
+    pathname === "/announcements" ||
     pathname === "/quick-picker" ||
     pathname === "/smart-picker" ||
     pathname === "/favorites" ||
