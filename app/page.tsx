@@ -4,6 +4,8 @@ import { PageLoader } from "@/components/ui/page-loader";
 import { getForYouData } from "@/lib/personalize/for-you-data";
 import { buildCollections } from "@/lib/home/collections";
 import { getShoes } from "@/lib/data/shoes";
+import { getCurrentProfile } from "@/lib/data/auth";
+import { getMemberContext } from "@/lib/subscription/entitlements";
 import type { Metadata } from "next";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
 
@@ -47,6 +49,15 @@ async function HomeContent({ searchParams }: { searchParams: Promise<{ q?: strin
   const forYou = await getForYouData(shoes);
   const collections = buildCollections(shoes);
 
+  // Member-personalized section order (paid tiers). Best-effort — never blocks
+  // the home render.
+  let sectionOrder: string[] | undefined;
+  const profile = await getCurrentProfile();
+  if (profile) {
+    const member = await getMemberContext(profile.id);
+    if (member.prefs.homeOrder.length > 0) sectionOrder = member.prefs.homeOrder;
+  }
+
   return (
     <HomeView
       shoes={shoes}
@@ -55,6 +66,7 @@ async function HomeContent({ searchParams }: { searchParams: Promise<{ q?: strin
       initialQuery={q ?? ""}
       forYou={forYou}
       collections={collections}
+      sectionOrder={sectionOrder}
     />
   );
 }

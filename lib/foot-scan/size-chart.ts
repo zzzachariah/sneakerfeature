@@ -79,6 +79,32 @@ function euToMm(eu: number): number {
   return Math.round(250 + (eu - 40) * (200 / 30));
 }
 
+// Inverse of US_MEN_MM: foot length (mm) → US men's size, interpolated and
+// rounded to the nearest half size. The scale anchor for the sizing advisor.
+export function usSizeFromFootLengthMm(mm: number): number {
+  const entries = Object.entries(US_MEN_MM)
+    .map(([s, v]) => [Number(s), v] as [number, number])
+    .sort((a, b) => a[1] - b[1]);
+  const first = entries[0];
+  const last = entries[entries.length - 1];
+  if (mm <= first[1]) return first[0];
+  if (mm >= last[1]) return last[0];
+  for (let i = 0; i < entries.length - 1; i++) {
+    const [s0, m0] = entries[i];
+    const [s1, m1] = entries[i + 1];
+    if (mm >= m0 && mm <= m1) {
+      const frac = (mm - m0) / (m1 - m0);
+      return Math.round((s0 + frac * (s1 - s0)) * 2) / 2;
+    }
+  }
+  return last[0];
+}
+
+// US men's size → EU, for showing an alternative alongside the US pick.
+export function usSizeToEu(us: number): number {
+  return Math.round((us + 33) * 2) / 2;
+}
+
 export function sizeOptions(system: SizeSystem): string[] {
   if (system === "us_men") return Object.keys(US_MEN_MM);
   if (system === "eu") {

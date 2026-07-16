@@ -7,12 +7,21 @@ import { demoShoes } from "@/lib/data/demo-shoes";
 import { isValidPersona, type Persona } from "@/lib/persona/types";
 import { isFootProfile, type FootProfile } from "@/lib/foot-scan/types";
 import {
-  createPackyClient,
+  createPackyClientForModel,
+  clientOptionsForModel,
   getPackyEnvReport,
   describePackyEnvProblem,
   getPackyTarget,
   describePackyError
 } from "@/lib/ai/packy-client";
+import { tierConfig } from "@/lib/subscription/tiers";
+import {
+  getMemberContext,
+  getAllowanceBalance,
+  spendAllowance,
+  InsufficientAllowanceError
+} from "@/lib/subscription/entitlements";
+import { buildDepthSuffix } from "@/lib/ai/tier-prompt";
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
 import { deriveDetail, detectReplyLang } from "@/lib/ai/derive-proscons";
 import { getAllBloggerReviews } from "@/lib/data/blogger-reviews";
@@ -83,20 +92,61 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Chat not found." }, { status: 404 });
   }
 
-  // Balance pre-check: refuse before spending anything if it can't cover the
-  // requested count (count is chosen up front, so this is deterministic).
-  // Admins have unlimited credits — never pre-checked and never charged below.
-  const balance = await getBalance(ctx.userId);
-  if (!ctx.isAdmin && balance < count) {
-    return NextResponse.json({ ok: true, insufficient: true, balance, needed: count });
+  // --- Tiered routing + mixed billing ---------------------------------------
+  // Resolve the member's active tier, then decide which model runs and how this
+  // request is billed. Admins get the Max experience, unmetered.
+  const member = await getMemberContext(ctx.userId);
+  const tier = ctx.isAdmin ? "max" : member.tier;
+  const cfg = tierConfig(tier);
+
+  // Tier caps the recommendation count (Free 3 / Pro 5 / Max 8).
+  const effectiveCount = Math.min(count, cfg.prompt.count);
+
+  // Premium (Fable) runs when the tier unlocks it and either it's Max (premium
+  // by default) or the member opted in. Admins also preview premium, unmetered.
+  let usePremium =
+    cfg.capabilities.premiumModel != null &&
+    (ctx.isAdmin || tier === "max" || member.prefs.modelPref === "premium");
+
+  type Billing = "credits" | "unlimited" | "allowance";
+  let billing: Billing;
+  // `preBalance` is the relevant account's balance for the response payload:
+  // credits for free, monthly allowance for premium, 0 for unlimited.
+  let preBalance = 0;
+
+  if (ctx.isAdmin) {
+    billing = "unlimited";
+  } else if (tier === "free") {
+    billing = "credits";
+    preBalance = await getBalance(ctx.userId);
+    if (preBalance < effectiveCount) {
+      return NextResponse.json({ ok: true, insufficient: true, balance: preBalance, needed: effectiveCount });
+    }
+  } else if (usePremium) {
+    // Paid tier on the premium model: metered by the monthly allowance, with a
+    // graceful downgrade to the (unlimited) base model when it's exhausted — so
+    // a spent allowance never blocks a paid member, it just changes the model.
+    preBalance = await getAllowanceBalance(ctx.userId, tier);
+    if (preBalance < effectiveCount) {
+      usePremium = false;
+      billing = "unlimited";
+    } else {
+      billing = "allowance";
+    }
+  } else {
+    // Paid tier on the (unlimited) base model.
+    billing = "unlimited";
   }
 
+  const model = usePremium ? cfg.capabilities.premiumModel! : cfg.baseModel;
+  const depthSuffix = buildDepthSuffix(cfg.prompt);
+
   // Fail fast if the AI provider isn't configured (before persisting anything).
-  const client = createPackyClient();
+  const client = createPackyClientForModel(model);
   if (!client) {
-    const report = getPackyEnvReport();
-    console.error("[ai/chat] packyapi not configured", { apiKey: report.apiKey, baseURL: report.baseURL });
-    return NextResponse.json({ ok: false, message: describePackyEnvProblem(report) }, { status: 503 });
+    const report = getPackyEnvReport(clientOptionsForModel(model));
+    console.error("[ai/chat] packyapi not configured", { model, apiKey: report.apiKey, baseURL: report.baseURL });
+    return NextResponse.json({ ok: false, message: describePackyEnvProblem(report, clientOptionsForModel(model)) }, { status: 503 });
   }
 
   // Load PRIOR history (before inserting this turn) + catalog + persona in parallel.
@@ -185,7 +235,7 @@ export async function POST(request: Request) {
 
         let result: Awaited<ReturnType<typeof recommendShoes>>;
         try {
-          result = await recommendShoes(client, { shoes, history, currentInput: message, count, persona, footProfile, reviewsByShoe }, onProgress);
+          result = await recommendShoes(client, { shoes, history, currentInput: message, count: effectiveCount, persona, footProfile, reviewsByShoe, model, depthSuffix }, onProgress);
         } catch (error) {
           console.error("[ai/chat] recommend failed", error);
           const target = getPackyTarget();
@@ -222,9 +272,9 @@ export async function POST(request: Request) {
           });
         }
         matched.sort((a, b) => b.stars - a.stars);
-        // Hard-cap at `count` (the UI-selected number) so a misbehaving model can
-        // never bill for more than the user asked.
-        let validRaw: RecommendationRaw[] = matched.slice(0, count);
+        // Hard-cap at the tier-effective count so a misbehaving model can never
+        // bill for more than allowed.
+        let validRaw: RecommendationRaw[] = matched.slice(0, effectiveCount);
 
         // GUARANTEE: never return empty. When the AI produced nothing matchable
         // (e.g. the relay never honored tools), deterministically pick the top-N
@@ -232,15 +282,15 @@ export async function POST(request: Request) {
         // cards. Only a truly empty catalog yields zero.
         const fallbackUsed = validRaw.length === 0;
         if (fallbackUsed) {
-          validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count });
-        } else if (validRaw.length < count) {
+          validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count: effectiveCount });
+        } else if (validRaw.length < effectiveCount) {
           // PARTIAL result (e.g. a truncated payload salvaged 3 of 5) → top up
           // to the promised count with deterministic picks, excluding shoes the
           // AI already chose. AI picks stay first; top-ups follow.
           const have = new Set(validRaw.map((r) => r.shoe_id));
-          const extras = pickFallbackShoes({ shoes, query: message, persona, focus, count: count + have.size })
+          const extras = pickFallbackShoes({ shoes, query: message, persona, focus, count: effectiveCount + have.size })
             .filter((r) => !have.has(r.shoe_id))
-            .slice(0, count - validRaw.length);
+            .slice(0, effectiveCount - validRaw.length);
           validRaw = [...validRaw, ...extras];
         }
 
@@ -287,9 +337,15 @@ export async function POST(request: Request) {
             : undefined
         });
 
-        // Charge once (admins never charged). Past this point we're committed.
-        let newBalance = balance;
-        if (!ctx.isAdmin && charge > 0) {
+        // Charge according to the billing mode (see tier resolution above):
+        //   credits   → free tier spends ai_credits (as before)
+        //   allowance → paid tier on the premium model spends the monthly allowance
+        //   unlimited → admins & paid tier on the base model are never charged
+        // `chargedAmount` is what actually leaves an account (0 when unlimited);
+        // it's what gets recorded on the message ledger.
+        const chargedAmount = billing === "unlimited" ? 0 : charge;
+        let newBalance = preBalance;
+        if (billing === "credits" && charge > 0) {
           try {
             newBalance = await deductCredits(ctx.userId, charge);
           } catch (error) {
@@ -300,6 +356,18 @@ export async function POST(request: Request) {
             console.error("[ai/chat] deduct failed", error);
             send("error", { message: "扣费失败，请重试。" });
             return;
+          }
+        } else if (billing === "allowance" && charge > 0) {
+          try {
+            newBalance = await spendAllowance(ctx.userId, charge, tier);
+          } catch (error) {
+            // Pre-checked above, so this only trips on a rare concurrent drain.
+            // The answer is already produced — don't hard-fail; report best-effort.
+            if (error instanceof InsufficientAllowanceError) {
+              newBalance = 0;
+            } else {
+              console.error("[ai/chat] allowance spend failed", error);
+            }
           }
         }
 
@@ -334,7 +402,7 @@ export async function POST(request: Request) {
             role: "assistant",
             content: replyText,
             recommendations: validRaw.length ? validRaw : null,
-            credits_charged: ctx.isAdmin ? 0 : charge
+            credits_charged: chargedAmount
           })
           .select("id, role, content, recommendations, credits_charged, created_at")
           .single();
@@ -363,7 +431,10 @@ export async function POST(request: Request) {
           createdAt: assistantRow.created_at,
           creditsCharged: assistantRow.credits_charged,
           balance: newBalance,
-          unlimited: ctx.isAdmin,
+          unlimited: ctx.isAdmin || billing === "unlimited",
+          billing,
+          tier,
+          model,
           charge,
           title: chatUpdate.title ?? null,
           fallbackUsed

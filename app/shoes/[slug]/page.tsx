@@ -5,6 +5,11 @@ import { RecordView } from "@/components/native/record-view";
 import { getShoeBySlug, getShoeImageState, getShoes } from "@/lib/data/shoes";
 import { getBloggerReviewsForShoe } from "@/lib/data/blogger-reviews";
 import { getCurrentProfile } from "@/lib/data/auth";
+import { getMemberContext } from "@/lib/subscription/entitlements";
+import { getShoeFit, getFootProfile } from "@/lib/data/shoe-fit";
+import { computeSizeAdvice, type ShoeFit } from "@/lib/foot-scan/fit-advisor";
+import { SizeAdvisorCard, type SizeAdvisorData } from "@/components/detail/size-advisor";
+import { AdminFitEditor } from "@/components/detail/admin-fit-editor";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -71,6 +76,36 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
 
   const related = allShoes.filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
 
+  // Premium smart-sizing: gated by tier, personalized by the member's foot scan.
+  // `adminFit` is the current per-shoe fit row, surfaced to admins for editing.
+  let sizeData: SizeAdvisorData;
+  let adminFit: ShoeFit | null = null;
+  if (!profile) {
+    sizeData = { state: "signed-out" };
+  } else {
+    const member = await getMemberContext(profile.id);
+    const canUse = isAdmin || member.config.capabilities.preciseSizing;
+    if (!canUse) {
+      sizeData = { state: "gated" };
+    } else {
+      const [fit, foot] = await Promise.all([getShoeFit(shoe.id), getFootProfile(profile.id)]);
+      adminFit = fit;
+      if (!foot || !foot.foot_length_mm) {
+        sizeData = { state: "no-profile" };
+      } else {
+        sizeData = {
+          state: "advice",
+          advice: computeSizeAdvice(fit, {
+            footLengthMm: foot.foot_length_mm,
+            width: foot.foot_width,
+            instep: foot.instep,
+            hallux: foot.hallux ?? null
+          })
+        };
+      }
+    }
+  }
+
   const productSchema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -111,7 +146,20 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(productSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumbSchema) }} />
-      <ShoeDetailClient shoe={shoe} related={related} isAdmin={isAdmin} isLoggedIn={isLoggedIn} imageState={imageState} bloggerReviews={bloggerReviews} />
+      <ShoeDetailClient
+        shoe={shoe}
+        related={related}
+        isAdmin={isAdmin}
+        isLoggedIn={isLoggedIn}
+        imageState={imageState}
+        bloggerReviews={bloggerReviews}
+        sizeAdvisor={
+          <>
+            <SizeAdvisorCard data={sizeData} />
+            {isAdmin && <AdminFitEditor shoeId={shoe.id} initialFit={adminFit} />}
+          </>
+        }
+      />
       <RecordView shoeId={shoe.id} isLoggedIn={isLoggedIn} />
     </>
   );

@@ -23,7 +23,7 @@ export default async function AdminUsersPage({
 
   let query = db
     .from("profiles")
-    .select("id, username, email, role, created_at")
+    .select("id, username, email, role, created_at, subscription_tier, subscription_expires_at, subscription_is_permanent")
     .order("created_at", { ascending: false })
     .limit(200);
   if (role === "admin" || role === "user") query = query.eq("role", role);
@@ -33,7 +33,16 @@ export default async function AdminUsersPage({
   }
 
   const { data } = await query;
-  const profiles = (data ?? []) as { id: string; username: string; email: string; role: string; created_at: string }[];
+  const profiles = (data ?? []) as {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    created_at: string;
+    subscription_tier: string | null;
+    subscription_expires_at: string | null;
+    subscription_is_permanent: boolean | null;
+  }[];
   const ids = profiles.map((p) => p.id);
 
   // Activity counts for just the listed members — a bounded fan-out aggregated
@@ -84,7 +93,10 @@ export default async function AdminUsersPage({
     ratings: ratingsBy.get(p.id) ?? 0,
     favorites: favoritesBy.get(p.id) ?? 0,
     submissions: submissionsBy.get(p.id) ?? 0,
-    lastActiveAt: lastActiveBy.get(p.id) ?? null
+    lastActiveAt: lastActiveBy.get(p.id) ?? null,
+    tier: p.subscription_tier === "pro" || p.subscription_tier === "max" ? p.subscription_tier : "free",
+    expiresAt: p.subscription_expires_at,
+    isPermanent: Boolean(p.subscription_is_permanent)
   }));
 
   return (

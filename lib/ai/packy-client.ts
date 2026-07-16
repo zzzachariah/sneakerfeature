@@ -31,6 +31,29 @@ function baseURLNames(opts?: PackyClientOptions): readonly string[] {
 
 export const PACKY_MODEL = "deepseek-v4-pro";
 
+// Premium/tiered models. packyapi issues a SEPARATE key per model, so each of
+// these reads its own key env first (see clientOptionsForModel). PACKY_MODEL
+// (deepseek) keeps using the shared PACKYAPI_API_KEY.
+export const HAIKU_MODEL = "claude-haiku-4-5-20251001";
+export const FABLE_MODEL = "claude-fable-5";
+
+const HAIKU_KEY_ENV = ["PACKYAPI_API_KEY_HAIKU", "PACKY_API_KEY_HAIKU"] as const;
+const FABLE_KEY_ENV = ["PACKYAPI_API_KEY_FABLE", "PACKY_API_KEY_FABLE"] as const;
+
+// Which per-model key env to prefer for a given model id. Returns undefined for
+// the shared/base model. The model-specific names are checked BEFORE the shared
+// PACKYAPI_API_KEY, so a missing model key degrades to trying the shared one
+// rather than hard-failing (matches the tolerant design of createPackyClient).
+export function clientOptionsForModel(model: string): PackyClientOptions | undefined {
+  if (model === HAIKU_MODEL) return { apiKeyEnv: HAIKU_KEY_ENV };
+  if (model === FABLE_MODEL) return { apiKeyEnv: FABLE_KEY_ENV };
+  return undefined;
+}
+
+export function createPackyClientForModel(model: string): OpenAI | null {
+  return createPackyClient(clientOptionsForModel(model));
+}
+
 function normalizeBaseURL(raw: string): string {
   let s = raw.trim().replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(s)) s = `https://${s}`;

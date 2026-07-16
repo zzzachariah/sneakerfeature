@@ -2,16 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Heart, LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus, Crown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { MemberBadge } from "@/components/subscribe/member-badge";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
   const { translate } = useLocale();
-  const { signedIn, isAdmin, username, email, loaded } = useAuthState();
+  const { signedIn, isAdmin, username, email, tier, skin, loaded } = useAuthState();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -113,13 +114,23 @@ export function AccountMenu({ className }: { className?: string }) {
                   <UserPlus className="h-4 w-4" />
                   {translate("Sign up")}
                 </Link>
+                <Link
+                  href="/subscribe"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
+                  {translate("Membership")}
+                </Link>
               </>
             ) : (
               <>
                 {/* Signed-in identity header (replaces the old left-side tooltip). */}
                 <div className="mb-1 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-3 pb-2 pt-1">
-                  <p className="truncate text-sm font-semibold text-[rgb(var(--text))]">
-                    {username || email?.split("@")[0] || translate("Account")}
+                  <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[rgb(var(--text))]">
+                    <span className="truncate">{username || email?.split("@")[0] || translate("Account")}</span>
+                    <MemberBadge tier={tier} skin={skin} />
                   </p>
                   {email ? <p className="mt-0.5 truncate text-xs soft-text">{email}</p> : null}
                 </div>
@@ -144,6 +155,17 @@ export function AccountMenu({ className }: { className?: string }) {
                 >
                   <Heart className="h-4 w-4" />
                   {translate("Saved shoes")}
+                </Link>
+
+                <Link
+                  href="/subscribe"
+                  prefetch={true}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
+                  {translate("Membership")}
                 </Link>
 
                 {isAdmin && (

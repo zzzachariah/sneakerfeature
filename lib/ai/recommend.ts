@@ -1111,7 +1111,8 @@ async function getRecommendations(
   shoes: Shoe[],
   currentInput: string,
   onProgress?: OnProgress,
-  isFollowUp = false
+  isFollowUp = false,
+  model: string = PACKY_MODEL
 ): Promise<RecommendResult> {
   onProgress?.({ type: "status", phase: "thinking", message: "正在分析你的需求…" });
   // max_tokens on this relay caps reasoning + answer TOGETHER (thinking models
@@ -1120,7 +1121,7 @@ async function getRecommendations(
   // reasoning pass (the real token waste). 16000 is a ceiling, not a spend:
   // tokens are only billed as generated, and headroom means one pass finishes
   // instead of two or three being thrown away.
-  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
+  const base = { model, temperature: 0.2, max_tokens: 16000 };
   const ok = (text: string): RecommendResult | null => {
     const r = parseResult(text);
     return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
@@ -1260,6 +1261,11 @@ export type RecommendOpts = {
   persona?: Persona | null;
   footProfile?: FootProfile | null;
   reviewsByShoe?: Record<string, BloggerReview[]>;
+  // Tiered routing: the model id to run this request on (defaults to the shared
+  // deepseek base model), and a per-tier depth/voice block appended to the ask
+  // (Free = concise, Pro = standard, Max = deep + concierge). See lib/ai/tier-prompt.ts.
+  model?: string;
+  depthSuffix?: string;
 };
 
 // Persona / foot-profile context appended to the ask in every pipeline phase.
@@ -1318,9 +1324,9 @@ async function candidateEvidencePipeline(
   onProgress?: OnProgress
 ): Promise<RecommendResult | null> {
   const { shoes, history, currentInput, count } = opts;
-  const base = { model: PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
+  const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
-  const suffix = personaFootSuffix(opts);
+  const suffix = personaFootSuffix(opts) + (opts.depthSuffix ?? "");
   const zh = detectReplyLang(currentInput) === "zh";
 
   // --- A) shortlist -------------------------------------------------------
@@ -1641,10 +1647,19 @@ export async function recommendShoes(
       `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 围绕用户本次诉求/使用场景）。如果已经搜过：直接发 recommend_shoes。\n\n` +
       `⏱️ 思考过程请精炼：选定候选后就直接调工具，不要在思考里逐字起草每双鞋的完整 reason/pros/cons 文案（那些直接写进工具参数即可）。\n\n` +
       `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
-      `{"reply":"…","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2","优点3"],"cons":["缺点1","缺点2","缺点3"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。`
+      `{"reply":"…","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2","优点3"],"cons":["缺点1","缺点2","缺点3"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。` +
+      (opts.depthSuffix ?? "")
   });
 
-  return getRecommendations(client, messages, opts.shoes, opts.currentInput, onProgress, opts.history.length > 0);
+  return getRecommendations(
+    client,
+    messages,
+    opts.shoes,
+    opts.currentInput,
+    onProgress,
+    opts.history.length > 0,
+    opts.model ?? PACKY_MODEL
+  );
 }
 
 export function enrichRecommendations(
