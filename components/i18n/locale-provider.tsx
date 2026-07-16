@@ -829,6 +829,13 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "find your next pair": "找到你的下一双",
   "tell me your playstyle, position, and the feel you want — i'll recommend shoes from our database.":
     "告诉我你的打法、位置和想要的脚感，我会从数据库里为你推荐球鞋。",
+  "get sharper picks": "让推荐更精准",
+  "with a player profile set, there's no need to re-enter your height and weight — just name the tech you want or what matters most to you. the more detail you share, the more trustworthy the picks.":
+    "设置了球员档案，就无需再次填写身高体重——直接说出你想要的科技或最看重的方面即可。信息越详细，推荐越精准可信。",
+  "edit profile": "编辑档案",
+  "tip": "小贴士",
+  "show tip": "展开提示",
+  "hide tip": "收起提示",
   "ai is thinking…": "AI 思考中…",
   "thought process": "思考过程",
   "new chat": "新建对话",
