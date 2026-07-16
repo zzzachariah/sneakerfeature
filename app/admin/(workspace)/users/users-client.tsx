@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronRight, Shield, ShieldOff, ShieldCheck } from "lucide-react";
+import { ChevronRight, Shield, ShieldOff, ShieldCheck, Crown } from "lucide-react";
 import { confirmDialog } from "@/components/native/native-menu";
 import { Card } from "@/components/ui/card";
+import { TIERS, DURATIONS, type Tier, type Duration } from "@/lib/subscription/tiers";
 
 export type UserRow = {
   id: string;
@@ -18,6 +19,9 @@ export type UserRow = {
   favorites: number;
   submissions: number;
   lastActiveAt: string | null;
+  tier: Tier;
+  expiresAt: string | null;
+  isPermanent: boolean;
 };
 
 function relativeFromNow(iso: string | null): string {
@@ -35,6 +39,92 @@ function relativeFromNow(iso: string | null): string {
   if (days < 30) return `${days}d ago`;
   if (days < 365) return `${Math.floor(days / 30)}mo ago`;
   return `${Math.floor(days / 365)}y ago`;
+}
+
+function membershipSummary(row: UserRow): string {
+  if (row.tier === "free") return "free";
+  if (row.isPermanent) return `${TIERS[row.tier].name} · permanent`;
+  if (row.expiresAt) return `${TIERS[row.tier].name} · until ${new Date(row.expiresAt).toLocaleDateString()}`;
+  return TIERS[row.tier].name;
+}
+
+function TierBadge({ tier }: { tier: Tier }) {
+  if (tier === "free") {
+    return (
+      <span className="inline-flex items-center gap-0.5 rounded-full bg-[rgb(var(--muted)/0.45)] px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide">
+        free
+      </span>
+    );
+  }
+  const cfg = TIERS[tier];
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide"
+      style={{ color: cfg.badgeHue, backgroundColor: `${cfg.badgeHue}22`, border: `1px solid ${cfg.badgeHue}66` }}
+    >
+      <span aria-hidden>{cfg.badgeGlyph}</span>
+      {cfg.name}
+    </span>
+  );
+}
+
+// Inline membership editor: shows the current tier + a tier/duration picker and
+// an Apply button. Used in both the mobile card and desktop table layouts.
+function MembershipEditor({
+  row,
+  busy,
+  onApply
+}: {
+  row: UserRow;
+  busy: boolean;
+  onApply: (tier: Tier, duration: Duration) => void;
+}) {
+  const [tier, setTier] = useState<Tier>(row.tier);
+  const [duration, setDuration] = useState<Duration>("monthly");
+  const dirty = tier !== row.tier || (tier !== "free" && !row.isPermanent);
+  const selectCls =
+    "rounded-lg border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev))] px-2 py-1 text-xs";
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <TierBadge tier={row.tier} />
+      <span className="text-[0.7rem] soft-text">{membershipSummary(row)}</span>
+      <div className="flex items-center gap-1.5">
+        <select
+          aria-label="Tier"
+          className={selectCls}
+          value={tier}
+          onChange={(e) => setTier(e.target.value as Tier)}
+        >
+          <option value="free">Free</option>
+          <option value="pro">Pro</option>
+          <option value="max">Max</option>
+        </select>
+        {tier !== "free" && (
+          <select
+            aria-label="Duration"
+            className={selectCls}
+            value={duration}
+            onChange={(e) => setDuration(e.target.value as Duration)}
+          >
+            {DURATIONS.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        )}
+        <button
+          type="button"
+          disabled={busy || !dirty}
+          onClick={() => onApply(tier, duration)}
+          className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--accent)/0.6)] px-2.5 py-1 text-xs text-[rgb(var(--accent))] transition hover:bg-[rgb(var(--accent)/0.1)] disabled:opacity-40"
+        >
+          <Crown className="h-3 w-3" />
+          Apply
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function UsersClient({ initialRows, currentAdminId }: { initialRows: UserRow[]; currentAdminId: string }) {
@@ -75,6 +165,42 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
     }
   }
 
+  async function changeMembership(row: UserRow, tier: Tier, duration: Duration) {
+    const label = tier === "free" ? "Free (revoke premium)" : `${TIERS[tier].name} · ${DURATIONS.find((d) => d.id === duration)?.label}`;
+    const ok = await confirmDialog({
+      message: `Set @${row.username}'s membership to ${label}?`,
+      okLabel: "Apply",
+      destructive: tier === "free" && row.tier !== "free"
+    });
+    if (!ok) return;
+    setBusy(row.id);
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/users/subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, tier, duration })
+      });
+      const json = await res.json();
+      if (json?.ok) {
+        setRows((prev) =>
+          prev.map((r) =>
+            r.id === row.id
+              ? { ...r, tier: json.tier as Tier, expiresAt: json.expiresAt ?? null, isPermanent: Boolean(json.permanent) }
+              : r
+          )
+        );
+        setMessage(`@${row.username} → ${label}.`);
+      } else {
+        setMessage(json?.message ?? "Failed to update membership.");
+      }
+    } catch {
+      setMessage("Network error. Please retry.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <Card className="p-0 overflow-hidden">
       {message && (
@@ -105,6 +231,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                       {row.role === "admin" && <ShieldCheck className="h-2.5 w-2.5" />}
                       {row.role}
                     </span>
+                    <TierBadge tier={row.tier} />
                   </div>
                   <p className="truncate text-xs soft-text">{row.email}</p>
                   <p className="mt-1.5 text-[0.7rem] soft-text">
@@ -120,6 +247,13 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                 </div>
                 <ChevronRight className="mt-1 h-4 w-4 shrink-0 soft-text" />
               </Link>
+              <div className="mt-3 rounded-lg border border-[rgb(var(--muted)/0.35)] p-2.5">
+                <MembershipEditor
+                  row={row}
+                  busy={busy === row.id}
+                  onApply={(tier, duration) => changeMembership(row, tier, duration)}
+                />
+              </div>
               {!isSelf && (
                 <button
                   type="button"
@@ -156,9 +290,9 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
             <tr>
               <th className="px-3 py-2">Member</th>
               <th className="px-3 py-2">Role</th>
+              <th className="px-3 py-2">Membership</th>
               <th className="px-3 py-2">Activity</th>
               <th className="px-3 py-2">Last active</th>
-              <th className="px-3 py-2">Joined</th>
               <th className="px-3 py-2 text-right">Action</th>
             </tr>
           </thead>
@@ -196,6 +330,13 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                       {row.role}
                     </span>
                   </td>
+                  <td className="px-3 py-3">
+                    <MembershipEditor
+                      row={row}
+                      busy={busy === row.id}
+                      onApply={(tier, duration) => changeMembership(row, tier, duration)}
+                    />
+                  </td>
                   <td className="px-3 py-3 text-xs soft-text whitespace-nowrap">
                     <span className="num-display">{row.comments}</span> comments ·{" "}
                     <span className="num-display">{row.ratings}</span> ratings ·{" "}
@@ -204,9 +345,6 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                   </td>
                   <td className="num-display whitespace-nowrap px-3 py-3 text-xs soft-text">
                     {relativeFromNow(row.lastActiveAt)}
-                  </td>
-                  <td className="num-display whitespace-nowrap px-3 py-3 text-xs soft-text">
-                    {new Date(row.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-3 py-3 text-right">
                     {isSelf ? (

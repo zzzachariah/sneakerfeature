@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Heart, LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus, Crown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -113,6 +113,15 @@ export function AccountMenu({ className }: { className?: string }) {
                   <UserPlus className="h-4 w-4" />
                   {translate("Sign up")}
                 </Link>
+                <Link
+                  href="/subscribe"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
+                  {translate("Membership")}
+                </Link>
               </>
             ) : (
               <>
@@ -144,6 +153,17 @@ export function AccountMenu({ className }: { className?: string }) {
                 >
                   <Heart className="h-4 w-4" />
                   {translate("Saved shoes")}
+                </Link>
+
+                <Link
+                  href="/subscribe"
+                  prefetch={true}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
+                  {translate("Membership")}
                 </Link>
 
                 {isAdmin && (
