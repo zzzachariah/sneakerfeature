@@ -8,6 +8,7 @@ import { haptics } from "@/lib/native/haptics";
 import { DUR, EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
+import { ProfileTip } from "@/components/smart-picker/profile-tip";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
@@ -186,6 +187,10 @@ export function ChatConversation({
                   </button>
                 ))}
               </div>
+
+              {/* Collapsible hint: a saved player profile skips height/weight and
+                  richer detail yields better picks. Collapses to a small pill. */}
+              <ProfileTip />
             </div>
           )}
 
