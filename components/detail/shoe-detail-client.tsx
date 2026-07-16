@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { BackButton } from "@/components/detail/back-button";
 import { ShoeDetailSlides } from "@/components/detail/shoe-detail-slides";
 import { type RadarAxis } from "@/components/detail/performance-radar";
@@ -35,7 +35,8 @@ export function ShoeDetailClient({
   isAdmin,
   isLoggedIn,
   imageState,
-  bloggerReviews
+  bloggerReviews,
+  sizeAdvisor
 }: {
   shoe: Shoe;
   related: Shoe[];
@@ -43,6 +44,7 @@ export function ShoeDetailClient({
   isLoggedIn: boolean;
   imageState: ShoeDetailImageState;
   bloggerReviews: BloggerReview[];
+  sizeAdvisor?: ReactNode;
 }) {
   const { translate, locale } = useLocale();
   const router = useRouter();
@@ -288,6 +290,7 @@ export function ShoeDetailClient({
         specStars={specStars}
         finalStars={finalStars}
       />
+      {sizeAdvisor}
     </main>
   );
 }
