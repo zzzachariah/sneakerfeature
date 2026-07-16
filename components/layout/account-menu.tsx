@@ -7,11 +7,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { MemberBadge } from "@/components/subscribe/member-badge";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
   const { translate } = useLocale();
-  const { signedIn, isAdmin, username, email, loaded } = useAuthState();
+  const { signedIn, isAdmin, username, email, tier, skin, loaded } = useAuthState();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -127,8 +128,9 @@ export function AccountMenu({ className }: { className?: string }) {
               <>
                 {/* Signed-in identity header (replaces the old left-side tooltip). */}
                 <div className="mb-1 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-3 pb-2 pt-1">
-                  <p className="truncate text-sm font-semibold text-[rgb(var(--text))]">
-                    {username || email?.split("@")[0] || translate("Account")}
+                  <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[rgb(var(--text))]">
+                    <span className="truncate">{username || email?.split("@")[0] || translate("Account")}</span>
+                    <MemberBadge tier={tier} skin={skin} />
                   </p>
                   {email ? <p className="mt-0.5 truncate text-xs soft-text">{email}</p> : null}
                 </div>

@@ -103,6 +103,19 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const [notice, setNotice] = useState<string | null>(null);
   const reduce = useReducedMotion();
 
+  const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
+
+  function chooseSkin(id: SkinId) {
+    setSkin(id);
+    // Paid members' choice persists; for everyone else it's just a live preview.
+    if (!canPersonalize) return;
+    void fetch("/api/member/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ skin: id })
+    }).catch(() => {});
+  }
+
   const fade = reduce ? {} : { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } };
 
   function onSubscribe(tier: "pro" | "max") {
@@ -169,7 +182,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               <button
                 key={id}
                 type="button"
-                onClick={() => setSkin(id)}
+                onClick={() => chooseSkin(id)}
                 className="group relative overflow-hidden rounded-2xl border p-4 text-left transition"
                 style={{
                   borderColor: selected ? s.max.accent : "rgb(var(--muted) / 0.4)",
