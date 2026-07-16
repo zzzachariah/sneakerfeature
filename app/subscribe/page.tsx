@@ -20,7 +20,8 @@ export default async function SubscribePage() {
     tier: "free",
     isPermanent: false,
     expiresAt: null,
-    skin: DEFAULT_SKIN
+    skin: DEFAULT_SKIN,
+    homeOrder: []
   };
 
   if (profile) {
@@ -31,7 +32,8 @@ export default async function SubscribePage() {
       tier: member.tier,
       isPermanent: member.isPermanent,
       expiresAt: member.expiresAt,
-      skin: member.prefs.skin
+      skin: member.prefs.skin,
+      homeOrder: member.prefs.homeOrder
     };
   }
 

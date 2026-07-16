@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight } from "lucide-react";
+import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList } from "lucide-react";
+import { HOME_SECTIONS, resolveHomeOrder, type HomeSectionId } from "@/lib/home/sections";
 import {
   TIERS,
   DURATIONS,
@@ -20,6 +21,7 @@ export type SubscribeCurrent = {
   isPermanent: boolean;
   expiresAt: string | null;
   skin: SkinId;
+  homeOrder: string[];
 };
 
 // One luxury membership card, themed by the chosen skin + tier palette.
@@ -104,6 +106,21 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const reduce = useReducedMotion();
 
   const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
+
+  const [homeOrder, setHomeOrder] = useState<HomeSectionId[]>(resolveHomeOrder(current.homeOrder));
+
+  function moveSection(index: number, dir: -1 | 1) {
+    const next = [...homeOrder];
+    const target = index + dir;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    setHomeOrder(next);
+    void fetch("/api/member/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ homeOrder: next })
+    }).catch(() => {});
+  }
 
   function chooseSkin(id: SkinId) {
     setSkin(id);
@@ -378,6 +395,53 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           计费为混合制：基础模型对付费会员不限次，高级 Fable 模型从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。
         </p>
       </motion.section>
+
+      {/* Member personalization (paid tiers). */}
+      {canPersonalize && (
+        <motion.section className="mt-14" {...fade} transition={{ duration: 0.5 }}>
+          <div className="mb-4 flex items-center gap-2">
+            <LayoutList className="h-5 w-5" style={{ color: TIERS[current.tier === "max" ? "max" : "pro"].badgeHue }} />
+            <h2 className="text-lg font-semibold tracking-tight">会员个性化</h2>
+            <span className="text-xs soft-text">仅 Pro / Max</span>
+          </div>
+          <div className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev))] p-5">
+            <p className="mb-3 text-sm font-medium">首页板块顺序</p>
+            <ul className="flex flex-col gap-2">
+              {homeOrder.map((id, i) => {
+                const meta = HOME_SECTIONS.find((s) => s.id === id);
+                return (
+                  <li
+                    key={id}
+                    className="flex items-center gap-3 rounded-xl border border-[rgb(var(--muted)/0.35)] bg-[rgb(var(--surface))] px-4 py-2.5"
+                  >
+                    <span className="num-display text-sm soft-text">{i + 1}</span>
+                    <span className="flex-1 text-sm font-medium">{meta?.label ?? id}</span>
+                    <button
+                      type="button"
+                      aria-label="上移"
+                      disabled={i === 0}
+                      onClick={() => moveSection(i, -1)}
+                      className="rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 transition hover:bg-[rgb(var(--text)/0.05)] disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="下移"
+                      disabled={i === homeOrder.length - 1}
+                      onClick={() => moveSection(i, 1)}
+                      className="rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 transition hover:bg-[rgb(var(--text)/0.05)] disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-3 text-xs soft-text">调整会立即保存，下次打开首页即按此顺序展示。皮肤选择见页面上方。</p>
+          </div>
+        </motion.section>
+      )}
     </div>
   );
 }
