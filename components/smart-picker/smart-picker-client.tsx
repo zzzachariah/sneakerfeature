@@ -64,6 +64,7 @@ export function SmartPickerClient() {
   const [balance, setBalance] = useState(0);
   const [creditsLoaded, setCreditsLoaded] = useState(false);
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
+  const [allowance, setAllowance] = useState<{ balance: number; grant: number } | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
@@ -88,6 +89,7 @@ export function SmartPickerClient() {
         setBalance(creditsRes.balance);
         setUnlimited(Boolean(creditsRes.unlimited));
         if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
+        setAllowance((creditsRes.allowance as { balance: number; grant: number } | null) ?? null);
       }
       setCreditsLoaded(true);
     })();
@@ -438,6 +440,7 @@ export function SmartPickerClient() {
         creditsLoaded={creditsLoaded}
         unlimited={unlimited}
         checkin={checkin}
+        allowance={allowance}
         chats={chats}
         activeChatId={activeChatId}
         activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
