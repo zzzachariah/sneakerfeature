@@ -14,7 +14,6 @@ import {
   type Duration
 } from "@/lib/subscription/tiers";
 import { SKINS, SKIN_ORDER, skinPalette, type SkinId } from "@/lib/subscription/skins";
-import { CheckoutSheet } from "@/components/subscribe/checkout-sheet";
 
 export type SubscribeCurrent = {
   signedIn: boolean;
@@ -104,7 +103,8 @@ const BENEFIT_ROWS: { icon: typeof Zap; label: string; free: string; pro: string
 export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const [duration, setDuration] = useState<Duration>("yearly");
   const [skin, setSkin] = useState<SkinId>(current.skin);
-  const [checkout, setCheckout] = useState<{ tier: "pro" | "max"; duration: Duration } | null>(null);
+  const [pending, setPending] = useState<"pro" | "max" | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const reduce = useReducedMotion();
 
   const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
@@ -137,9 +137,26 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
 
   const fade = reduce ? {} : { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } };
 
-  function onSubscribe(tier: "pro" | "max") {
-    // Open the embedded Stripe checkout for the currently selected duration.
-    setCheckout({ tier, duration });
+  async function onSubscribe(tier: "pro" | "max") {
+    if (pending) return;
+    setError(null);
+    setPending(tier);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier, duration })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.url) {
+        throw new Error(data?.message || "创建支付会话失败，请重试。");
+      }
+      // Hand off to Stripe's hosted checkout page.
+      window.location.assign(data.url as string);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "出错了，请重试。");
+      setPending(null);
+    }
   }
 
   return (
@@ -331,11 +348,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               <button
                 type="button"
                 onClick={() => onSubscribe(tier)}
-                className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition active:scale-[0.99]"
-                style={{ background: pal.buttonBg, color: pal.onAccent }}
+                disabled={pending !== null}
+                className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition active:scale-[0.99] disabled:opacity-70"
+                style={{ background: pal.buttonBg, color: pal.onButton }}
               >
                 <Crown className="h-4 w-4" />
-                开通 {cfg.name}
+                {pending === tier ? "跳转中…" : `开通 ${cfg.name}`}
                 <ChevronRight className="h-4 w-4" />
               </button>
             </motion.div>
@@ -343,13 +361,10 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         })}
       </section>
 
-      {checkout && (
-        <CheckoutSheet
-          tier={checkout.tier}
-          duration={checkout.duration}
-          title={`${TIERS[checkout.tier].name} · ${DURATIONS.find((d) => d.id === checkout.duration)?.label ?? ""}`}
-          onClose={() => setCheckout(null)}
-        />
+      {error && (
+        <p className="mt-6 rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--surface))] p-4 text-center text-sm soft-text">
+          {error}
+        </p>
       )}
 
       {/* Benefit matrix */}
