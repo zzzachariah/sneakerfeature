@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import type { Route } from "next";
 import { usePathname, useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { NativeChrome, type NativeTab } from "@/components/native/native-chrome";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { haptics } from "@/lib/native/haptics";
 
 // Drives the native iOS glass tab bar (see /native-chrome). On every other
@@ -36,6 +37,16 @@ const TABS: Tab[] = [
   }
 ];
 
+// Gated like the AccountMenu's membership link: hidden until subscriptions go
+// live, but always visible to admins so they can test the checkout end-to-end.
+const MEMBER_TAB: Tab = {
+  key: "member",
+  href: "/subscribe",
+  label: "Member",
+  symbol: "crown",
+  match: (p) => p === "/subscribe" || p.startsWith("/subscribe/")
+};
+
 const ADMIN_TAB: Tab = {
   key: "admin",
   href: "/admin",
@@ -43,6 +54,14 @@ const ADMIN_TAB: Tab = {
   symbol: "shield",
   match: (p) => p === "/admin" || p.startsWith("/admin/")
 };
+
+function buildTabs(isAdmin: boolean): Tab[] {
+  const tabs = [...TABS];
+  // Membership sits just before Account, mirroring the web MobileBottomNav.
+  if (SUBSCRIBE_LIVE || isAdmin) tabs.splice(tabs.length - 1, 0, MEMBER_TAB);
+  if (isAdmin) tabs.push(ADMIN_TAB);
+  return tabs;
+}
 
 // Only treat the native bar as usable when we're in the iOS app AND the plugin
 // actually loaded (pod synced + built). Otherwise we leave the web nav alone so
@@ -57,6 +76,7 @@ export function NativeBottomNav() {
   const router = useRouter();
   const { translate } = useLocale();
   const { isAdmin } = useAuthState();
+  const tabs = useMemo(() => buildTabs(isAdmin), [isAdmin]);
 
   // Build / rebuild the native bar whenever its contents change (admin gate,
   // language). Only after configureTabBar resolves do we hide the web nav (via
@@ -70,7 +90,6 @@ export function NativeBottomNav() {
       }
       return;
     }
-    const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
     const nativeTabs: NativeTab[] = tabs.map((t) => ({ key: t.key, label: translate(t.label), symbol: t.symbol }));
     const active = tabs.find((t) => t.match(pathname))?.key;
     NativeChrome.configureTabBar({ tabs: nativeTabs, active })
@@ -79,16 +98,15 @@ export function NativeBottomNav() {
     // pathname intentionally excluded — the separate effect below keeps the
     // active item in sync without rebuilding the whole bar on every navigation.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, translate]);
+  }, [tabs, translate]);
 
   // Warm the router cache for every tab destination. The web navs get this for
   // free from <Link> prefetching; the native bar navigates via router.push, so
   // without this each first tap paid a completely cold fetch.
   useEffect(() => {
     if (!nativeBarAvailable()) return;
-    const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
     for (const t of tabs) router.prefetch(t.href);
-  }, [isAdmin, router]);
+  }, [tabs, router]);
 
   // Tab tap (native) → navigate the web view.
   useEffect(() => {
@@ -97,22 +115,20 @@ export function NativeBottomNav() {
     void (async () => {
       const handle = await NativeChrome.addListener("tabSelected", ({ key }) => {
         haptics.selection();
-        const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
         const href = tabs.find((t) => t.key === key)?.href;
         if (href) router.push(href);
       });
       remove = () => void handle.remove();
     })();
     return () => remove?.();
-  }, [isAdmin, router]);
+  }, [tabs, router]);
 
   // Route change → highlight the matching tab.
   useEffect(() => {
     if (!nativeBarAvailable()) return;
-    const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
     const active = tabs.find((t) => t.match(pathname))?.key;
     if (active) void NativeChrome.setActiveTab({ key: active });
-  }, [pathname, isAdmin]);
+  }, [pathname, tabs]);
 
   return null;
 }
