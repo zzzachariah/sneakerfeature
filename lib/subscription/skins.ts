@@ -15,8 +15,12 @@ export type SkinPalette = {
   accent: string;
   /** A softer accent for hovers / secondary emphasis. */
   accentSoft: string;
-  /** Ink color that reads on the accent (button text). */
+  /** Ink color that reads on the accent (badges / small chips). */
   onAccent: string;
+  /** Ink color that reads on buttonBg (the CTA button text). Tracked separately
+   *  from onAccent because buttonBg can be dark even when accent is light — using
+   *  onAccent here would put dark text on a dark button (invisible). */
+  onButton: string;
   /** Membership-card background (full CSS background value; may be layered gradients). */
   cardBg: string;
   /** Foreground ink used on the card. */
@@ -50,6 +54,7 @@ export const SKINS: Record<SkinId, Skin> = {
       accent: "#4c86e0",
       accentSoft: "#7fb0f0",
       onAccent: "#ffffff",
+      onButton: "#ffffff", // white on the medium-blue button
       cardBg:
         "radial-gradient(120% 80% at 80% 0%, rgba(120,170,240,0.28), transparent 55%), linear-gradient(150deg, #16386f 0%, #0d2650 45%, #0a1a38 100%)",
       cardInk: "#eaf2ff",
@@ -63,6 +68,7 @@ export const SKINS: Record<SkinId, Skin> = {
       accent: "#d9b45a",
       accentSoft: "#f0d488",
       onAccent: "#1a1305",
+      onButton: "#1a1305", // dark ink on the light-gold button
       cardBg:
         "radial-gradient(120% 80% at 78% 4%, rgba(240,212,136,0.32), transparent 52%), linear-gradient(150deg, #1c160a 0%, #120d05 55%, #0a0803 100%)",
       cardInk: "#f7eccf",
@@ -82,6 +88,7 @@ export const SKINS: Record<SkinId, Skin> = {
       accent: "#29c2e6",
       accentSoft: "#7fe0f5",
       onAccent: "#04222b",
+      onButton: "#04222b", // dark ink on the bright cyan→blue button
       cardBg:
         "radial-gradient(120% 90% at 82% 0%, rgba(41,194,230,0.5), transparent 55%), linear-gradient(150deg, #0e6fb8 0%, #0a3a6e 50%, #071f3e 100%)",
       cardInk: "#e6fbff",
@@ -95,6 +102,7 @@ export const SKINS: Record<SkinId, Skin> = {
       accent: "#b06cf0",
       accentSoft: "#e0559c",
       onAccent: "#2a0a34",
+      onButton: "#ffffff", // white on the medium-dark purple button
       cardBg:
         "radial-gradient(130% 100% at 20% 0%, rgba(224,85,156,0.5), transparent 50%), radial-gradient(120% 90% at 90% 20%, rgba(176,108,240,0.55), transparent 55%), linear-gradient(150deg, #6d2bd6 0%, #3a1370 55%, #1a0a34 100%)",
       cardInk: "#faeeff",
@@ -114,6 +122,7 @@ export const SKINS: Record<SkinId, Skin> = {
       accent: "#8fa0bd",
       accentSoft: "#c7d2e2",
       onAccent: "#0c0f15",
+      onButton: "#e6ebf3", // light platinum ink on the near-black button
       cardBg:
         "radial-gradient(120% 80% at 85% 0%, rgba(120,150,200,0.16), transparent 55%), linear-gradient(150deg, #1c2735 0%, #131820 55%, #0c0f15 100%)",
       cardInk: "#e6ebf3",
@@ -127,6 +136,7 @@ export const SKINS: Record<SkinId, Skin> = {
       accent: "#7a5cff",
       accentSoft: "#a08cff",
       onAccent: "#0a0713",
+      onButton: "#eef0f4", // light platinum ink on the near-black button
       cardBg:
         "radial-gradient(120% 90% at 82% 6%, rgba(122,92,255,0.22), transparent 52%), linear-gradient(150deg, #16121f 0%, #100c17 55%, #08070b 100%)",
       cardInk: "#eef0f4",

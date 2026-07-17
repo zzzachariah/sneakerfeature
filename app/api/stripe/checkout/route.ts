@@ -16,10 +16,11 @@ function siteOrigin(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL || "https://snkrfeature.com").replace(/\/$/, "");
 }
 
-// Creates an EMBEDDED Checkout Session for the signed-in member and returns its
-// client_secret. One-time payment (mode: "payment") — durations are "time
-// passes" fulfilled by our own expiry logic, not Stripe subscriptions, which
-// also keeps Alipay / WeChat Pay (one-time methods) usable.
+// Creates a HOSTED Checkout Session for the signed-in member and returns its
+// url — the client redirects the browser to Stripe's hosted page. One-time
+// payment (mode: "payment") — durations are "time passes" fulfilled by our own
+// expiry logic, not Stripe subscriptions, which also keeps Alipay / WeChat Pay
+// usable. Enabled payment methods come from the account's Dashboard settings.
 export async function POST(request: Request) {
   const profile = await getCurrentProfile();
   if (!profile) {
@@ -62,22 +63,18 @@ export async function POST(request: Request) {
     }
 
     const metadata = { userId: profile.id, tier, duration };
+    const origin = siteOrigin();
     const session = await stripe.checkout.sessions.create({
-      // This SDK's pinned API version names the embedded checkout ui_mode
-      // "embedded_page"; its client_secret initializes Stripe.js EmbeddedCheckout.
-      ui_mode: "embedded_page",
       mode: "payment",
       line_items: [{ price: priceId, quantity: 1 }],
-      // WeChat Pay needs the client hint; card / Alipay come from the account's
-      // enabled payment methods in the Dashboard.
-      payment_method_options: { wechat_pay: { client: "web" } },
       client_reference_id: profile.id,
       metadata,
       payment_intent_data: { metadata },
-      return_url: `${siteOrigin()}/subscribe/complete?session_id={CHECKOUT_SESSION_ID}`
+      success_url: `${origin}/subscribe/complete?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/subscribe`
     });
 
-    return NextResponse.json({ ok: true, clientSecret: session.client_secret });
+    return NextResponse.json({ ok: true, url: session.url });
   } catch (error) {
     console.error("[stripe/checkout] failed", error);
     return NextResponse.json({ ok: false, message: "创建支付会话失败，请重试。" }, { status: 500 });
