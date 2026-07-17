@@ -68,6 +68,28 @@ export async function captureCardToBlob(node: HTMLElement): Promise<Blob> {
   );
 }
 
+// Generic capture for a node whose size isn't the fixed shoe-card canvas (e.g.
+// the membership card). Measures the node's own rect so the PNG matches whatever
+// aspect the caller laid out.
+export async function captureNodeToBlob(node: HTMLElement, scale = PIXEL_RATIO): Promise<Blob> {
+  const { domToBlob } = await import("modern-screenshot");
+  await waitForFonts();
+  await waitForImages(node);
+  await new Promise((r) => setTimeout(r, 16));
+  const rect = node.getBoundingClientRect();
+  return withTimeout(
+    domToBlob(node, {
+      scale,
+      width: Math.ceil(rect.width),
+      height: Math.ceil(rect.height),
+      type: "image/png",
+      quality: 1,
+    }),
+    45000,
+    "node capture"
+  );
+}
+
 export function triggerDownload(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

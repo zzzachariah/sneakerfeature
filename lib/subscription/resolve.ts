@@ -54,6 +54,17 @@ export function parseMemberPrefs(raw: unknown): MemberPrefs {
   return { skin, homeOrder, menu, modelPref };
 }
 
+// A stable, decorative 8-digit "member number" derived from the user id, shown
+// on the membership card (e.g. "0042 1337"). Purely cosmetic — deterministic per
+// user so it never changes, but carries no meaning and is safe to display.
+export function memberSerial(userId: string): string {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) >>> 0;
+  const a = (h % 10000).toString().padStart(4, "0");
+  const b = (Math.floor(h / 10000) % 10000).toString().padStart(4, "0");
+  return `${a} ${b}`;
+}
+
 export function memberContextFromRow(row: SubscriptionRow): MemberContext {
   const { tier, expired } = resolveTier(row);
   return {

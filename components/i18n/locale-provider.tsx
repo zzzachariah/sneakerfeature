@@ -1203,7 +1203,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "valid until": "有效期至",
   "manage membership": "管理会员",
   "upgrade": "升级",
-  "unlock stronger ai models, precise sizing, and luxury skins.": "解锁更强的 AI 选鞋模型、逐款精准尺码与专属奢华皮肤。"
+  "unlock stronger ai models, precise sizing, and luxury skins.": "解锁更强的 AI 选鞋模型、逐款精准尺码与专属奢华皮肤。",
+  "sharing…": "生成中…"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef } from "react";
 
 export function useTilt(maxDeg = 5) {
   const rafRef = useRef(0);
-  const pending = useRef<{ el: HTMLElement; tx: number; ty: number } | null>(null);
+  const pending = useRef<{ el: HTMLElement; tx: number; ty: number; fx: number; fy: number } | null>(null);
 
   useEffect(() => {
     return () => {
@@ -25,6 +25,10 @@ export function useTilt(maxDeg = 5) {
     if (!p) return;
     p.el.style.setProperty("--tilt-y", `${p.ty}deg`);
     p.el.style.setProperty("--tilt-x", `${p.tx}deg`);
+    // Normalized pointer position (0–100%) so a holographic foil layer can track
+    // the light source to the cursor. Kept in sync with the same rAF tick.
+    p.el.style.setProperty("--foil-x", `${p.fx}%`);
+    p.el.style.setProperty("--foil-y", `${p.fy}%`);
   }, []);
 
   const onPointerMove = useCallback(
@@ -36,7 +40,7 @@ export function useTilt(maxDeg = 5) {
       const rect = el.getBoundingClientRect();
       const nx = (e.clientX - rect.left) / rect.width - 0.5;
       const ny = (e.clientY - rect.top) / rect.height - 0.5;
-      pending.current = { el, ty: nx * maxDeg * 2, tx: ny * -maxDeg * 2 };
+      pending.current = { el, ty: nx * maxDeg * 2, tx: ny * -maxDeg * 2, fx: (nx + 0.5) * 100, fy: (ny + 0.5) * 100 };
       if (!rafRef.current) rafRef.current = requestAnimationFrame(flush);
     },
     [flush, maxDeg]
@@ -51,6 +55,8 @@ export function useTilt(maxDeg = 5) {
     const el = e.currentTarget;
     el.style.setProperty("--tilt-x", "0deg");
     el.style.setProperty("--tilt-y", "0deg");
+    el.style.setProperty("--foil-x", "50%");
+    el.style.setProperty("--foil-y", "50%");
   }, []);
 
   return { onPointerMove, onPointerLeave };
