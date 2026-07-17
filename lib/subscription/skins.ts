@@ -11,8 +11,11 @@ export type SkinId = "sapphire" | "aurora" | "obsidian";
 export const DEFAULT_SKIN: SkinId = "sapphire";
 
 export type SkinPalette = {
-  /** Primary accent — badges, buttons, active states. */
+  /** Primary accent — badges, buttons, active states. Tuned for dark grounds. */
   accent: string;
+  /** Accent tuned for LIGHT backgrounds so accent-colored text / icons / rings
+   *  keep AA contrast (e.g. gold darkened to bronze). Falls back to `accent`. */
+  accentLight?: string;
   /** A softer accent for hovers / secondary emphasis. */
   accentSoft: string;
   /** Ink color that reads on the accent (badges / small chips). */
@@ -52,6 +55,7 @@ export const SKINS: Record<SkinId, Skin> = {
     blurb: "永不过时：深蓝宝石的沉稳，配黑金的经典。低调，但一眼看得出贵。",
     pro: {
       accent: "#4c86e0",
+      accentLight: "#3a72c9",
       accentSoft: "#7fb0f0",
       onAccent: "#ffffff",
       onButton: "#ffffff", // white on the medium-blue button
@@ -66,6 +70,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     max: {
       accent: "#d9b45a",
+      accentLight: "#a9812a",
       accentSoft: "#f0d488",
       onAccent: "#1a1305",
       onButton: "#1a1305", // dark ink on the light-gold button
@@ -86,6 +91,7 @@ export const SKINS: Record<SkinId, Skin> = {
     blurb: "科技奢侈：Pro 是发光的电蓝到青，Max 是紫到品红的极光渐变，像会呼吸的全息卡。",
     pro: {
       accent: "#29c2e6",
+      accentLight: "#0f86a6",
       accentSoft: "#7fe0f5",
       onAccent: "#04222b",
       onButton: "#04222b", // dark ink on the bright cyan→blue button
@@ -100,6 +106,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     max: {
       accent: "#b06cf0",
+      accentLight: "#8b46d6",
       accentSoft: "#e0559c",
       onAccent: "#2a0a34",
       onButton: "#ffffff", // white on the medium-dark purple button
@@ -120,6 +127,7 @@ export const SKINS: Record<SkinId, Skin> = {
     blurb: "安静的奢侈：几乎全黑，靠极细金属线与微妙点缀。黑卡气质，懂的人才懂。",
     pro: {
       accent: "#8fa0bd",
+      accentLight: "#5b6b86",
       accentSoft: "#c7d2e2",
       onAccent: "#0c0f15",
       onButton: "#e6ebf3", // light platinum ink on the near-black button
@@ -134,6 +142,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     max: {
       accent: "#7a5cff",
+      accentLight: "#5b3fe0",
       accentSoft: "#a08cff",
       onAccent: "#0a0713",
       onButton: "#eef0f4", // light platinum ink on the near-black button
