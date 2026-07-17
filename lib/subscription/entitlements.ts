@@ -164,3 +164,71 @@ export async function saveMemberPrefs(userId: string, patch: Partial<MemberPrefs
     .eq("id", userId);
   return next;
 }
+
+// --- Paid-checkout grant (Stripe) ------------------------------------------
+
+// Grant a membership from a completed Stripe payment. Mirrors the admin grant's
+// stacking rule (extend the SAME non-permanent tier from its remaining time;
+// switching tier or going permanent resets from now) but records the action as
+// a payment rather than an admin edit. Idempotency is enforced by the caller
+// (lib/stripe/fulfill.ts) via the stripe_payments session claim, so this must
+// only ever run once per checkout session.
+export async function grantFromPayment(
+  userId: string,
+  tier: "pro" | "max",
+  duration: Duration,
+  payment: { sessionId: string; amountTotal: number | null; currency: string | null }
+): Promise<GrantResult> {
+  const db = createAdminClient();
+  if (!db) throw new Error("Service-role client unavailable");
+
+  const { data: current } = await db
+    .from("profiles")
+    .select("subscription_tier, subscription_expires_at, subscription_is_permanent, username")
+    .eq("id", userId)
+    .maybeSingle();
+
+  const sameTier = current?.subscription_tier === tier;
+  const notPermanent = !current?.subscription_is_permanent;
+  const remaining =
+    sameTier && notPermanent && current?.subscription_expires_at
+      ? new Date(current.subscription_expires_at)
+      : new Date();
+  const base = remaining.getTime() > Date.now() ? remaining : new Date();
+  const { expiresAt, permanent } = computeExpiry(duration, base);
+
+  await db
+    .from("profiles")
+    .update({
+      subscription_tier: tier,
+      subscription_started_at: new Date().toISOString(),
+      subscription_expires_at: expiresAt,
+      subscription_is_permanent: permanent,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", userId);
+
+  // Seed / refresh the allowance row so premium usage works immediately.
+  await getAllowanceBalance(userId, tier);
+
+  // Best-effort audit trail — actor is the payment, not an admin.
+  const { error: auditError } = await db.from("admin_audit_logs").insert({
+    actor_admin_id: null,
+    target_type: "profile",
+    action: `subscription:stripe:${current?.subscription_tier ?? "free"}->${tier}`,
+    note: `@${current?.username ?? userId}: ${tier} (${duration}) via Stripe ${payment.sessionId}`,
+    before_payload: { tier: current?.subscription_tier ?? "free" },
+    after_payload: {
+      tier,
+      duration,
+      expiresAt,
+      permanent,
+      session: payment.sessionId,
+      amount: payment.amountTotal,
+      currency: payment.currency
+    }
+  });
+  if (auditError) console.warn("[entitlements] payment audit skipped:", auditError.message);
+
+  return { tier, expiresAt, permanent };
+}

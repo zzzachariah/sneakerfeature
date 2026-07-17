@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { MemberBadge } from "@/components/subscribe/member-badge";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
@@ -114,15 +115,17 @@ export function AccountMenu({ className }: { className?: string }) {
                   <UserPlus className="h-4 w-4" />
                   {translate("Sign up")}
                 </Link>
-                <Link
-                  href="/subscribe"
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
-                >
-                  <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
-                  {translate("Membership")}
-                </Link>
+                {SUBSCRIBE_LIVE && (
+                  <Link
+                    href="/subscribe"
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                  >
+                    <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
+                    {translate("Membership")}
+                  </Link>
+                )}
               </>
             ) : (
               <>
@@ -157,16 +160,18 @@ export function AccountMenu({ className }: { className?: string }) {
                   {translate("Saved shoes")}
                 </Link>
 
-                <Link
-                  href="/subscribe"
-                  prefetch={true}
-                  role="menuitem"
-                  onClick={() => setOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
-                >
-                  <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
-                  {translate("Membership")}
-                </Link>
+                {(SUBSCRIBE_LIVE || isAdmin) && (
+                  <Link
+                    href="/subscribe"
+                    prefetch={true}
+                    role="menuitem"
+                    onClick={() => setOpen(false)}
+                    className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                  >
+                    <Crown className="h-4 w-4" style={{ color: "#d9b45a" }} />
+                    {translate("Membership")}
+                  </Link>
+                )}
 
                 {isAdmin && (
                   <Link

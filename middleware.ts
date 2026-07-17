@@ -50,6 +50,9 @@ function hasAuthCookie(request: NextRequest) {
 function isCrossOriginAllowedApi(pathname: string) {
   return (
     pathname.startsWith("/api/auth/send-email-hook") ||
+    // Stripe webhook — server-to-server POST verified by STRIPE_WEBHOOK_SECRET
+    // signature in the handler.
+    pathname === "/api/stripe/webhook" ||
     pathname === "/api/cron/weekly-digest" ||
     pathname === "/api/translate" ||
     /^\/api\/announcements\/[^/]+\/view$/.test(pathname)
