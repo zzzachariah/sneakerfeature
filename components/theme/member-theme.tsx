@@ -21,7 +21,7 @@
 
 import { useEffect } from "react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
-import { hexToRgbTriple, skinPalette } from "@/lib/subscription/skins";
+import { darkenHex, hexToRgbTriple, skinPalette } from "@/lib/subscription/skins";
 import { isPaidTier } from "@/lib/subscription/tiers";
 
 const BRAND_DARK_KEY = "sf-member-brand-dark";
@@ -29,7 +29,7 @@ const BRAND_LIGHT_KEY = "sf-member-brand-light";
 const CONTRAST_KEY = "sf-member-brand-contrast";
 
 export function MemberThemeApplier() {
-  const { tier, skin, loaded } = useAuthState();
+  const { tier, skin, customAccent, loaded } = useAuthState();
 
   useEffect(() => {
     if (!loaded) return;
@@ -52,8 +52,11 @@ export function MemberThemeApplier() {
     }
 
     const pal = skinPalette(skin, tier);
-    const dark = hexToRgbTriple(pal.accent);
-    const light = hexToRgbTriple(pal.accentLight ?? pal.accent);
+    // A Max member's custom "Signature" accent overrides the skin accent
+    // site-wide; the light variant is derived by darkening so it stays legible.
+    const custom = tier === "max" && customAccent ? customAccent : null;
+    const dark = hexToRgbTriple(custom ?? pal.accent);
+    const light = hexToRgbTriple(custom ? darkenHex(custom) : pal.accentLight ?? pal.accent);
     const contrast = hexToRgbTriple(pal.onAccent);
 
     const isDark = () => {
@@ -87,7 +90,7 @@ export function MemberThemeApplier() {
       mo.disconnect();
       mq.removeEventListener?.("change", apply);
     };
-  }, [tier, skin, loaded]);
+  }, [tier, skin, customAccent, loaded]);
 
   return null;
 }

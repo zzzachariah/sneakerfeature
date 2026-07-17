@@ -13,7 +13,17 @@ export type MemberPrefs = {
   menu: string[];
   /** Preferred model for AI: "base" or "premium". */
   modelPref: "base" | "premium";
+  /** Max-only "Signature" custom accent hex (e.g. "#e0559c"); null = use skin. */
+  customAccent: string | null;
 };
+
+/** Validate + normalize a custom accent hex ("#rrggbb"); null if not a 6-digit hex. */
+export function normalizeAccentHex(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  const m = /^#?([0-9a-f]{6})$/i.exec(t);
+  return m ? `#${m[1].toLowerCase()}` : null;
+}
 
 export type SubscriptionRow = {
   subscription_tier?: string | null;
@@ -51,7 +61,8 @@ export function parseMemberPrefs(raw: unknown): MemberPrefs {
   const homeOrder = Array.isArray(obj.homeOrder) ? obj.homeOrder.filter((x): x is string => typeof x === "string") : [];
   const menu = Array.isArray(obj.menu) ? obj.menu.filter((x): x is string => typeof x === "string") : [];
   const modelPref = obj.modelPref === "premium" ? "premium" : "base";
-  return { skin, homeOrder, menu, modelPref };
+  const customAccent = normalizeAccentHex(obj.customAccent);
+  return { skin, homeOrder, menu, modelPref, customAccent };
 }
 
 // A stable, decorative 8-digit "member number" derived from the user id, shown

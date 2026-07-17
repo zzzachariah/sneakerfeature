@@ -13,7 +13,13 @@ const schema = z.object({
   skin: z.enum(["sapphire", "aurora", "obsidian"]).optional(),
   modelPref: z.enum(["base", "premium"]).optional(),
   homeOrder: z.array(z.string().max(64)).max(40).optional(),
-  menu: z.array(z.string().max(64)).max(40).optional()
+  menu: z.array(z.string().max(64)).max(40).optional(),
+  // Max-only "Signature" accent. Six-digit hex, or null to clear.
+  customAccent: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .nullable()
+    .optional()
 });
 
 export async function POST(request: Request) {
@@ -37,8 +43,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
 
+  // A custom "Signature" accent is a Max-only perk — silently drop it for Pro so
+  // a crafted request can't grant it. Admins may set it for testing.
+  const patch = { ...parsed.data };
+  if (patch.customAccent !== undefined && member.tier !== "max" && profile.role !== "admin") {
+    delete patch.customAccent;
+  }
+
   try {
-    const prefs = await saveMemberPrefs(profile.id, parsed.data);
+    const prefs = await saveMemberPrefs(profile.id, patch);
     return NextResponse.json({ ok: true, prefs });
   } catch (error) {
     console.error("[member/prefs] save failed", error);

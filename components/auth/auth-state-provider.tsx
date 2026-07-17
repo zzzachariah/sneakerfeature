@@ -16,6 +16,9 @@ type AuthState = {
   isAdmin: boolean;
   tier: Tier;
   skin: SkinId;
+  /** Max-only custom accent hex, or null. Threaded through so site-wide theming
+   *  and badges can honor a member's "Signature" color. */
+  customAccent: string | null;
   loaded: boolean;
 };
 
@@ -28,12 +31,13 @@ const DEFAULT_STATE: AuthState = {
   isAdmin: false,
   tier: "free",
   skin: DEFAULT_SKIN,
+  customAccent: null,
   loaded: false
 };
 
 const AuthStateContext = createContext<AuthState>(DEFAULT_STATE);
 
-type CachedRole = { username: string | null; isAdmin: boolean; tier?: Tier; skin?: SkinId };
+type CachedRole = { username: string | null; isAdmin: boolean; tier?: Tier; skin?: SkinId; customAccent?: string | null };
 
 // Cached in localStorage (NOT sessionStorage) so a returning member opening a
 // NEW tab resolves as their real tier/skin on first paint — sessionStorage is
@@ -48,7 +52,7 @@ function readCachedRole(userId: string): CachedRole | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedRole;
     if (typeof parsed?.isAdmin !== "boolean") return null;
-    return { username: parsed.username ?? null, isAdmin: parsed.isAdmin, tier: parsed.tier, skin: parsed.skin };
+    return { username: parsed.username ?? null, isAdmin: parsed.isAdmin, tier: parsed.tier, skin: parsed.skin, customAccent: parsed.customAccent ?? null };
   } catch {
     return null;
   }
@@ -94,6 +98,7 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
         isAdmin: cached?.isAdmin ?? false,
         tier: cached?.tier ?? "free",
         skin: cached?.skin ?? DEFAULT_SKIN,
+        customAccent: cached?.customAccent ?? null,
         loaded: true
       });
 
@@ -114,6 +119,7 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
       // Seed tier/skin from the cache so a failed sub-read also can't downgrade.
       let tier: Tier = isAdmin ? "max" : cached?.tier ?? "free";
       let skin: SkinId = cached?.skin ?? DEFAULT_SKIN;
+      let customAccent: string | null = cached?.customAccent ?? null;
       try {
         const { data: sub, error: subError } = await sb
           .from("profiles")
@@ -122,14 +128,16 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
         if (!cancelled && !subError && sub) {
           tier = isAdmin ? "max" : resolveTier(sub).tier; // admins get Max treatment in the UI
-          skin = parseMemberPrefs(sub.member_prefs).skin;
+          const prefs = parseMemberPrefs(sub.member_prefs);
+          skin = prefs.skin;
+          customAccent = prefs.customAccent;
         }
       } catch {
         /* keep the cache-seeded tier/skin above */
       }
       if (cancelled) return;
 
-      writeCachedRole(userId, { username, isAdmin, tier, skin });
+      writeCachedRole(userId, { username, isAdmin, tier, skin, customAccent });
       setState({
         session,
         signedIn: true,
@@ -139,6 +147,7 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         tier,
         skin,
+        customAccent,
         loaded: true
       });
     }

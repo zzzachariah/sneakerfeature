@@ -13,8 +13,11 @@ import {
   type Tier,
   type Duration
 } from "@/lib/subscription/tiers";
-import { SKINS, SKIN_ORDER, skinPalette, type SkinId } from "@/lib/subscription/skins";
+import { SKINS, SKIN_ORDER, skinPalette, hexToRgbTriple, darkenHex, type SkinId } from "@/lib/subscription/skins";
 import { MembershipCard } from "@/components/subscribe/membership-card";
+
+// Preset "Signature" accents Max members can pick from (or use the color wheel).
+const SIGNATURE_PRESETS = ["#e0559c", "#29c2e6", "#7a5cff", "#d9b45a", "#ff6e40", "#38d39f", "#f0456b", "#12b886"];
 
 export type SubscribeCurrent = {
   signedIn: boolean;
@@ -23,6 +26,7 @@ export type SubscribeCurrent = {
   isPermanent: boolean;
   expiresAt: string | null;
   skin: SkinId;
+  customAccent: string | null;
   homeOrder: string[];
 };
 
@@ -96,6 +100,35 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ skin: id })
+    }).catch(() => {});
+  }
+
+  const [customAccent, setCustomAccent] = useState<string | null>(current.customAccent);
+  const canSignature = current.tier === "max" || current.isAdmin;
+
+  // Push the accent to the whole page immediately for live feedback; null clears
+  // back to the chosen skin's accent. MemberThemeApplier persists it on next sync.
+  function applyBrandLive(hex: string | null) {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const isDark =
+      root.classList.contains("dark") ||
+      (!root.classList.contains("light") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const maxPal = skinPalette(skin, "max");
+    const dark = hex ?? maxPal.accent;
+    const light = hex ? darkenHex(hex) : maxPal.accentLight ?? maxPal.accent;
+    const triple = hexToRgbTriple(isDark ? dark : light);
+    if (triple) root.style.setProperty("--brand", triple);
+  }
+
+  function chooseAccent(hex: string | null) {
+    setCustomAccent(hex);
+    applyBrandLive(hex);
+    if (!canSignature) return;
+    void fetch("/api/member/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ customAccent: hex })
     }).catch(() => {});
   }
 
@@ -397,6 +430,61 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
             <h2 className="text-lg font-semibold tracking-tight">会员个性化</h2>
             <span className="text-xs soft-text">仅 Pro / Max</span>
           </div>
+
+          {canSignature && (
+            <div className="mb-4 rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev))] p-5">
+              <div className="mb-2 flex items-center gap-2">
+                <Palette className="h-4 w-4" style={{ color: TIERS.max.badgeHue }} />
+                <p className="text-sm font-medium">专属签名色</p>
+                <span
+                  className="rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+                  style={{ color: TIERS.max.badgeHue, backgroundColor: `${TIERS.max.badgeHue}1f`, border: `1px solid ${TIERS.max.badgeHue}55` }}
+                >
+                  Max
+                </span>
+              </div>
+              <p className="mb-3 text-xs soft-text">
+                为整站挑一个只属于你的强调色——按钮、激活态、焦点环都会跟着它走。选一个预设或用取色器。
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {SIGNATURE_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => chooseAccent(c)}
+                    aria-label={c}
+                    className="h-7 w-7 rounded-full transition"
+                    style={{
+                      background: c,
+                      boxShadow: customAccent?.toLowerCase() === c ? `0 0 0 2px rgb(var(--bg-elev)), 0 0 0 4px ${c}` : "inset 0 0 0 1px rgba(255,255,255,0.2)"
+                    }}
+                  />
+                ))}
+                <label
+                  className="relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-[rgb(var(--muted)/0.6)]"
+                  aria-label="自定义取色"
+                >
+                  <Palette className="h-3.5 w-3.5 soft-text" />
+                  <input
+                    type="color"
+                    value={customAccent ?? skinPalette(skin, "max").accent}
+                    onChange={(e) => chooseAccent(e.target.value)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                  />
+                </label>
+                {customAccent && (
+                  <button
+                    type="button"
+                    onClick={() => chooseAccent(null)}
+                    className="ml-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-1 text-xs soft-text transition hover:bg-[rgb(var(--text)/0.05)]"
+                  >
+                    重置
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev))] p-5">
             <p className="mb-3 text-sm font-medium">首页板块顺序</p>
             <ul className="flex flex-col gap-2">

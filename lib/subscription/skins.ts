@@ -184,3 +184,13 @@ export function hexToRgbTriple(hex: string): string | null {
   const int = parseInt(h, 16);
   return `${(int >> 16) & 255} ${(int >> 8) & 255} ${int & 255}`;
 }
+
+// Darken a hex color by `amount` (0–1), used to derive a light-mode-safe variant
+// of a member's custom "Signature" accent so it stays legible on white.
+export function darkenHex(hex: string, amount = 0.28): string {
+  const triple = hexToRgbTriple(hex);
+  if (!triple) return hex;
+  const [r, g, b] = triple.split(" ").map(Number);
+  const f = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
+  return `#${[f(r), f(g), f(b)].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+}
