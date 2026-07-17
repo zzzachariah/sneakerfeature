@@ -77,6 +77,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, url: session.url });
   } catch (error) {
     console.error("[stripe/checkout] failed", error);
-    return NextResponse.json({ ok: false, message: "创建支付会话失败，请重试。" }, { status: 500 });
+    // Surface the underlying Stripe reason so config problems (test/live key
+    // mismatch, inactive account, no enabled payment methods) are visible in the
+    // UI. Safe while /subscribe is admin-only (NEXT_PUBLIC_SUBSCRIBE_LIVE unset);
+    // tighten this once checkout is open to the public.
+    const detail =
+      error && typeof error === "object" && "message" in error
+        ? String((error as { message?: unknown }).message ?? "")
+        : "";
+    return NextResponse.json(
+      { ok: false, message: detail ? `创建支付会话失败：${detail}` : "创建支付会话失败，请重试。" },
+      { status: 500 }
+    );
   }
 }
