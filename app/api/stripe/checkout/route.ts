@@ -13,7 +13,10 @@ const schema = z.object({
 });
 
 function siteOrigin(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL || "https://snkrfeature.com").replace(/\/$/, "");
+  const raw = (process.env.NEXT_PUBLIC_SITE_URL || "https://snkrfeature.com").trim().replace(/\/+$/, "");
+  // Stripe requires an explicit scheme on success/cancel URLs. Tolerate a
+  // scheme-less env value (e.g. "snkrfeature.com") by defaulting to https.
+  return /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
 }
 
 // Creates a HOSTED Checkout Session for the signed-in member and returns its
