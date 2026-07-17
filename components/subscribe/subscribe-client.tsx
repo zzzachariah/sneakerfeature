@@ -14,6 +14,7 @@ import {
   type Duration
 } from "@/lib/subscription/tiers";
 import { SKINS, SKIN_ORDER, skinPalette, type SkinId } from "@/lib/subscription/skins";
+import { MembershipCard } from "@/components/subscribe/membership-card";
 
 export type SubscribeCurrent = {
   signedIn: boolean;
@@ -25,61 +26,16 @@ export type SubscribeCurrent = {
   homeOrder: string[];
 };
 
-// One luxury membership card, themed by the chosen skin + tier palette.
-function MembershipCard({ tier, skin, active }: { tier: "pro" | "max"; skin: SkinId; active: boolean }) {
-  const p = skinPalette(skin, tier);
-  const cfg = TIERS[tier];
-  const reduce = useReducedMotion();
-  return (
-    <div
-      className="relative aspect-[1.586/1] w-full overflow-hidden rounded-2xl p-5"
-      style={{
-        background: p.cardBg,
-        color: p.cardInk,
-        boxShadow: active
-          ? `0 30px 60px -24px rgba(0,0,0,0.6), 0 0 0 1px ${p.accent}55, inset 0 1px 0 rgba(255,255,255,0.12)`
-          : "0 20px 44px -26px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.1)"
-      }}
-    >
-      {/* Sheen */}
-      {!reduce && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(125deg, rgba(255,255,255,0.24) 0%, rgba(255,255,255,0) 34%, rgba(255,255,255,0) 62%, rgba(255,255,255,0.1) 100%)",
-            mixBlendMode: "screen"
-          }}
-          animate={{ x: ["-4%", "4%", "-4%"] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
-      <div className="relative flex h-full flex-col justify-between">
-        <div className="flex items-start justify-between">
-          <span className="text-[0.7rem] font-bold uppercase tracking-[0.22em]" style={{ color: p.accentSoft }}>
-            {cfg.name}
-          </span>
-          <span className="text-[0.7rem] tracking-wide" style={{ opacity: 0.7 }}>
-            sneakerfeature
-          </span>
-        </div>
-        <div
-          className="h-7 w-10 rounded-md"
-          style={{ background: `linear-gradient(135deg, ${p.accentSoft}, ${p.accent})`, opacity: 0.85 }}
-        />
-        <div className="text-lg font-semibold tracking-tight">Member</div>
-        <div className="flex items-end justify-between">
-          <span className="text-2xl leading-none" style={{ color: p.accentSoft }} aria-hidden>
-            {p.emblem}
-          </span>
-          <span className="text-[0.65rem] uppercase tracking-[0.14em]" style={{ opacity: 0.7 }}>
-            {tier === "max" ? "Signature" : "Member"}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
+// Percentage saved vs paying month-to-month, for a given tier+duration. Returns
+// null for the monthly baseline (nothing saved) and for permanent (no monthly
+// equivalent to compare against).
+function savingsPct(tier: "pro" | "max", duration: Duration): number | null {
+  if (duration === "monthly" || duration === "permanent") return null;
+  const monthly = priceFor(tier, "monthly");
+  const equiv = monthlyEquivalent(tier, duration);
+  if (monthly == null || equiv == null || monthly <= 0) return null;
+  const pct = Math.round((1 - equiv / monthly) * 100);
+  return pct > 0 ? pct : null;
 }
 
 function priceLabel(tier: "pro" | "max", duration: Duration): { price: string; per: string | null } {
@@ -106,6 +62,14 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const [pending, setPending] = useState<"pro" | "max" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reduce = useReducedMotion();
+
+  // The duration that saves the most vs month-to-month (Pro as the reference),
+  // surfaced as a "最划算" tag on the toggle. Computed from the pricing table so
+  // it tracks any future price change instead of hard-coding "yearly".
+  const bestValueDuration: Duration = (["quarterly", "yearly"] as Duration[]).reduce(
+    (best, d) => ((savingsPct("pro", d) ?? 0) > (savingsPct("pro", best) ?? 0) ? d : best),
+    "yearly" as Duration
+  );
 
   const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
 
@@ -247,6 +211,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         <div className="mx-auto flex w-fit items-center gap-1 rounded-full border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--surface))] p-1">
           {DURATIONS.map((d) => {
             const active = duration === d.id;
+            const isBest = d.id === bestValueDuration;
             return (
               <button
                 key={d.id}
@@ -264,6 +229,18 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                   />
                 )}
                 <span className="relative">{d.label}</span>
+                {isBest && (
+                  <span
+                    className="pointer-events-none absolute -right-1.5 -top-2 rounded-full px-1.5 py-0.5 text-[0.55rem] font-bold leading-none tracking-wide"
+                    style={{
+                      color: "#1a1305",
+                      background: "linear-gradient(135deg, #f0d488, #b8912f)",
+                      boxShadow: "0 4px 10px -4px rgba(0,0,0,0.5)"
+                    }}
+                  >
+                    最划算
+                  </span>
+                )}
               </button>
             );
           })}
@@ -276,6 +253,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           const cfg = TIERS[tier];
           const pal = skinPalette(skin, tier);
           const { price, per } = priceLabel(tier, duration);
+          const saved = savingsPct(tier, duration);
           return (
             <motion.div
               key={tier}
@@ -289,14 +267,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               viewport={{ once: true }}
               transition={{ duration: 0.5, delay: i * 0.08, ease: [0.22, 1, 0.36, 1] }}
             >
-              {tier === "max" && (
-                <span
-                  className="absolute right-5 top-5 rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-widest"
-                  style={{ color: cfg.badgeHue, backgroundColor: `${cfg.badgeHue}1f`, border: `1px solid ${cfg.badgeHue}55` }}
-                >
-                  旗舰
-                </span>
-              )}
+              <span
+                className="absolute right-5 top-5 rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-widest"
+                style={{ color: cfg.badgeHue, backgroundColor: `${cfg.badgeHue}1f`, border: `1px solid ${cfg.badgeHue}55` }}
+              >
+                {tier === "max" ? "旗舰" : "最受欢迎"}
+              </span>
               <div className="mb-5 max-w-[260px]">
                 <MembershipCard tier={tier} skin={skin} active />
               </div>
@@ -321,6 +297,14 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                   </motion.span>
                 </AnimatePresence>
                 {per && <span className="pb-1 text-xs soft-text">{per}</span>}
+                {saved != null && (
+                  <span
+                    className="mb-1 rounded-full px-2 py-0.5 text-[0.65rem] font-bold"
+                    style={{ color: cfg.badgeHue, backgroundColor: `${cfg.badgeHue}1f`, border: `1px solid ${cfg.badgeHue}44` }}
+                  >
+                    省 {saved}%
+                  </span>
+                )}
               </div>
 
               <div

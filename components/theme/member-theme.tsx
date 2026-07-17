@@ -64,6 +64,6 @@ export function MemberThemeApplier() {
 export function MemberThemeInitScript({ nonce }: { nonce?: string }) {
   // Fail-safe: an empty catch means a storage error just leaves the default
   // brand token untouched — the site can never end up unstyled.
-  const code = `(() => { try { var b = localStorage.getItem('${BRAND_KEY}'); var c = localStorage.getItem('${CONTRAST_KEY}'); var r = document.documentElement; if (b) r.style.setProperty('--brand', b); if (c) r.style.setProperty('--brand-contrast', c); } catch (e) {} })();`;
+  const code = `(() => { try { var b = localStorage.getItem('${BRAND_KEY}'); var c = localStorage.getItem('${CONTRAST_KEY}'); var r = document.documentElement; if (b) { r.style.setProperty('--brand', b); r.setAttribute('data-member-skin', '1'); } if (c) r.style.setProperty('--brand-contrast', c); } catch (e) {} })();`;
   return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
 }

@@ -9,6 +9,8 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { MemberBadge } from "@/components/subscribe/member-badge";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
+import { isPaidTier } from "@/lib/subscription/tiers";
+import { skinPalette } from "@/lib/subscription/skins";
 import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
@@ -16,6 +18,10 @@ export function AccountMenu({ className }: { className?: string }) {
   const { signedIn, isAdmin, username, email, tier, skin, loaded } = useAuthState();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Paid members get a faint skin-accent halo on the avatar + a skin-tinted
+  // presence dot, so their status reads at a glance from the top bar.
+  const memberPal = isPaidTier(tier) ? skinPalette(skin, tier) : null;
 
   const label = signedIn ? username || email?.split("@")[0] || "Account" : translate("Account");
 
@@ -70,16 +76,18 @@ export function AccountMenu({ className }: { className?: string }) {
           aria-expanded={open}
           aria-label={label}
           className={cn(
-            "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
+            "relative inline-flex h-9 w-9 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color,box-shadow] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8",
             className
           )}
+          style={memberPal ? { boxShadow: `0 0 0 1px ${memberPal.badgeBorder}, 0 0 12px -3px ${memberPal.accent}` } : undefined}
         >
-          <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" />
+          <UserCircle className="h-[20px] w-[20px] md:h-[18px] md:w-[18px]" style={memberPal ? { color: memberPal.accent } : undefined} />
           <span className="sr-only" data-user-identity="true">{label}</span>
           {signedIn ? (
             <span
               aria-hidden
-              className="absolute bottom-[4px] right-[4px] h-1.5 w-1.5 rounded-full bg-[rgb(var(--text))] ring-2 ring-[rgb(var(--bg))]"
+              className="absolute bottom-[4px] right-[4px] h-1.5 w-1.5 rounded-full ring-2 ring-[rgb(var(--bg))]"
+              style={{ backgroundColor: memberPal ? memberPal.accent : "rgb(var(--text))" }}
             />
           ) : null}
         </button>

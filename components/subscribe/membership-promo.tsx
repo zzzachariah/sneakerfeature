@@ -14,9 +14,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Crown, Sparkles, Ruler, Palette, ChevronRight } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { MembershipCard } from "@/components/subscribe/membership-card";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { isPaidTier } from "@/lib/subscription/tiers";
+import { DEFAULT_SKIN } from "@/lib/subscription/skins";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 
 const SEEN_KEY = "sf-membership-promo-seen";
@@ -92,18 +94,14 @@ export function MembershipPromo() {
   return (
     <Modal open={open} onClose={dismiss} title="" dismissible zIndexClass="z-[115]">
       <div className="relative flex flex-col">
-        <div
-          className="flex h-12 w-12 items-center justify-center rounded-2xl"
-          style={{
-            background: `linear-gradient(135deg, ${GOLD}, #b8912f)`,
-            color: "#1a1305",
-            boxShadow: `0 12px 30px -14px ${GOLD}aa`
-          }}
-        >
-          <Crown className="h-6 w-6" aria-hidden />
+        {/* The Max card itself, as the hero — a taste of what membership looks
+            like. Non-interactive here (no tilt) so it stays calm in the modal. */}
+        <div className="mx-auto mb-5 w-[62%] max-w-[220px]">
+          <MembershipCard tier="max" skin={DEFAULT_SKIN} interactive={false} active />
         </div>
 
-        <p className="mt-4 text-xs font-semibold uppercase tracking-[0.22em]" style={{ color: GOLD }}>
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.22em]" style={{ color: GOLD }}>
+          <Crown className="h-3.5 w-3.5" aria-hidden />
           {zh ? "会员" : "Membership"}
         </p>
         <h2 className="mt-2 text-[1.55rem] font-bold leading-[1.18] tracking-[-0.018em]">

@@ -12,6 +12,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { isPaidTier, TIERS } from "@/lib/subscription/tiers";
 import { skinPalette } from "@/lib/subscription/skins";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
+import { haptics } from "@/lib/native/haptics";
 
 const GOLD = "#d9b45a";
 
@@ -25,7 +26,7 @@ export function UpgradeNav() {
   if (!loaded) return null;
 
   const base =
-    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8";
+    "group relative inline-flex h-9 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-3 text-xs font-semibold transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8";
 
   if (isPaidTier(tier)) {
     const pal = skinPalette(skin, tier);
@@ -34,11 +35,12 @@ export function UpgradeNav() {
       <Link
         href="/subscribe"
         aria-label={zh ? "会员" : "Membership"}
+        onClick={() => haptics.tap()}
         className={base}
         style={{ color: pal.badgeInk, backgroundColor: pal.badgeFill, border: `1px solid ${pal.badgeBorder}` }}
       >
-        <span aria-hidden>{cfg.badgeGlyph}</span>
-        {cfg.name}
+        <span className="relative" aria-hidden>{cfg.badgeGlyph}</span>
+        <span className="relative">{cfg.name}</span>
       </Link>
     );
   }
@@ -47,11 +49,12 @@ export function UpgradeNav() {
     <Link
       href="/subscribe"
       aria-label={zh ? "升级会员" : "Upgrade"}
-      className={base}
+      onClick={() => haptics.tap()}
+      className={`${base} upgrade-shine`}
       style={{ background: `linear-gradient(135deg, ${GOLD}, #b8912f)`, color: "#1a1305" }}
     >
-      <Crown className="h-3.5 w-3.5" aria-hidden />
-      {zh ? "升级会员" : "Upgrade"}
+      <Crown className="relative h-3.5 w-3.5 transition-transform duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5 group-hover:scale-110" aria-hidden />
+      <span className="relative">{zh ? "升级会员" : "Upgrade"}</span>
     </Link>
   );
 }
