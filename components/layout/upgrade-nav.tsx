@@ -26,7 +26,7 @@ export function UpgradeNav() {
   if (!loaded) return null;
 
   const base =
-    "group relative inline-flex h-9 shrink-0 items-center gap-1.5 overflow-hidden rounded-full px-3 text-xs font-semibold transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8";
+    "group relative inline-flex h-9 shrink-0 items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full px-2.5 text-xs font-semibold transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:px-3";
 
   if (isPaidTier(tier)) {
     const pal = skinPalette(skin, tier);
