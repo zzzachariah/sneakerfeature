@@ -13,6 +13,7 @@ import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
+import { MembershipPanel } from "@/components/dashboard/membership-panel";
 import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
 import { HapticsToggle } from "@/components/preferences/haptics-toggle";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
@@ -715,6 +716,8 @@ function OverviewSlide({
           </p>
         )}
       </div>
+
+      <MembershipPanel />
 
       <Stagger className="grid gap-4 md:grid-cols-3" gap={0.07}>
         <StaggerItem><StatTile label={translate("My comments")} value={commentsCount} loading={loading} /></StaggerItem>

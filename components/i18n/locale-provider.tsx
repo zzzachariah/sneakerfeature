@@ -1193,7 +1193,17 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "please add a title.": "请填写标题。",
   "unexpected response.": "服务器响应异常。",
   "failed to save.": "保存失败。",
-  "saved to your dashboard.": "已保存到你的面板。"
+  "saved to your dashboard.": "已保存到你的面板。",
+
+  // Membership (account card + nav entries)
+  "membership": "会员中心",
+  "member": "会员",
+  "free plan": "免费版",
+  "permanent": "永久",
+  "valid until": "有效期至",
+  "manage membership": "管理会员",
+  "upgrade": "升级",
+  "unlock stronger ai models, precise sizing, and luxury skins.": "解锁更强的 AI 选鞋模型、逐款精准尺码与专属奢华皮肤。"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {

@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { GitCompare, Home, Plus, Shield, Sparkles, UserCircle } from "lucide-react";
+import { Crown, GitCompare, Home, Plus, Shield, Sparkles, UserCircle } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { haptics } from "@/lib/native/haptics";
 
 type Tab = {
-  href: "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin";
+  href: "/" | "/compare" | "/smart-picker" | "/submit" | "/subscribe" | "/dashboard" | "/admin";
   label: string;
   icon: typeof Home;
   match: (pathname: string) => boolean;
@@ -55,6 +56,15 @@ const TABS: Tab[] = [
   },
 ];
 
+// Gated like the AccountMenu's membership link: hidden until subscriptions go
+// live, but always visible to admins so they can test the checkout end-to-end.
+const MEMBER_TAB: Tab = {
+  href: "/subscribe",
+  label: "Member",
+  icon: Crown,
+  match: (p) => p === "/subscribe" || p.startsWith("/subscribe/"),
+};
+
 const ADMIN_TAB: Tab = {
   href: "/admin",
   label: "Admin",
@@ -68,8 +78,14 @@ export function MobileBottomNav() {
   const { translate } = useLocale();
   const reduce = useReducedMotion();
 
-  const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS;
+  const tabs = [...TABS];
+  // Membership sits just before Account, mirroring the account-menu ordering.
+  if (SUBSCRIBE_LIVE || isAdmin) tabs.splice(tabs.length - 1, 0, MEMBER_TAB);
+  if (isAdmin) tabs.push(ADMIN_TAB);
   const activeIdx = tabs.findIndex((t) => t.match(pathname));
+  // Six-plus tabs (member and/or admin) only fit on narrow phones with a
+  // slightly tighter cell; five keep the roomier original width.
+  const cell = tabs.length > 5 ? "h-[52px] w-[46px]" : "h-[52px] w-[52px]";
 
   return (
     // Full-width wrapper is click-through; only the centered capsule is interactive.
@@ -90,7 +106,7 @@ export function MobileBottomNav() {
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 onClick={() => haptics.selection()}
-                className={`group relative flex h-[52px] w-[52px] select-none flex-col items-center justify-center gap-[3px] rounded-2xl transition-colors duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                className={`group relative flex ${cell} select-none flex-col items-center justify-center gap-[3px] rounded-2xl transition-colors duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   active ? "text-[rgb(var(--text))]" : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
                 }`}
               >
