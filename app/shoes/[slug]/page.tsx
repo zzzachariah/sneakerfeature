@@ -86,7 +86,11 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     const member = await getMemberContext(profile.id);
     const canUse = isAdmin || member.config.capabilities.preciseSizing;
     if (!canUse) {
-      sizeData = { state: "gated" };
+      // Highest-intent upsell: if this free user has already scanned their feet,
+      // their size for THIS shoe is computable now — surface that it exists
+      // (locked), without ever sending the number to the client.
+      const foot = await getFootProfile(profile.id);
+      sizeData = { state: "gated", hasScan: Boolean(foot?.foot_length_mm) };
     } else {
       const [fit, foot] = await Promise.all([getShoeFit(shoe.id), getFootProfile(profile.id)]);
       adminFit = fit;

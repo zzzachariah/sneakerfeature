@@ -10,7 +10,7 @@ const GOLD = TIERS.max.badgeHue;
 
 export type SizeAdvisorData =
   | { state: "signed-out" }
-  | { state: "gated" }
+  | { state: "gated"; hasScan?: boolean }
   | { state: "no-profile" }
   | { state: "advice"; advice: SizeAdvice };
 
@@ -66,6 +66,44 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
   }
 
   if (data.state === "gated") {
+    // A free user who has ALREADY scanned their feet is the highest-intent case:
+    // the answer for this exact shoe is computable right now. We deliberately do
+    // NOT send the number to the client — only the fact that it exists, blurred —
+    // so the paywall can't be bypassed by reading the DOM.
+    if (data.hasScan) {
+      return (
+        <SectionShell>
+          <p className="text-sm soft-text">
+            我们已根据你的脚型，算好了这双鞋的<span style={{ color: GOLD }}>建议尺码、宽度与楦型提示</span>。
+          </p>
+          <div className="relative mt-4 overflow-hidden rounded-xl border" style={{ borderColor: `${GOLD}33` }}>
+            <div className="flex items-center gap-3 p-4" aria-hidden>
+              <div className="select-none blur-[7px]">
+                <div className="num-display text-2xl font-bold tracking-tight">US 10.5</div>
+                <div className="mt-1 text-xs soft-text">宽度匹配 · 楦型合适 · 建议系法……</div>
+              </div>
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-[rgb(var(--bg-elev)/0.35)]">
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
+                style={{ color: "#1a1305", background: `linear-gradient(135deg, ${GOLD}, #b8912f)` }}
+              >
+                <Crown className="h-3.5 w-3.5" /> 解锁查看
+              </span>
+            </div>
+          </div>
+          {SUBSCRIBE_LIVE && (
+            <Link
+              href="/subscribe"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition active:scale-[0.99]"
+              style={{ background: `linear-gradient(135deg, ${GOLD}, #b8912f)`, color: "#1a1305" }}
+            >
+              <Crown className="h-4 w-4" /> 解锁我的尺码 <ChevronRight className="h-4 w-4" />
+            </Link>
+          )}
+        </SectionShell>
+      );
+    }
     return (
       <SectionShell>
         <p className="text-sm soft-text">

@@ -1204,7 +1204,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "manage membership": "管理会员",
   "upgrade": "升级",
   "unlock stronger ai models, precise sizing, and luxury skins.": "解锁更强的 AI 选鞋模型、逐款精准尺码与专属奢华皮肤。",
-  "sharing…": "生成中…"
+  "sharing…": "生成中…",
+  "out of credits? go unlimited with pro.": "额度用完了？开通 Pro，基础推理不限次。"
 };
 
 export const MANUAL_TRANSLATIONS: Record<string, string> = {
