@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { Check, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
+import { Check, Crown, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
@@ -16,6 +16,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { NAV_ORDER } from "@/lib/nav-order";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { useCookieConsent } from "@/components/consent/cookie-consent";
 import { CONTACT_EMAIL } from "@/lib/legal/content";
 
@@ -333,6 +334,18 @@ export function Navbar() {
                   <Download className="h-4 w-4 shrink-0" />
                   {zh ? "下载 App" : "Get the app"}
                 </Link>
+
+                {(SUBSCRIBE_LIVE || isAdmin) && (
+                  <Link
+                    href="/subscribe"
+                    prefetch={true}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <Crown className="h-4 w-4 shrink-0" style={{ color: "#d9b45a" }} />
+                    {translate("Membership")}
+                  </Link>
+                )}
 
                 <Link
                   href="/search/advanced"
