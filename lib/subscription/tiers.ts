@@ -131,7 +131,10 @@ export const TIERS: Record<Tier, TierConfig> = {
   }
 };
 
-// --- Durations & pricing (¥, RMB) ------------------------------------------
+// --- Durations & pricing (HK$) ---------------------------------------------
+// Display currency for all prices. Charged in HKD via Stripe.
+export const CURRENCY = "HK$";
+
 export type DurationConfig = {
   id: Duration;
   label: string;
@@ -146,7 +149,8 @@ export const DURATIONS: DurationConfig[] = [
   { id: "permanent", label: "永久", days: null }
 ];
 
-// Price matrix (¥). Confirmed with the owner.
+// Price matrix (HK$). One-time "time pass" prices — the app fulfils the
+// duration via subscription_expires_at; Stripe is not billing recurring.
 export const PRICING: Record<Exclude<Tier, "free">, Record<Duration, number>> = {
   pro: { monthly: 18, quarterly: 48, yearly: 148, permanent: 398 },
   max: { monthly: 45, quarterly: 118, yearly: 368, permanent: 998 }
@@ -165,7 +169,7 @@ export function priceFor(tier: Tier, duration: Duration): number | null {
   return PRICING[tier][duration];
 }
 
-/** Effective monthly price for display ("≈ ¥X / 月"); permanent has none. */
+/** Effective monthly price for display ("≈ HK$X / 月"); permanent has none. */
 export function monthlyEquivalent(tier: Tier, duration: Duration): number | null {
   const price = priceFor(tier, duration);
   const dur = DURATIONS.find((d) => d.id === duration);

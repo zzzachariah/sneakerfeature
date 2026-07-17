@@ -7,12 +7,14 @@ import { HOME_SECTIONS, resolveHomeOrder, type HomeSectionId } from "@/lib/home/
 import {
   TIERS,
   DURATIONS,
+  CURRENCY,
   priceFor,
   monthlyEquivalent,
   type Tier,
   type Duration
 } from "@/lib/subscription/tiers";
 import { SKINS, SKIN_ORDER, skinPalette, type SkinId } from "@/lib/subscription/skins";
+import { CheckoutSheet } from "@/components/subscribe/checkout-sheet";
 
 export type SubscribeCurrent = {
   signedIn: boolean;
@@ -85,8 +87,8 @@ function priceLabel(tier: "pro" | "max", duration: Duration): { price: string; p
   const price = priceFor(tier, duration);
   const perMonth = monthlyEquivalent(tier, duration);
   return {
-    price: price == null ? "—" : `¥${price}`,
-    per: duration === "permanent" ? "一次买断" : perMonth != null ? `≈ ¥${perMonth} / 月` : null
+    price: price == null ? "—" : `${CURRENCY}${price}`,
+    per: duration === "permanent" ? "一次买断" : perMonth != null ? `≈ ${CURRENCY}${perMonth} / 月` : null
   };
 }
 
@@ -102,7 +104,7 @@ const BENEFIT_ROWS: { icon: typeof Zap; label: string; free: string; pro: string
 export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const [duration, setDuration] = useState<Duration>("yearly");
   const [skin, setSkin] = useState<SkinId>(current.skin);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [checkout, setCheckout] = useState<{ tier: "pro" | "max"; duration: Duration } | null>(null);
   const reduce = useReducedMotion();
 
   const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
@@ -136,12 +138,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const fade = reduce ? {} : { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } };
 
   function onSubscribe(tier: "pro" | "max") {
-    if (current.isAdmin) {
-      setNotice("你是管理员 —— 前往「后台 › Members」即可给任意用户（包括自己）手动开通 Pro/Max。在线支付即将上线。");
-      return;
-    }
-    const label = `${TIERS[tier].name} · ${DURATIONS.find((d) => d.id === duration)?.label}`;
-    setNotice(`已记录你对 ${label} 的开通意向。目前开通由管理员手动完成，在线支付即将上线 —— 可通过站点底部「联系」告知你的用户名与想要的档位。`);
+    // Open the embedded Stripe checkout for the currently selected duration.
+    setCheckout({ tier, duration });
   }
 
   return (
@@ -345,18 +343,14 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         })}
       </section>
 
-      <AnimatePresence>
-        {notice && (
-          <motion.div
-            className="mt-6 rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--surface))] p-4 text-sm soft-text"
-            initial={reduce ? undefined : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-          >
-            {notice}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {checkout && (
+        <CheckoutSheet
+          tier={checkout.tier}
+          duration={checkout.duration}
+          title={`${TIERS[checkout.tier].name} · ${DURATIONS.find((d) => d.id === checkout.duration)?.label ?? ""}`}
+          onClose={() => setCheckout(null)}
+        />
+      )}
 
       {/* Benefit matrix */}
       <motion.section className="mt-14" {...fade} transition={{ duration: 0.5 }}>

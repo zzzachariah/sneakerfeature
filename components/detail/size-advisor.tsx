@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Ruler, Crown, ScanLine, LogIn, ChevronRight, Check, TriangleAlert } from "lucide-react";
 import type { SizeAdvice, WidthVerdictLevel } from "@/lib/foot-scan/fit-advisor";
 import { TIERS } from "@/lib/subscription/tiers";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 
 const GOLD = TIERS.max.badgeHue;
 
@@ -70,13 +71,15 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
         <p className="text-sm soft-text">
           逐款精准尺码是 <span style={{ color: GOLD }}>Pro / Max</span> 专属：结合你的脚型扫描，给出这双鞋的建议尺码、宽度与楦型提示。
         </p>
-        <Link
-          href="/subscribe"
-          className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition active:scale-[0.99]"
-          style={{ background: `linear-gradient(135deg, ${GOLD}, #b8912f)`, color: "#1a1305" }}
-        >
-          <Crown className="h-4 w-4" /> 解锁精准尺码 <ChevronRight className="h-4 w-4" />
-        </Link>
+        {SUBSCRIBE_LIVE && (
+          <Link
+            href="/subscribe"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition active:scale-[0.99]"
+            style={{ background: `linear-gradient(135deg, ${GOLD}, #b8912f)`, color: "#1a1305" }}
+          >
+            <Crown className="h-4 w-4" /> 解锁精准尺码 <ChevronRight className="h-4 w-4" />
+          </Link>
+        )}
       </SectionShell>
     );
   }
