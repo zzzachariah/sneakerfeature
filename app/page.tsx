@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { HomeView } from "@/components/home/home-view";
+import { MembershipPromo } from "@/components/subscribe/membership-promo";
 import { PageLoader } from "@/components/ui/page-loader";
 import { getForYouData } from "@/lib/personalize/for-you-data";
 import { buildCollections } from "@/lib/home/collections";
@@ -93,6 +94,7 @@ export default function HomePage({ searchParams }: { searchParams: Promise<{ q?:
       <Suspense fallback={<PageLoader label="Loading" />}>
         <HomeContent searchParams={searchParams} />
       </Suspense>
+      <MembershipPromo />
     </main>
   );
 }

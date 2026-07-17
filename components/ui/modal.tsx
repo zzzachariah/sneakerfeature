@@ -43,6 +43,7 @@ export function Modal({
     <AnimatePresence>
       {open && (
         <motion.div
+          data-modal-open="true"
           className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-[rgb(var(--glass-overlay)/0.4)] backdrop-blur-[16px]`}
           // Reserve the full top nav bar and bottom tab bar footprints (not just
           // the raw safe-area insets) so the dialog never sits under the top nav

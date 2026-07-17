@@ -161,3 +161,17 @@ export function skinPalette(skin: SkinId, tier: Tier): SkinPalette {
   // subscribe page still shows them).
   return tier === "max" ? s.max : s.pro;
 }
+
+// "#4c86e0" → "76 134 224": the space-separated RGB triple the theme system
+// expects so a skin accent can drive a CSS custom property consumed as
+// `rgb(var(--brand))`. Returns null for anything that isn't a 3/6-digit hex so
+// callers can fall back to the default token. Used to apply a member's chosen
+// skin site-wide (see components/theme/member-theme.tsx).
+export function hexToRgbTriple(hex: string): string | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  let h = m[1];
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const int = parseInt(h, 16);
+  return `${(int >> 16) & 255} ${(int >> 8) & 255} ${int & 255}`;
+}

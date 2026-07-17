@@ -31,6 +31,7 @@ import {
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
+import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { LanguageFirstRun } from "@/components/i18n/language-first-run";
@@ -98,6 +99,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <ThemeInitScript />
         <SkinInitScript />
+        <MemberThemeInitScript />
         <GlassFilterDefs />
         <CapacitorBridge />
         <ServiceWorkerRegister />
@@ -107,6 +109,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
+              <MemberThemeApplier />
               <FavoritesProvider>
               <RatingFocusProvider>
                 <PersonaProvider>

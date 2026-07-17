@@ -1,0 +1,57 @@
+"use client";
+
+// Top-bar membership entry. Non-members (free / signed-out) get a gold
+// "Upgrade" pill; Pro / Max members instead see their current plan (themed by
+// their chosen skin), both linking to /subscribe. Hidden entirely when the
+// membership surface is switched off. Rendered in the navbar's right cluster.
+
+import Link from "next/link";
+import { Crown } from "lucide-react";
+import { useAuthState } from "@/components/auth/auth-state-provider";
+import { useLocale } from "@/components/i18n/locale-provider";
+import { isPaidTier, TIERS } from "@/lib/subscription/tiers";
+import { skinPalette } from "@/lib/subscription/skins";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
+
+const GOLD = "#d9b45a";
+
+export function UpgradeNav() {
+  const { tier, skin, loaded } = useAuthState();
+  const { locale } = useLocale();
+  const zh = locale === "zh";
+
+  if (!SUBSCRIBE_LIVE) return null;
+  // Wait until we know the tier so members never see a flash of "Upgrade".
+  if (!loaded) return null;
+
+  const base =
+    "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-transform duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8";
+
+  if (isPaidTier(tier)) {
+    const pal = skinPalette(skin, tier);
+    const cfg = TIERS[tier];
+    return (
+      <Link
+        href="/subscribe"
+        aria-label={zh ? "会员" : "Membership"}
+        className={base}
+        style={{ color: pal.badgeInk, backgroundColor: pal.badgeFill, border: `1px solid ${pal.badgeBorder}` }}
+      >
+        <span aria-hidden>{cfg.badgeGlyph}</span>
+        {cfg.name}
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      href="/subscribe"
+      aria-label={zh ? "升级会员" : "Upgrade"}
+      className={base}
+      style={{ background: `linear-gradient(135deg, ${GOLD}, #b8912f)`, color: "#1a1305" }}
+    >
+      <Crown className="h-3.5 w-3.5" aria-hidden />
+      {zh ? "升级会员" : "Upgrade"}
+    </Link>
+  );
+}
