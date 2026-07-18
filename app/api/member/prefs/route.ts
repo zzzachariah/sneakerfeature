@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentProfile } from "@/lib/data/auth";
 import { getMemberContext, saveMemberPrefs } from "@/lib/subscription/entitlements";
+import { isMaxExclusiveSkin } from "@/lib/subscription/skins";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export const dynamic = "force-dynamic";
 // menu customization. Personalization is a paid-tier perk, so free members are
 // refused (admins always allowed, for testing).
 const schema = z.object({
-  skin: z.enum(["sapphire", "aurora", "obsidian"]).optional(),
+  skin: z.enum(["sapphire", "aurora", "obsidian", "champion"]).optional(),
   modelPref: z.enum(["base", "premium"]).optional(),
   homeOrder: z.array(z.string().max(64)).max(40).optional(),
   menu: z.array(z.string().max(64)).max(40).optional(),
@@ -46,8 +47,13 @@ export async function POST(request: Request) {
   // A custom "Signature" accent is a Max-only perk — silently drop it for Pro so
   // a crafted request can't grant it. Admins may set it for testing.
   const patch = { ...parsed.data };
-  if (patch.customAccent !== undefined && member.tier !== "max" && profile.role !== "admin") {
+  const isMax = member.tier === "max" || profile.role === "admin";
+  if (patch.customAccent !== undefined && !isMax) {
     delete patch.customAccent;
+  }
+  // Max-exclusive / limited skins can't be applied by Pro members.
+  if (patch.skin !== undefined && isMaxExclusiveSkin(patch.skin) && !isMax) {
+    delete patch.skin;
   }
 
   try {

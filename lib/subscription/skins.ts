@@ -6,9 +6,17 @@
 
 import type { Tier } from "@/lib/subscription/tiers";
 
-export type SkinId = "sapphire" | "aurora" | "obsidian";
+export type SkinId = "sapphire" | "aurora" | "obsidian" | "champion";
 
 export const DEFAULT_SKIN: SkinId = "sapphire";
+
+// Max-exclusive / limited skins. Pro members can preview them but can't apply
+// them; the server enforces this too (see app/api/member/prefs/route.ts).
+export const MAX_EXCLUSIVE_SKINS: ReadonlySet<SkinId> = new Set<SkinId>(["champion"]);
+
+export function isMaxExclusiveSkin(id: SkinId): boolean {
+  return MAX_EXCLUSIVE_SKINS.has(id);
+}
 
 export type SkinPalette = {
   /** Primary accent — badges, buttons, active states. Tuned for dark grounds. */
@@ -159,13 +167,50 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeInk: "#e6e2ff",
       emblem: "❖"
     }
+  },
+  champion: {
+    id: "champion",
+    name: "赛季限定 · 王者金",
+    nameEn: "Championship Gold",
+    blurb: "赛季限定：黑金冠冕，为夺冠时刻而生。仅 Max 会员可用。",
+    blurbEn: "Seasonal drop: black-and-gold regalia built for the trophy moment. Max members only.",
+    pro: {
+      accent: "#d4a12a",
+      accentLight: "#9a7420",
+      accentSoft: "#f0cf74",
+      onAccent: "#1a1305",
+      onButton: "#1a1305",
+      cardBg:
+        "radial-gradient(120% 80% at 80% 0%, rgba(240,207,116,0.28), transparent 55%), linear-gradient(150deg, #3a1410 0%, #24100a 50%, #140805 100%)",
+      cardInk: "#f7e6c4",
+      buttonBg: "linear-gradient(135deg, #f0cf74, #b8912f)",
+      badgeFill: "rgba(212,161,42,0.16)",
+      badgeBorder: "rgba(212,161,42,0.5)",
+      badgeInk: "#f4e2b0",
+      emblem: "♛"
+    },
+    max: {
+      accent: "#ffce4a",
+      accentLight: "#b8892a",
+      accentSoft: "#ffe38a",
+      onAccent: "#1a1305",
+      onButton: "#1a1305",
+      cardBg:
+        "radial-gradient(120% 80% at 78% 4%, rgba(255,206,74,0.34), transparent 52%), linear-gradient(150deg, #1a1206 0%, #0e0a03 55%, #060402 100%)",
+      cardInk: "#fff0cf",
+      buttonBg: "linear-gradient(135deg, #ffe38a, #c99a2a)",
+      badgeFill: "rgba(255,206,74,0.18)",
+      badgeBorder: "rgba(255,206,74,0.55)",
+      badgeInk: "#ffeec0",
+      emblem: "♛"
+    }
   }
 };
 
-export const SKIN_ORDER: SkinId[] = ["sapphire", "aurora", "obsidian"];
+export const SKIN_ORDER: SkinId[] = ["sapphire", "aurora", "obsidian", "champion"];
 
 export function isSkinId(v: unknown): v is SkinId {
-  return v === "sapphire" || v === "aurora" || v === "obsidian";
+  return v === "sapphire" || v === "aurora" || v === "obsidian" || v === "champion";
 }
 
 export function skinPalette(skin: SkinId, tier: Tier): SkinPalette {

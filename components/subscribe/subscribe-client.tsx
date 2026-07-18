@@ -14,7 +14,8 @@ import {
   type Tier,
   type Duration
 } from "@/lib/subscription/tiers";
-import { SKINS, SKIN_ORDER, skinPalette, hexToRgbTriple, darkenHex, type SkinId } from "@/lib/subscription/skins";
+import { SKINS, SKIN_ORDER, skinPalette, hexToRgbTriple, darkenHex, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
+import { Lock } from "lucide-react";
 import { MembershipCard } from "@/components/subscribe/membership-card";
 
 // Preset "Signature" accents Max members can pick from (or use the color wheel).
@@ -243,16 +244,22 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           <h2 className="text-lg font-semibold tracking-tight">{t("选一套皮肤", "Pick a skin")}</h2>
           <span className="text-xs soft-text">{t("会员可随时在设置里切换", "Members can switch anytime")}</span>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SKIN_ORDER.map((id) => {
             const s = SKINS[id];
             const selected = skin === id;
+            const exclusive = isMaxExclusiveSkin(id);
+            const locked = exclusive && !canSignature;
             return (
               <button
                 key={id}
                 type="button"
-                onClick={() => chooseSkin(id)}
-                className="group relative overflow-hidden rounded-2xl border p-4 text-left transition"
+                onClick={() => {
+                  if (locked) return;
+                  chooseSkin(id);
+                }}
+                aria-disabled={locked}
+                className={`group relative overflow-hidden rounded-2xl border p-4 text-left transition ${locked ? "cursor-not-allowed opacity-70" : ""}`}
                 style={{
                   borderColor: selected ? s.max.accent : "rgb(var(--muted) / 0.4)",
                   boxShadow: selected ? `0 0 0 1px ${s.max.accent}, 0 12px 30px -18px ${s.max.accent}aa` : "none"
@@ -261,16 +268,29 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 <div className="flex items-center gap-2">
                   <span className="h-4 w-4 rounded-full" style={{ background: s.pro.accent }} />
                   <span className="h-4 w-4 rounded-full" style={{ background: s.max.accent }} />
+                  {exclusive && (
+                    <span
+                      className="rounded-full px-1.5 py-0.5 text-[0.5rem] font-bold uppercase tracking-wide"
+                      style={{ color: "#1a1305", background: "linear-gradient(135deg, #ffe38a, #c99a2a)" }}
+                    >
+                      {t("Max 限定", "Max only")}
+                    </span>
+                  )}
                   <span className="ml-auto text-[0.65rem] uppercase tracking-widest soft-text">{s.nameEn}</span>
                 </div>
                 <div className="mt-2 font-medium">{zh ? s.name : s.nameEn}</div>
                 <p className="mt-1 text-xs leading-relaxed soft-text">{zh ? s.blurb : s.blurbEn}</p>
-                {selected && (
+                {selected && !locked && (
                   <span
                     className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full"
                     style={{ background: s.max.accent, color: s.max.onAccent }}
                   >
                     <Check className="h-3 w-3" />
+                  </span>
+                )}
+                {locked && (
+                  <span className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full bg-[rgb(var(--text)/0.1)]">
+                    <Lock className="h-3 w-3 soft-text" />
                   </span>
                 )}
               </button>
