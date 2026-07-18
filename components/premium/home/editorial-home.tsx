@@ -34,8 +34,8 @@ export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, fo
   const { persona } = usePersona();
 
   useNavScrollSections([
-    { id: "home-cover", label: translate("Cover story") },
-    { id: "home-archive", label: translate("The Archive") },
+    { id: "home-cover", label: translate("Cover") },
+    { id: "home-archive", label: translate("Archive") },
   ]);
 
   const byId = new Map(shoes.map((s) => [s.id, s]));
@@ -173,7 +173,7 @@ export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, fo
                 const items = resolveCollection(shoes, c.shoeIds).slice(0, 8);
                 if (items.length === 0) return null;
                 return (
-                  <div key={c.id}>
+                  <div key={c.id} className="min-w-0">
                     <h3 className="pui-display mb-3 text-lg">{translate(c.title)}</h3>
                     <ul className="flex gap-3 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                       {items.map((s, i) => (

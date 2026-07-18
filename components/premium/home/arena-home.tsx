@@ -52,8 +52,8 @@ export function ArenaHome({ shoes, shoesCount, brandsCount, initialQuery, forYou
   const { persona } = usePersona();
 
   useNavScrollSections([
-    { id: "home-hall", label: translate("Hall of Fame") },
-    { id: "home-standings", label: translate("Full standings") },
+    { id: "home-hall", label: translate("Hall") },
+    { id: "home-standings", label: translate("Standings") },
   ]);
 
   // Only hang framed shoes on the wall — an empty "no image" plaque cheapens the

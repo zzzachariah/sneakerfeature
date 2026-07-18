@@ -690,6 +690,9 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
    11 · INSTRUMENT — 中央指挥台 (central command console + mirrored readout rails)
    ───────────────────────────────────────────────────────────────────────────── */
 .pui-command { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: stretch; margin-top: clamp(1.5rem, 4vw, 2.75rem); }
+/* Let the columns shrink below their content (grid items default to min-width:auto),
+   so the console's mono command line truncates instead of widening the whole band. */
+.pui-command > * { min-width: 0; }
 @media (min-width: 920px) {
   .pui-command { grid-template-columns: minmax(150px, 0.82fr) minmax(0, 2.5fr) minmax(150px, 0.82fr); gap: clamp(1.5rem, 3vw, 2.75rem); align-items: center; }
 }
@@ -710,8 +713,12 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
 .pui-console-input .cursor { width: 8px; height: 1.05em; background: rgb(var(--pui-glow)); box-shadow: 0 0 8px rgb(var(--pui-glow)); animation: puiBlink 1.1s steps(1) infinite; }
 @keyframes puiBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pui-console-input .cursor { animation: none; } }
-.pui-reco-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0; }
-.pui-rail--right .pui-reco-row { flex-direction: row-reverse; text-align: right; }
+.pui-reco-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0; min-width: 0; }
+/* Mirror the right rail (thumb on the outer edge) ONLY on desktop, where it sits
+   beside the console. Stacked on mobile it reads as a normal left-aligned list. */
+@media (min-width: 920px) {
+  .pui-rail--right .pui-reco-row { flex-direction: row-reverse; text-align: right; }
+}
 .pui-reco-thumb { width: 44px; height: 44px; flex: none; border-radius: 8px; overflow: hidden; display: grid; place-items: center; border: 1px solid rgb(var(--pui-glow) / 0.22); }
 
 /* ─────────────────────────────────────────────────────────────────────────────

@@ -63,7 +63,7 @@ export function InstrumentHome({ shoes, shoesCount, brandsCount, initialQuery, f
   const [activeId, setActiveId] = useState(collections[0]?.id ?? "");
 
   useNavScrollSections([
-    { id: "home-console", label: translate("Match console") },
+    { id: "home-console", label: translate("Console") },
     { id: "home-grid", label: translate("Database") },
   ]);
 
