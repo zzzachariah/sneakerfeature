@@ -2069,3 +2069,46 @@ html[data-premium="sapphire"] .surface-card,
 html[data-premium="champion"] .surface-card {
   border-color: rgb(var(--gold-line) / 0.5);
 }
+
+/* Premium shoe stages are DARK jewel grounds even in light theme, so — exactly
+   like dark mode — a near-black shoe would blend in. Give the cut-out the same
+   faint light rim in BOTH themes under a premium skin so dark shoes always
+   separate. (Wins over `.dark .shoe-img` by specificity + source order.) */
+html[data-premium] .shoe-img {
+  filter:
+    drop-shadow(0 5px 10px rgb(var(--shoe-shadow) / 0.5))
+    drop-shadow(0 0 1px rgb(255 255 255 / 0.2));
+}
+
+/* Signature "gemstone" glow — a soft skin-tinted highlight pools behind the shoe
+   on its jewel stage (echoes each skin's card treatment in the mockups). Layered
+   over the token-driven hi→lo stage gradient. */
+html[data-premium="sapphire"] .shoe-stage {
+  background:
+    radial-gradient(72% 58% at 50% 26%, rgb(240 212 136 / 0.18), transparent 68%),
+    radial-gradient(118% 118% at 50% 16%, rgb(var(--shoe-stage-hi)) 0%, rgb(var(--shoe-stage-lo)) 72%);
+}
+html[data-premium="aurora"] .shoe-stage {
+  background:
+    radial-gradient(72% 58% at 50% 26%, rgb(41 194 230 / 0.26), transparent 68%),
+    radial-gradient(118% 118% at 50% 16%, rgb(var(--shoe-stage-hi)) 0%, rgb(var(--shoe-stage-lo)) 72%);
+}
+html[data-premium="obsidian"] .shoe-stage {
+  background:
+    radial-gradient(72% 58% at 50% 26%, rgb(200 214 235 / 0.14), transparent 68%),
+    radial-gradient(118% 118% at 50% 16%, rgb(var(--shoe-stage-hi)) 0%, rgb(var(--shoe-stage-lo)) 72%);
+}
+html[data-premium="champion"] .shoe-stage {
+  background:
+    radial-gradient(72% 58% at 50% 26%, rgb(255 206 74 / 0.22), transparent 68%),
+    radial-gradient(118% 118% at 50% 16%, rgb(var(--shoe-stage-hi)) 0%, rgb(var(--shoe-stage-lo)) 72%);
+}
+
+/* Scrolled desktop navbar picks up a faint skin-accent underline so the chrome
+   reads as part of the skin. Desktop-only: the mobile header is intentionally a
+   transparent bar with floating pills, so leave its border untouched. */
+@media (min-width: 768px) {
+  html[data-premium] .glass-nav {
+    border-bottom-color: rgb(var(--brand) / 0.28);
+  }
+}
