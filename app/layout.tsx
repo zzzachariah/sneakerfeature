@@ -31,10 +31,12 @@ import {
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
+import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { LanguageFirstRun } from "@/components/i18n/language-first-run";
 import { AnnouncementModal } from "@/components/announce/announcement-modal";
+import { MembershipRenewalBanner } from "@/components/subscribe/renewal-banner";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
 import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
@@ -98,6 +100,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <ThemeInitScript />
         <SkinInitScript />
+        <MemberThemeInitScript />
         <GlassFilterDefs />
         <CapacitorBridge />
         <ServiceWorkerRegister />
@@ -107,6 +110,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
+              <MemberThemeApplier />
               <FavoritesProvider>
               <RatingFocusProvider>
                 <PersonaProvider>
@@ -116,6 +120,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
                         <Navbar />
                         <NativeTopBar />
+                        <MembershipRenewalBanner />
                         <div className="flex-1">{children}</div>
                         <SiteFooter />
                         <MobileBottomNav />

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ArrowUp, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowUp, ChevronRight, Crown, Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 
 type Props = {
   balance: number;
@@ -78,6 +80,20 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText,
       // env(safe-area-inset-bottom) covers the iOS home indicator — no black bar.
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
+      {/* Peak-intent upsell: a free user is out of credits right when they want
+          another pick. Basic reasoning is unlimited on Pro. */}
+      {insufficient && SUBSCRIBE_LIVE && (
+        <Link
+          href="/subscribe"
+          className="mx-4 mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition active:scale-[0.99]"
+          style={{ background: "linear-gradient(135deg, rgba(217,180,90,0.16), rgba(217,180,90,0.06))", border: "1px solid rgba(217,180,90,0.4)", color: "rgb(var(--text))" }}
+        >
+          <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: "#d9b45a" }} />
+          <span className="flex-1">{translate("Out of credits? Go unlimited with Pro.")}</span>
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: "#d9b45a" }} />
+        </Link>
+      )}
+
       <div className="flex items-end gap-3 px-4 pt-3 pb-0.5">
         {/* Auto-growing textarea — resting height h-10 (2.5rem) with vertically
             centered text so it sits on the same line and the same height as the

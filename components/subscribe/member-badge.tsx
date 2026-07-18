@@ -11,11 +11,11 @@ export function MemberBadge({ tier, skin, className }: { tier: Tier; skin: SkinI
   const cfg = TIERS[tier];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide ${className ?? ""}`}
+      className={`member-badge-shine relative inline-flex items-center gap-1 overflow-hidden rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide ${className ?? ""}`}
       style={{ color: pal.badgeInk, backgroundColor: pal.badgeFill, border: `1px solid ${pal.badgeBorder}` }}
     >
-      <span aria-hidden>{cfg.badgeGlyph}</span>
-      {cfg.name}
+      <span className="relative" aria-hidden>{cfg.badgeGlyph}</span>
+      <span className="relative">{cfg.name}</span>
     </span>
   );
 }

@@ -13,6 +13,7 @@ import { useCookieConsent } from "@/components/consent/cookie-consent";
 import { AboutModal } from "@/components/layout/about-modal";
 import { createClient } from "@/lib/supabase/client";
 import { CONTACT_EMAIL } from "@/lib/legal/content";
+import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 
 // Drives the native iOS glass top bar (UINavigationBar + UIMenu dropdowns). This
 // is how the top gets real Liquid Glass on iOS — the same reason the bottom tab
@@ -64,9 +65,14 @@ export function NativeTopBar() {
       return;
     }
 
+    const membershipNode: NativeMenuNode[] = SUBSCRIBE_LIVE
+      ? [{ key: "nav:/subscribe", label: zh ? "会员" : "Membership", symbol: "crown" }]
+      : [];
+
     const accountMenu: NativeMenuNode[] = signedIn
       ? [
           { key: "nav:/dashboard", label: translate("Dashboard"), symbol: "square.grid.2x2" },
+          ...membershipNode,
           ...(isAdmin ? [{ key: "nav:/admin", label: translate("Admin"), symbol: "shield" }] : []),
           {
             key: "logout",
@@ -77,7 +83,8 @@ export function NativeTopBar() {
         ]
       : [
           { key: "nav:/login", label: translate("Log in"), symbol: "person.crop.circle" },
-          { key: "nav:/signup", label: translate("Sign up"), symbol: "person.badge.plus" }
+          { key: "nav:/signup", label: translate("Sign up"), symbol: "person.badge.plus" },
+          ...membershipNode
         ];
 
     const moreMenu: NativeMenuNode[] = [

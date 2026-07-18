@@ -6,13 +6,24 @@
 
 import type { Tier } from "@/lib/subscription/tiers";
 
-export type SkinId = "sapphire" | "aurora" | "obsidian";
+export type SkinId = "sapphire" | "aurora" | "obsidian" | "champion";
 
 export const DEFAULT_SKIN: SkinId = "sapphire";
 
+// Max-exclusive / limited skins. Pro members can preview them but can't apply
+// them; the server enforces this too (see app/api/member/prefs/route.ts).
+export const MAX_EXCLUSIVE_SKINS: ReadonlySet<SkinId> = new Set<SkinId>(["champion"]);
+
+export function isMaxExclusiveSkin(id: SkinId): boolean {
+  return MAX_EXCLUSIVE_SKINS.has(id);
+}
+
 export type SkinPalette = {
-  /** Primary accent — badges, buttons, active states. */
+  /** Primary accent — badges, buttons, active states. Tuned for dark grounds. */
   accent: string;
+  /** Accent tuned for LIGHT backgrounds so accent-colored text / icons / rings
+   *  keep AA contrast (e.g. gold darkened to bronze). Falls back to `accent`. */
+  accentLight?: string;
   /** A softer accent for hovers / secondary emphasis. */
   accentSoft: string;
   /** Ink color that reads on the accent (badges / small chips). */
@@ -40,6 +51,7 @@ export type Skin = {
   name: string;
   nameEn: string;
   blurb: string;
+  blurbEn: string;
   pro: SkinPalette;
   max: SkinPalette;
 };
@@ -50,8 +62,10 @@ export const SKINS: Record<SkinId, Skin> = {
     name: "蓝宝石 · 香槟金",
     nameEn: "Sapphire & Champagne",
     blurb: "永不过时：深蓝宝石的沉稳，配黑金的经典。低调，但一眼看得出贵。",
+    blurbEn: "Timeless: deep-sapphire poise with classic black-gold. Understated, but unmistakably rich.",
     pro: {
       accent: "#4c86e0",
+      accentLight: "#3a72c9",
       accentSoft: "#7fb0f0",
       onAccent: "#ffffff",
       onButton: "#ffffff", // white on the medium-blue button
@@ -66,6 +80,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     max: {
       accent: "#d9b45a",
+      accentLight: "#a9812a",
       accentSoft: "#f0d488",
       onAccent: "#1a1305",
       onButton: "#1a1305", // dark ink on the light-gold button
@@ -84,8 +99,10 @@ export const SKINS: Record<SkinId, Skin> = {
     name: "极光 · 午夜",
     nameEn: "Aurora Midnight",
     blurb: "科技奢侈：Pro 是发光的电蓝到青，Max 是紫到品红的极光渐变，像会呼吸的全息卡。",
+    blurbEn: "Techno-luxe: Pro glows electric-blue to cyan; Max is a purple-to-magenta aurora, like a breathing holo card.",
     pro: {
       accent: "#29c2e6",
+      accentLight: "#0f86a6",
       accentSoft: "#7fe0f5",
       onAccent: "#04222b",
       onButton: "#04222b", // dark ink on the bright cyan→blue button
@@ -100,6 +117,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     max: {
       accent: "#b06cf0",
+      accentLight: "#8b46d6",
       accentSoft: "#e0559c",
       onAccent: "#2a0a34",
       onButton: "#ffffff", // white on the medium-dark purple button
@@ -118,8 +136,10 @@ export const SKINS: Record<SkinId, Skin> = {
     name: "曜石 · 铂金",
     nameEn: "Obsidian & Platinum",
     blurb: "安静的奢侈：几乎全黑，靠极细金属线与微妙点缀。黑卡气质，懂的人才懂。",
+    blurbEn: "Quiet luxury: near-black, carried by hairline metal and subtle accents. Black-card energy — if you know, you know.",
     pro: {
       accent: "#8fa0bd",
+      accentLight: "#5b6b86",
       accentSoft: "#c7d2e2",
       onAccent: "#0c0f15",
       onButton: "#e6ebf3", // light platinum ink on the near-black button
@@ -134,6 +154,7 @@ export const SKINS: Record<SkinId, Skin> = {
     },
     max: {
       accent: "#7a5cff",
+      accentLight: "#5b3fe0",
       accentSoft: "#a08cff",
       onAccent: "#0a0713",
       onButton: "#eef0f4", // light platinum ink on the near-black button
@@ -146,13 +167,50 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeInk: "#e6e2ff",
       emblem: "❖"
     }
+  },
+  champion: {
+    id: "champion",
+    name: "赛季限定 · 王者金",
+    nameEn: "Championship Gold",
+    blurb: "赛季限定：黑金冠冕，为夺冠时刻而生。仅 Max 会员可用。",
+    blurbEn: "Seasonal drop: black-and-gold regalia built for the trophy moment. Max members only.",
+    pro: {
+      accent: "#d4a12a",
+      accentLight: "#9a7420",
+      accentSoft: "#f0cf74",
+      onAccent: "#1a1305",
+      onButton: "#1a1305",
+      cardBg:
+        "radial-gradient(120% 80% at 80% 0%, rgba(240,207,116,0.28), transparent 55%), linear-gradient(150deg, #3a1410 0%, #24100a 50%, #140805 100%)",
+      cardInk: "#f7e6c4",
+      buttonBg: "linear-gradient(135deg, #f0cf74, #b8912f)",
+      badgeFill: "rgba(212,161,42,0.16)",
+      badgeBorder: "rgba(212,161,42,0.5)",
+      badgeInk: "#f4e2b0",
+      emblem: "♛"
+    },
+    max: {
+      accent: "#ffce4a",
+      accentLight: "#b8892a",
+      accentSoft: "#ffe38a",
+      onAccent: "#1a1305",
+      onButton: "#1a1305",
+      cardBg:
+        "radial-gradient(120% 80% at 78% 4%, rgba(255,206,74,0.34), transparent 52%), linear-gradient(150deg, #1a1206 0%, #0e0a03 55%, #060402 100%)",
+      cardInk: "#fff0cf",
+      buttonBg: "linear-gradient(135deg, #ffe38a, #c99a2a)",
+      badgeFill: "rgba(255,206,74,0.18)",
+      badgeBorder: "rgba(255,206,74,0.55)",
+      badgeInk: "#ffeec0",
+      emblem: "♛"
+    }
   }
 };
 
-export const SKIN_ORDER: SkinId[] = ["sapphire", "aurora", "obsidian"];
+export const SKIN_ORDER: SkinId[] = ["sapphire", "aurora", "obsidian", "champion"];
 
 export function isSkinId(v: unknown): v is SkinId {
-  return v === "sapphire" || v === "aurora" || v === "obsidian";
+  return v === "sapphire" || v === "aurora" || v === "obsidian" || v === "champion";
 }
 
 export function skinPalette(skin: SkinId, tier: Tier): SkinPalette {
@@ -160,4 +218,28 @@ export function skinPalette(skin: SkinId, tier: Tier): SkinPalette {
   // Free members preview the Pro palette (they can't apply skins, but the
   // subscribe page still shows them).
   return tier === "max" ? s.max : s.pro;
+}
+
+// "#4c86e0" → "76 134 224": the space-separated RGB triple the theme system
+// expects so a skin accent can drive a CSS custom property consumed as
+// `rgb(var(--brand))`. Returns null for anything that isn't a 3/6-digit hex so
+// callers can fall back to the default token. Used to apply a member's chosen
+// skin site-wide (see components/theme/member-theme.tsx).
+export function hexToRgbTriple(hex: string): string | null {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return null;
+  let h = m[1];
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const int = parseInt(h, 16);
+  return `${(int >> 16) & 255} ${(int >> 8) & 255} ${int & 255}`;
+}
+
+// Darken a hex color by `amount` (0–1), used to derive a light-mode-safe variant
+// of a member's custom "Signature" accent so it stays legible on white.
+export function darkenHex(hex: string, amount = 0.28): string {
+  const triple = hexToRgbTriple(hex);
+  if (!triple) return hex;
+  const [r, g, b] = triple.split(" ").map(Number);
+  const f = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
+  return `#${[f(r), f(g), f(b)].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
 }

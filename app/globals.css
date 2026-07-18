@@ -1808,3 +1808,83 @@ html.dark { color-scheme: dark; }
   cursor: pointer;
 }
 .qp-range:focus-visible { box-shadow: 0 0 0 3px rgb(var(--ring) / 0.3); }
+
+/* ────────────────────────────────────────────────────────────────────────────
+   Premium membership — deep skin theming + micro-interactions.
+
+   `data-member-skin` is stamped on <html> by MemberThemeApplier only for paid
+   members (Pro / Max). Everything below is scoped to it, so free / signed-out
+   visitors are byte-for-byte unchanged. --brand is already the member's skin
+   accent site-wide; here we let that accent seep into the ambient background,
+   selection, and scrollbar so the whole surface quietly "wears" the skin.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+/* Faint skin-tinted ambient wash behind the app — applies in BOTH themes.
+   Appended last so it wins over the earlier `.app-ambient-bg { background:none }`
+   dark-mode rules (same specificity, later in source). */
+html[data-member-skin] .app-ambient-bg {
+  background:
+    radial-gradient(1100px 520px at 78% -8%, rgb(var(--brand) / 0.07), transparent 60%),
+    radial-gradient(900px 460px at 12% 4%, rgb(var(--brand) / 0.05), transparent 58%);
+}
+
+html[data-member-skin] ::selection {
+  background: rgb(var(--brand) / 0.24);
+}
+html[data-member-skin] ::-webkit-scrollbar-thumb {
+  background: rgb(var(--brand) / 0.55);
+}
+
+/* Member badge — a slow, restrained light sweep across the tier chip. */
+.member-badge-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.45) 48%,
+    rgba(255, 255, 255, 0.55) 52%,
+    transparent 70%
+  );
+  transform: translate3d(-140%, 0, 0) skewX(-18deg);
+  mix-blend-mode: overlay;
+  animation: memberBadgeShine 6.5s var(--ease) infinite;
+}
+@keyframes memberBadgeShine {
+  0%, 82% { transform: translate3d(-140%, 0, 0) skewX(-18deg); opacity: 0; }
+  88% { opacity: 1; }
+  100% { transform: translate3d(240%, 0, 0) skewX(-18deg); opacity: 0; }
+}
+
+/* Upgrade pill — an even slower shine to catch a non-member's eye without
+   nagging. Uses a white glaze over the gold gradient. */
+.upgrade-shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.5) 48%,
+    rgba(255, 255, 255, 0.65) 52%,
+    transparent 70%
+  );
+  transform: translate3d(-160%, 0, 0) skewX(-18deg);
+  animation: upgradeShine 7.5s var(--ease) infinite;
+}
+@keyframes upgradeShine {
+  0%, 80% { transform: translate3d(-160%, 0, 0) skewX(-18deg); opacity: 0; }
+  86% { opacity: 1; }
+  100% { transform: translate3d(260%, 0, 0) skewX(-18deg); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-badge-shine::after,
+  .upgrade-shine::before {
+    animation: none;
+    opacity: 0;
+  }
+}

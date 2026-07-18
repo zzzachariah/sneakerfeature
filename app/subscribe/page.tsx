@@ -30,6 +30,7 @@ export default async function SubscribePage() {
     isPermanent: false,
     expiresAt: null,
     skin: DEFAULT_SKIN,
+    customAccent: null,
     homeOrder: []
   };
 
@@ -42,6 +43,7 @@ export default async function SubscribePage() {
       isPermanent: member.isPermanent,
       expiresAt: member.expiresAt,
       skin: member.prefs.skin,
+      customAccent: member.prefs.customAccent,
       homeOrder: member.prefs.homeOrder
     };
   }

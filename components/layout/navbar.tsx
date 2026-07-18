@@ -9,6 +9,7 @@ import { Check, Crown, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, 
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { UpgradeNav } from "@/components/layout/upgrade-nav";
 import { NavScrollIndicator } from "@/components/layout/nav-scroll-indicator";
 import { AboutModal } from "@/components/layout/about-modal";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -154,6 +155,10 @@ export function Navbar() {
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-1">
+          <span className="mr-0.5 md:mr-1" data-tutorial="nav-upgrade">
+            <UpgradeNav />
+          </span>
+
           <Tooltip label={translate("Search")} className="hidden md:inline-flex">
             <Link
               href="/search/advanced"

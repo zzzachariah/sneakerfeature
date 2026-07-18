@@ -12,6 +12,7 @@ import { ProfileTip } from "@/components/smart-picker/profile-tip";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
+import { AllowanceMeter } from "@/components/smart-picker/allowance-meter";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
@@ -24,6 +25,8 @@ type Props = {
   creditsLoaded: boolean;
   unlimited: boolean;
   checkin: CheckinStatus;
+  allowance: { balance: number; grant: number } | null;
+  initialPrompt?: string;
   chats: AiChatSummary[];
   activeChatId: string | null;
   activeTitle: string | null;
@@ -42,6 +45,8 @@ export function ChatConversation({
   creditsLoaded,
   unlimited,
   checkin,
+  allowance,
+  initialPrompt,
   chats,
   activeChatId,
   activeTitle,
@@ -60,6 +65,15 @@ export function ChatConversation({
   // The `nonce` bumps on every tap so MessageInput re-fills even when the same
   // chip is tapped twice (identical text, so a text-keyed effect would skip it).
   const [prefill, setPrefill] = useState<{ text: string; nonce: number }>({ text: "", nonce: 0 });
+  // Seed the composer once from a deep link (e.g. the Max concierge entry on a
+  // shoe page → /smart-picker?ask=…). The member reviews and hits send, so it
+  // flows through the normal billed pipeline rather than auto-firing.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (seededRef.current || !initialPrompt) return;
+    seededRef.current = true;
+    setPrefill((p) => ({ text: initialPrompt + " ", nonce: p.nonce + 1 }));
+  }, [initialPrompt]);
   const suggestions =
     locale === "zh"
       ? ["适合控卫的强抓地球鞋", "给体重较大球员的稳定支撑", "贴地、适合快速后卫", "室外场耐磨又缓震"]
@@ -150,6 +164,7 @@ export function ChatConversation({
             <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
           )}
         </div>
+        {creditsLoaded && allowance && <AllowanceMeter balance={allowance.balance} grant={allowance.grant} />}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-[var(--container-gutter)] py-4">
