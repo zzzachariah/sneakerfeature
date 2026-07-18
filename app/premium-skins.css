@@ -685,3 +685,51 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
   html[data-premium="aurora"] .reveal-in,
   html[data-premium="champion"] .reveal-in { animation: none; opacity: 1; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   11 · INSTRUMENT — 中央指挥台 (central command console + mirrored readout rails)
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-command { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: stretch; margin-top: clamp(1.5rem, 4vw, 2.75rem); }
+@media (min-width: 920px) {
+  .pui-command { grid-template-columns: minmax(150px, 0.82fr) minmax(0, 2.5fr) minmax(150px, 0.82fr); gap: clamp(1.5rem, 3vw, 2.75rem); align-items: center; }
+}
+.pui-rail { display: flex; flex-direction: column; gap: clamp(1.1rem, 2.4vw, 1.9rem); }
+.pui-rail--right { text-align: left; }
+@media (min-width: 920px) { .pui-rail--right { text-align: right; } }
+.pui-readout { display: flex; flex-direction: column; gap: 0.2rem; }
+.pui-readout .v { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1; }
+.pui-readout .k { font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-console-input {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.86rem;
+  padding: 0.75rem 0.95rem; margin: 1.25rem 0; border-radius: 12px;
+  border: 1px solid rgb(var(--pui-glow) / 0.32); background: rgb(4 14 22 / 0.28); color: rgb(var(--subtext));
+}
+.dark .pui-console-input { background: rgb(0 0 0 / 0.22); }
+.pui-console-input .prompt { color: rgb(var(--pui-glow)); }
+.pui-console-input .cursor { width: 8px; height: 1.05em; background: rgb(var(--pui-glow)); box-shadow: 0 0 8px rgb(var(--pui-glow)); animation: puiBlink 1.1s steps(1) infinite; }
+@keyframes puiBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pui-console-input .cursor { animation: none; } }
+.pui-reco-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0; }
+.pui-rail--right .pui-reco-row { flex-direction: row-reverse; text-align: right; }
+.pui-reco-thumb { width: 44px; height: 44px; flex: none; border-radius: 8px; overflow: hidden; display: grid; place-items: center; border: 1px solid rgb(var(--pui-glow) / 0.22); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   12 · ARENA — 殿堂之墙 (hall-of-fame wall: gold-plaque framed inductees)
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-hall { display: grid; grid-template-columns: 1fr; gap: clamp(2.25rem, 5vw, 3.5rem); }
+@media (min-width: 640px) { .pui-hall { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .pui-hall { grid-template-columns: repeat(3, 1fr); gap: clamp(2.5rem, 4vw, 4rem) clamp(1.75rem, 3vw, 3rem); } }
+.pui-plaque { display: block; }
+.pui-plaque-plate {
+  position: relative; aspect-ratio: 4 / 5; display: grid; place-items: center; overflow: hidden;
+  border: 1px solid rgb(var(--pui-gold) / 0.45); border-radius: 3px;
+  box-shadow: inset 0 0 0 3px rgb(var(--pui-gold) / 0.08), 0 20px 44px -30px rgb(var(--shadow) / 0.6);
+  transition: transform 520ms var(--pui-ease-lux, ease), box-shadow 520ms var(--pui-ease-lux, ease), border-color 320ms var(--ease);
+}
+.pui-plaque.group:hover .pui-plaque-plate { transform: translateY(-5px); border-color: rgb(var(--pui-gold) / 0.75); box-shadow: inset 0 0 0 3px rgb(var(--pui-gold) / 0.12), 0 30px 60px -34px rgb(var(--shadow) / 0.6); }
+.pui-plaque-serial { position: absolute; left: 0.6rem; top: 0.55rem; font-family: var(--pui-label, var(--font-geist-sans)); font-size: 0.66rem; letter-spacing: 0.16em; color: rgb(var(--pui-accent-ink)); }
+.pui-plaque-cap { margin-top: 0.95rem; padding-top: 0.85rem; border-top: 1px solid rgb(var(--pui-gold) / 0.35); }
+.pui-plaque-brand { display: block; font-family: var(--pui-label, var(--font-geist-sans)); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.22em; color: rgb(var(--subtext)); }
+.pui-plaque-name { display: block; margin-top: 0.35rem; font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; font-size: 1.05rem; line-height: 1.08; }
+@media (prefers-reduced-motion: reduce) { .pui-plaque.group:hover .pui-plaque-plate { transform: none; } }
