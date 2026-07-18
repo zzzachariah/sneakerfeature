@@ -7,7 +7,7 @@
 
 import type { Shoe } from "@/lib/types";
 import { FavoritesView } from "@/components/favorites/favorites-view";
-import { GalleryIndexList } from "@/components/premium/home/gallery-index-list";
+import { GalleryCatalogue } from "@/components/premium/home/gallery-catalogue";
 import { ArenaLineup } from "@/components/premium/home/arena-lineup";
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -36,7 +36,7 @@ function GalleryFavorites({ shoes, signedIn }: Props) {
       <h1 className="t-display-sm mb-6" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
         {translate("Saved shoes")}
       </h1>
-      <GalleryIndexList shoes={visible} />
+      <GalleryCatalogue shoes={visible} />
     </main>
   );
 }

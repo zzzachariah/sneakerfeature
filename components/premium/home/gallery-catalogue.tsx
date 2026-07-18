@@ -1,27 +1,30 @@
 "use client";
 
-// GALLERY (Obsidian) index — the grid replaced by one row per shoe (D3). Brand,
-// name and rating on hairline-separated lines; sortable by rating or name. Long
-// lists page in ("show more") so 500+ rows never mount at once. Reused by the
-// Gallery home and the Gallery favorites view.
+// GALLERY (Obsidian) catalogue — a boutique product grid (The Row / Jil Sander
+// register): large portrait plates on clean neutral grounds, generous whitespace,
+// and quiet captions (brand · name · rating). Sortable, paged. Replaces the old
+// text index. Reused by the Gallery home and the Gallery favorites view.
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
+import { ShoeImage } from "@/components/shoe/shoe-image";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { Shoe } from "@/lib/types";
 
 type Sort = "rating" | "name";
-const PAGE = 60;
+const PAGE = 24;
 
-export function GalleryIndexList({
+export function GalleryCatalogue({
   shoes,
   showSort = true,
   initialSort = "rating",
+  priorityCount = 3,
 }: {
   shoes: Shoe[];
   showSort?: boolean;
   initialSort?: Sort;
+  priorityCount?: number;
 }) {
   const { translate } = useLocale();
   const [sort, setSort] = useState<Sort>(initialSort);
@@ -37,9 +40,9 @@ export function GalleryIndexList({
   const shown = sorted.slice(0, visible);
 
   return (
-    <div className="pui-index-wrap">
+    <div>
       {showSort && (
-        <div className="mb-4 flex items-center gap-5 px-[0.25rem] text-[0.64rem] uppercase tracking-[0.24em] text-[rgb(var(--subtext))]">
+        <div className="mb-6 flex items-center gap-5 text-[0.62rem] uppercase tracking-[0.26em] text-[rgb(var(--subtext))]">
           <span>{translate("Sort")}</span>
           {(["rating", "name"] as const).map((s) => (
             <button
@@ -55,25 +58,34 @@ export function GalleryIndexList({
         </div>
       )}
 
-      <ul className="pui-index">
+      <ul className="pui-cat-grid">
         {shown.map((s, i) => (
           <li key={s.id}>
-            <Link href={`/shoes/${s.slug}` as Route} prefetch className="pui-index-row">
-              <span className="pui-index-num num-display">{String(i + 1).padStart(2, "0")}</span>
-              <span className="min-w-0">
-                <span className="pui-index-brand block">{s.brand}</span>
-                <span className="pui-index-name block truncate">{s.shoe_name}</span>
-              </span>
-              <span className="pui-index-score num-display whitespace-nowrap">
-                {s.finalStars != null ? `★ ${s.finalStars.toFixed(1)}` : "—"}
-              </span>
+            <Link href={`/shoes/${s.slug}` as Route} prefetch className="group block">
+              <div className="pui-plate shoe-stage pui-cat-plate">
+                <ShoeImage
+                  src={s.image_url}
+                  alt={s.shoe_name}
+                  fallbackLabel={translate("No image")}
+                  variant="detail"
+                  priority={i < priorityCount}
+                  className="!w-[80%] !max-w-none !border-0 transition-transform duration-500 group-hover:scale-[1.04]"
+                />
+              </div>
+              <div className="pui-cat-cap">
+                <span className="pui-cat-brand">{s.brand}</span>
+                <span className="pui-cat-name">{s.shoe_name}</span>
+                <span className="pui-cat-rating num-display">
+                  {s.finalStars != null ? `★ ${s.finalStars.toFixed(1)}` : "—"}
+                </span>
+              </div>
             </Link>
           </li>
         ))}
       </ul>
 
       {visible < sorted.length && (
-        <div className="mt-8 flex justify-center">
+        <div className="mt-12 flex justify-center">
           <button type="button" onClick={() => setVisible((v) => v + PAGE)} className="pui-cta">
             {translate("Show more")}
           </button>

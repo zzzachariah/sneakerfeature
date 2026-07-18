@@ -77,7 +77,7 @@ export function ArenaHome({ shoes, shoesCount, brandsCount, initialQuery, forYou
             </h1>
           </div>
           {podium.length >= 3 && (
-            <div className="pui-podium mt-6">
+            <div className="pui-podium mt-10 md:mt-[4.5rem]">
               {podium.map((s, i) => (
                 <PodiumStep key={s.id} shoe={s} place={i + 1} />
               ))}

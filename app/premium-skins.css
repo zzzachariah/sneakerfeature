@@ -483,6 +483,22 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
 
 /* ══ GALLERY (Obsidian) ══ */
 .pui-lede { font-weight: 300; letter-spacing: 0.01em; line-height: 1.4; }
+
+/* Boutique catalogue — large portrait plates, generous whitespace, quiet
+   captions. One consistent grid + caption rhythm reused on home AND favorites. */
+.pui-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(1.75rem, 3vw, 2.5rem) clamp(1rem, 2.5vw, 1.75rem);
+}
+@media (min-width: 768px) {
+  .pui-cat-grid { grid-template-columns: repeat(3, 1fr); gap: clamp(2.75rem, 4vw, 4rem) clamp(1.5rem, 3vw, 2.5rem); }
+}
+.pui-cat-plate { aspect-ratio: 4 / 5; width: 100%; }
+.pui-cat-cap { margin-top: 1rem; }
+.pui-cat-brand { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.24em; color: rgb(var(--subtext)); }
+.pui-cat-name { display: block; margin-top: 0.4rem; font-weight: 300; letter-spacing: 0.02em; font-size: 1rem; line-height: 1.25; }
+.pui-cat-rating { display: block; margin-top: 0.45rem; letter-spacing: 0.06em; font-size: 0.82rem; color: rgb(var(--text) / 0.7); }
 /* The index lives in a calm, LEFT-aligned reading column, not stretched across
    the shell — name and rating stay in the same eyeful, with generous right-side
    air (an asymmetric, editorial-luxury composition). */

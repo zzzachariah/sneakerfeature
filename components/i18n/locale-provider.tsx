@@ -55,6 +55,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "full catalog": "全部目录",
   "scenes": "场景目录",
   "a considered index of basketball sneakers.": "一份精心编排的篮球鞋索引。",
+  "a considered catalogue of basketball sneakers.": "一份精心编排的篮球鞋目录。",
+  "catalogue": "目录",
   "brands": "品牌",
   "show more": "显示更多",
   "sort": "排序",
