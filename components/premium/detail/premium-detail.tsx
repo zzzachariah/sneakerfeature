@@ -13,13 +13,13 @@ import dynamic from "next/dynamic";
 import {
   DetailSection,
   OverviewSection,
-  PerformanceSection,
   ReviewsSection,
   StorySection,
   CommentsSection,
   RelatedSection,
   type Props as DetailProps,
 } from "@/components/detail/shoe-detail-slides";
+import { PremiumPerformance } from "@/components/premium/detail/premium-performance";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { PremiumVariant } from "@/components/premium/variants";
@@ -52,20 +52,6 @@ const ORDERS: Record<Exclude<PremiumVariant, "standard">, SectionKey[]> = {
   gallery: ["overview", "performance", "story", "reviews", "comments", "related"],
   arena: ["overview", "performance", "reviews", "story", "comments", "related"],
 };
-
-// Per-skin framing for the performance (data) block, so it reads as a cockpit
-// gauge (Instrument) or a scouting stat sheet (Arena). Editorial/Gallery leave it
-// clean. The section keeps its own heading; the frame is pure chrome around it.
-function framePerformance(variant: Exclude<PremiumVariant, "standard">, node: React.ReactNode): React.ReactNode {
-  if (variant === "instrument") return <div className="pui-panel">{node}</div>;
-  if (variant === "arena")
-    return (
-      <div className="pui-statsheet">
-        <div className="p-4 sm:p-6 md:p-8">{node}</div>
-      </div>
-    );
-  return node;
-}
 
 const HASH_TO_ID: Record<string, string> = {
   "#overview": "detail-overview",
@@ -105,7 +91,7 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
       <OverviewSection {...props} onShareCard={() => setShareOpen(true)} onJumpToComments={() => jumpTo("detail-comments")} />
     ),
     performance: () => (
-      <PerformanceSection shoe={props.shoe} extraTechCards={props.extraTechCards} radarAxes={props.radarAxes} />
+      <PremiumPerformance variant={variant} shoe={props.shoe} extraTechCards={props.extraTechCards} />
     ),
     reviews: () => <ReviewsSection bloggerReviews={props.bloggerReviews} />,
     story: () => <StorySection {...props} />,
@@ -119,7 +105,7 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
         <DetailBanner variant={variant} brand={props.shoe.brand} />
         {order.map((key) => (
           <DetailSection key={key} id={SECTION_ID[key]}>
-            {key === "performance" ? framePerformance(variant, renderers[key]()) : renderers[key]()}
+            {renderers[key]()}
           </DetailSection>
         ))}
       </div>

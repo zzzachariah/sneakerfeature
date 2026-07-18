@@ -937,3 +937,35 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
 .pui-power-bar { height: 8px; border-radius: 2px; background: rgb(var(--text) / 0.1); overflow: hidden; }
 .pui-power-bar > span { display: block; height: 100%; border-radius: 2px; }
 .pui-power-val { text-align: right; font-family: var(--pui-label, sans-serif); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ── Re-designed detail performance metrics (PremiumPerformance) ──────────── */
+.pui-mx { display: grid; grid-template-columns: 1fr; gap: 0.15rem 2.5rem; }
+@media (min-width: 640px) { .pui-mx { grid-template-columns: 1fr 1fr; } }
+.pui-mx-row { display: grid; grid-template-columns: minmax(0, 7rem) 1fr 2.2rem; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-bottom: 1px solid rgb(var(--text) / 0.07); }
+.pui-mx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; }
+.pui-mx-bar { height: 6px; border-radius: 999px; background: rgb(var(--text) / 0.1); overflow: hidden; }
+.pui-mx-bar > span { display: block; height: 100%; border-radius: 999px; background: rgb(var(--brand)); transition: width 600ms var(--pui-ease-lux, ease); }
+.pui-mx-val { text-align: right; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+
+/* Editorial — serif, gold. */
+.pui-mx--editorial .pui-mx-label { font-family: var(--pui-cjk); font-size: 0.86rem; }
+.pui-mx--editorial .pui-mx-bar > span { background: rgb(var(--pui-accent-ink)); }
+.pui-mx--editorial .pui-mx-val { font-family: var(--pui-cjk); color: rgb(var(--pui-accent-ink)); }
+
+/* Instrument — mono channel meters. */
+.pui-mx--instrument .pui-mx-label { font-family: var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: rgb(var(--subtext)); }
+.pui-mx--instrument .pui-mx-bar > span { background: rgb(var(--pui-glow)); }
+.pui-mx--instrument .pui-mx-val { font-family: var(--font-geist-mono), monospace; }
+
+/* Gallery — quiet hairlines. */
+.pui-mx--gallery .pui-mx-row { border-bottom-color: rgb(var(--text) / 0.06); }
+.pui-mx--gallery .pui-mx-label { letter-spacing: 0.06em; color: rgb(var(--subtext)); }
+.pui-mx--gallery .pui-mx-bar { height: 1px; background: rgb(var(--text) / 0.12); }
+.pui-mx--gallery .pui-mx-bar > span { background: rgb(var(--text)); opacity: 0.75; }
+.pui-mx--gallery .pui-mx-val { color: rgb(var(--subtext)); }
+
+/* Arena — power bars. */
+.pui-mx--arena .pui-mx-label { font-family: var(--pui-label, sans-serif); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.74rem; }
+.pui-mx--arena .pui-mx-bar { height: 9px; border-radius: 2px; }
+.pui-mx--arena .pui-mx-bar > span { border-radius: 2px; }
+.pui-mx--arena .pui-mx-val { font-family: var(--pui-label, sans-serif); font-weight: 700; }
