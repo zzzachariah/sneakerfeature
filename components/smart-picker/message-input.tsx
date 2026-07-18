@@ -88,9 +88,9 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText,
           className="mx-4 mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition active:scale-[0.99]"
           style={{ background: "linear-gradient(135deg, rgba(217,180,90,0.16), rgba(217,180,90,0.06))", border: "1px solid rgba(217,180,90,0.4)", color: "rgb(var(--text))" }}
         >
-          <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: "#d9b45a" }} />
+          <Crown className="h-3.5 w-3.5 shrink-0" style={{ color: "rgb(var(--gold-ink))" }} />
           <span className="flex-1">{translate("Out of credits? Go unlimited with Pro.")}</span>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: "#d9b45a" }} />
+          <ChevronRight className="h-3.5 w-3.5 shrink-0" style={{ color: "rgb(var(--gold-ink))" }} />
         </Link>
       )}
 

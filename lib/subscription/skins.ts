@@ -4,6 +4,7 @@
 // entitlements. Consumed by the theme provider (sets CSS custom properties) and
 // the subscribe page's live preview.
 
+import type { CSSProperties } from "react";
 import type { Tier } from "@/lib/subscription/tiers";
 
 export type SkinId = "sapphire" | "aurora" | "obsidian" | "champion";
@@ -42,6 +43,10 @@ export type SkinPalette = {
   badgeFill: string;
   badgeBorder: string;
   badgeInk: string;
+  /** Badge ink for a LIGHT page background. `badgeInk` is tuned for the dark
+   *  card ground, so on the near-white page it turns invisible; this is a dark,
+   *  AA-legible variant used in light theme (see `.member-chip` / memberChipVars). */
+  badgeInkLight: string;
   /** Emblem glyph shown on the card. */
   emblem: string;
 };
@@ -76,6 +81,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(76,134,224,0.16)",
       badgeBorder: "rgba(76,134,224,0.45)",
       badgeInk: "#cfe0fb",
+      badgeInkLight: "#2b5cab",
       emblem: "✦"
     },
     max: {
@@ -91,6 +97,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(217,180,90,0.16)",
       badgeBorder: "rgba(217,180,90,0.5)",
       badgeInk: "#f6e6bd",
+      badgeInkLight: "#8a6410",
       emblem: "❖"
     }
   },
@@ -113,6 +120,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(41,194,230,0.16)",
       badgeBorder: "rgba(41,194,230,0.5)",
       badgeInk: "#c9f4ff",
+      badgeInkLight: "#0b6b84",
       emblem: "✦"
     },
     max: {
@@ -128,6 +136,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(176,108,240,0.18)",
       badgeBorder: "rgba(176,108,240,0.55)",
       badgeInk: "#f0d6ff",
+      badgeInkLight: "#7c34c9",
       emblem: "❖"
     }
   },
@@ -150,6 +159,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(143,160,189,0.14)",
       badgeBorder: "rgba(143,160,189,0.45)",
       badgeInk: "#d3dae5",
+      badgeInkLight: "#42506a",
       emblem: "✦"
     },
     max: {
@@ -165,6 +175,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(122,92,255,0.16)",
       badgeBorder: "rgba(122,92,255,0.5)",
       badgeInk: "#e6e2ff",
+      badgeInkLight: "#5233d6",
       emblem: "❖"
     }
   },
@@ -187,6 +198,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(212,161,42,0.16)",
       badgeBorder: "rgba(212,161,42,0.5)",
       badgeInk: "#f4e2b0",
+      badgeInkLight: "#8a6410",
       emblem: "♛"
     },
     max: {
@@ -202,6 +214,7 @@ export const SKINS: Record<SkinId, Skin> = {
       badgeFill: "rgba(255,206,74,0.18)",
       badgeBorder: "rgba(255,206,74,0.55)",
       badgeInk: "#ffeec0",
+      badgeInkLight: "#8a6410",
       emblem: "♛"
     }
   }
@@ -242,4 +255,18 @@ export function darkenHex(hex: string, amount = 0.28): string {
   const [r, g, b] = triple.split(" ").map(Number);
   const f = (c: number) => Math.max(0, Math.round(c * (1 - amount)));
   return `#${[f(r), f(g), f(b)].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+}
+
+// Theme-aware CSS custom properties for a member tier chip / badge. Pair with
+// the `.member-chip` class (app/globals.css): light theme uses the dark
+// `badgeInkLight`, dark theme keeps the light-tuned `badgeInk`, so the chip stays
+// legible on BOTH the near-white page and the dark page. Without this the chip
+// put light ink on a ~16%-alpha fill and vanished on the light theme.
+export function memberChipVars(pal: SkinPalette): CSSProperties {
+  return {
+    "--chip-ink-l": pal.badgeInkLight,
+    "--chip-ink-d": pal.badgeInk,
+    "--chip-fill": pal.badgeFill,
+    "--chip-border": pal.badgeBorder
+  } as CSSProperties;
 }

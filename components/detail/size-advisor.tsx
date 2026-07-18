@@ -22,14 +22,14 @@ function SectionShell({ children }: { children: React.ReactNode }) {
     <section className="mx-auto mt-8 w-full max-w-3xl px-4 sm:px-6">
       <div
         className="overflow-hidden rounded-2xl border p-5 sm:p-6"
-        style={{ borderColor: `${GOLD}44`, background: "rgb(var(--bg-elev))" }}
+        style={{ borderColor: "rgb(var(--gold-line) / 0.32)", background: "rgb(var(--bg-elev))" }}
       >
         <div className="mb-4 flex items-center gap-2">
-          <Ruler className="h-4 w-4" style={{ color: GOLD }} />
+          <Ruler className="h-4 w-4" style={{ color: "rgb(var(--gold-ink))" }} />
           <h2 className="text-base font-semibold tracking-tight">{zh ? "智能尺码建议" : "Smart size advisor"}</h2>
           <span
             className="ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
-            style={{ color: GOLD, backgroundColor: `${GOLD}1f`, border: `1px solid ${GOLD}55` }}
+            style={{ color: "rgb(var(--gold-ink))", backgroundColor: "rgb(var(--gold-ink) / 0.12)", border: "1px solid rgb(var(--gold-line) / 0.5)" }}
           >
             <Crown className="h-3 w-3" /> Premium
           </span>
@@ -87,10 +87,10 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
         <SectionShell>
           <p className="text-sm soft-text">
             {t("我们已根据你的脚型，算好了这双鞋的", "We've already worked out your ")}
-            <span style={{ color: GOLD }}>{t("建议尺码、宽度与楦型提示", "recommended size, width & last fit for this shoe")}</span>
+            <span style={{ color: "rgb(var(--gold-ink))" }}>{t("建议尺码、宽度与楦型提示", "recommended size, width & last fit for this shoe")}</span>
             {t("。", ".")}
           </p>
-          <div className="relative mt-4 overflow-hidden rounded-xl border" style={{ borderColor: `${GOLD}33` }}>
+          <div className="relative mt-4 overflow-hidden rounded-xl border" style={{ borderColor: "rgb(var(--gold-line) / 0.3)" }}>
             <div className="flex items-center gap-3 p-4" aria-hidden>
               <div className="select-none blur-[7px]">
                 <div className="num-display text-2xl font-bold tracking-tight">US 10.5</div>
@@ -122,7 +122,7 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
       <SectionShell>
         <p className="text-sm soft-text">
           {t("逐款精准尺码是 ", "Per-shoe precise sizing is ")}
-          <span style={{ color: GOLD }}>Pro / Max</span>
+          <span style={{ color: "rgb(var(--gold-ink))" }}>Pro / Max</span>
           {t(
             " 专属：结合你的脚型扫描，给出这双鞋的建议尺码、宽度与楦型提示。",
             " only: with your foot scan, it gives this shoe's recommended size, width and last fit."
@@ -153,7 +153,7 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
         <Link
           href="/foot-scan"
           className="mt-4 inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition hover:bg-[rgb(var(--text)/0.05)]"
-          style={{ borderColor: `${GOLD}66`, color: GOLD }}
+          style={{ borderColor: "rgb(var(--gold-line) / 0.5)", color: "rgb(var(--gold-ink))" }}
         >
           <ScanLine className="h-4 w-4" /> {t("去扫描脚型", "Scan my feet")}
         </Link>
@@ -169,7 +169,7 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
       <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
         <div>
           <p className="text-xs uppercase tracking-wide soft-text">{t("建议尺码", "Recommended size")}</p>
-          <p className="num-display mt-1 text-4xl font-bold tracking-tight" style={{ color: GOLD }}>
+          <p className="num-display mt-1 text-4xl font-bold tracking-tight" style={{ color: "rgb(var(--gold-ink))" }}>
             US {a.recommendedUs}
           </p>
           <p className="mt-0.5 text-xs soft-text">
@@ -207,7 +207,7 @@ export function SizeAdvisorCard({ data }: { data: SizeAdvisorData }) {
         <ul className="mt-4 flex flex-col gap-2 border-t border-[rgb(var(--muted)/0.3)] pt-4">
           {a.notes.map((n, i) => (
             <li key={i} className="flex items-start gap-2 text-sm soft-text">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: GOLD }} />
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: "rgb(var(--gold-ink))" }} />
               {n}
             </li>
           ))}

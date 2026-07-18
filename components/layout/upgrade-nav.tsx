@@ -10,7 +10,7 @@ import { Crown } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { isPaidTier, TIERS } from "@/lib/subscription/tiers";
-import { skinPalette } from "@/lib/subscription/skins";
+import { skinPalette, memberChipVars } from "@/lib/subscription/skins";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { haptics } from "@/lib/native/haptics";
 
@@ -36,8 +36,8 @@ export function UpgradeNav() {
         href="/subscribe"
         aria-label={zh ? "会员" : "Membership"}
         onClick={() => haptics.tap()}
-        className={base}
-        style={{ color: pal.badgeInk, backgroundColor: pal.badgeFill, border: `1px solid ${pal.badgeBorder}` }}
+        className={`${base} member-chip`}
+        style={memberChipVars(pal)}
       >
         <span className="relative" aria-hidden>{cfg.badgeGlyph}</span>
         <span className="relative">{cfg.name}</span>
@@ -50,7 +50,7 @@ export function UpgradeNav() {
       href="/subscribe"
       aria-label={zh ? "升级会员" : "Upgrade"}
       onClick={() => haptics.tap()}
-      className={`${base} upgrade-shine`}
+      className={`${base} upgrade-shine upgrade-gold`}
       style={{ background: `linear-gradient(135deg, ${GOLD}, #b8912f)`, color: "#1a1305" }}
     >
       <Crown className="relative h-3.5 w-3.5 transition-transform duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5 group-hover:scale-110" aria-hidden />

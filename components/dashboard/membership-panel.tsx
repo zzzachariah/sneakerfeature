@@ -108,7 +108,7 @@ export function MembershipPanel() {
     const body = (
       <div className="premium-hover-lift glass-lite flex items-center gap-4 rounded-2xl p-5">
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--text)/0.06)]">
-          <Crown className="h-5 w-5" style={{ color: "#d9b45a" }} />
+          <Crown className="h-5 w-5" style={{ color: "rgb(var(--gold-ink))" }} />
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[rgb(var(--text))]">{translate("Membership")}</p>
