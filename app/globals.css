@@ -1984,7 +1984,9 @@ html[data-premium="sapphire"].dark {
 html[data-premium="aurora"] {
   --bg: 236 242 246; --bg-elev: 255 255 255; --surface: 238 245 248; --muted: 196 219 228;
   --brand: 11 107 132; --brand-contrast: 255 255 255;
-  --shoe-stage-hi: 20 131 156; --shoe-stage-lo: 10 53 80; --shoe-shadow: 6 40 60;
+  /* Aurora's hero (Holo Broadsheet) is light & matte — keep a LIGHT cool stage,
+     the cyan glow layer below supplies the holographic pool. */
+  --shoe-stage-hi: 232 245 249; --shoe-stage-lo: 206 228 236; --shoe-shadow: 12 64 86;
   --glass-tint: 235 246 250; --glass-tint-strong: 242 249 252;
 }
 html[data-premium="aurora"].dark {
@@ -2008,7 +2010,9 @@ html[data-premium="aurora"].dark {
 html[data-premium="obsidian"] {
   --bg: 233 237 243; --bg-elev: 246 248 252; --surface: 238 241 247; --muted: 200 208 220;
   --brand: 58 70 97; --brand-contrast: 255 255 255;
-  --shoe-stage-hi: 42 52 70; --shoe-stage-lo: 20 24 31; --shoe-shadow: 20 24 31;
+  /* Obsidian's hero (Platinum Hairline) is light + hairline — keep a LIGHT cool
+     stage; the platinum glow + hairline rims carry the metal, not a dark box. */
+  --shoe-stage-hi: 244 247 252; --shoe-stage-lo: 226 232 241; --shoe-shadow: 23 27 34;
 }
 html[data-premium="obsidian"].dark {
   --bg: 12 15 21; --bg-elev: 19 24 32; --surface: 28 39 53; --muted: 54 65 79;
@@ -2070,11 +2074,13 @@ html[data-premium="champion"] .surface-card {
   border-color: rgb(var(--gold-line) / 0.5);
 }
 
-/* Premium shoe stages are DARK jewel grounds even in light theme, so — exactly
-   like dark mode — a near-black shoe would blend in. Give the cut-out the same
-   faint light rim in BOTH themes under a premium skin so dark shoes always
-   separate. (Wins over `.dark .shoe-img` by specificity + source order.) */
-html[data-premium] .shoe-img {
+/* Sapphire & Champion keep DARK jewel stages even in light theme, so — like dark
+   mode — a near-black shoe would blend in. Give the cut-out the same faint light
+   rim in BOTH themes for these two skins so dark shoes always separate. (Aurora
+   & Obsidian use light stages in light theme, where the default drop-shadow is
+   right; their dark-theme stages are covered by `.dark .shoe-img`.) */
+html[data-premium="sapphire"] .shoe-img,
+html[data-premium="champion"] .shoe-img {
   filter:
     drop-shadow(0 5px 10px rgb(var(--shoe-shadow) / 0.5))
     drop-shadow(0 0 1px rgb(255 255 255 / 0.2));
