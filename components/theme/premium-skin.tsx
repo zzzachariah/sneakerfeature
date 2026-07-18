@@ -65,14 +65,19 @@ function skinLabel(id: SkinId, zh: boolean) {
   return zh ? SKINS[id].name : SKINS[id].nameEn;
 }
 
-// A color chip for a skin, using its Max accent (the richest of the pair).
+// A duotone color chip for a skin — its Pro→Max accent pair, so each skin reads
+// as a distinct swatch (Sapphire blue→gold, Aurora cyan→purple, Obsidian
+// platinum→indigo, Champion gold) and matches the accent it actually applies.
 function Swatch({ id }: { id: SkinId }) {
-  const pal = SKINS[id].max;
+  const s = SKINS[id];
   return (
     <span
       aria-hidden
       className="h-3.5 w-3.5 shrink-0 rounded-full"
-      style={{ background: pal.accent, boxShadow: `0 0 0 1px ${pal.badgeBorder}` }}
+      style={{
+        background: `linear-gradient(135deg, ${s.pro.accent} 0%, ${s.max.accent} 100%)`,
+        boxShadow: "inset 0 0 0 1px rgb(var(--text) / 0.15)",
+      }}
     />
   );
 }
