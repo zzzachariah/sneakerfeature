@@ -750,3 +750,222 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
 .pui-plaque-brand { display: block; font-family: var(--pui-label, var(--font-geist-sans)); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.22em; color: rgb(var(--subtext)); }
 .pui-plaque-name { display: block; margin-top: 0.35rem; font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; font-size: 1.05rem; line-height: 1.08; }
 @media (prefers-reduced-motion: reduce) { .pui-plaque.group:hover .pui-plaque-plate { transform: none; } }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   13 · RE-ARRANGED COMPARE / DETAIL — per-theme layout frames
+   Wrappers the premium Compare/Detail recomposers put around the shared
+   sub-components to give each skin a genuinely different page structure
+   (Editorial spread · Instrument cockpit · Gallery monograph · Arena tale-of-tape).
+   The sub-components themselves are untouched; only their framing + arrangement
+   changes. Standard users never reach these files.
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-section-sm { margin-top: clamp(2rem, 4vw, 3.25rem); }
+
+/* Editorial — a magazine pull-quote around the verdict, + a fine-print record. */
+.pui-quote { position: relative; padding-left: clamp(1rem, 3vw, 2.25rem); border-left: 2px solid rgb(var(--pui-gold) / 0.5); }
+.pui-quote::before {
+  content: "\201C"; position: absolute; left: -0.15em; top: -0.35em;
+  font-family: var(--pui-display); font-size: clamp(3rem, 8vw, 5rem); line-height: 1;
+  color: rgb(var(--pui-gold) / 0.28); pointer-events: none;
+}
+.pui-record { border-top: 1px solid rgb(var(--pui-gold) / 0.3); padding-top: clamp(1rem, 2.5vw, 1.6rem); }
+.pui-record .num-display { font-size: 0.92em; }
+
+/* Instrument — a glass instrument panel (readout / gauge / data-grid). */
+.pui-panel {
+  border: 1px solid rgb(var(--pui-glow) / 0.28); border-radius: var(--pui-radius-card);
+  background: rgb(var(--bg-elev) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 34px -18px rgb(var(--pui-glow) / 0.65);
+  padding: clamp(0.9rem, 2.2vw, 1.5rem);
+}
+.pui-panel-tag { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.6rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(var(--pui-glow)); margin-bottom: 0.75rem; }
+
+/* Arena — a gold DECISION box, and a "tale of the tape" divider. */
+.pui-decision { position: relative; border: 1px solid rgb(var(--pui-gold) / 0.5); border-radius: var(--pui-radius-card); background: rgb(var(--pui-gold) / 0.05); padding: clamp(1rem, 2.6vw, 1.75rem); box-shadow: 0 24px 50px -34px rgb(var(--shadow) / 0.6); }
+.pui-decision::before {
+  content: "DECISION"; position: absolute; top: 0; left: clamp(1rem, 2.6vw, 1.75rem); transform: translateY(-50%);
+  background: rgb(var(--pui-gold)); color: #1a1305; font-family: var(--pui-label, var(--font-geist-sans));
+  font-size: 0.6rem; font-weight: 800; letter-spacing: 0.2em; padding: 0.2rem 0.6rem; border-radius: 999px;
+}
+.pui-tape-head { display: flex; align-items: center; gap: 1rem; }
+.pui-tape-head::before, .pui-tape-head::after { content: ""; height: 1px; flex: 1; background: rgb(var(--pui-gold) / 0.4); }
+
+/* Detail — editorial deck (drop-cap intro), gallery plate hero, arena stat sheet. */
+.pui-deck { font-family: var(--pui-cjk); font-size: clamp(1.05rem, 2.2vw, 1.3rem); line-height: 1.6; color: rgb(var(--text) / 0.86); }
+.pui-deck-rule { width: 3rem; height: 2px; background: rgb(var(--pui-gold) / 0.6); margin: 0 0 1.1rem; }
+.pui-statsheet { border: 1px solid rgb(var(--pui-gold) / 0.35); border-radius: var(--pui-radius-card); overflow: hidden; }
+.pui-statsheet-head { background: rgb(var(--pui-gold) / 0.1); border-bottom: 1px solid rgb(var(--pui-gold) / 0.3); padding: 0.7rem clamp(0.9rem, 2vw, 1.4rem); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   14 · RE-DESIGNED COMPARE COMPONENTS — per-theme shoe card + verdict OBJECTS
+   Each kit renders the shoe / verdict as a different physical object (cover plate,
+   diagnostic card, pedestal, trading card / pull-quote, terminal, statement,
+   scoreboard). Only rendered under their own skin, so per-skin tokens resolve.
+   Cards flex-column + equal-height rows so captions align across a row.
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-pl-grid > div { display: flex; flex-direction: column; height: 100%; }
+.pui-pl-remove {
+  position: absolute; right: 0.5rem; top: 0.5rem; z-index: 5;
+  display: inline-flex; height: 1.75rem; width: 1.75rem; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1px solid rgb(var(--text) / 0.18); background: rgb(var(--bg-elev) / 0.85);
+  color: rgb(var(--subtext)); transition: color .2s var(--ease), border-color .2s var(--ease);
+}
+.pui-pl-remove:hover { color: rgb(var(--text)); border-color: rgb(var(--text) / 0.4); }
+.pui-pl-ghost {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem;
+  min-height: 240px; border-radius: var(--pui-radius-card); border: 1px dashed rgb(var(--text) / 0.28);
+  color: rgb(var(--subtext)); transition: color .2s, border-color .2s;
+}
+.pui-pl-ghost:hover { color: rgb(var(--text)); border-color: rgb(var(--text) / 0.45); }
+
+/* Shared stage helper: the neutral studio ground already comes from .shoe-stage. */
+.pui-cover-stage, .pui-diagcard-stage, .pui-pedcard-stage, .pui-tcard-stage {
+  position: relative; display: grid; place-items: center; overflow: hidden;
+}
+
+/* Editorial — Cover Plate. */
+.pui-cover-stage {
+  position: relative; aspect-ratio: 3 / 4; border: 1px solid rgb(var(--pui-gold) / 0.4); border-radius: 4px;
+  box-shadow: 0 22px 46px -30px rgb(var(--shadow) / 0.55); transition: border-color .32s var(--ease), transform .5s var(--pui-ease-lux, ease);
+}
+.pui-cover.group:hover .pui-cover-stage { border-color: rgb(var(--pui-gold) / 0.7); transform: translateY(-3px); }
+.pui-cover-folio { position: absolute; left: 0.7rem; top: 0.55rem; z-index: 2; font-family: var(--pui-display); font-size: 0.82rem; color: rgb(var(--pui-accent-ink)); }
+.pui-cover-cap { position: absolute; inset-inline: 0; bottom: 0; z-index: 2; display: flex; flex-direction: column; gap: 0.15rem; padding: 1.6rem 0.9rem 0.75rem; background: linear-gradient(transparent, rgb(0 0 0 / 0.55)); }
+.pui-cover-meta { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgb(255 255 255 / 0.75); }
+.pui-cover-name { font-family: var(--pui-display); font-weight: 700; line-height: 1.05; font-size: 1.05rem; color: #fff; }
+.pui-cover-foot { margin-top: 0.7rem; }
+
+/* Instrument — Diagnostic card. */
+.pui-diagcard { border: 1px solid rgb(var(--pui-glow) / 0.3); border-radius: var(--pui-radius-card); overflow: hidden; background: rgb(var(--bg-elev) / 0.5); box-shadow: 0 0 30px -18px rgb(var(--pui-glow) / 0.6); }
+.pui-diagcard-status { display: flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.6rem; background: rgb(var(--pui-glow)); color: #04252b; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; }
+.pui-diagcard-pip { width: 6px; height: 6px; border-radius: 50%; background: #04252b; }
+.pui-diagcard-stage { aspect-ratio: 4 / 3; }
+.pui-diagcard-foot { display: flex; align-items: center; justify-content: space-between; padding: 0.45rem 0.7rem; border-top: 1px solid rgb(var(--pui-glow) / 0.2); font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.62rem; letter-spacing: 0.06em; color: rgb(var(--subtext)); }
+.pui-diagcard-score { color: rgb(var(--pui-glow)); font-weight: 700; }
+
+/* Gallery — Pedestal card: maximum air, whisper caption. */
+.pui-pedcard { padding: 0.5rem 0.5rem 0; }
+.pui-pedcard-stage { aspect-ratio: 3 / 4; }
+.pui-pedcard-cap { margin-top: 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; text-align: center; }
+.pui-pedcard-name { font-family: var(--pui-display); font-weight: 250; letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.82rem; }
+.pui-pedcard-meta { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgb(var(--subtext)); }
+
+/* Arena — Trading Card. */
+.pui-tcard { border: 2px solid rgb(var(--pui-gold) / 0.65); border-radius: 8px; overflow: hidden; box-shadow: 0 22px 46px -30px rgb(var(--shadow) / 0.55); transition: transform .5s var(--pui-ease-lux, ease), border-color .3s var(--ease); }
+.pui-tcard.group:hover { transform: translateY(-3px); border-color: rgb(var(--pui-gold)); }
+.pui-tcard-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.25rem 0.6rem; background: rgb(var(--pui-gold)); color: #1a1305; }
+.pui-tcard-no { font-family: var(--pui-display); font-weight: 400; font-size: 1.05rem; line-height: 1; }
+.pui-tcard-meta { font-family: var(--pui-label, sans-serif); font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.pui-tcard-stage { aspect-ratio: 1 / 1; }
+.pui-tcard-name { font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; font-size: 1rem; line-height: 1.05; text-align: center; padding: 0.5rem 0.6rem 0.15rem; }
+.pui-tcard-foot { padding: 0.15rem 0.6rem 0.6rem; display: flex; justify-content: center; }
+
+/* ── Verdict objects ─────────────────────────────────────────────────────── */
+/* Editorial — pull-quote. */
+.pui-vq { position: relative; margin: 0; padding-left: clamp(1.1rem, 3vw, 2.5rem); border-left: 2px solid rgb(var(--pui-gold) / 0.55); font-family: var(--pui-cjk); }
+.pui-vq::before { content: "\201C"; position: absolute; left: 0.05em; top: -0.3em; font-family: var(--pui-display); font-size: clamp(3rem, 7vw, 4.5rem); line-height: 1; color: rgb(var(--pui-gold) / 0.3); }
+.pui-vq-lead { margin: 0; font-size: clamp(1.3rem, 3vw, 1.9rem); font-style: italic; line-height: 1.25; }
+.pui-vq-body { margin-top: 0.9rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.pui-vq-body p { margin: 0; font-size: 0.95rem; line-height: 1.55; color: rgb(var(--text) / 0.85); }
+.pui-vq-body em { font-style: italic; color: rgb(var(--text)); }
+.pui-vq-attr { margin-top: 1rem; font-family: var(--pui-label, sans-serif); font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgb(var(--pui-accent-ink)); }
+
+/* Instrument — diagnostic terminal. */
+.pui-diag { border: 1px solid rgb(var(--pui-glow) / 0.3); border-radius: var(--pui-radius-card); background: rgb(var(--bg-elev) / 0.55); padding: clamp(0.9rem, 2vw, 1.4rem); font-family: var(--font-geist-mono), ui-monospace, monospace; box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 34px -18px rgb(var(--pui-glow) / 0.6); }
+.pui-diag-line { margin: 0 0 0.9rem; font-size: 0.72rem; letter-spacing: 0.05em; color: rgb(var(--pui-glow)); }
+.pui-diag-rows { display: flex; flex-direction: column; gap: 0.5rem; }
+.pui-diag-row { display: grid; grid-template-columns: 5.5rem 1fr 2rem; grid-template-areas: "k bar v" "n n n"; align-items: center; gap: 0.15rem 0.6rem; font-size: 0.66rem; }
+@media (min-width: 560px) { .pui-diag-row { grid-template-columns: 6rem 1fr 2rem minmax(0, 9rem); grid-template-areas: "k bar v n"; } }
+.pui-diag-k { grid-area: k; color: rgb(var(--subtext)); text-transform: uppercase; letter-spacing: 0.08em; }
+.pui-diag-bar { grid-area: bar; height: 6px; border-radius: 999px; background: rgb(var(--text) / 0.1); overflow: hidden; }
+.pui-diag-bar > span { display: block; height: 100%; border-radius: 999px; background: rgb(var(--pui-glow)); }
+.pui-diag-v { grid-area: v; text-align: right; color: rgb(var(--text)); }
+.pui-diag-n { grid-area: n; color: rgb(var(--subtext)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pui-diag-foot { margin: 0.9rem 0 0; font-size: 0.66rem; letter-spacing: 0.08em; color: rgb(var(--subtext)); }
+
+/* Gallery — pedestal statement. */
+.pui-pedv { text-align: center; padding: clamp(1.75rem, 5vw, 3.5rem) 1rem; }
+.pui-pedv-kicker { margin: 0; font-size: 0.58rem; letter-spacing: 0.32em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-pedv-name { margin: 0.9rem 0 0; font-family: var(--pui-display); font-weight: 250; letter-spacing: 0.14em; text-transform: uppercase; font-size: clamp(1.6rem, 4vw, 2.4rem); }
+.pui-pedv-sub { margin: 0.9rem 0 0; font-size: 0.72rem; letter-spacing: 0.06em; color: rgb(var(--subtext)); }
+
+/* Arena — scoreboard. */
+.pui-score { border: 2px solid rgb(var(--pui-gold) / 0.6); border-radius: 8px; overflow: hidden; text-align: center; box-shadow: 0 24px 50px -34px rgb(var(--shadow) / 0.6); }
+.pui-score-head { background: rgb(var(--pui-gold)); color: #1a1305; font-family: var(--pui-display); letter-spacing: 0.1em; font-size: 0.72rem; padding: 0.3rem; }
+.pui-score-body { padding: clamp(1.1rem, 3vw, 2rem) 1rem; }
+.pui-score-win { margin: 0; font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; line-height: 1; font-size: clamp(1.6rem, 4.5vw, 2.6rem); }
+.pui-score-line { margin: 0.7rem 0 0; font-family: var(--pui-label, sans-serif); letter-spacing: 0.06em; font-size: 0.9rem; color: rgb(var(--subtext)); }
+.pui-score-dash { color: rgb(var(--pui-accent-ink)); margin: 0 0.15rem; }
+.pui-score-tag { text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.72rem; }
+
+/* ── Re-designed metric comparison (PremiumDiff) — mobile-legible ─────────── */
+.pui-league, .pui-meters, .pui-qlines, .pui-power { display: grid; grid-template-columns: 1fr; gap: 1.5rem 2.5rem; }
+@media (min-width: 720px) { .pui-league, .pui-meters, .pui-qlines, .pui-power { grid-template-columns: 1fr 1fr; } }
+
+/* Editorial — league table. */
+.pui-league-metric { margin: 0 0 0.5rem; font-family: var(--pui-label, sans-serif); font-size: 0.64rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(var(--pui-accent-ink)); border-bottom: 1px solid rgb(var(--pui-gold) / 0.35); padding-bottom: 0.35rem; }
+.pui-league-list { margin: 0; padding: 0; list-style: none; }
+.pui-league-list li { display: grid; grid-template-columns: 1.2rem minmax(0, 1fr) auto; align-items: baseline; gap: 0.6rem; padding: 0.3rem 0; font-family: var(--pui-cjk); border-bottom: 1px solid rgb(var(--text) / 0.08); }
+.pui-league-rank { font-size: 0.72rem; color: rgb(var(--subtext)); }
+.pui-league-name { font-size: 0.86rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pui-league-score { font-size: 0.86rem; font-variant-numeric: tabular-nums; }
+.pui-league-list li.is-lead .pui-league-name, .pui-league-list li.is-lead .pui-league-score { color: rgb(var(--pui-accent-ink)); font-weight: 700; }
+
+/* Instrument — channel meters. */
+.pui-meters-metric { margin: 0 0 0.4rem; font-family: var(--font-geist-mono), monospace; font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(var(--pui-glow)); }
+.pui-meters-row { display: grid; grid-template-columns: minmax(0, 7rem) 1fr 2rem; align-items: center; gap: 0.6rem; padding: 0.22rem 0; font-family: var(--font-geist-mono), monospace; font-size: 0.72rem; }
+.pui-meters-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(var(--subtext)); }
+.pui-meters-bar { height: 6px; border-radius: 999px; background: rgb(var(--text) / 0.1); overflow: hidden; }
+.pui-meters-bar > span { display: block; height: 100%; border-radius: 999px; background: rgb(var(--pui-glow)); }
+.pui-meters-val { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Gallery — quiet lines. */
+.pui-qlines-metric { margin: 0 0 0.5rem; font-size: 0.62rem; letter-spacing: 0.28em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-qlines-row { display: grid; grid-template-columns: minmax(0, 7rem) 1fr 2rem; align-items: center; gap: 0.75rem; padding: 0.3rem 0; font-size: 0.78rem; }
+.pui-qlines-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(var(--subtext)); letter-spacing: 0.04em; }
+.pui-qlines-name.is-lead { color: rgb(var(--text)); }
+.pui-qlines-bar { height: 1px; background: rgb(var(--text) / 0.12); overflow: hidden; }
+.pui-qlines-bar > span { display: block; height: 100%; background: rgb(var(--text)); }
+.pui-qlines-val { text-align: right; font-variant-numeric: tabular-nums; color: rgb(var(--subtext)); }
+
+/* Arena — power bars. */
+.pui-power-metric { margin: 0 0 0.45rem; font-family: var(--pui-label, sans-serif); font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgb(var(--pui-accent-ink)); }
+.pui-power-row { display: grid; grid-template-columns: minmax(0, 8rem) 1fr 2.2rem; align-items: center; gap: 0.6rem; padding: 0.28rem 0; font-size: 0.8rem; }
+.pui-power-name { display: flex; align-items: center; gap: 0.45rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pui-power-crown, .pui-power-dot { width: 0.55rem; height: 0.55rem; border-radius: 2px; flex: none; }
+.pui-power-dot { opacity: 0.5; border-radius: 50%; }
+.pui-power-bar { height: 8px; border-radius: 2px; background: rgb(var(--text) / 0.1); overflow: hidden; }
+.pui-power-bar > span { display: block; height: 100%; border-radius: 2px; }
+.pui-power-val { text-align: right; font-family: var(--pui-label, sans-serif); font-weight: 700; font-variant-numeric: tabular-nums; }
+
+/* ── Re-designed detail performance metrics (PremiumPerformance) ──────────── */
+.pui-mx { display: grid; grid-template-columns: 1fr; gap: 0.15rem 2.5rem; }
+@media (min-width: 640px) { .pui-mx { grid-template-columns: 1fr 1fr; } }
+.pui-mx-row { display: grid; grid-template-columns: minmax(0, 7rem) 1fr 2.2rem; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-bottom: 1px solid rgb(var(--text) / 0.07); }
+.pui-mx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; }
+.pui-mx-bar { height: 6px; border-radius: 999px; background: rgb(var(--text) / 0.1); overflow: hidden; }
+.pui-mx-bar > span { display: block; height: 100%; border-radius: 999px; background: rgb(var(--brand)); transition: width 600ms var(--pui-ease-lux, ease); }
+.pui-mx-val { text-align: right; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+
+/* Editorial — serif, gold. */
+.pui-mx--editorial .pui-mx-label { font-family: var(--pui-cjk); font-size: 0.86rem; }
+.pui-mx--editorial .pui-mx-bar > span { background: rgb(var(--pui-accent-ink)); }
+.pui-mx--editorial .pui-mx-val { font-family: var(--pui-cjk); color: rgb(var(--pui-accent-ink)); }
+
+/* Instrument — mono channel meters. */
+.pui-mx--instrument .pui-mx-label { font-family: var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: rgb(var(--subtext)); }
+.pui-mx--instrument .pui-mx-bar > span { background: rgb(var(--pui-glow)); }
+.pui-mx--instrument .pui-mx-val { font-family: var(--font-geist-mono), monospace; }
+
+/* Gallery — quiet hairlines. */
+.pui-mx--gallery .pui-mx-row { border-bottom-color: rgb(var(--text) / 0.06); }
+.pui-mx--gallery .pui-mx-label { letter-spacing: 0.06em; color: rgb(var(--subtext)); }
+.pui-mx--gallery .pui-mx-bar { height: 1px; background: rgb(var(--text) / 0.12); }
+.pui-mx--gallery .pui-mx-bar > span { background: rgb(var(--text)); opacity: 0.75; }
+.pui-mx--gallery .pui-mx-val { color: rgb(var(--subtext)); }
+
+/* Arena — power bars. */
+.pui-mx--arena .pui-mx-label { font-family: var(--pui-label, sans-serif); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.74rem; }
+.pui-mx--arena .pui-mx-bar { height: 9px; border-radius: 2px; }
+.pui-mx--arena .pui-mx-bar > span { border-radius: 2px; }
+.pui-mx--arena .pui-mx-val { font-family: var(--pui-label, sans-serif); font-weight: 700; }

@@ -13,13 +13,13 @@ import dynamic from "next/dynamic";
 import {
   DetailSection,
   OverviewSection,
-  PerformanceSection,
   ReviewsSection,
   StorySection,
   CommentsSection,
   RelatedSection,
   type Props as DetailProps,
 } from "@/components/detail/shoe-detail-slides";
+import { PremiumPerformance } from "@/components/premium/detail/premium-performance";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { PremiumVariant } from "@/components/premium/variants";
@@ -40,14 +40,17 @@ const SECTION_ID: Record<SectionKey, string> = {
   related: "detail-related",
 };
 
-// Each skin reads the shoe in its own order. Editorial leads with the story
-// (magazine feature); Instrument and Arena lead with the numbers (data / stats);
-// Gallery stays image-first and quiet.
+// Each skin keeps the overview (title + hero) as the identity block, then reads
+// the rest in its own order + FRAMES the data block to match its layout:
+//   • Editorial — the cover story: story leads, numbers follow ("By the numbers").
+//   • Instrument — the cockpit: performance next, wrapped as an instrument panel.
+//   • Gallery — the monograph: performance, then story; quiet, unframed.
+//   • Arena — the scout report: a gold "stat sheet" performance frame, reviews next.
 const ORDERS: Record<Exclude<PremiumVariant, "standard">, SectionKey[]> = {
   editorial: ["overview", "story", "performance", "reviews", "comments", "related"],
-  instrument: ["performance", "overview", "reviews", "story", "comments", "related"],
+  instrument: ["overview", "performance", "story", "reviews", "comments", "related"],
   gallery: ["overview", "performance", "story", "reviews", "comments", "related"],
-  arena: ["performance", "overview", "reviews", "story", "comments", "related"],
+  arena: ["overview", "performance", "reviews", "story", "comments", "related"],
 };
 
 const HASH_TO_ID: Record<string, string> = {
@@ -88,7 +91,7 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
       <OverviewSection {...props} onShareCard={() => setShareOpen(true)} onJumpToComments={() => jumpTo("detail-comments")} />
     ),
     performance: () => (
-      <PerformanceSection shoe={props.shoe} extraTechCards={props.extraTechCards} radarAxes={props.radarAxes} />
+      <PremiumPerformance variant={variant} shoe={props.shoe} extraTechCards={props.extraTechCards} />
     ),
     reviews: () => <ReviewsSection bloggerReviews={props.bloggerReviews} />,
     story: () => <StorySection {...props} />,
