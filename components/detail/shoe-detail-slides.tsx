@@ -54,7 +54,7 @@ type PreviewUpload = {
   public_url: string;
 };
 
-type Props = {
+export type Props = {
   shoe: Shoe;
   related: Shoe[];
   isAdmin: boolean;
@@ -163,7 +163,7 @@ export function ShoeDetailSlides(props: Props) {
   );
 }
 
-function DetailSection({
+export function DetailSection({
   id,
   children,
   className
@@ -192,7 +192,7 @@ function SectionHeading({ eyebrow, title }: { eyebrow: string; title: string }) 
   );
 }
 
-function OverviewSection({
+export function OverviewSection({
   shoe,
   reviewImage,
   imageState,
@@ -473,7 +473,7 @@ function VerdictBlock({ shoe }: { shoe: Shoe }) {
 // Performance: radar on top, then a clean spec table below — two columns on
 // tablet/desktop, a single column on phones (so the enlarged labels and full,
 // untruncated text stay readable).
-function PerformanceSection({
+export function PerformanceSection({
   shoe,
   extraTechCards,
   radarAxes
@@ -546,11 +546,11 @@ function PerformanceSection({
   );
 }
 
-function ReviewsSection({ bloggerReviews }: { bloggerReviews: BloggerReview[] }) {
+export function ReviewsSection({ bloggerReviews }: { bloggerReviews: BloggerReview[] }) {
   return <BloggerReviewsSlideBody reviews={bloggerReviews} />;
 }
 
-function StorySection({
+export function StorySection({
   shoe,
   hasStory,
   storyTitle,
@@ -618,7 +618,7 @@ function StorySection({
   );
 }
 
-function CommentsSection({ shoe, specStars, isLoggedIn }: Props) {
+export function CommentsSection({ shoe, specStars, isLoggedIn }: Props) {
   return (
     <div className="mx-auto w-full max-w-3xl">
       <CommentSection
@@ -631,7 +631,7 @@ function CommentsSection({ shoe, specStars, isLoggedIn }: Props) {
   );
 }
 
-function RelatedSection({ related }: Props) {
+export function RelatedSection({ related }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   return (

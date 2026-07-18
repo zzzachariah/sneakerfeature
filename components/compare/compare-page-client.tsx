@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { CompareSlides } from "@/components/compare/compare-slides";
+import { CompareSwitch } from "@/components/premium/compare/compare-switch";
 import dynamic from "next/dynamic";
 
 const AddShoeDialog = dynamic(
@@ -251,7 +251,7 @@ export function ComparePageClient({ selected, allShoes }: Props) {
           <EmptyState onOpenAdd={() => setDialogOpen(true)} translate={translate} />
         </div>
       ) : (
-        <CompareSlides
+        <CompareSwitch
           shoes={localShoes}
           canAdd={canAdd}
           canSave={canSave}

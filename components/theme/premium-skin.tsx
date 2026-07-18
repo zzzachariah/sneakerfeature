@@ -1,18 +1,18 @@
 "use client";
 
 // Menu-bar "Premium UI" switcher. Lets ANYONE flip the whole site into one of the
-// four luxury skin design languages (Sapphire / Aurora / Obsidian / Champion) or
-// back to the standard look — a purely visual, site-wide skin, independent of
-// membership entitlements. The chosen skin is stamped as `data-premium="<skin>"`
-// on <html> and styled entirely from globals.css (accent, ground temperature,
-// shoe stage, card hairlines, ambient wash), so it themes every page at once and
-// works in both light and dark.
+// four luxury design languages (Sapphire / Aurora / Obsidian / Champion) or back
+// to the standard look. A skin is a site-wide identity: it re-colors + re-fonts
+// every page from globals.css / premium-skins.css (via data-premium on <html>)
+// AND — through PremiumSkinProvider — lets each page render a different STRUCTURE
+// (see components/premium/*). Independent of membership entitlements.
 //
-// Two pieces, mirroring ThemeToggle / SkinInitScript:
-//   • PremiumSkinInitScript — a blocking inline <script> that applies the stored
-//     skin BEFORE first paint so there's no flash.
-//   • PremiumSkinToggle (desktop popover) + PremiumSkinOptions (inline list for
-//     the mobile menu) — the interactive pickers.
+// State lives in PremiumSkinProvider (components/theme/premium-skin-context.tsx),
+// which owns the attribute + localStorage + cookie and seeds itself from the
+// server value. This file is just the two pickers:
+//   • PremiumSkinToggle — the desktop popover.
+//   • PremiumSkinOptions — the inline list reused inside the mobile menu.
+// The pre-paint init (PremiumSkinInitScript) also lives in the context module.
 //
 // Coordination: when a premium skin is active, MemberThemeApplier defers its
 // inline --brand override (it watches data-premium) so the skin's stylesheet
@@ -20,46 +20,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Gem, Check } from "lucide-react";
-import { SKIN_ORDER, SKINS, isSkinId, type SkinId } from "@/lib/subscription/skins";
+import { SKIN_ORDER, SKINS, type SkinId } from "@/lib/subscription/skins";
+import { usePremiumSkin } from "@/components/theme/premium-skin-context";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export const PREMIUM_UI_KEY = "sf-premium-ui";
-
-export function applyPremiumSkin(skin: SkinId | null) {
-  const root = document.documentElement;
-  try {
-    if (skin) {
-      root.setAttribute("data-premium", skin);
-      window.localStorage.setItem(PREMIUM_UI_KEY, skin);
-    } else {
-      root.removeAttribute("data-premium");
-      window.localStorage.removeItem(PREMIUM_UI_KEY);
-    }
-  } catch {
-    // storage blocked — the attribute still applies for this session
-    if (skin) root.setAttribute("data-premium", skin);
-    else root.removeAttribute("data-premium");
-  }
-}
-
-export function readPremiumSkin(): SkinId | null {
-  try {
-    const v = window.localStorage.getItem(PREMIUM_UI_KEY);
-    return isSkinId(v) ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-// Pre-paint: apply the stored premium skin before React hydrates so a returning
-// user never flashes the default look. The empty catch keeps the site from ever
-// ending up unstyled if storage throws.
-export function PremiumSkinInitScript({ nonce }: { nonce?: string }) {
-  const code = `(() => { try { var v = localStorage.getItem('${PREMIUM_UI_KEY}'); if (v === 'sapphire' || v === 'aurora' || v === 'obsidian' || v === 'champion') document.documentElement.setAttribute('data-premium', v); } catch (e) {} })();`;
-  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
-}
+// Re-exported for the handful of call sites that still import these names from
+// here; the implementations now live in the context module.
+export { PREMIUM_UI_KEY, applyPremiumSkin, readPremiumSkin, PremiumSkinInitScript } from "@/components/theme/premium-skin-context";
 
 function skinLabel(id: SkinId, zh: boolean) {
   return zh ? SKINS[id].name : SKINS[id].nameEn;
@@ -84,14 +53,16 @@ function Swatch({ id }: { id: SkinId }) {
 
 /**
  * Inline option list (Off + the four skins). Used both inside the desktop
- * popover and directly in the mobile hamburger menu. Calls onPick after applying.
+ * popover and directly in the mobile hamburger menu. Drives the shared skin
+ * context, so every consumer (navbar dot, page structure) updates at once.
  */
-export function PremiumSkinOptions({ active, onPick }: { active: SkinId | null; onPick?: (skin: SkinId | null) => void }) {
+export function PremiumSkinOptions({ onPick }: { onPick?: (skin: SkinId | null) => void }) {
   const { locale } = useLocale();
   const zh = locale === "zh";
+  const { skin: active, setSkin } = usePremiumSkin();
 
   const choose = (skin: SkinId | null) => {
-    applyPremiumSkin(skin);
+    setSkin(skin);
     onPick?.(skin);
   };
 
@@ -134,12 +105,8 @@ export function PremiumSkinToggle({ className }: { className?: string }) {
   const { locale } = useLocale();
   const zh = locale === "zh";
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState<SkinId | null>(null);
+  const { skin: active } = usePremiumSkin();
   const wrapRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setActive(readPremiumSkin());
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -192,15 +159,9 @@ export function PremiumSkinToggle({ className }: { className?: string }) {
           <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
             {zh ? "整站质感" : "Premium UI skin"}
           </div>
-          <PremiumSkinOptions
-            active={active}
-            onPick={(skin) => {
-              setActive(skin);
-              setOpen(false);
-            }}
-          />
+          <PremiumSkinOptions onPick={() => setOpen(false)} />
           <p className="px-3 pb-1 pt-1.5 text-[0.68rem] leading-snug text-[rgb(var(--subtext))]">
-            {zh ? "整站换肤，浅色/深色都适配。" : "Skins the whole site, in light & dark."}
+            {zh ? "整站换肤 · 重排版式，浅色/深色都适配。" : "Re-skins & re-lays-out the whole site, light & dark."}
           </p>
         </div>
       )}

@@ -3,7 +3,7 @@ import type { Shoe } from "@/lib/types";
 import { getShoes } from "@/lib/data/shoes";
 import { getCurrentUser } from "@/lib/data/auth";
 import { createClient } from "@/lib/supabase/server";
-import { FavoritesView } from "@/components/favorites/favorites-view";
+import { FavoritesSwitch } from "@/components/premium/favorites/favorites-switch";
 
 export const dynamic = "force-dynamic";
 
@@ -30,5 +30,5 @@ export default async function FavoritesPage() {
     }
   }
 
-  return <FavoritesView shoes={shoes} signedIn={Boolean(user)} />;
+  return <FavoritesSwitch shoes={shoes} signedIn={Boolean(user)} />;
 }
