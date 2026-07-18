@@ -448,7 +448,7 @@ export function Navbar() {
                 <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
                   {zh ? "整站质感" : "Premium UI"}
                 </div>
-                <PremiumSkinOptions onPick={() => setMenuOpen(false)} />
+                <PremiumSkinOptions onPick={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
 
                 {/* Theme still follows the system on mobile; the Premium UI skin above is separate. */}
 

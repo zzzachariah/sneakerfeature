@@ -35,6 +35,7 @@ import {
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
 import { PremiumSkinInitScript, PremiumSkinProvider } from "@/components/theme/premium-skin-context";
+import { PremiumSkinGuard } from "@/components/theme/premium-skin";
 import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
@@ -128,6 +129,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <CookieConsentProvider>
             <AuthStateProvider>
               <MemberThemeApplier />
+              <PremiumSkinGuard />
               <FavoritesProvider>
               <RatingFocusProvider>
                 <PersonaProvider>
