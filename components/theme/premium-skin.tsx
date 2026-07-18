@@ -19,8 +19,11 @@
 // accent wins; turning premium off restores the member's own accent.
 
 import { useEffect, useRef, useState } from "react";
-import { Gem, Check } from "lucide-react";
-import { SKIN_ORDER, SKINS, isSkinId, type SkinId } from "@/lib/subscription/skins";
+import Link from "next/link";
+import { Gem, Check, Lock } from "lucide-react";
+import { SKIN_ORDER, SKINS, isSkinId, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
+import { isPaidTier, type Tier } from "@/lib/subscription/tiers";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -53,12 +56,36 @@ export function readPremiumSkin(): SkinId | null {
   }
 }
 
+// Entitlement — mirrors the membership skin picker exactly (see subscribe-client
+// `canPersonalize` / `canSignature`): skins are a PAID perk, so free / signed-out
+// get none; the Max-exclusive skin (Champion) needs Max. `tier` already resolves
+// admins to "max" (AuthStateProvider), so admins are covered with no extra case.
+export function skinAllowed(id: SkinId, tier: Tier): boolean {
+  if (!isPaidTier(tier)) return false;
+  if (isMaxExclusiveSkin(id)) return tier === "max";
+  return true;
+}
+
 // Pre-paint: apply the stored premium skin before React hydrates so a returning
 // user never flashes the default look. The empty catch keeps the site from ever
 // ending up unstyled if storage throws.
 export function PremiumSkinInitScript({ nonce }: { nonce?: string }) {
   const code = `(() => { try { var v = localStorage.getItem('${PREMIUM_UI_KEY}'); if (v === 'sapphire' || v === 'aurora' || v === 'obsidian' || v === 'champion') document.documentElement.setAttribute('data-premium', v); } catch (e) {} })();`;
   return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
+}
+
+// Revoke a premium skin the current tier isn't entitled to. The pre-paint init
+// applies the last-stored skin before the tier is known (a member who lapsed to
+// free, a Pro holding the Max-only Champion, or a stale value), so once auth
+// resolves we clear anything no longer allowed. Mount once under AuthStateProvider.
+export function PremiumSkinGuard() {
+  const { tier, loaded } = useAuthState();
+  useEffect(() => {
+    if (!loaded) return;
+    const current = readPremiumSkin();
+    if (current && !skinAllowed(current, tier)) applyPremiumSkin(null);
+  }, [tier, loaded]);
+  return null;
 }
 
 function skinLabel(id: SkinId, zh: boolean) {
@@ -86,8 +113,17 @@ function Swatch({ id }: { id: SkinId }) {
  * Inline option list (Off + the four skins). Used both inside the desktop
  * popover and directly in the mobile hamburger menu. Calls onPick after applying.
  */
-export function PremiumSkinOptions({ active, onPick }: { active: SkinId | null; onPick?: (skin: SkinId | null) => void }) {
+export function PremiumSkinOptions({
+  active,
+  onPick,
+  onClose,
+}: {
+  active: SkinId | null;
+  onPick?: (skin: SkinId | null) => void;
+  onClose?: () => void;
+}) {
   const { locale } = useLocale();
+  const { tier, loaded } = useAuthState();
   const zh = locale === "zh";
 
   const choose = (skin: SkinId | null) => {
@@ -95,51 +131,78 @@ export function PremiumSkinOptions({ active, onPick }: { active: SkinId | null; 
     onPick?.(skin);
   };
 
+  const row =
+    "flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]";
+
   return (
     <>
-      <button
-        type="button"
-        role="menuitemradio"
-        aria-checked={active === null}
-        onClick={() => choose(null)}
-        className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-      >
+      <button type="button" role="menuitemradio" aria-checked={active === null} onClick={() => choose(null)} className={row}>
         <span className="flex items-center gap-2.5">
           <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border border-[rgb(var(--muted))]" />
           {zh ? "标准（关闭）" : "Standard (off)"}
         </span>
         {active === null ? <Check className="h-4 w-4" /> : null}
       </button>
-      {SKIN_ORDER.map((id) => (
-        <button
-          key={id}
-          type="button"
-          role="menuitemradio"
-          aria-checked={active === id}
-          onClick={() => choose(id)}
-          className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+
+      {SKIN_ORDER.map((id) => {
+        // Gate exactly like the membership skin picker: paid perk, Champion = Max.
+        if (skinAllowed(id, tier)) {
+          return (
+            <button key={id} type="button" role="menuitemradio" aria-checked={active === id} onClick={() => choose(id)} className={row}>
+              <span className="flex items-center gap-2.5">
+                <Swatch id={id} />
+                {skinLabel(id, zh)}
+              </span>
+              {active === id ? <Check className="h-4 w-4" /> : null}
+            </button>
+          );
+        }
+        // Locked → route to the membership page (upsell), like the subscribe
+        // page's lock treatment. Champion shows "Max only"; the rest a member lock.
+        const tag = isMaxExclusiveSkin(id) ? (zh ? "Max 限定" : "Max") : (zh ? "会员" : "Members");
+        return (
+          <Link key={id} href="/subscribe" onClick={() => onClose?.()} aria-disabled className={`${row} opacity-70`}>
+            <span className="flex items-center gap-2.5">
+              <Swatch id={id} />
+              {skinLabel(id, zh)}
+            </span>
+            <span className="flex shrink-0 items-center gap-1.5">
+              <span className="rounded-full bg-[rgb(var(--text)/0.08)] px-1.5 py-0.5 text-[0.5rem] font-bold uppercase tracking-wide text-[rgb(var(--subtext))]">
+                {tag}
+              </span>
+              <Lock className="h-3.5 w-3.5 text-[rgb(var(--subtext))]" />
+            </span>
+          </Link>
+        );
+      })}
+
+      {loaded && !isPaidTier(tier) ? (
+        <Link
+          href="/subscribe"
+          onClick={() => onClose?.()}
+          className="mt-0.5 flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold text-[rgb(var(--brand))] transition hover:bg-[rgb(var(--text)/0.06)]"
         >
-          <span className="flex items-center gap-2.5">
-            <Swatch id={id} />
-            {skinLabel(id, zh)}
-          </span>
-          {active === id ? <Check className="h-4 w-4" /> : null}
-        </button>
-      ))}
+          {zh ? "开通会员解锁整站皮肤" : "Unlock site-wide skins"}
+        </Link>
+      ) : null}
     </>
   );
 }
 
 export function PremiumSkinToggle({ className }: { className?: string }) {
   const { locale } = useLocale();
+  const { tier, loaded } = useAuthState();
   const zh = locale === "zh";
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState<SkinId | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setActive(readPremiumSkin());
-  }, []);
+    const s = readPremiumSkin();
+    // Optimistic before auth resolves; once loaded, only reflect an entitled skin
+    // as active (the guard clears an unentitled one from the DOM in parallel).
+    setActive(!s || !loaded || skinAllowed(s, tier) ? s : null);
+  }, [tier, loaded]);
 
   useEffect(() => {
     if (!open) return;
@@ -198,6 +261,7 @@ export function PremiumSkinToggle({ className }: { className?: string }) {
               setActive(skin);
               setOpen(false);
             }}
+            onClose={() => setOpen(false)}
           />
           <p className="px-3 pb-1 pt-1.5 text-[0.68rem] leading-snug text-[rgb(var(--subtext))]">
             {zh ? "整站换肤，浅色/深色都适配。" : "Skins the whole site, in light & dark."}

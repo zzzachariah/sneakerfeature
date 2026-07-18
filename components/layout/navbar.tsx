@@ -460,6 +460,7 @@ export function Navbar() {
                     setPremiumSkin(s);
                     setMenuOpen(false);
                   }}
+                  onClose={() => setMenuOpen(false)}
                 />
 
                 {/* Theme still follows the system on mobile; the Premium UI skin above is separate. */}
