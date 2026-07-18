@@ -21,6 +21,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePremiumVariant } from "@/components/premium/variants";
 import { SignInValue } from "@/components/auth/sign-in-value";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
@@ -68,6 +69,7 @@ const POSITION_EN: Record<string, string> = {
 
 export function ForYouView({ signedIn, username, personaPosition, digest, recentShoes, popular, shoesCount, brandsCount }: Props) {
   const { locale, translate, getRankLabel } = useLocale();
+  const variant = usePremiumVariant();
   const router = useRouter();
   const { persona, isLoggedIn, openModal } = usePersona();
 
@@ -136,13 +138,15 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       <motion.header {...sectionReveal}>
         <div className="flex items-center gap-2 text-[rgb(var(--accent))]">
           <Sparkles className="h-5 w-5" />
-          <span className="text-xs font-semibold uppercase tracking-[0.18em]">
+          {/* Under a skin the eyebrow takes the active kicker treatment; the
+              greeting keeps its wording but wears the skin's display face. */}
+          <span className={variant === "standard" ? "text-xs font-semibold uppercase tracking-[0.18em]" : "pui-kicker"}>
             {signedIn ? translate("Your weekly picks") : translate("Basketball shoe intelligence")}
           </span>
         </div>
         {signedIn ? (
           <>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h1 className={`mt-2 text-2xl font-semibold tracking-tight sm:text-3xl${variant !== "standard" ? " pui-display" : ""}`}>
               {greetWord}
               {username ? (locale === "zh" ? `，${username}` : `, ${username}`) : ""}
             </h1>
@@ -153,7 +157,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
           </>
         ) : (
           <>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+            <h1 className={`mt-2 text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl${variant !== "standard" ? " pui-display" : ""}`}>
               {translate("Every basketball shoe, compared in one place")}
             </h1>
             <p className="mt-2 text-sm leading-6 soft-text sm:text-[0.95rem]">
