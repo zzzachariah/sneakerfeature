@@ -9,6 +9,9 @@ import { getMemberContext } from "@/lib/subscription/entitlements";
 import { getShoeFit, getFootProfile } from "@/lib/data/shoe-fit";
 import { computeSizeAdvice, type ShoeFit } from "@/lib/foot-scan/fit-advisor";
 import { SizeAdvisorCard, type SizeAdvisorData } from "@/components/detail/size-advisor";
+import { ConciergeCta } from "@/components/detail/concierge-cta";
+import { FootReportCard } from "@/components/detail/foot-report-card";
+import { buildFootReport, type FootReport } from "@/lib/foot-scan/foot-report";
 import { AdminFitEditor } from "@/components/detail/admin-fit-editor";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
@@ -80,10 +83,13 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
   // `adminFit` is the current per-shoe fit row, surfaced to admins for editing.
   let sizeData: SizeAdvisorData;
   let adminFit: ShoeFit | null = null;
+  let showConcierge = false;
+  let footReport: FootReport | null = null;
   if (!profile) {
     sizeData = { state: "signed-out" };
   } else {
     const member = await getMemberContext(profile.id);
+    showConcierge = isAdmin || member.tier === "max";
     const canUse = isAdmin || member.config.capabilities.preciseSizing;
     if (!canUse) {
       // Highest-intent upsell: if this free user has already scanned their feet,
@@ -94,6 +100,8 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     } else {
       const [fit, foot] = await Promise.all([getShoeFit(shoe.id), getFootProfile(profile.id)]);
       adminFit = fit;
+      // Max members with a scan also get the standalone deep foot report.
+      if (showConcierge && foot && foot.foot_length_mm) footReport = buildFootReport(foot);
       if (!foot || !foot.foot_length_mm) {
         sizeData = { state: "no-profile" };
       } else {
@@ -160,6 +168,8 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
         sizeAdvisor={
           <>
             <SizeAdvisorCard data={sizeData} />
+            {footReport && <FootReportCard report={footReport} />}
+            {showConcierge && <ConciergeCta shoeName={shoe.shoe_name} />}
             {isAdmin && <AdminFitEditor shoeId={shoe.id} initialFit={adminFit} />}
           </>
         }

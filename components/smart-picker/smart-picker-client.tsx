@@ -52,7 +52,7 @@ function statusText(
   }
 }
 
-export function SmartPickerClient() {
+export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string }) {
   // User-facing fallback strings were hardcoded Chinese; pick per locale so the
   // English UI never shows untranslated zh (the rest of the app uses translate()).
   const { locale } = useLocale();
@@ -441,6 +441,7 @@ export function SmartPickerClient() {
         unlimited={unlimited}
         checkin={checkin}
         allowance={allowance}
+        initialPrompt={initialPrompt}
         chats={chats}
         activeChatId={activeChatId}
         activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
