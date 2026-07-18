@@ -14,7 +14,13 @@ type AuthState = {
   email: string | null;
   username: string | null;
   isAdmin: boolean;
+  /** Effective tier for feature gating. Admins resolve to "max" so they can
+   *  exercise every Max-gated surface (skins, personalization, previews). */
   tier: Tier;
+  /** The member's REAL resolved subscription tier — no admin override. Use this
+   *  wherever the UI states what plan the user is on (membership card, badges),
+   *  so an admin on a Pro plan sees a Pro card, not a Max one. */
+  subscriptionTier: Tier;
   skin: SkinId;
   /** Max-only custom accent hex, or null. Threaded through so site-wide theming
    *  and badges can honor a member's "Signature" color. */
@@ -30,6 +36,7 @@ const DEFAULT_STATE: AuthState = {
   username: null,
   isAdmin: false,
   tier: "free",
+  subscriptionTier: "free",
   skin: DEFAULT_SKIN,
   customAccent: null,
   loaded: false
@@ -37,7 +44,14 @@ const DEFAULT_STATE: AuthState = {
 
 const AuthStateContext = createContext<AuthState>(DEFAULT_STATE);
 
-type CachedRole = { username: string | null; isAdmin: boolean; tier?: Tier; skin?: SkinId; customAccent?: string | null };
+type CachedRole = {
+  username: string | null;
+  isAdmin: boolean;
+  tier?: Tier;
+  subscriptionTier?: Tier;
+  skin?: SkinId;
+  customAccent?: string | null;
+};
 
 // Cached in localStorage (NOT sessionStorage) so a returning member opening a
 // NEW tab resolves as their real tier/skin on first paint — sessionStorage is
@@ -52,7 +66,14 @@ function readCachedRole(userId: string): CachedRole | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as CachedRole;
     if (typeof parsed?.isAdmin !== "boolean") return null;
-    return { username: parsed.username ?? null, isAdmin: parsed.isAdmin, tier: parsed.tier, skin: parsed.skin, customAccent: parsed.customAccent ?? null };
+    return {
+      username: parsed.username ?? null,
+      isAdmin: parsed.isAdmin,
+      tier: parsed.tier,
+      subscriptionTier: parsed.subscriptionTier,
+      skin: parsed.skin,
+      customAccent: parsed.customAccent ?? null
+    };
   } catch {
     return null;
   }
@@ -97,6 +118,9 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
         username: cached?.username ?? null,
         isAdmin: cached?.isAdmin ?? false,
         tier: cached?.tier ?? "free",
+        // Older caches predate subscriptionTier; fall back to the effective tier
+        // (identical for non-admins) until the fresh fetch below corrects it.
+        subscriptionTier: cached?.subscriptionTier ?? cached?.tier ?? "free",
         skin: cached?.skin ?? DEFAULT_SKIN,
         customAccent: cached?.customAccent ?? null,
         loaded: true
@@ -118,6 +142,7 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
       // tolerantly so a pre-migration deployment still resolves username/role.
       // Seed tier/skin from the cache so a failed sub-read also can't downgrade.
       let tier: Tier = isAdmin ? "max" : cached?.tier ?? "free";
+      let subscriptionTier: Tier = cached?.subscriptionTier ?? (isAdmin ? "free" : cached?.tier ?? "free");
       let skin: SkinId = cached?.skin ?? DEFAULT_SKIN;
       let customAccent: string | null = cached?.customAccent ?? null;
       try {
@@ -127,7 +152,10 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
           .eq("id", userId)
           .maybeSingle();
         if (!cancelled && !subError && sub) {
-          tier = isAdmin ? "max" : resolveTier(sub).tier; // admins get Max treatment in the UI
+          // Admins get Max treatment for feature gating, but subscriptionTier
+          // stays their real plan so "what am I paying for" surfaces stay honest.
+          subscriptionTier = resolveTier(sub).tier;
+          tier = isAdmin ? "max" : subscriptionTier;
           const prefs = parseMemberPrefs(sub.member_prefs);
           skin = prefs.skin;
           customAccent = prefs.customAccent;
@@ -137,7 +165,7 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
       }
       if (cancelled) return;
 
-      writeCachedRole(userId, { username, isAdmin, tier, skin, customAccent });
+      writeCachedRole(userId, { username, isAdmin, tier, subscriptionTier, skin, customAccent });
       setState({
         session,
         signedIn: true,
@@ -146,6 +174,7 @@ export function AuthStateProvider({ children }: { children: React.ReactNode }) {
         username,
         isAdmin,
         tier,
+        subscriptionTier,
         skin,
         customAccent,
         loaded: true

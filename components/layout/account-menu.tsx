@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 export function AccountMenu({ className }: { className?: string }) {
   const { translate } = useLocale();
-  const { signedIn, isAdmin, username, email, tier, skin, loaded } = useAuthState();
+  const { signedIn, isAdmin, username, email, tier, subscriptionTier, skin, loaded } = useAuthState();
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -141,7 +141,9 @@ export function AccountMenu({ className }: { className?: string }) {
                 <div className="mb-1 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-3 pb-2 pt-1">
                   <p className="flex items-center gap-1.5 truncate text-sm font-semibold text-[rgb(var(--text))]">
                     <span className="truncate">{username || email?.split("@")[0] || translate("Account")}</span>
-                    <MemberBadge tier={tier} skin={skin} />
+                    {/* The badge names the member's actual plan — subscriptionTier,
+                        so admins aren't shown as Max unless they really are. */}
+                    <MemberBadge tier={subscriptionTier} skin={skin} />
                   </p>
                   {email ? <p className="mt-0.5 truncate text-xs soft-text">{email}</p> : null}
                 </div>

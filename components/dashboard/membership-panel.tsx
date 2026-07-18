@@ -30,12 +30,15 @@ type Expiry = {
 // upgrade prompt.
 export function MembershipPanel() {
   const { translate } = useLocale();
-  const { signedIn, isAdmin, userId, username, tier, skin, loaded } = useAuthState();
+  // subscriptionTier (not the effective `tier`) — this panel states what plan
+  // the member is actually on, so an admin with a Pro subscription must see a
+  // Pro card here, not the Max treatment admins get for feature gating.
+  const { signedIn, isAdmin, userId, username, subscriptionTier, skin, loaded } = useAuthState();
   const [expiry, setExpiry] = useState<Expiry | null>(null);
   const [sharing, setSharing] = useState(false);
   const captureRef = useRef<HTMLDivElement>(null);
 
-  const paid = isPaidTier(tier);
+  const paid = isPaidTier(subscriptionTier);
 
   useEffect(() => {
     if (!userId || !paid) return;
@@ -69,7 +72,7 @@ export function MembershipPanel() {
   if (!paid && !SUBSCRIBE_LIVE && !isAdmin) return null;
 
   const canOpenSubscribe = SUBSCRIBE_LIVE || isAdmin;
-  const cfg = TIERS[tier];
+  const cfg = TIERS[subscriptionTier];
   const serial = userId ? memberSerial(userId) : null;
 
   const statusLine = !paid
@@ -135,7 +138,7 @@ export function MembershipPanel() {
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
       <div className="w-full max-w-[320px]">
         <MembershipCard
-          tier={tier as "pro" | "max"}
+          tier={subscriptionTier as "pro" | "max"}
           skin={skin}
           active
           flippable
@@ -150,7 +153,7 @@ export function MembershipPanel() {
       <div className="flex min-w-0 flex-1 flex-col gap-2.5">
         <p className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text))]">
           {translate("Membership")}
-          <MemberBadge tier={tier} skin={skin} />
+          <MemberBadge tier={subscriptionTier} skin={skin} />
         </p>
         <p className="truncate text-xs soft-text">{statusLine}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -180,7 +183,7 @@ export function MembershipPanel() {
           exported image is never mid-flip or mid-tilt. */}
       <div ref={captureRef} aria-hidden className="pointer-events-none fixed -left-[9999px] top-0 w-[640px]">
         <MembershipCard
-          tier={tier as "pro" | "max"}
+          tier={subscriptionTier as "pro" | "max"}
           skin={skin}
           active
           interactive={false}
