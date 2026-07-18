@@ -7,6 +7,8 @@ import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { Check, Crown, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { PremiumSkinToggle, PremiumSkinOptions, readPremiumSkin } from "@/components/theme/premium-skin";
+import type { SkinId } from "@/lib/subscription/skins";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { UpgradeNav } from "@/components/layout/upgrade-nav";
@@ -45,6 +47,7 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [premiumSkin, setPremiumSkin] = useState<SkinId | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
 
@@ -52,6 +55,10 @@ export function Navbar() {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    setPremiumSkin(readPremiumSkin());
   }, []);
 
   useEffect(() => {
@@ -169,6 +176,10 @@ export function Navbar() {
               <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
             </Link>
           </Tooltip>
+
+          <span className="hidden md:inline-flex" data-tutorial="nav-premium">
+            <PremiumSkinToggle />
+          </span>
 
           <span className="hidden md:inline-flex" data-tutorial="nav-theme">
             <ThemeToggle />
@@ -439,7 +450,19 @@ export function Navbar() {
                   {locale === "zh" ? <Check className="h-4 w-4" /> : null}
                 </button>
 
-                {/* No theme switch on mobile — the app follows the system theme. */}
+                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+                <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
+                  {zh ? "整站质感" : "Premium UI"}
+                </div>
+                <PremiumSkinOptions
+                  active={premiumSkin}
+                  onPick={(s) => {
+                    setPremiumSkin(s);
+                    setMenuOpen(false);
+                  }}
+                />
+
+                {/* Theme still follows the system on mobile; the Premium UI skin above is separate. */}
 
                 <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
 

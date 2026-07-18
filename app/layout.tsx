@@ -31,6 +31,7 @@ import {
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
+import { PremiumSkinInitScript } from "@/components/theme/premium-skin";
 import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
@@ -100,6 +101,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <ThemeInitScript />
         <SkinInitScript />
+        <PremiumSkinInitScript />
         <MemberThemeInitScript />
         <GlassFilterDefs />
         <CapacitorBridge />
