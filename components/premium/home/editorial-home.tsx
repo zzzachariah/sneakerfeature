@@ -1,11 +1,10 @@
 "use client";
 
 // EDITORIAL (Sapphire) home — the site as a curated sneaker magazine. A serif
-// masthead + "cover story" opens; below it a three-column editor's spread, a
-// vitrine of scene collections, and the database recast as "The Archive",
-// collapsed behind the fold. Reuses the standard data (forYou / collections /
-// shoes) and sub-components (ShoeCard / ShoeImage); the personality is all
-// typography + rhythm.
+// masthead + "cover story" opens; the editor's spread leads with ONE hero pick
+// and a curated shortlist (magazine hierarchy, not a wall of identical cards);
+// then a vitrine of scene collections and the database recast as "The Archive".
+// Reuses the standard data (forYou / collections / shoes) + ShoeImage.
 
 import Link from "next/link";
 import type { Route } from "next";
@@ -15,6 +14,7 @@ import { QuickPickerEntry } from "@/components/home/quick-picker-entry";
 import { PremiumDatabase } from "@/components/premium/home/premium-database";
 import { ShoeCard } from "@/components/home/shoe-card";
 import { ShoeImage } from "@/components/shoe/shoe-image";
+import { StarRatingSlot } from "@/components/shoe/star-rating-slot";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
@@ -29,20 +29,6 @@ function isoWeek(d: Date): number {
   return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
-function Column({ title, shoes }: { title: string; shoes: Shoe[] }) {
-  if (shoes.length === 0) return null;
-  return (
-    <div className="pui-ed-column">
-      <h3>{title}</h3>
-      <ul className="grid gap-3">
-        {shoes.map((s, i) => (
-          <ShoeCard key={s.id} shoe={s} index={i} />
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, forYou, collections }: PremiumHomeProps) {
   const { translate } = useLocale();
   const { persona } = usePersona();
@@ -53,13 +39,26 @@ export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, fo
   ]);
 
   const byId = new Map(shoes.map((s) => [s.id, s]));
-  const coverShoe = resolveCollection(shoes, forYou.popular.map((s) => s.id))[0] ?? topRated(shoes, 1)[0];
+  const ranked = topRated(shoes, 12);
+  const coverShoe = resolveCollection(shoes, forYou.popular.map((s) => s.id))[0] ?? ranked[0];
 
-  const editorPicks = topRated(shoes, 4);
-  const popular = forYou.popular.map((s) => byId.get(s.id)).filter((s): s is Shoe => Boolean(s));
-  const recent = forYou.recentShoes.map((s) => byId.get(s.id)).filter((s): s is Shoe => Boolean(s));
-  const hasRecent = recent.length > 0;
-  const continueList = hasRecent ? recent.slice(0, 4) : topRated(shoes, 8).slice(4, 8);
+  // Editor's spread: one hero pick + a curated shortlist. The shortlist prefers
+  // the member's popular/recent, then fills from the top-rated, de-duplicated and
+  // never repeating the hero.
+  const feature = ranked[0] ?? coverShoe;
+  const pool: Shoe[] = [
+    ...forYou.popular.map((s) => byId.get(s.id)),
+    ...forYou.recentShoes.map((s) => byId.get(s.id)),
+    ...ranked,
+  ].filter((s): s is Shoe => Boolean(s));
+  const shortlist: Shoe[] = [];
+  const seen = new Set<string>([feature?.id ?? ""]);
+  for (const s of pool) {
+    if (seen.has(s.id)) continue;
+    seen.add(s.id);
+    shortlist.push(s);
+    if (shortlist.length >= 5) break;
+  }
 
   const year = new Date().getFullYear();
   const week = isoWeek(new Date());
@@ -103,19 +102,65 @@ export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, fo
           )}
         </section>
 
-        {/* Editor's spread */}
-        <section className="container-shell pui-section">
-          <div className="pui-section-head">
-            <span className="pui-kicker">{translate("Editor's picks")}</span>
-          </div>
-          <div className="pui-ed-columns">
-            <Column title={translate("This week's standout")} shoes={editorPicks} />
-            <Column title={translate("Popular this week")} shoes={popular} />
-            <Column title={hasRecent ? translate("Continue reading") : translate("Also worth a look")} shoes={continueList} />
-          </div>
-        </section>
+        {/* Editor's spread: hero pick + curated shortlist */}
+        {feature && (
+          <section className="container-shell pui-section">
+            <div className="pui-section-head">
+              <span className="pui-kicker">{translate("Editor's picks")}</span>
+            </div>
+            <div className="pui-ed-spread">
+              {/* Hero */}
+              <Link href={`/shoes/${feature.slug}` as Route} prefetch className="group block">
+                <div className="pui-ed-stage shoe-stage" style={{ aspectRatio: "3 / 2" }}>
+                  <ShoeImage
+                    src={feature.image_url}
+                    alt={feature.shoe_name}
+                    fallbackLabel={translate("No image")}
+                    variant="detail"
+                    className="!w-[82%] !max-w-none transition-transform duration-500 group-hover:scale-[1.03]"
+                  />
+                </div>
+                <p className="mt-4 pui-kicker">{translate("This week's standout")}</p>
+                <h3 className="pui-ed-feature-name">{feature.shoe_name}</h3>
+                <div className="mt-2 flex items-center gap-3 text-[0.82rem] text-[rgb(var(--subtext))]">
+                  <span className="uppercase tracking-[0.14em]">{feature.brand}</span>
+                  <StarRatingSlot value={feature.finalStars ?? null} size="sm" showNumber count={feature.userRatingCount ?? 0} />
+                </div>
+              </Link>
 
-        <QuickPickerEntry />
+              {/* Shortlist */}
+              <div>
+                <div className="pui-ed-list-head">
+                  <span className="pui-kicker">{translate("The shortlist")}</span>
+                </div>
+                {shortlist.map((s) => (
+                  <Link key={s.id} href={`/shoes/${s.slug}` as Route} prefetch className="pui-ed-list-row">
+                    <span className="pui-ed-thumb shoe-stage">
+                      <ShoeImage
+                        src={s.image_url}
+                        alt={s.shoe_name}
+                        fallbackLabel=""
+                        variant="detail"
+                        className="!w-[86%] !max-w-none !border-0"
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[0.66rem] uppercase tracking-[0.16em] text-[rgb(var(--subtext))]">{s.brand}</span>
+                      <span className="pui-ed-list-name block truncate">{s.shoe_name}</span>
+                    </span>
+                    <span className="num-display shrink-0 text-[0.85rem] text-[rgb(var(--pui-accent-ink))]">
+                      {s.finalStars != null ? s.finalStars.toFixed(1) : "—"}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        <div className="pui-section">
+          <QuickPickerEntry />
+        </div>
 
         {/* Vitrines */}
         {collections.length > 0 && (

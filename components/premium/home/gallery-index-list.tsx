@@ -12,7 +12,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import type { Shoe } from "@/lib/types";
 
 type Sort = "rating" | "name";
-const PAGE = 120;
+const PAGE = 60;
 
 export function GalleryIndexList({
   shoes,
@@ -37,16 +37,16 @@ export function GalleryIndexList({
   const shown = sorted.slice(0, visible);
 
   return (
-    <div>
+    <div className="pui-index-wrap">
       {showSort && (
-        <div className="mb-3 flex items-center gap-4 text-[0.7rem] uppercase tracking-[0.18em] text-[rgb(var(--subtext))]">
+        <div className="mb-4 flex items-center gap-5 px-[0.25rem] text-[0.64rem] uppercase tracking-[0.24em] text-[rgb(var(--subtext))]">
           <span>{translate("Sort")}</span>
           {(["rating", "name"] as const).map((s) => (
             <button
               key={s}
               type="button"
               onClick={() => setSort(s)}
-              className="transition-colors"
+              className="pb-0.5 transition-colors"
               style={{ color: sort === s ? "rgb(var(--text))" : undefined, borderBottom: sort === s ? "1px solid rgb(var(--text))" : "1px solid transparent" }}
             >
               {s === "rating" ? translate("Rating") : translate("Name")}
@@ -56,14 +56,15 @@ export function GalleryIndexList({
       )}
 
       <ul className="pui-index">
-        {shown.map((s) => (
+        {shown.map((s, i) => (
           <li key={s.id}>
             <Link href={`/shoes/${s.slug}` as Route} prefetch className="pui-index-row">
+              <span className="pui-index-num num-display">{String(i + 1).padStart(2, "0")}</span>
               <span className="min-w-0">
                 <span className="pui-index-brand block">{s.brand}</span>
                 <span className="pui-index-name block truncate">{s.shoe_name}</span>
               </span>
-              <span className="pui-index-score num-display self-center whitespace-nowrap">
+              <span className="pui-index-score num-display whitespace-nowrap">
                 {s.finalStars != null ? `★ ${s.finalStars.toFixed(1)}` : "—"}
               </span>
             </Link>
@@ -72,7 +73,7 @@ export function GalleryIndexList({
       </ul>
 
       {visible < sorted.length && (
-        <div className="mt-6 flex justify-center">
+        <div className="mt-8 flex justify-center">
           <button type="button" onClick={() => setVisible((v) => v + PAGE)} className="pui-cta">
             {translate("Show more")}
           </button>

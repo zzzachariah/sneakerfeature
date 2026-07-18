@@ -136,7 +136,6 @@ export function InstrumentHome({ shoes, shoesCount, brandsCount, initialQuery, c
             shoesCount={shoesCount}
             brandsCount={brandsCount}
             initialQuery={initialQuery}
-            defaultOpen
           />
         </div>
       </div>

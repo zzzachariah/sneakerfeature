@@ -40,6 +40,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "read the feature": "阅读专题",
   "editor's picks": "编辑之选",
   "this week's standout": "本周标杆",
+  "the shortlist": "入围名单",
+  "featured": "精选",
   "continue reading": "继续阅读",
   "also worth a look": "也值得一看",
   "in this issue": "本期收录",

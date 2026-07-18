@@ -29,8 +29,11 @@ html[data-premium="sapphire"] {
   --pui-radius-card: 10px;
   --pui-radius-control: 2px;
   --pui-dur-scale: 1.4;
-  --pui-gold: 240 212 136;      /* champagne hairline / flourishes */
-  --pui-accent-ink: 240 212 136;
+  --pui-gold: 240 212 136;      /* champagne — hairlines / fills (used with alpha) + gold-on-dark grounds */
+  /* Gold INK (kickers / issue no / CTA text / drop cap). Theme-aware: a deep
+     bronze on the light page so it stays AA-legible, champagne on the dark page.
+     Mirrors globals.css's --gold-ink pattern. */
+  --pui-accent-ink: 138 100 16;
 }
 html[data-premium="aurora"] {
   --pui-display: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
@@ -64,8 +67,52 @@ html[data-premium="champion"] {
   --pui-radius-card: 6px;
   --pui-radius-control: 3px;
   --pui-dur-scale: 0.9;
-  --pui-gold: 255 206 74;
-  --pui-accent-ink: 255 206 74;
+  --pui-gold: 255 206 74;       /* bright gold — fills (alpha) + gold-on-dark grounds */
+  --pui-accent-ink: 138 100 16; /* bronze in light (see theme-aware overrides below) */
+}
+
+/* Theme-aware gold INK: the light-theme defaults above are the readable bronze;
+   on the dark page the ink warms to champagne / bright gold. --pui-gold (the
+   decorative fill, always used with alpha or over dark grounds) stays constant. */
+html[data-premium="sapphire"].dark { --pui-accent-ink: 240 212 136; }
+html[data-premium="champion"].dark { --pui-accent-ink: 255 206 74; }
+@media (prefers-color-scheme: dark) {
+  html[data-premium="sapphire"]:not(.light) { --pui-accent-ink: 240 212 136; }
+  html[data-premium="champion"]:not(.light) { --pui-accent-ink: 255 206 74; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1.5 · SHOE STAGES — the skin accent must NOT become the product's backdrop.
+   globals.css tints these per skin (saturated navy / cyan / gold grounds); here
+   we override them back to a clean, near-neutral studio ground — light in light
+   theme, soft dark in dark — so sneakers read like premium product shots. The
+   skin's character lives in type / layout / accents, never behind the shoe.
+   (Scoped to [data-premium]; the standard site is untouched.)
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium] {
+  --shoe-stage-hi: 252 252 254; --shoe-stage-lo: 235 235 240; --shoe-shadow: 26 26 32;
+}
+html[data-premium].dark {
+  --shoe-stage-hi: 33 34 39; --shoe-stage-lo: 20 21 25; --shoe-shadow: 0 0 0;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-premium]:not(.light) {
+    --shoe-stage-hi: 33 34 39; --shoe-stage-lo: 20 21 25; --shoe-shadow: 0 0 0;
+  }
+}
+/* Replace globals' per-skin gemstone-glow gradients with an even studio backdrop. */
+html[data-premium] .shoe-stage {
+  background: radial-gradient(78% 68% at 50% 32%, rgb(var(--shoe-stage-hi)), rgb(var(--shoe-stage-lo)) 82%);
+}
+/* The sapphire/champion light-theme rim (added in globals for dark jewel stages)
+   is unneeded on the clean light ground — drop it so cut-outs sit naturally. */
+html[data-premium="sapphire"] .shoe-img,
+html[data-premium="champion"] .shoe-img {
+  filter: drop-shadow(0 5px 9px rgb(var(--shoe-shadow) / 0.26));
+}
+html[data-premium="sapphire"].dark .shoe-img,
+html[data-premium="champion"].dark .shoe-img {
+  filter: drop-shadow(0 5px 10px rgb(var(--shoe-shadow) / 0.5)) drop-shadow(0 0 1px rgb(255 255 255 / 0.16));
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -157,14 +204,14 @@ html[data-premium="champion"] .surface-card {
 .pui-cta:active { transform: scale(0.98); }
 
 html[data-premium="sapphire"] .pui-cta {
-  border: 1px solid rgb(var(--pui-gold) / 0.6);
-  color: rgb(var(--pui-gold));
-  background: rgb(var(--pui-gold) / 0.06);
+  border: 1px solid rgb(var(--pui-accent-ink) / 0.55);
+  color: rgb(var(--pui-accent-ink));
+  background: rgb(var(--pui-accent-ink) / 0.06);
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 0.8rem;
 }
-html[data-premium="sapphire"] .pui-cta:hover { background: rgb(var(--pui-gold) / 0.12); }
+html[data-premium="sapphire"] .pui-cta:hover { background: rgb(var(--pui-accent-ink) / 0.12); }
 
 html[data-premium="aurora"] .pui-cta {
   border: 0;
@@ -297,12 +344,19 @@ html[data-premium="champion"] .shoe-card-name {
    with. Named .pui-<variant>-* so each skin's markup is self-documenting.
    ───────────────────────────────────────────────────────────────────────────── */
 
+/* ---- Refined content measure & rhythm (轻奢) ----
+   Pull premium content off the full-width shell into a calmer column with more
+   margin, and give sections generous, consistent vertical rhythm. Navbar/footer
+   live OUTSIDE <main>, so their width is untouched. */
+html[data-premium] main .container-shell { max-width: 1120px; }
+html[data-premium] main { --pui-gutter-lift: clamp(1rem, 3vw, 2rem); }
+
 /* ---- Shared shells ---- */
-.pui-section { margin-top: clamp(2.5rem, 6vw, 4.5rem); }
-.pui-section-head { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 1.1rem; }
+.pui-section { margin-top: clamp(3.25rem, 7vw, 6rem); }
+.pui-section-head { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 1.5rem; }
 .pui-kicker {
-  font-size: 0.7rem;
-  letter-spacing: 0.2em;
+  font-size: 0.64rem;
+  letter-spacing: 0.28em;
   text-transform: uppercase;
   font-weight: 600;
   color: rgb(var(--brand));
@@ -338,10 +392,32 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
 .pui-ed-issue { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; color: rgb(var(--pui-accent-ink)); }
 .pui-ed-title { font-family: var(--pui-display); font-weight: 700; line-height: 1.04; font-size: clamp(2rem, 5.2vw, 3.6rem); letter-spacing: 0.005em; }
 .pui-ed-stage { position: relative; aspect-ratio: 4 / 3; border-radius: var(--pui-radius-card); overflow: hidden; }
-.pui-ed-columns { display: grid; grid-template-columns: 1fr; gap: 1.5rem; }
-@media (min-width: 760px) { .pui-ed-columns { grid-template-columns: repeat(3, 1fr); gap: 2rem; } }
-.pui-ed-column { border-top: 2px solid rgb(var(--text) / 0.85); padding-top: 0.9rem; }
-.pui-ed-column h3 { font-family: var(--pui-display); font-weight: 700; font-size: 1.15rem; margin-bottom: 0.8rem; }
+.pui-ed-columns { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+@media (min-width: 760px) { .pui-ed-columns { grid-template-columns: repeat(3, 1fr); gap: clamp(1.75rem, 3vw, 3rem); } }
+.pui-ed-column { border-top: 1px solid rgb(var(--text) / 0.75); padding-top: 1.1rem; }
+.pui-ed-column h3 { font-family: var(--pui-display); font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; margin-bottom: 1rem; }
+
+/* Editor's spread — one hero pick + a curated shortlist (magazine hierarchy,
+   not a uniform grid of identical cards). */
+.pui-ed-spread { display: grid; grid-template-columns: 1fr; gap: clamp(2rem, 4vw, 3.5rem); }
+@media (min-width: 820px) { .pui-ed-spread { grid-template-columns: 1.35fr 1fr; align-items: start; } }
+.pui-ed-feature-name { font-family: var(--pui-display); font-weight: 700; line-height: 1.06; font-size: clamp(1.5rem, 2.8vw, 2.1rem); margin-top: 1rem; }
+.pui-ed-list-head { border-top: 1px solid rgb(var(--text) / 0.75); padding-top: 0.75rem; margin-bottom: 0.25rem; }
+.pui-ed-list-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgb(var(--pui-gold) / 0.22);
+  transition: opacity var(--dur-base) var(--ease);
+}
+.pui-ed-list-row:hover { opacity: 0.7; }
+.pui-ed-thumb {
+  width: 72px; height: 72px; flex: none;
+  border-radius: 4px; overflow: hidden;
+  display: grid; place-items: center;
+}
+.pui-ed-list-name { font-family: var(--pui-display); font-weight: 700; font-size: 1rem; line-height: 1.15; }
 .pui-ed-rule { height: 1px; background: rgb(var(--pui-gold) / 0.4); border: 0; margin: 0.6rem 0; }
 .pui-ed-drop::first-letter {
   font-family: var(--pui-display);
@@ -407,20 +483,25 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
 
 /* ══ GALLERY (Obsidian) ══ */
 .pui-lede { font-weight: 300; letter-spacing: 0.01em; line-height: 1.4; }
-.pui-index { border-top: 1px solid rgb(var(--pui-platinum) / 0.24); }
+/* The index lives in a calm, LEFT-aligned reading column, not stretched across
+   the shell — name and rating stay in the same eyeful, with generous right-side
+   air (an asymmetric, editorial-luxury composition). */
+.pui-index-wrap { max-width: 680px; }
+.pui-index { border-top: 1px solid rgb(var(--pui-platinum) / 0.28); }
 .pui-index-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1.6rem 1fr auto;
   align-items: baseline;
-  gap: 1rem;
-  padding: 0.95rem 0.25rem;
+  gap: 1.1rem;
+  padding: 1.05rem 0.25rem;
   border-bottom: 1px solid rgb(var(--pui-platinum) / 0.16);
-  transition: background-color var(--dur-fast) var(--ease), padding-left var(--dur-base) var(--ease);
+  transition: background-color var(--dur-fast) var(--ease);
 }
-.pui-index-row:hover { background: rgb(var(--pui-platinum) / 0.05); padding-left: 0.75rem; }
-.pui-index-name { font-weight: 300; letter-spacing: 0.04em; }
-.pui-index-brand { text-transform: uppercase; letter-spacing: 0.22em; font-size: 0.68rem; color: rgb(var(--subtext)); }
-.pui-index-score { font-variant-numeric: tabular-nums; letter-spacing: 0.1em; color: rgb(var(--subtext)); }
+.pui-index-row:hover { background: rgb(var(--pui-platinum) / 0.05); }
+.pui-index-num { font-variant-numeric: tabular-nums; font-size: 0.72rem; color: rgb(var(--subtext) / 0.7); align-self: center; }
+.pui-index-name { font-weight: 300; letter-spacing: 0.03em; font-size: 0.98rem; }
+.pui-index-brand { text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.64rem; color: rgb(var(--subtext)); margin-bottom: 0.15rem; }
+.pui-index-score { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: rgb(var(--text) / 0.8); align-self: center; font-size: 0.9rem; }
 .pui-hairline { height: 1px; background: rgb(var(--pui-platinum) / 0.2); border: 0; }
 .pui-plate {
   position: relative;
@@ -429,6 +510,12 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
   place-items: center;
   border-radius: 2px;
   overflow: hidden;
+}
+/* Gallery plates read as framed works — a platinum hairline + a whisper of lift,
+   so they separate from the near-white page instead of dissolving into it. */
+html[data-premium="obsidian"] .pui-plate {
+  border: 1px solid rgb(var(--pui-platinum) / 0.22);
+  box-shadow: 0 1px 0 rgb(var(--pui-platinum) / 0.12), 0 18px 40px -30px rgb(var(--shadow) / 0.5);
 }
 .pui-scene-row {
   display: flex;
@@ -456,7 +543,10 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
   border: 1px solid rgb(var(--pui-gold) / 0.4);
   padding: 1rem;
   overflow: hidden;
-  background: linear-gradient(170deg, rgb(58 20 16 / 0.4), rgb(11 7 4 / 0.6));
+  /* Theme-matched card ground (light in light, dark in dark) with a faint gold
+     wash — so the name/brand/stars keep contrast in both themes. The drama comes
+     from the gold rail + border + rank + the dark shoe stage, not a muddy ground. */
+  background: linear-gradient(170deg, rgb(var(--pui-gold) / 0.08), rgb(var(--bg-elev) / 0.92));
 }
 .pui-podium-step::before {
   content: "";
@@ -472,7 +562,7 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
   font-family: var(--pui-display);
   font-size: clamp(2.2rem, 6vw, 3.4rem);
   line-height: 1;
-  color: rgb(var(--pui-gold));
+  color: rgb(var(--pui-accent-ink)); /* theme-aware: bronze on light, gold on dark */
 }
 .pui-statline {
   display: flex;
@@ -512,3 +602,70 @@ html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
    (Reveal reads --reveal-y) so entrances are a plain fade, deliberately still.
    ───────────────────────────────────────────────────────────────────────────── */
 html[data-premium="obsidian"] .reveal { --reveal-y: 0px; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   10 · LUXURY MOTION & MICRO-INTERACTIONS
+   Velvet-smooth, restrained. A slow expo-out curve drives reveals + hovers; a
+   gentle card/plate lift and a soft image magnify add craft without noise.
+   Everything degrades under prefers-reduced-motion.
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium] { --pui-ease-lux: cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Silkier, slower scroll reveals for the expressive skins; Gallery stays near-
+   silent (its reveal travel is already flattened in §9). */
+html[data-premium="sapphire"] .reveal,
+html[data-premium="aurora"] .reveal,
+html[data-premium="champion"] .reveal { --reveal-y: 18px; }
+html[data-premium="sapphire"] .reveal-in,
+html[data-premium="aurora"] .reveal-in,
+html[data-premium="champion"] .reveal-in {
+  animation-duration: 820ms;
+  animation-timing-function: var(--pui-ease-lux);
+}
+
+/* Card lift — a gentle rise + soft shadow on hover (ShoeCard links + surfaces). */
+html[data-premium] a.glass-lite.block,
+html[data-premium] .surface-card {
+  transition: transform 460ms var(--pui-ease-lux), box-shadow 460ms var(--pui-ease-lux),
+    border-color 260ms var(--ease), background-color 260ms var(--ease);
+}
+html[data-premium] a.glass-lite.block:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 52px -30px rgb(var(--shadow) / 0.5);
+}
+
+/* Soft image magnify on grid-card hover (images carry .shoe-img--zoom). */
+html[data-premium] .shoe-img--zoom { transition: transform 640ms var(--pui-ease-lux); }
+html[data-premium] .group:hover .shoe-img--zoom { transform: scale(calc(var(--img-scale, 1) * 1.045)); }
+
+/* CTA — a whisper of lift. */
+html[data-premium] .pui-cta {
+  transition: transform 340ms var(--pui-ease-lux), box-shadow 340ms var(--pui-ease-lux),
+    background-color 260ms var(--ease), opacity 260ms var(--ease), border-color 260ms var(--ease);
+}
+html[data-premium] .pui-cta:hover { transform: translateY(-2px); }
+
+/* Row hovers (shortlist / index / scene) ease smoothly rather than snap. */
+html[data-premium] .pui-ed-list-row,
+html[data-premium] .pui-index-row,
+html[data-premium] .pui-scene-row {
+  transition: background-color 300ms var(--ease), opacity 420ms var(--pui-ease-lux);
+}
+
+/* Featured plate (Gallery) — a gentle lift; the inner image magnifies via its
+   own inline transition. */
+html[data-premium="obsidian"] .pui-plate { transition: transform 520ms var(--pui-ease-lux), box-shadow 520ms var(--pui-ease-lux); }
+html[data-premium="obsidian"] a.group:hover .pui-plate {
+  transform: translateY(-5px);
+  box-shadow: 0 30px 60px -34px rgb(var(--shadow) / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-premium] a.glass-lite.block:hover,
+  html[data-premium] .pui-cta:hover,
+  html[data-premium="obsidian"] a.group:hover .pui-plate,
+  html[data-premium] .group:hover .shoe-img--zoom { transform: none; }
+  html[data-premium="sapphire"] .reveal-in,
+  html[data-premium="aurora"] .reveal-in,
+  html[data-premium="champion"] .reveal-in { animation: none; opacity: 1; }
+}
