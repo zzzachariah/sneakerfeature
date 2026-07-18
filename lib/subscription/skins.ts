@@ -43,6 +43,7 @@ export type Skin = {
   name: string;
   nameEn: string;
   blurb: string;
+  blurbEn: string;
   pro: SkinPalette;
   max: SkinPalette;
 };
@@ -53,6 +54,7 @@ export const SKINS: Record<SkinId, Skin> = {
     name: "蓝宝石 · 香槟金",
     nameEn: "Sapphire & Champagne",
     blurb: "永不过时：深蓝宝石的沉稳，配黑金的经典。低调，但一眼看得出贵。",
+    blurbEn: "Timeless: deep-sapphire poise with classic black-gold. Understated, but unmistakably rich.",
     pro: {
       accent: "#4c86e0",
       accentLight: "#3a72c9",
@@ -89,6 +91,7 @@ export const SKINS: Record<SkinId, Skin> = {
     name: "极光 · 午夜",
     nameEn: "Aurora Midnight",
     blurb: "科技奢侈：Pro 是发光的电蓝到青，Max 是紫到品红的极光渐变，像会呼吸的全息卡。",
+    blurbEn: "Techno-luxe: Pro glows electric-blue to cyan; Max is a purple-to-magenta aurora, like a breathing holo card.",
     pro: {
       accent: "#29c2e6",
       accentLight: "#0f86a6",
@@ -125,6 +128,7 @@ export const SKINS: Record<SkinId, Skin> = {
     name: "曜石 · 铂金",
     nameEn: "Obsidian & Platinum",
     blurb: "安静的奢侈：几乎全黑，靠极细金属线与微妙点缀。黑卡气质，懂的人才懂。",
+    blurbEn: "Quiet luxury: near-black, carried by hairline metal and subtle accents. Black-card energy — if you know, you know.",
     pro: {
       accent: "#8fa0bd",
       accentLight: "#5b6b86",

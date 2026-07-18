@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList } from "lucide-react";
 import { HOME_SECTIONS, resolveHomeOrder, type HomeSectionId } from "@/lib/home/sections";
+import { useLocale } from "@/components/i18n/locale-provider";
 import {
   TIERS,
   DURATIONS,
@@ -18,6 +19,19 @@ import { MembershipCard } from "@/components/subscribe/membership-card";
 
 // Preset "Signature" accents Max members can pick from (or use the color wheel).
 const SIGNATURE_PRESETS = ["#e0559c", "#29c2e6", "#7a5cff", "#d9b45a", "#ff6e40", "#38d39f", "#f0456b", "#12b886"];
+
+// English duration labels (DURATIONS carries the Chinese ones).
+const DURATION_LABEL_EN: Record<Duration, string> = {
+  monthly: "1 month",
+  quarterly: "3 months",
+  yearly: "1 year",
+  permanent: "Lifetime"
+};
+
+const TAGLINE_EN: Record<"pro" | "max", string> = {
+  pro: "For people who pick seriously",
+  max: "For enthusiasts & collectors"
+};
 
 export type SubscribeCurrent = {
   signedIn: boolean;
@@ -42,25 +56,48 @@ function savingsPct(tier: "pro" | "max", duration: Duration): number | null {
   return pct > 0 ? pct : null;
 }
 
-function priceLabel(tier: "pro" | "max", duration: Duration): { price: string; per: string | null } {
+function priceLabel(tier: "pro" | "max", duration: Duration, zh: boolean): { price: string; per: string | null } {
   const price = priceFor(tier, duration);
   const perMonth = monthlyEquivalent(tier, duration);
   return {
     price: price == null ? "—" : `${CURRENCY}${price}`,
-    per: duration === "permanent" ? "一次买断" : perMonth != null ? `≈ ${CURRENCY}${perMonth} / 月` : null
+    per:
+      duration === "permanent"
+        ? zh
+          ? "一次买断"
+          : "One-time"
+        : perMonth != null
+          ? `≈ ${CURRENCY}${perMonth} / ${zh ? "月" : "mo"}`
+          : null
   };
 }
 
-const BENEFIT_ROWS: { icon: typeof Zap; label: string; free: string; pro: string; max: string }[] = [
-  { icon: Gauge, label: "AI 模型", free: "Haiku · 轻量", pro: "deepseek-v4-pro", max: "Fable · 顶级" },
-  { icon: Zap, label: "基础推理", free: "签到计量", pro: "不限次", max: "不限次" },
-  { icon: Sparkles, label: "高级模型额度", free: "—", pro: "300 分 / 月", max: "1500 分 / 月" },
-  { icon: Ruler, label: "逐款精准尺码", free: "品牌级", pro: "✓ 脚型精准", max: "✓ 更细楦型" },
-  { icon: Palette, label: "皮肤 · 徽章 · 个性化", free: "—", pro: "✓", max: "✓ 深度" },
-  { icon: Crown, label: "优先级 · 抢先体验", free: "—", pro: "—", max: "✓" }
+type BenefitRow = {
+  icon: typeof Zap;
+  label: string;
+  labelEn: string;
+  free: string;
+  freeEn: string;
+  pro: string;
+  proEn: string;
+  max: string;
+  maxEn: string;
+};
+
+const BENEFIT_ROWS: BenefitRow[] = [
+  { icon: Gauge, label: "AI 模型", labelEn: "AI model", free: "Haiku · 轻量", freeEn: "Haiku · light", pro: "deepseek-v4-pro", proEn: "deepseek-v4-pro", max: "Fable · 顶级", maxEn: "Fable · flagship" },
+  { icon: Zap, label: "基础推理", labelEn: "Base reasoning", free: "签到计量", freeEn: "Metered by check-in", pro: "不限次", proEn: "Unlimited", max: "不限次", maxEn: "Unlimited" },
+  { icon: Sparkles, label: "高级模型额度", labelEn: "Premium model allowance", free: "—", freeEn: "—", pro: "300 分 / 月", proEn: "300 / mo", max: "1500 分 / 月", maxEn: "1500 / mo" },
+  { icon: Ruler, label: "逐款精准尺码", labelEn: "Per-shoe precise sizing", free: "品牌级", freeEn: "Brand-level", pro: "✓ 脚型精准", proEn: "✓ Foot-precise", max: "✓ 更细楦型", maxEn: "✓ Finer last" },
+  { icon: Palette, label: "皮肤 · 徽章 · 个性化", labelEn: "Skins · badge · personalization", free: "—", freeEn: "—", pro: "✓", proEn: "✓", max: "✓ 深度", maxEn: "✓ Deep" },
+  { icon: Crown, label: "优先级 · 抢先体验", labelEn: "Priority · early access", free: "—", freeEn: "—", pro: "—", proEn: "—", max: "✓", maxEn: "✓" }
 ];
 
 export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
+  const { locale } = useLocale();
+  const zh = locale === "zh";
+  const t = (z: string, e: string) => (zh ? z : e);
+
   const [duration, setDuration] = useState<Duration>("yearly");
   const [skin, setSkin] = useState<SkinId>(current.skin);
   const [pending, setPending] = useState<"pro" | "max" | null>(null);
@@ -68,8 +105,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const reduce = useReducedMotion();
 
   // The duration that saves the most vs month-to-month (Pro as the reference),
-  // surfaced as a "最划算" tag on the toggle. Computed from the pricing table so
-  // it tracks any future price change instead of hard-coding "yearly".
+  // surfaced as a "最划算 / Best" tag on the toggle.
   const bestValueDuration: Duration = (["quarterly", "yearly"] as Duration[]).reduce(
     (best, d) => ((savingsPct("pro", d) ?? 0) > (savingsPct("pro", best) ?? 0) ? d : best),
     "yearly" as Duration
@@ -146,12 +182,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) {
-        throw new Error(data?.message || "创建支付会话失败，请重试。");
+        throw new Error(data?.message || t("创建支付会话失败，请重试。", "Couldn't start checkout. Please try again."));
       }
       // Hand off to Stripe's hosted checkout page.
       window.location.assign(data.url as string);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "出错了，请重试。");
+      setError(e instanceof Error ? e.message : t("出错了，请重试。", "Something went wrong. Please try again."));
       setPending(null);
     }
   }
@@ -171,10 +207,13 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
       >
         <p className="text-xs font-semibold uppercase tracking-[0.24em] soft-text">Premium Membership</p>
         <h1 className="mx-auto mt-3 max-w-[16ch] text-balance text-3xl font-bold tracking-tight sm:text-5xl">
-          把选鞋，交给更强的大脑。
+          {t("把选鞋，交给更强的大脑。", "Give your shoe picks a smarter brain.")}
         </h1>
         <p className="mx-auto mt-4 max-w-[46ch] text-sm soft-text sm:text-base">
-          Pro 与 Max 解锁更强的 AI 模型、逐款精准尺码，以及一整套可自由切换的奢侈皮肤与个性化。
+          {t(
+            "Pro 与 Max 解锁更强的 AI 模型、逐款精准尺码，以及一整套可自由切换的奢侈皮肤与个性化。",
+            "Pro and Max unlock a stronger AI model, per-shoe precise sizing, and a full set of switchable luxury skins and personalization."
+          )}
         </p>
 
         {current.signedIn && current.tier !== "free" && (
@@ -187,11 +226,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
             }}
           >
             <Crown className="h-4 w-4" />
-            当前：{TIERS[current.tier].name}
+            {t("当前：", "Current: ")}
+            {TIERS[current.tier].name}
             {current.isPermanent
-              ? " · 永久"
+              ? t(" · 永久", " · Permanent")
               : current.expiresAt
-                ? ` · 至 ${new Date(current.expiresAt).toLocaleDateString()}`
+                ? `${t(" · 至 ", " · until ")}${new Date(current.expiresAt).toLocaleDateString()}`
                 : ""}
           </div>
         )}
@@ -200,8 +240,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
       {/* Skin picker */}
       <motion.section className="mt-10" {...fade} transition={{ duration: 0.45 }}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold tracking-tight">选一套皮肤</h2>
-          <span className="text-xs soft-text">会员可随时在设置里切换</span>
+          <h2 className="text-lg font-semibold tracking-tight">{t("选一套皮肤", "Pick a skin")}</h2>
+          <span className="text-xs soft-text">{t("会员可随时在设置里切换", "Members can switch anytime")}</span>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           {SKIN_ORDER.map((id) => {
@@ -223,8 +263,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                   <span className="h-4 w-4 rounded-full" style={{ background: s.max.accent }} />
                   <span className="ml-auto text-[0.65rem] uppercase tracking-widest soft-text">{s.nameEn}</span>
                 </div>
-                <div className="mt-2 font-medium">{s.name}</div>
-                <p className="mt-1 text-xs leading-relaxed soft-text">{s.blurb}</p>
+                <div className="mt-2 font-medium">{zh ? s.name : s.nameEn}</div>
+                <p className="mt-1 text-xs leading-relaxed soft-text">{zh ? s.blurb : s.blurbEn}</p>
                 {selected && (
                   <span
                     className="absolute right-3 top-3 inline-flex h-5 w-5 items-center justify-center rounded-full"
@@ -261,7 +301,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
-                <span className="relative">{d.label}</span>
+                <span className="relative">{zh ? d.label : DURATION_LABEL_EN[d.id]}</span>
                 {isBest && (
                   <span
                     className="pointer-events-none absolute -right-1.5 -top-2 rounded-full px-1.5 py-0.5 text-[0.55rem] font-bold leading-none tracking-wide"
@@ -271,7 +311,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                       boxShadow: "0 4px 10px -4px rgba(0,0,0,0.5)"
                     }}
                   >
-                    最划算
+                    {t("最划算", "Best")}
                   </span>
                 )}
               </button>
@@ -285,7 +325,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         {(["pro", "max"] as const).map((tier, i) => {
           const cfg = TIERS[tier];
           const pal = skinPalette(skin, tier);
-          const { price, per } = priceLabel(tier, duration);
+          const { price, per } = priceLabel(tier, duration, zh);
           const saved = savingsPct(tier, duration);
           return (
             <motion.div
@@ -304,7 +344,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 className="absolute right-5 top-5 rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-widest"
                 style={{ color: cfg.badgeHue, backgroundColor: `${cfg.badgeHue}1f`, border: `1px solid ${cfg.badgeHue}55` }}
               >
-                {tier === "max" ? "旗舰" : "最受欢迎"}
+                {tier === "max" ? t("旗舰", "Flagship") : t("最受欢迎", "Most popular")}
               </span>
               <div className="mb-5 max-w-[260px]">
                 <MembershipCard tier={tier} skin={skin} active />
@@ -313,7 +353,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 <span className="text-2xl font-bold tracking-tight" style={{ color: cfg.badgeHue }}>
                   {cfg.name}
                 </span>
-                <span className="text-sm soft-text">· {cfg.tagline}</span>
+                <span className="text-sm soft-text">· {zh ? cfg.tagline : TAGLINE_EN[tier]}</span>
               </div>
 
               <div className="mt-4 flex items-end gap-2">
@@ -335,7 +375,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     className="mb-1 rounded-full px-2 py-0.5 text-[0.65rem] font-bold"
                     style={{ color: cfg.badgeHue, backgroundColor: `${cfg.badgeHue}1f`, border: `1px solid ${cfg.badgeHue}44` }}
                   >
-                    省 {saved}%
+                    {t(`省 ${saved}%`, `Save ${saved}%`)}
                   </span>
                 )}
               </div>
@@ -347,13 +387,19 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 <span className="num-display text-xl font-bold" style={{ color: cfg.badgeHue }}>
                   {cfg.capabilities.monthlyAllowance}
                 </span>
-                <span className="text-xs soft-text">分 / 月 高级模型额度 · 基础不限次</span>
+                <span className="text-xs soft-text">
+                  {t("分 / 月 高级模型额度 · 基础不限次", "/ mo premium-model allowance · base unlimited")}
+                </span>
               </div>
 
               <ul className="mt-5 flex flex-1 flex-col gap-2.5">
                 {(tier === "pro"
-                  ? ["精准逐款尺码 + 脚型建议", "主力模型不限次", "自定义首页顺序 / 菜单栏", "Pro 皮肤 + 专属徽章"]
-                  : ["Pro 全部权益，额度 5×", "解锁顶级 Fable 模型", "更深度个性化 + 抢先体验", "Max 皮肤 + 尊享徽章"]
+                  ? zh
+                    ? ["精准逐款尺码 + 脚型建议", "主力模型不限次", "自定义首页顺序 / 菜单栏", "Pro 皮肤 + 专属徽章"]
+                    : ["Per-shoe precise sizing + foot advice", "Unlimited main model", "Custom home order / menu", "Pro skins + member badge"]
+                  : zh
+                    ? ["Pro 全部权益，额度 5×", "解锁顶级 Fable 模型", "更深度个性化 + 抢先体验", "Max 皮肤 + 尊享徽章"]
+                    : ["Everything in Pro, 5× allowance", "Unlock the top Fable model", "Deeper personalization + early access", "Max skins + signature badge"]
                 ).map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm">
                     <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: cfg.badgeHue }} />
@@ -370,7 +416,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 style={{ background: pal.buttonBg, color: pal.onButton }}
               >
                 <Crown className="h-4 w-4" />
-                {pending === tier ? "跳转中…" : `开通 ${cfg.name}`}
+                {pending === tier ? t("跳转中…", "Redirecting…") : `${t("开通", "Get")} ${cfg.name}`}
                 <ChevronRight className="h-4 w-4" />
               </button>
             </motion.div>
@@ -386,7 +432,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
 
       {/* Benefit matrix */}
       <motion.section className="mt-14" {...fade} transition={{ duration: 0.5 }}>
-        <h2 className="mb-4 text-lg font-semibold tracking-tight">逐项对比</h2>
+        <h2 className="mb-4 text-lg font-semibold tracking-tight">{t("逐项对比", "Compare plans")}</h2>
         <div className="overflow-x-auto rounded-2xl border border-[rgb(var(--muted)/0.4)]">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
@@ -405,12 +451,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     <td className="px-4 py-3">
                       <span className="flex items-center gap-2 font-medium">
                         <Icon className="h-4 w-4 soft-text" />
-                        {r.label}
+                        {zh ? r.label : r.labelEn}
                       </span>
                     </td>
-                    <td className="px-4 py-3 soft-text">{r.free}</td>
-                    <td className="px-4 py-3">{r.pro}</td>
-                    <td className="px-4 py-3">{r.max}</td>
+                    <td className="px-4 py-3 soft-text">{zh ? r.free : r.freeEn}</td>
+                    <td className="px-4 py-3">{zh ? r.pro : r.proEn}</td>
+                    <td className="px-4 py-3">{zh ? r.max : r.maxEn}</td>
                   </tr>
                 );
               })}
@@ -418,7 +464,10 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           </table>
         </div>
         <p className="mt-4 text-xs soft-text">
-          计费为混合制：基础模型对付费会员不限次，高级 Fable 模型从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。
+          {t(
+            "计费为混合制：基础模型对付费会员不限次，高级 Fable 模型从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。",
+            "Hybrid billing: the base model is unlimited for paid members; the premium Fable model draws from a monthly allowance (permanent plans refresh monthly, no roll-over). Launch pricing, subject to change."
+          )}
         </p>
       </motion.section>
 
@@ -427,15 +476,15 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         <motion.section className="mt-14" {...fade} transition={{ duration: 0.5 }}>
           <div className="mb-4 flex items-center gap-2">
             <LayoutList className="h-5 w-5" style={{ color: TIERS[current.tier === "max" ? "max" : "pro"].badgeHue }} />
-            <h2 className="text-lg font-semibold tracking-tight">会员个性化</h2>
-            <span className="text-xs soft-text">仅 Pro / Max</span>
+            <h2 className="text-lg font-semibold tracking-tight">{t("会员个性化", "Member personalization")}</h2>
+            <span className="text-xs soft-text">{t("仅 Pro / Max", "Pro / Max only")}</span>
           </div>
 
           {canSignature && (
             <div className="mb-4 rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev))] p-5">
               <div className="mb-2 flex items-center gap-2">
                 <Palette className="h-4 w-4" style={{ color: TIERS.max.badgeHue }} />
-                <p className="text-sm font-medium">专属签名色</p>
+                <p className="text-sm font-medium">{t("专属签名色", "Signature accent")}</p>
                 <span
                   className="rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
                   style={{ color: TIERS.max.badgeHue, backgroundColor: `${TIERS.max.badgeHue}1f`, border: `1px solid ${TIERS.max.badgeHue}55` }}
@@ -444,7 +493,10 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 </span>
               </div>
               <p className="mb-3 text-xs soft-text">
-                为整站挑一个只属于你的强调色——按钮、激活态、焦点环都会跟着它走。选一个预设或用取色器。
+                {t(
+                  "为整站挑一个只属于你的强调色——按钮、激活态、焦点环都会跟着它走。选一个预设或用取色器。",
+                  "Pick a site-wide accent that's yours alone — buttons, active states and focus rings all follow it. Choose a preset or use the color wheel."
+                )}
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 {SIGNATURE_PRESETS.map((c) => (
@@ -462,7 +514,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 ))}
                 <label
                   className="relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-[rgb(var(--muted)/0.6)]"
-                  aria-label="自定义取色"
+                  aria-label={t("自定义取色", "Custom color")}
                 >
                   <Palette className="h-3.5 w-3.5 soft-text" />
                   <input
@@ -478,7 +530,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     onClick={() => chooseAccent(null)}
                     className="ml-1 rounded-full border border-[rgb(var(--muted)/0.5)] px-2.5 py-1 text-xs soft-text transition hover:bg-[rgb(var(--text)/0.05)]"
                   >
-                    重置
+                    {t("重置", "Reset")}
                   </button>
                 )}
               </div>
@@ -486,7 +538,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           )}
 
           <div className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev))] p-5">
-            <p className="mb-3 text-sm font-medium">首页板块顺序</p>
+            <p className="mb-3 text-sm font-medium">{t("首页板块顺序", "Home section order")}</p>
             <ul className="flex flex-col gap-2">
               {homeOrder.map((id, i) => {
                 const meta = HOME_SECTIONS.find((s) => s.id === id);
@@ -499,7 +551,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     <span className="flex-1 text-sm font-medium">{meta?.label ?? id}</span>
                     <button
                       type="button"
-                      aria-label="上移"
+                      aria-label={t("上移", "Move up")}
                       disabled={i === 0}
                       onClick={() => moveSection(i, -1)}
                       className="rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 transition hover:bg-[rgb(var(--text)/0.05)] disabled:opacity-30"
@@ -508,7 +560,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     </button>
                     <button
                       type="button"
-                      aria-label="下移"
+                      aria-label={t("下移", "Move down")}
                       disabled={i === homeOrder.length - 1}
                       onClick={() => moveSection(i, 1)}
                       className="rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 transition hover:bg-[rgb(var(--text)/0.05)] disabled:opacity-30"
@@ -519,7 +571,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 );
               })}
             </ul>
-            <p className="mt-3 text-xs soft-text">调整会立即保存，下次打开首页即按此顺序展示。皮肤选择见页面上方。</p>
+            <p className="mt-3 text-xs soft-text">
+              {t(
+                "调整会立即保存，下次打开首页即按此顺序展示。皮肤选择见页面上方。",
+                "Changes save instantly and apply next time you open the home page. Skin selection is above."
+              )}
+            </p>
           </div>
         </motion.section>
       )}
