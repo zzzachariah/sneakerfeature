@@ -11,12 +11,15 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePremiumVariant } from "@/components/premium/variants";
+import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
 import { haptics } from "@/lib/native/haptics";
 
 type SortKey = "saved" | "rating" | "name";
 
 export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: boolean }) {
   const { translate } = useLocale();
+  const variant = usePremiumVariant();
   const { favorites, loaded } = useFavorites();
   const [sort, setSort] = useState<SortKey>("saved");
 
@@ -37,52 +40,67 @@ export function FavoritesView({ shoes, signedIn }: { shoes: Shoe[]; signedIn: bo
     { key: "name", label: translate("A–Z") },
   ];
 
+  const sortGroup =
+    signedIn && visible.length > 1 ? (
+      <div
+        role="group"
+        aria-label={translate("Sort")}
+        className="glass-lite inline-flex items-center gap-0.5 rounded-full p-1"
+      >
+        {sortOptions.map((o) => {
+          const active = sort === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              aria-pressed={active}
+              onClick={() => {
+                haptics.selection();
+                setSort(o.key);
+              }}
+              className={`rounded-full px-3 py-1.5 text-[0.8rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)] ${
+                active
+                  ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
+                  : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
+              }`}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    ) : null;
+
+  const savedCount =
+    signedIn && visible.length > 0
+      ? `${visible.length} ${translate(visible.length === 1 ? "shoe saved" : "shoes saved")}`
+      : undefined;
+
   return (
     <main className="container-shell has-mobile-nav-pad py-8 md:py-12">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-        <div>
-          <p className="t-eyebrow mb-2">{translate("Saved")}</p>
-          <h1 className="t-display-sm" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
-            {translate("Saved shoes")}
-          </h1>
-          {signedIn && visible.length > 0 ? (
-            <p className="mt-1.5 text-sm soft-text">
-              <span className="num-display">{visible.length}</span>{" "}
-              {translate(visible.length === 1 ? "shoe saved" : "shoes saved")}
-            </p>
-          ) : null}
-        </div>
-
-        {signedIn && visible.length > 1 ? (
-          <div
-            role="group"
-            aria-label={translate("Sort")}
-            className="glass-lite inline-flex items-center gap-0.5 rounded-full p-1"
-          >
-            {sortOptions.map((o) => {
-              const active = sort === o.key;
-              return (
-                <button
-                  key={o.key}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    haptics.selection();
-                    setSort(o.key);
-                  }}
-                  className={`rounded-full px-3 py-1.5 text-[0.8rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)] ${
-                    active
-                      ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
-                      : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
-                  }`}
-                >
-                  {o.label}
-                </button>
-              );
-            })}
+      {variant === "standard" ? (
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div>
+            <p className="t-eyebrow mb-2">{translate("Saved")}</p>
+            <h1 className="t-display-sm" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
+              {translate("Saved shoes")}
+            </h1>
+            {signedIn && visible.length > 0 ? (
+              <p className="mt-1.5 text-sm soft-text">
+                <span className="num-display">{visible.length}</span>{" "}
+                {translate(visible.length === 1 ? "shoe saved" : "shoes saved")}
+              </p>
+            ) : null}
           </div>
-        ) : null}
-      </div>
+
+          {sortGroup}
+        </div>
+      ) : (
+        <>
+          <PremiumMasthead variant={variant} kicker={translate("Saved")} title={translate("Saved shoes")} subtitle={savedCount} />
+          {sortGroup ? <div className="mb-6 -mt-2 flex justify-end">{sortGroup}</div> : null}
+        </>
+      )}
 
       {!signedIn ? (
         <EmptyState

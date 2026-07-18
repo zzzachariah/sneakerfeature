@@ -25,6 +25,8 @@ import { scoreFor, type MetricKey } from "@/components/compare/compare-metrics";
 import { ShoeCard } from "@/components/home/shoe-card";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePremiumVariant } from "@/components/premium/variants";
+import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
 
 const STEP_COUNT = 4; // position, skill, build, priority
 
@@ -70,6 +72,7 @@ function Chip({
 
 export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const { translate } = useLocale();
+  const variant = usePremiumVariant();
   const { persona: savedPersona, savePersona, isLoggedIn } = usePersona();
   const [profileSaved, setProfileSaved] = useState(false);
   const reduce = useReducedMotion();
@@ -145,10 +148,21 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   return (
     <main className="container-shell has-mobile-nav-pad py-8 md:py-12">
       <div className="mx-auto max-w-3xl">
-        <p className="t-eyebrow mb-2">{translate("Quick Picker")}</p>
-        <h1 className="t-display-sm mb-6" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
-          {translate("Find your pair in 30 seconds")}
-        </h1>
+        {variant === "standard" ? (
+          <>
+            <p className="t-eyebrow mb-2">{translate("Quick Picker")}</p>
+            <h1 className="t-display-sm mb-6" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
+              {translate("Find your pair in 30 seconds")}
+            </h1>
+          </>
+        ) : (
+          <PremiumMasthead
+            variant={variant}
+            kicker={translate("Quick Picker")}
+            title={translate("Find your pair in 30 seconds")}
+            subtitle={translate("Answer 3 quick questions — no account needed.")}
+          />
+        )}
 
         {step < STEP_COUNT ? (
           <>

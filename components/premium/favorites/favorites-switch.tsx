@@ -9,6 +9,7 @@ import type { Shoe } from "@/lib/types";
 import { FavoritesView } from "@/components/favorites/favorites-view";
 import { GalleryCatalogue } from "@/components/premium/home/gallery-catalogue";
 import { ArenaLineup } from "@/components/premium/home/arena-lineup";
+import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePremiumVariant } from "@/components/premium/variants";
@@ -32,10 +33,7 @@ function GalleryFavorites({ shoes, signedIn }: Props) {
 
   return (
     <main className="container-shell has-mobile-nav-pad py-8 md:py-12">
-      <p className="t-eyebrow mb-2">{translate("Saved")}</p>
-      <h1 className="t-display-sm mb-6" style={{ fontSize: "clamp(1.8rem, 4vw, 3rem)" }}>
-        {translate("Saved shoes")}
-      </h1>
+      <PremiumMasthead variant="gallery" kicker={translate("Saved")} title={translate("Saved shoes")} />
       <GalleryCatalogue shoes={visible} />
     </main>
   );
