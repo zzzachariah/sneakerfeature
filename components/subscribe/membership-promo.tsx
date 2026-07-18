@@ -100,7 +100,7 @@ export function MembershipPromo() {
           <MembershipCard tier="max" skin={DEFAULT_SKIN} interactive={false} active />
         </div>
 
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.22em]" style={{ color: GOLD }}>
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.22em]" style={{ color: "rgb(var(--gold-ink))" }}>
           <Crown className="h-3.5 w-3.5" aria-hidden />
           {zh ? "会员" : "Membership"}
         </p>
@@ -120,7 +120,7 @@ export function MembershipPromo() {
               <li key={b.text} className="flex items-start gap-3 text-sm">
                 <span
                   className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${GOLD}1f`, color: GOLD }}
+                  style={{ backgroundColor: "rgb(var(--gold-ink) / 0.12)", color: "rgb(var(--gold-ink))" }}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden />
                 </span>

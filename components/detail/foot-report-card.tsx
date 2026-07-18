@@ -8,10 +8,7 @@
 import { Footprints, Crown } from "lucide-react";
 import type { FootReport } from "@/lib/foot-scan/foot-report";
 import type { WidthClass, InstepClass, ToeShape } from "@/lib/foot-scan/types";
-import { TIERS } from "@/lib/subscription/tiers";
 import { useLocale } from "@/components/i18n/locale-provider";
-
-const GOLD = TIERS.max.badgeHue;
 
 const WIDTH_ZH: Record<WidthClass, string> = { narrow: "偏窄", standard: "标准", wide: "偏宽", extra_wide: "超宽" };
 const WIDTH_EN: Record<WidthClass, string> = { narrow: "Narrow", standard: "Standard", wide: "Wide", extra_wide: "Extra-wide" };
@@ -84,13 +81,13 @@ export function FootReportCard({ report }: { report: FootReport }) {
 
   return (
     <section className="mx-auto mt-4 w-full max-w-3xl px-4 sm:px-6">
-      <div className="overflow-hidden rounded-2xl border p-5 sm:p-6" style={{ borderColor: `${GOLD}44`, background: "rgb(var(--bg-elev))" }}>
+      <div className="overflow-hidden rounded-2xl border p-5 sm:p-6" style={{ borderColor: "rgb(var(--gold-line) / 0.32)", background: "rgb(var(--bg-elev))" }}>
         <div className="mb-3 flex items-center gap-2">
-          <Footprints className="h-4 w-4" style={{ color: GOLD }} />
+          <Footprints className="h-4 w-4" style={{ color: "rgb(var(--gold-ink))" }} />
           <h2 className="text-base font-semibold tracking-tight">{zh ? "深度脚型报告" : "Deep foot report"}</h2>
           <span
             className="ml-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
-            style={{ color: GOLD, backgroundColor: `${GOLD}1f`, border: `1px solid ${GOLD}55` }}
+            style={{ color: "rgb(var(--gold-ink))", backgroundColor: "rgb(var(--gold-ink) / 0.12)", border: "1px solid rgb(var(--gold-line) / 0.5)" }}
           >
             <Crown className="h-3 w-3" /> Max
           </span>
@@ -107,7 +104,7 @@ export function FootReportCard({ report }: { report: FootReport }) {
         <ul className="mt-4 flex flex-col gap-2.5 border-t border-[rgb(var(--muted)/0.3)] pt-4">
           {points.map((pt, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: GOLD }} />
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: "rgb(var(--gold-ink))" }} />
               <span className="soft-text">{pt}</span>
             </li>
           ))}

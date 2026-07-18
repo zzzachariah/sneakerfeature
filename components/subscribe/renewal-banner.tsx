@@ -16,7 +16,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { resolveTier } from "@/lib/subscription/resolve";
 import { isPaidTier, TIERS } from "@/lib/subscription/tiers";
-import { skinPalette } from "@/lib/subscription/skins";
+import { skinPalette, memberChipVars } from "@/lib/subscription/skins";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 
 const WARN_WITHIN_DAYS = 7;
@@ -91,15 +91,15 @@ export function MembershipRenewalBanner() {
   return (
     <div
       className="relative z-30"
-      style={{ background: `linear-gradient(90deg, ${pal.accent}1f, ${pal.accent}0a)`, borderBottom: `1px solid ${pal.accent}33` }}
+      style={{ background: "linear-gradient(90deg, rgb(var(--brand) / 0.12), rgb(var(--brand) / 0.04))", borderBottom: "1px solid rgb(var(--brand) / 0.22)" }}
     >
       <div className="container-shell flex items-center gap-3 py-2">
-        <Crown className="h-4 w-4 shrink-0" style={{ color: pal.accent }} aria-hidden />
+        <Crown className="h-4 w-4 shrink-0" style={{ color: "rgb(var(--brand))" }} aria-hidden />
         <p className="min-w-0 flex-1 truncate text-xs font-medium text-[rgb(var(--text))]">{message}</p>
         <Link
           href={"/subscribe" as Route}
-          className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold"
-          style={{ background: pal.badgeFill, border: `1px solid ${pal.badgeBorder}`, color: pal.badgeInk }}
+          className="member-chip shrink-0 rounded-full px-3 py-1 text-xs font-semibold"
+          style={memberChipVars(pal)}
         >
           {zh ? "续费" : "Renew"}
         </Link>

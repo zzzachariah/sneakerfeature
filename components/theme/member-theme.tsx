@@ -65,6 +65,15 @@ export function MemberThemeApplier() {
       return window.matchMedia("(prefers-color-scheme: dark)").matches;
     };
     const apply = () => {
+      // A menu-bar "Premium UI" skin (data-premium) themes the whole site,
+      // including the accent, from its own stylesheet. When one is active, defer
+      // to it — clear our inline override so the skin's --brand wins; restore it
+      // when premium is switched back off (the observer below re-runs apply()).
+      if (root.hasAttribute("data-premium")) {
+        root.style.removeProperty("--brand");
+        root.style.removeProperty("--brand-contrast");
+        return;
+      }
       const triple = isDark() ? dark : light;
       if (triple) root.style.setProperty("--brand", triple);
       if (contrast) root.style.setProperty("--brand-contrast", contrast);
@@ -83,7 +92,7 @@ export function MemberThemeApplier() {
     // Re-pick the accent when the theme changes: the toggle stamps/removes the
     // .dark/.light class, and the system preference can change under "auto".
     const mo = new MutationObserver(apply);
-    mo.observe(root, { attributes: true, attributeFilter: ["class"] });
+    mo.observe(root, { attributes: true, attributeFilter: ["class", "data-premium"] });
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
     mq.addEventListener?.("change", apply);
     return () => {
@@ -98,6 +107,6 @@ export function MemberThemeApplier() {
 export function MemberThemeInitScript({ nonce }: { nonce?: string }) {
   // Fail-safe: an empty catch means a storage error just leaves the default
   // brand token untouched — the site can never end up unstyled.
-  const code = `(() => { try { var r = document.documentElement; var d = localStorage.getItem('${BRAND_DARK_KEY}'); var l = localStorage.getItem('${BRAND_LIGHT_KEY}'); var c = localStorage.getItem('${CONTRAST_KEY}'); if (!d && !l) return; var dark = r.classList.contains('dark') || (!r.classList.contains('light') && window.matchMedia('(prefers-color-scheme: dark)').matches); var b = dark ? d : l; if (b) { r.style.setProperty('--brand', b); r.setAttribute('data-member-skin', '1'); } if (c) r.style.setProperty('--brand-contrast', c); } catch (e) {} })();`;
+  const code = `(() => { try { var r = document.documentElement; if (r.hasAttribute('data-premium')) return; var d = localStorage.getItem('${BRAND_DARK_KEY}'); var l = localStorage.getItem('${BRAND_LIGHT_KEY}'); var c = localStorage.getItem('${CONTRAST_KEY}'); if (!d && !l) return; var dark = r.classList.contains('dark') || (!r.classList.contains('light') && window.matchMedia('(prefers-color-scheme: dark)').matches); var b = dark ? d : l; if (b) { r.style.setProperty('--brand', b); r.setAttribute('data-member-skin', '1'); } if (c) r.style.setProperty('--brand-contrast', c); } catch (e) {} })();`;
   return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
 }
