@@ -40,15 +40,32 @@ const SECTION_ID: Record<SectionKey, string> = {
   related: "detail-related",
 };
 
-// Each skin reads the shoe in its own order. Editorial leads with the story
-// (magazine feature); Instrument and Arena lead with the numbers (data / stats);
-// Gallery stays image-first and quiet.
+// Each skin keeps the overview (title + hero) as the identity block, then reads
+// the rest in its own order + FRAMES the data block to match its layout:
+//   • Editorial — the cover story: story leads, numbers follow ("By the numbers").
+//   • Instrument — the cockpit: performance next, wrapped as an instrument panel.
+//   • Gallery — the monograph: performance, then story; quiet, unframed.
+//   • Arena — the scout report: a gold "stat sheet" performance frame, reviews next.
 const ORDERS: Record<Exclude<PremiumVariant, "standard">, SectionKey[]> = {
   editorial: ["overview", "story", "performance", "reviews", "comments", "related"],
-  instrument: ["performance", "overview", "reviews", "story", "comments", "related"],
+  instrument: ["overview", "performance", "story", "reviews", "comments", "related"],
   gallery: ["overview", "performance", "story", "reviews", "comments", "related"],
-  arena: ["performance", "overview", "reviews", "story", "comments", "related"],
+  arena: ["overview", "performance", "reviews", "story", "comments", "related"],
 };
+
+// Per-skin framing for the performance (data) block, so it reads as a cockpit
+// gauge (Instrument) or a scouting stat sheet (Arena). Editorial/Gallery leave it
+// clean. The section keeps its own heading; the frame is pure chrome around it.
+function framePerformance(variant: Exclude<PremiumVariant, "standard">, node: React.ReactNode): React.ReactNode {
+  if (variant === "instrument") return <div className="pui-panel">{node}</div>;
+  if (variant === "arena")
+    return (
+      <div className="pui-statsheet">
+        <div className="p-4 sm:p-6 md:p-8">{node}</div>
+      </div>
+    );
+  return node;
+}
 
 const HASH_TO_ID: Record<string, string> = {
   "#overview": "detail-overview",
@@ -102,7 +119,7 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
         <DetailBanner variant={variant} brand={props.shoe.brand} />
         {order.map((key) => (
           <DetailSection key={key} id={SECTION_ID[key]}>
-            {renderers[key]()}
+            {key === "performance" ? framePerformance(variant, renderers[key]()) : renderers[key]()}
           </DetailSection>
         ))}
       </div>
