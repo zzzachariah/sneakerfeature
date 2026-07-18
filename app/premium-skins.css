@@ -354,6 +354,16 @@ html[data-premium] main { --pui-gutter-lift: clamp(1rem, 3vw, 2rem); }
 /* ---- Shared shells ---- */
 .pui-section { margin-top: clamp(3.25rem, 7vw, 6rem); }
 .pui-section-head { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 1.5rem; }
+/* Reusable per-skin page masthead (components/premium/page/premium-masthead.tsx).
+   Opens a secondary page with the active skin's chrome; the reveal matches the
+   home mastheads' velvet entrance. */
+.pui-page-head { margin-bottom: clamp(1.6rem, 3.4vw, 2.5rem); animation: puiReveal 620ms var(--pui-ease-lux, ease) both; }
+.pui-page-head--gallery { margin-bottom: clamp(2.25rem, 4.4vw, 3.25rem); }
+@keyframes puiReveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+/* Gallery opens near-silent — a fade only, matching its flattened reveal travel. */
+.pui-page-head--gallery { animation-name: puiRevealQuiet; }
+@keyframes puiRevealQuiet { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .pui-page-head { animation: none; } }
 .pui-kicker {
   font-size: 0.64rem;
   letter-spacing: 0.28em;

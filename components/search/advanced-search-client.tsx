@@ -10,6 +10,8 @@ import { ShoeFacets } from "@/components/home/shoe-facets";
 import { EmptyState } from "@/components/ui/empty-state";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePremiumVariant } from "@/components/premium/variants";
+import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
 import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { EMPTY_FACETS, facetCount, matchesFacets, type FacetState } from "@/lib/filters/shoe-facets";
 import { haptics } from "@/lib/native/haptics";
@@ -24,6 +26,7 @@ import { haptics } from "@/lib/native/haptics";
  */
 export function AdvancedSearchClient({ shoes, initialQuery = "" }: { shoes: Shoe[]; initialQuery?: string }) {
   const { translate } = useLocale();
+  const variant = usePremiumVariant();
   const [q, setQ] = useState(initialQuery);
   const [facets, setFacets] = useState<FacetState>(EMPTY_FACETS);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -48,17 +51,28 @@ export function AdvancedSearchClient({ shoes, initialQuery = "" }: { shoes: Shoe
 
   return (
     <main className="container-shell space-y-5 pt-8" style={{ paddingBottom: "calc(var(--mobile-nav-h) + 2rem)" }}>
-      <header>
-        <p className="t-eyebrow mb-2">{translate("Advanced Search")}</p>
-        <h1 className="t-display-sm" style={{ fontSize: "clamp(1.7rem, 4vw, 2.6rem)" }}>
-          {translate("Filter the database")}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm soft-text">
-          {translate(
+      {variant === "standard" ? (
+        <header>
+          <p className="t-eyebrow mb-2">{translate("Advanced Search")}</p>
+          <h1 className="t-display-sm" style={{ fontSize: "clamp(1.7rem, 4vw, 2.6rem)" }}>
+            {translate("Filter the database")}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm soft-text">
+            {translate(
+              "Search by name, brand, player or tech, then narrow it down with structured filters. The quick search in the top bar is for fast name lookups."
+            )}
+          </p>
+        </header>
+      ) : (
+        <PremiumMasthead
+          variant={variant}
+          kicker={translate("Advanced Search")}
+          title={translate("Filter the database")}
+          subtitle={translate(
             "Search by name, brand, player or tech, then narrow it down with structured filters. The quick search in the top bar is for fast name lookups."
           )}
-        </p>
-      </header>
+        />
+      )}
 
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[rgb(var(--subtext))]" />

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
+import { usePremiumVariant } from "@/components/premium/variants";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 
 export type SubmissionSlidesHandle = {
@@ -221,6 +222,29 @@ function SlideHeader({
   title: string;
   description: string;
 }) {
+  const variant = usePremiumVariant();
+  // Under a skin, the wizard's section headers take the active identity's kicker
+  // + display face (kept centered, so the form layout is untouched); the standard
+  // look renders exactly as before.
+  if (variant !== "standard") {
+    const titleClass =
+      variant === "editorial"
+        ? "pui-ed-title"
+        : variant === "arena"
+          ? "pui-arena-title"
+          : variant === "gallery"
+            ? "pui-display"
+            : "t-display-sm"; // instrument
+    return (
+      <div className="space-y-2 text-center">
+        <p className="pui-kicker">{eyebrow}</p>
+        <h1 className={titleClass} style={{ fontSize: "clamp(1.7rem, 3.6vw, 2.7rem)" }}>
+          {title}
+        </h1>
+        <p className="text-sm soft-text">{description}</p>
+      </div>
+    );
+  }
   return (
     <div className="space-y-2 text-center">
       <p className="t-eyebrow">{eyebrow}</p>
