@@ -593,8 +593,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
             </ul>
             <p className="mt-3 text-xs soft-text">
               {t(
-                "调整会立即保存，下次打开首页即按此顺序展示。皮肤选择见页面上方。",
-                "Changes save instantly and apply next time you open the home page. Skin selection is above."
+                "调整会立即保存，下次打开首页即按此顺序展示。皮肤选择见页面上方。启用「整站质感」皮肤时，首页会改用该皮肤自己的编排，此顺序仅作用于标准外观。",
+                "Changes save instantly and apply next time you open the home page. Skin selection is above. When a Premium UI skin is active, the home page uses that skin's own layout — this order applies to the standard look only."
               )}
             </p>
           </div>

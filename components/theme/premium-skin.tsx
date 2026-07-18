@@ -1,18 +1,22 @@
 "use client";
 
-// Menu-bar "Premium UI" switcher. Lets ANYONE flip the whole site into one of the
-// four luxury skin design languages (Sapphire / Aurora / Obsidian / Champion) or
-// back to the standard look — a purely visual, site-wide skin, independent of
-// membership entitlements. The chosen skin is stamped as `data-premium="<skin>"`
-// on <html> and styled entirely from globals.css (accent, ground temperature,
-// shoe stage, card hairlines, ambient wash), so it themes every page at once and
-// works in both light and dark.
+// Menu-bar "Premium UI" switcher. Flips the whole site into one of the four
+// luxury design languages (Sapphire / Aurora / Obsidian / Champion) or back to
+// the standard look. A skin is a site-wide identity: it re-colors + re-fonts
+// every page from globals.css / premium-skins.css (via data-premium on <html>)
+// AND — through PremiumSkinProvider — lets each page render a different STRUCTURE
+// (see components/premium/*).
 //
-// Two pieces, mirroring ThemeToggle / SkinInitScript:
-//   • PremiumSkinInitScript — a blocking inline <script> that applies the stored
-//     skin BEFORE first paint so there's no flash.
-//   • PremiumSkinToggle (desktop popover) + PremiumSkinOptions (inline list for
-//     the mobile menu) — the interactive pickers.
+// Skins are a PAID membership perk: the picker gates each option by tier exactly
+// like the subscribe page (paid gets the set; the Max-exclusive Champion needs
+// Max), and PremiumSkinGuard revokes a skin the current tier isn't entitled to.
+//
+// State lives in PremiumSkinProvider (components/theme/premium-skin-context.tsx),
+// which owns the attribute + localStorage + cookie and seeds itself from the
+// server value. This file is the entitlement layer + the two pickers:
+//   • PremiumSkinToggle — the desktop popover.
+//   • PremiumSkinOptions — the inline list reused inside the mobile menu.
+// The pre-paint init (PremiumSkinInitScript) also lives in the context module.
 //
 // Coordination: when a premium skin is active, MemberThemeApplier defers its
 // inline --brand override (it watches data-premium) so the skin's stylesheet
@@ -21,40 +25,17 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Gem, Check, Lock } from "lucide-react";
-import { SKIN_ORDER, SKINS, isSkinId, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
+import { SKIN_ORDER, SKINS, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
 import { isPaidTier, type Tier } from "@/lib/subscription/tiers";
 import { useAuthState } from "@/components/auth/auth-state-provider";
+import { usePremiumSkin } from "@/components/theme/premium-skin-context";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-export const PREMIUM_UI_KEY = "sf-premium-ui";
-
-export function applyPremiumSkin(skin: SkinId | null) {
-  const root = document.documentElement;
-  try {
-    if (skin) {
-      root.setAttribute("data-premium", skin);
-      window.localStorage.setItem(PREMIUM_UI_KEY, skin);
-    } else {
-      root.removeAttribute("data-premium");
-      window.localStorage.removeItem(PREMIUM_UI_KEY);
-    }
-  } catch {
-    // storage blocked — the attribute still applies for this session
-    if (skin) root.setAttribute("data-premium", skin);
-    else root.removeAttribute("data-premium");
-  }
-}
-
-export function readPremiumSkin(): SkinId | null {
-  try {
-    const v = window.localStorage.getItem(PREMIUM_UI_KEY);
-    return isSkinId(v) ? v : null;
-  } catch {
-    return null;
-  }
-}
+// Re-exported for the handful of call sites that still import these names from
+// here; the implementations now live in the context module.
+export { PREMIUM_UI_KEY, applyPremiumSkin, readPremiumSkin, PremiumSkinInitScript } from "@/components/theme/premium-skin-context";
 
 // Entitlement — mirrors the membership skin picker exactly (see subscribe-client
 // `canPersonalize` / `canSignature`): skins are a PAID perk, so free / signed-out
@@ -66,25 +47,19 @@ export function skinAllowed(id: SkinId, tier: Tier): boolean {
   return true;
 }
 
-// Pre-paint: apply the stored premium skin before React hydrates so a returning
-// user never flashes the default look. The empty catch keeps the site from ever
-// ending up unstyled if storage throws.
-export function PremiumSkinInitScript({ nonce }: { nonce?: string }) {
-  const code = `(() => { try { var v = localStorage.getItem('${PREMIUM_UI_KEY}'); if (v === 'sapphire' || v === 'aurora' || v === 'obsidian' || v === 'champion') document.documentElement.setAttribute('data-premium', v); } catch (e) {} })();`;
-  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: code }} />;
-}
-
 // Revoke a premium skin the current tier isn't entitled to. The pre-paint init
 // applies the last-stored skin before the tier is known (a member who lapsed to
 // free, a Pro holding the Max-only Champion, or a stale value), so once auth
-// resolves we clear anything no longer allowed. Mount once under AuthStateProvider.
+// resolves we clear anything no longer allowed — through the context setter so
+// the page STRUCTURE reverts in lockstep with the CSS attribute. Mount once
+// under AuthStateProvider (which sits inside PremiumSkinProvider).
 export function PremiumSkinGuard() {
   const { tier, loaded } = useAuthState();
+  const { skin, setSkin } = usePremiumSkin();
   useEffect(() => {
     if (!loaded) return;
-    const current = readPremiumSkin();
-    if (current && !skinAllowed(current, tier)) applyPremiumSkin(null);
-  }, [tier, loaded]);
+    if (skin && !skinAllowed(skin, tier)) setSkin(null);
+  }, [tier, loaded, skin, setSkin]);
   return null;
 }
 
@@ -111,23 +86,24 @@ function Swatch({ id }: { id: SkinId }) {
 
 /**
  * Inline option list (Off + the four skins). Used both inside the desktop
- * popover and directly in the mobile hamburger menu. Calls onPick after applying.
+ * popover and directly in the mobile hamburger menu. Drives the shared skin
+ * context, so every consumer (navbar dot, page structure) updates at once.
+ * Options the current tier can't use become upsell links to /subscribe.
  */
 export function PremiumSkinOptions({
-  active,
   onPick,
   onClose,
 }: {
-  active: SkinId | null;
   onPick?: (skin: SkinId | null) => void;
   onClose?: () => void;
 }) {
   const { locale } = useLocale();
   const { tier, loaded } = useAuthState();
+  const { skin: active, setSkin } = usePremiumSkin();
   const zh = locale === "zh";
 
   const choose = (skin: SkinId | null) => {
-    applyPremiumSkin(skin);
+    setSkin(skin);
     onPick?.(skin);
   };
 
@@ -194,15 +170,12 @@ export function PremiumSkinToggle({ className }: { className?: string }) {
   const { tier, loaded } = useAuthState();
   const zh = locale === "zh";
   const [open, setOpen] = useState(false);
-  const [active, setActive] = useState<SkinId | null>(null);
+  const { skin } = usePremiumSkin();
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const s = readPremiumSkin();
-    // Optimistic before auth resolves; once loaded, only reflect an entitled skin
-    // as active (the guard clears an unentitled one from the DOM in parallel).
-    setActive(!s || !loaded || skinAllowed(s, tier) ? s : null);
-  }, [tier, loaded]);
+  // Optimistic before auth resolves; once loaded, only reflect an entitled skin
+  // as active (PremiumSkinGuard clears an unentitled one in parallel).
+  const active = !skin || !loaded || skinAllowed(skin, tier) ? skin : null;
 
   useEffect(() => {
     if (!open) return;
@@ -255,16 +228,9 @@ export function PremiumSkinToggle({ className }: { className?: string }) {
           <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
             {zh ? "整站质感" : "Premium UI skin"}
           </div>
-          <PremiumSkinOptions
-            active={active}
-            onPick={(skin) => {
-              setActive(skin);
-              setOpen(false);
-            }}
-            onClose={() => setOpen(false)}
-          />
+          <PremiumSkinOptions onPick={() => setOpen(false)} onClose={() => setOpen(false)} />
           <p className="px-3 pb-1 pt-1.5 text-[0.68rem] leading-snug text-[rgb(var(--subtext))]">
-            {zh ? "整站换肤，浅色/深色都适配。" : "Skins the whole site, in light & dark."}
+            {zh ? "整站换肤 · 重排版式，浅色/深色都适配。" : "Re-skins & re-lays-out the whole site, light & dark."}
           </p>
         </div>
       )}

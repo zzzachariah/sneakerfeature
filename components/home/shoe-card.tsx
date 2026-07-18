@@ -39,6 +39,9 @@ type Props = {
   /** Optional one-line caption under the card (e.g. a Quick Picker match reason
    * like "Great for guards"). Only rendered when provided. */
   footnote?: string;
+  /** Optional rank number shown as a badge over the image — used by the Arena
+   * premium skin's standings / podium. Omitted → no badge (standard behavior). */
+  rankBadge?: number;
 };
 
 // Compact metric labels for the personalized-mode card chips (the full
@@ -52,7 +55,7 @@ const CHIP_LABEL: Record<MetricKey, string> = {
   fit: "Fit"
 };
 
-export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority, footnote }: Props) {
+export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected, onToggleSelect, className, index, revealStagger, revealRootMargin, priority, footnote, rankBadge }: Props) {
   const { translate } = useLocale();
   const router = useRouter();
   const href = `/shoes/${shoe.slug}` as Route;
@@ -77,6 +80,11 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
         className="glass-lite block overflow-hidden rounded-2xl transition duration-[160ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[rgb(var(--text)/0.25)] hover:bg-[rgb(var(--text)/0.04)] active:scale-[0.985] active:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
       >
         <div className="shoe-stage relative aspect-square w-full">
+          {rankBadge != null && (
+            <span className="pui-rank-badge" data-rank={rankBadge} aria-label={`#${rankBadge}`}>
+              {rankBadge}
+            </span>
+          )}
           <ShoeImage
             src={shoe.image_url}
             alt={shoe.shoe_name}
@@ -93,7 +101,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
           )}
         </div>
         <div className="p-3">
-          <div className="truncate text-sm font-semibold tracking-[-0.01em] leading-[1.25]">{shoe.shoe_name}</div>
+          <div className="shoe-card-name truncate text-sm font-semibold tracking-[-0.01em] leading-[1.25]">{shoe.shoe_name}</div>
           <div className="mt-0.5 truncate text-[0.78rem] soft-text leading-snug">{shoe.brand}</div>
           <div className="mt-1.5">
             <StarRatingSlot

@@ -11,7 +11,7 @@ import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { Shoe } from "@/lib/types";
 
-type Props = {
+export type Props = {
   shoes: Shoe[];
   canAdd: boolean;
   canSave: boolean;

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { BackButton } from "@/components/detail/back-button";
-import { ShoeDetailSlides } from "@/components/detail/shoe-detail-slides";
+import { DetailSwitch } from "@/components/premium/detail/detail-switch";
 import { type RadarAxis } from "@/components/detail/performance-radar";
 import { BloggerReview, Shoe, ShoeImageRecord } from "@/lib/types";
 import {
@@ -261,7 +261,7 @@ export function ShoeDetailClient({
         </div>
       </div>
 
-      <ShoeDetailSlides
+      <DetailSwitch
         shoe={shoe}
         related={related}
         isAdmin={isAdmin}

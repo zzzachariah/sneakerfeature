@@ -1,0 +1,742 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PREMIUM UI — STRUCTURAL DESIGN LANGUAGES
+   Loaded AFTER globals.css (see app/layout.tsx). globals.css owns every COLOR
+   token per data-premium skin (its 1943–2120 block: --brand, --bg, --surface,
+   shoe stage, etc.) and is not touched here. This file adds the other axes each
+   skin needs to read as a distinct DESIGN LANGUAGE, not just a palette:
+     • display typeface, radius, motion pacing  → --pui-* tokens
+     • a site-wide visual language (type, cards, CTAs, nav, ambient, shoe cards)
+       that reaches EVERY page, including ones with no structural variant
+     • the .pui-* structural classes the per-variant React trees compose with
+       (components/premium/*)
+   Every rule is scoped under html[data-premium="…"] so the standard look (no
+   attribute) is byte-for-byte untouched. Text color (--text) is never overridden,
+   so ink keeps its contrast in both themes; grounds stay light-in-light /
+   dark-in-dark exactly as globals.css set them.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1 · PER-SKIN TOKENS
+   Non-color axes (fonts / radius / motion). Theme-agnostic, so they need no
+   light/dark variants; decorative accents below use alpha or --brand so they
+   read on both grounds.
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium="sapphire"] {
+  --pui-display: var(--font-editorial), Georgia, "Times New Roman", serif;
+  --pui-cjk: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
+  --pui-display-weight: 700;
+  --pui-display-tracking: 0.005em;
+  --pui-radius-card: 10px;
+  --pui-radius-control: 2px;
+  --pui-dur-scale: 1.4;
+  --pui-gold: 240 212 136;      /* champagne — hairlines / fills (used with alpha) + gold-on-dark grounds */
+  /* Gold INK (kickers / issue no / CTA text / drop cap). Theme-aware: a deep
+     bronze on the light page so it stays AA-legible, champagne on the dark page.
+     Mirrors globals.css's --gold-ink pattern. */
+  --pui-accent-ink: 138 100 16;
+}
+html[data-premium="aurora"] {
+  --pui-display: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --pui-cjk: ui-sans-serif, system-ui, "PingFang SC", "Noto Sans SC", sans-serif;
+  --pui-display-weight: 700;
+  --pui-display-tracking: -0.015em;
+  --pui-radius-card: 18px;
+  --pui-radius-control: 12px;
+  --pui-dur-scale: 1;
+  --pui-glow: 41 194 230;       /* electric cyan */
+  --pui-glow-2: 176 108 240;    /* aurora violet */
+  --pui-accent-ink: 41 194 230;
+}
+html[data-premium="obsidian"] {
+  --pui-display: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  --pui-cjk: var(--font-geist-sans), "PingFang SC", "Noto Sans SC", sans-serif;
+  --pui-display-weight: 250;
+  --pui-display-tracking: 0.16em;
+  --pui-radius-card: 2px;
+  --pui-radius-control: 2px;
+  --pui-dur-scale: 0.6;
+  --pui-platinum: 199 210 226;
+  --pui-accent-ink: 199 210 226;
+}
+html[data-premium="champion"] {
+  --pui-display: var(--font-arena), Impact, sans-serif;
+  --pui-label: var(--font-arena-label), ui-sans-serif, system-ui, sans-serif;
+  --pui-cjk: var(--font-geist-sans), "PingFang SC", "Noto Sans SC", sans-serif;
+  --pui-display-weight: 400;
+  --pui-display-tracking: 0.02em;
+  --pui-radius-card: 6px;
+  --pui-radius-control: 3px;
+  --pui-dur-scale: 0.9;
+  --pui-gold: 255 206 74;       /* bright gold — fills (alpha) + gold-on-dark grounds */
+  --pui-accent-ink: 138 100 16; /* bronze in light (see theme-aware overrides below) */
+}
+
+/* Theme-aware gold INK: the light-theme defaults above are the readable bronze;
+   on the dark page the ink warms to champagne / bright gold. --pui-gold (the
+   decorative fill, always used with alpha or over dark grounds) stays constant. */
+html[data-premium="sapphire"].dark { --pui-accent-ink: 240 212 136; }
+html[data-premium="champion"].dark { --pui-accent-ink: 255 206 74; }
+@media (prefers-color-scheme: dark) {
+  html[data-premium="sapphire"]:not(.light) { --pui-accent-ink: 240 212 136; }
+  html[data-premium="champion"]:not(.light) { --pui-accent-ink: 255 206 74; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   1.5 · SHOE STAGES — the skin accent must NOT become the product's backdrop.
+   globals.css tints these per skin (saturated navy / cyan / gold grounds); here
+   we override them back to a clean, near-neutral studio ground — light in light
+   theme, soft dark in dark — so sneakers read like premium product shots. The
+   skin's character lives in type / layout / accents, never behind the shoe.
+   (Scoped to [data-premium]; the standard site is untouched.)
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium] {
+  --shoe-stage-hi: 252 252 254; --shoe-stage-lo: 235 235 240; --shoe-shadow: 26 26 32;
+}
+html[data-premium].dark {
+  --shoe-stage-hi: 33 34 39; --shoe-stage-lo: 20 21 25; --shoe-shadow: 0 0 0;
+}
+@media (prefers-color-scheme: dark) {
+  html[data-premium]:not(.light) {
+    --shoe-stage-hi: 33 34 39; --shoe-stage-lo: 20 21 25; --shoe-shadow: 0 0 0;
+  }
+}
+/* Replace globals' per-skin gemstone-glow gradients with an even studio backdrop. */
+html[data-premium] .shoe-stage {
+  background: radial-gradient(78% 68% at 50% 32%, rgb(var(--shoe-stage-hi)), rgb(var(--shoe-stage-lo)) 82%);
+}
+/* The sapphire/champion light-theme rim (added in globals for dark jewel stages)
+   is unneeded on the clean light ground — drop it so cut-outs sit naturally. */
+html[data-premium="sapphire"] .shoe-img,
+html[data-premium="champion"] .shoe-img {
+  filter: drop-shadow(0 5px 9px rgb(var(--shoe-shadow) / 0.26));
+}
+html[data-premium="sapphire"].dark .shoe-img,
+html[data-premium="champion"].dark .shoe-img {
+  filter: drop-shadow(0 5px 10px rgb(var(--shoe-shadow) / 0.5)) drop-shadow(0 0 1px rgb(255 255 255 / 0.16));
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   2 · SITE-WIDE TYPE — every page picks up the skin's display face
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium] .t-display,
+html[data-premium] .t-display-sm,
+html[data-premium] .font-display {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+}
+/* Sapphire's Didone wants a touch more line height at big sizes (thin/thick
+   contrast reads worse when cramped). */
+html[data-premium="sapphire"] .t-display { line-height: 1.02; }
+html[data-premium="obsidian"] .t-display,
+html[data-premium="obsidian"] .t-display-sm {
+  text-transform: uppercase;
+}
+html[data-premium="champion"] .t-display,
+html[data-premium="champion"] .t-display-sm {
+  text-transform: uppercase;
+  line-height: 0.94;
+}
+/* Numeric readouts: Champion sets them in condensed; Gallery thins them. */
+html[data-premium="champion"] .num-display {
+  font-family: var(--pui-label);
+  letter-spacing: 0.04em;
+}
+html[data-premium="obsidian"] .num-display {
+  letter-spacing: 0.12em;
+}
+/* Eyebrows tighten/loosen to each voice. */
+html[data-premium="obsidian"] .t-eyebrow { letter-spacing: 0.34em; }
+html[data-premium="champion"] .t-eyebrow { font-family: var(--pui-label); letter-spacing: 0.24em; }
+
+/* Convenience faces the variant components use directly. */
+.pui-display { font-family: var(--pui-display); font-weight: var(--pui-display-weight); letter-spacing: var(--pui-display-tracking); }
+.pui-serif { font-family: var(--pui-cjk); }
+.pui-label { font-family: var(--pui-label, var(--font-geist-sans)); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   3 · SITE-WIDE SURFACES — reshape cards to each skin
+   Radius + border + material shift; the card ground is NOT flipped, so inner ink
+   keeps contrast. globals.css already gives premium .surface-card a hairline;
+   here we set the per-skin radius and refine the edge.
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Only the card SURFACES reshape — NOT bare .glass-lite, which is also the
+   circular heart / compare icon buttons (they carry .glass-lite without .block).
+   The ShoeCard link is an <a class="glass-lite block …">, so .glass-lite.block
+   targets cards while leaving the round icon buttons untouched. */
+html[data-premium] .surface-card,
+html[data-premium] .glass-lite.block,
+html[data-premium] .glass-card {
+  border-radius: var(--pui-radius-card);
+}
+html[data-premium="obsidian"] .surface-card {
+  border-color: rgb(var(--pui-platinum) / 0.28);
+  box-shadow: none;
+  background: rgb(var(--bg-elev) / 0.7);
+}
+html[data-premium="aurora"] .surface-card {
+  border-color: rgb(var(--pui-glow) / 0.28);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    0 0 0 1px rgb(var(--pui-glow-2) / 0.1),
+    0 14px 34px -20px rgb(var(--pui-glow) / 0.4);
+}
+html[data-premium="champion"] .surface-card {
+  border-color: rgb(var(--pui-gold) / 0.4);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   4 · CTA — a shared premium button + skin-scoped reshaping of the app button
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--pui-radius-control, 0.5rem);
+  padding: 0.7rem 1.4rem;
+  font-weight: 600;
+  transition: transform calc(var(--dur-base) * var(--pui-dur-scale, 1)) var(--ease),
+    box-shadow calc(var(--dur-base) * var(--pui-dur-scale, 1)) var(--ease),
+    opacity var(--dur-base) var(--ease);
+  cursor: pointer;
+}
+.pui-cta:active { transform: scale(0.98); }
+
+html[data-premium="sapphire"] .pui-cta {
+  border: 1px solid rgb(var(--pui-accent-ink) / 0.55);
+  color: rgb(var(--pui-accent-ink));
+  background: rgb(var(--pui-accent-ink) / 0.06);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+}
+html[data-premium="sapphire"] .pui-cta:hover { background: rgb(var(--pui-accent-ink) / 0.12); }
+
+html[data-premium="aurora"] .pui-cta {
+  border: 0;
+  color: #04222b;
+  background: linear-gradient(135deg, rgb(var(--pui-glow)), #0e6fb8);
+  box-shadow: 0 8px 24px -8px rgb(var(--pui-glow) / 0.6);
+  font-weight: 700;
+}
+html[data-premium="aurora"] .pui-cta:hover { box-shadow: 0 10px 30px -8px rgb(var(--pui-glow) / 0.75); }
+
+html[data-premium="obsidian"] .pui-cta {
+  border: 1px solid rgb(var(--pui-platinum) / 0.5);
+  color: rgb(var(--pui-platinum));
+  background: transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.24em;
+  font-weight: 300;
+  font-size: 0.72rem;
+  border-radius: 0;
+}
+html[data-premium="obsidian"] .pui-cta:hover { border-color: rgb(var(--pui-platinum) / 0.85); }
+
+html[data-premium="champion"] .pui-cta {
+  border: 0;
+  color: #1a1305;
+  background: linear-gradient(135deg, #ffe38a, #c99a2a);
+  font-family: var(--pui-label);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  box-shadow: 0 6px 20px -8px rgb(var(--pui-gold) / 0.6);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   5 · NAV — extend globals' scrolled-navbar underline with per-skin material
+   ───────────────────────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  html[data-premium="champion"] .glass-nav { border-bottom-width: 2px; border-bottom-color: rgb(var(--pui-gold) / 0.5); }
+  html[data-premium="aurora"] .glass-nav { box-shadow: 0 1px 0 rgb(var(--pui-glow) / 0.4), 0 8px 30px -16px rgb(var(--pui-glow) / 0.5); }
+  html[data-premium="obsidian"] .glass-nav { border-bottom-color: rgb(var(--pui-platinum) / 0.24); }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   6 · AMBIENT — living background layers for the two "energetic" skins.
+   The base washes come from globals.css (.app-ambient-bg[data-premium]); we add
+   a slow drift for Aurora and a static diagonal gold field for Champion.
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium="aurora"] .app-ambient-bg::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto -10%;
+  height: 70%;
+  background:
+    radial-gradient(50% 60% at 20% 30%, rgb(var(--pui-glow) / 0.16), transparent 60%),
+    radial-gradient(48% 58% at 82% 20%, rgb(var(--pui-glow-2) / 0.16), transparent 60%);
+  filter: blur(30px);
+  animation: puiAuroraDrift 18s ease-in-out infinite alternate;
+}
+@keyframes puiAuroraDrift {
+  from { transform: translate3d(-4%, -2%, 0) scale(1); opacity: 0.85; }
+  to   { transform: translate3d(6%, 3%, 0) scale(1.08); opacity: 1; }
+}
+html[data-premium="champion"] .app-ambient-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -32deg,
+    rgb(var(--pui-gold) / 0.05) 0 2px,
+    transparent 2px 26px
+  );
+  -webkit-mask-image: radial-gradient(80% 60% at 50% 0%, #000, transparent 72%);
+  mask-image: radial-gradient(80% 60% at 50% 0%, #000, transparent 72%);
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-premium="aurora"] .app-ambient-bg::before { animation: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   7 · SHOE CARD — four card personalities (globals.css already retunes the
+   .shoe-stage gradients per skin; here we style the frame/name/meta the card
+   renders, plus the optional rank badge).
+   The DOM is unchanged: we restyle components/home/shoe-card.tsx's existing
+   markup through data-premium.
+   ───────────────────────────────────────────────────────────────────────────── */
+/* Sapphire — jewel case: gold hairline, serif name. */
+html[data-premium="sapphire"] .shoe-card-name { font-family: var(--pui-display); font-weight: 700; letter-spacing: 0; }
+
+/* Obsidian — gallery label: name in wide uppercase caps. */
+html[data-premium="obsidian"] .shoe-card-name {
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 300;
+  font-size: 0.82rem;
+}
+
+/* Champion — player card: uppercase condensed name. */
+html[data-premium="champion"] .shoe-card-name {
+  font-family: var(--pui-display);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+/* Rank badge (Arena "全榜单" + podium). Rendered by ShoeCard when rankBadge is set. */
+.pui-rank-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  font-family: var(--pui-label, var(--font-geist-sans));
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #1a1305;
+  background: linear-gradient(135deg, #ffe38a, #c99a2a);
+  box-shadow: 0 3px 10px -3px rgb(0 0 0 / 0.5);
+}
+.pui-rank-badge[data-rank="1"] { background: linear-gradient(135deg, #fff0c0, #d9a72a); }
+.pui-rank-badge[data-rank="2"] { background: linear-gradient(135deg, #eef1f5, #b7bcc4); }
+.pui-rank-badge[data-rank="3"] { background: linear-gradient(135deg, #f0c99a, #b07a3a); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   8 · STRUCTURAL CLASSES — the vocabulary the per-variant React trees compose
+   with. Named .pui-<variant>-* so each skin's markup is self-documenting.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* ---- Refined content measure & rhythm (轻奢) ----
+   Pull premium content off the full-width shell into a calmer column with more
+   margin, and give sections generous, consistent vertical rhythm. Navbar/footer
+   live OUTSIDE <main>, so their width is untouched. */
+html[data-premium] main .container-shell { max-width: 1120px; }
+html[data-premium] main { --pui-gutter-lift: clamp(1rem, 3vw, 2rem); }
+
+/* ---- Shared shells ---- */
+.pui-section { margin-top: clamp(3.25rem, 7vw, 6rem); }
+.pui-section-head { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 1.5rem; }
+.pui-kicker {
+  font-size: 0.64rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: rgb(var(--brand));
+}
+html[data-premium="sapphire"] .pui-kicker,
+html[data-premium="champion"] .pui-kicker { color: rgb(var(--pui-accent-ink)); }
+html[data-premium="champion"] .pui-kicker { font-family: var(--pui-label); }
+
+/* ══ EDITORIAL (Sapphire) ══ */
+.pui-ed-cover {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  padding: clamp(1.5rem, 4vw, 3rem) 0;
+  border-top: 1px solid rgb(var(--pui-gold) / 0.4);
+  border-bottom: 1px solid rgb(var(--pui-gold) / 0.4);
+}
+@media (min-width: 820px) {
+  .pui-ed-cover { grid-template-columns: 1.05fr 0.95fr; align-items: center; gap: 2.5rem; }
+}
+.pui-ed-flag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--pui-display);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid rgb(var(--pui-gold) / 0.35);
+  padding-bottom: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+.pui-ed-issue { font-size: 0.72rem; letter-spacing: 0.24em; text-transform: uppercase; color: rgb(var(--pui-accent-ink)); }
+.pui-ed-title { font-family: var(--pui-display); font-weight: 700; line-height: 1.04; font-size: clamp(2rem, 5.2vw, 3.6rem); letter-spacing: 0.005em; }
+.pui-ed-stage { position: relative; aspect-ratio: 4 / 3; border-radius: var(--pui-radius-card); overflow: hidden; }
+.pui-ed-columns { display: grid; grid-template-columns: 1fr; gap: 2rem; }
+@media (min-width: 760px) { .pui-ed-columns { grid-template-columns: repeat(3, 1fr); gap: clamp(1.75rem, 3vw, 3rem); } }
+.pui-ed-column { border-top: 1px solid rgb(var(--text) / 0.75); padding-top: 1.1rem; }
+.pui-ed-column h3 { font-family: var(--pui-display); font-weight: 700; font-size: 1.05rem; letter-spacing: 0.01em; margin-bottom: 1rem; }
+
+/* Editor's spread — one hero pick + a curated shortlist (magazine hierarchy,
+   not a uniform grid of identical cards). */
+.pui-ed-spread { display: grid; grid-template-columns: 1fr; gap: clamp(2rem, 4vw, 3.5rem); }
+@media (min-width: 820px) { .pui-ed-spread { grid-template-columns: 1.35fr 1fr; align-items: start; } }
+.pui-ed-feature-name { font-family: var(--pui-display); font-weight: 700; line-height: 1.06; font-size: clamp(1.5rem, 2.8vw, 2.1rem); margin-top: 1rem; }
+.pui-ed-list-head { border-top: 1px solid rgb(var(--text) / 0.75); padding-top: 0.75rem; margin-bottom: 0.25rem; }
+.pui-ed-list-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid rgb(var(--pui-gold) / 0.22);
+  transition: opacity var(--dur-base) var(--ease);
+}
+.pui-ed-list-row:hover { opacity: 0.7; }
+.pui-ed-thumb {
+  width: 72px; height: 72px; flex: none;
+  border-radius: 4px; overflow: hidden;
+  display: grid; place-items: center;
+}
+.pui-ed-list-name { font-family: var(--pui-display); font-weight: 700; font-size: 1rem; line-height: 1.15; }
+.pui-ed-rule { height: 1px; background: rgb(var(--pui-gold) / 0.4); border: 0; margin: 0.6rem 0; }
+.pui-ed-drop::first-letter {
+  font-family: var(--pui-display);
+  font-weight: 700;
+  float: left;
+  font-size: 3.1em;
+  line-height: 0.72;
+  padding: 0.06em 0.12em 0 0;
+  color: rgb(var(--pui-accent-ink));
+}
+
+/* ══ INSTRUMENT (Aurora) ══ */
+.pui-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding: 0.85rem 1.1rem;
+  border-radius: var(--pui-radius-card);
+  border: 1px solid rgb(var(--pui-glow) / 0.3);
+  background: rgb(var(--bg-elev) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05), 0 0 30px -14px rgb(var(--pui-glow) / 0.6);
+}
+.pui-hud-cell { display: flex; flex-direction: column; }
+.pui-hud-cell .v { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pui-hud-cell .k { font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-hud-live {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; color: rgb(var(--pui-glow));
+}
+.pui-hud-live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: rgb(var(--pui-glow)); box-shadow: 0 0 8px rgb(var(--pui-glow)); animation: puiPulse 1.8s ease-in-out infinite; }
+@keyframes puiPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .pui-hud-live::before { animation: none; } }
+.pui-console {
+  position: relative;
+  border-radius: var(--pui-radius-card);
+  border: 1px solid rgb(var(--pui-glow) / 0.32);
+  background:
+    radial-gradient(120% 100% at 80% -10%, rgb(var(--pui-glow-2) / 0.14), transparent 55%),
+    rgb(var(--bg-elev) / 0.55);
+  padding: clamp(1.2rem, 3vw, 2rem);
+  box-shadow: 0 0 40px -18px rgb(var(--pui-glow) / 0.7);
+}
+.pui-mono { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+.pui-tabs { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.3rem; -webkit-overflow-scrolling: touch; }
+.pui-tab {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--pui-glow) / 0.3);
+  font-size: 0.8rem;
+  color: rgb(var(--subtext));
+  background: transparent;
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
+}
+.pui-tab[data-active="true"] {
+  color: #04222b;
+  background: rgb(var(--pui-glow));
+  border-color: rgb(var(--pui-glow));
+  font-weight: 600;
+}
+
+/* ══ GALLERY (Obsidian) ══ */
+.pui-lede { font-weight: 300; letter-spacing: 0.01em; line-height: 1.4; }
+
+/* Boutique catalogue — large portrait plates, generous whitespace, quiet
+   captions. One consistent grid + caption rhythm reused on home AND favorites. */
+.pui-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: clamp(1.75rem, 3vw, 2.5rem) clamp(1rem, 2.5vw, 1.75rem);
+}
+@media (min-width: 768px) {
+  .pui-cat-grid { grid-template-columns: repeat(3, 1fr); gap: clamp(2.75rem, 4vw, 4rem) clamp(1.5rem, 3vw, 2.5rem); }
+}
+.pui-cat-plate { aspect-ratio: 4 / 5; width: 100%; }
+.pui-cat-cap { margin-top: 1rem; }
+.pui-cat-brand { display: block; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.24em; color: rgb(var(--subtext)); }
+.pui-cat-name { display: block; margin-top: 0.4rem; font-weight: 300; letter-spacing: 0.02em; font-size: 1rem; line-height: 1.25; }
+.pui-cat-rating { display: block; margin-top: 0.45rem; letter-spacing: 0.06em; font-size: 0.82rem; color: rgb(var(--text) / 0.7); }
+/* The index lives in a calm, LEFT-aligned reading column, not stretched across
+   the shell — name and rating stay in the same eyeful, with generous right-side
+   air (an asymmetric, editorial-luxury composition). */
+.pui-index-wrap { max-width: 680px; }
+.pui-index { border-top: 1px solid rgb(var(--pui-platinum) / 0.28); }
+.pui-index-row {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr auto;
+  align-items: baseline;
+  gap: 1.1rem;
+  padding: 1.05rem 0.25rem;
+  border-bottom: 1px solid rgb(var(--pui-platinum) / 0.16);
+  transition: background-color var(--dur-fast) var(--ease);
+}
+.pui-index-row:hover { background: rgb(var(--pui-platinum) / 0.05); }
+.pui-index-num { font-variant-numeric: tabular-nums; font-size: 0.72rem; color: rgb(var(--subtext) / 0.7); align-self: center; }
+.pui-index-name { font-weight: 300; letter-spacing: 0.03em; font-size: 0.98rem; }
+.pui-index-brand { text-transform: uppercase; letter-spacing: 0.2em; font-size: 0.64rem; color: rgb(var(--subtext)); margin-bottom: 0.15rem; }
+.pui-index-score { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: rgb(var(--text) / 0.8); align-self: center; font-size: 0.9rem; }
+.pui-hairline { height: 1px; background: rgb(var(--pui-platinum) / 0.2); border: 0; }
+.pui-plate {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+  border-radius: 2px;
+  overflow: hidden;
+}
+/* Gallery plates read as framed works — a platinum hairline + a whisper of lift,
+   so they separate from the near-white page instead of dissolving into it. */
+html[data-premium="obsidian"] .pui-plate {
+  border: 1px solid rgb(var(--pui-platinum) / 0.22);
+  box-shadow: 0 1px 0 rgb(var(--pui-platinum) / 0.12), 0 18px 40px -30px rgb(var(--shadow) / 0.5);
+}
+.pui-scene-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 0.25rem;
+  border-bottom: 1px solid rgb(var(--pui-platinum) / 0.16);
+  cursor: pointer;
+}
+.pui-scene-row .t { text-transform: uppercase; letter-spacing: 0.16em; font-weight: 300; }
+
+/* ══ ARENA (Champion) ══ */
+.pui-arena-title { font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; line-height: 0.94; }
+.pui-podium {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.9rem;
+  align-items: end;
+}
+@media (min-width: 720px) { .pui-podium { grid-template-columns: 1fr 1.15fr 1fr; gap: 1.1rem; } }
+.pui-podium-step {
+  position: relative;
+  border-radius: var(--pui-radius-card);
+  border: 1px solid rgb(var(--pui-gold) / 0.4);
+  padding: 1rem;
+  overflow: hidden;
+  /* Theme-matched card ground (light in light, dark in dark) with a faint gold
+     wash — so the name/brand/stars keep contrast in both themes. The drama comes
+     from the gold rail + border + rank + the dark shoe stage, not a muddy ground. */
+  background: linear-gradient(170deg, rgb(var(--pui-gold) / 0.08), rgb(var(--bg-elev) / 0.92));
+}
+.pui-podium-step::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: linear-gradient(180deg, #ffe38a, #c99a2a);
+}
+@media (min-width: 720px) {
+  .pui-podium-step[data-place="1"] { transform: translateY(-1.2rem); }
+}
+.pui-podium-rank {
+  font-family: var(--pui-display);
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  line-height: 1;
+  color: rgb(var(--pui-accent-ink)); /* theme-aware: bronze on light, gold on dark */
+}
+.pui-statline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.4rem;
+  padding: 1rem 0;
+  border-top: 2px solid rgb(var(--pui-gold) / 0.5);
+  border-bottom: 2px solid rgb(var(--pui-gold) / 0.5);
+}
+.pui-statline .stat { display: flex; flex-direction: column; }
+.pui-statline .stat .v { font-family: var(--pui-display); font-size: 1.8rem; line-height: 1; color: rgb(var(--text)); }
+.pui-statline .stat .k { font-family: var(--pui-label); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--pui-radius-card);
+  border: 1px solid rgb(var(--pui-gold) / 0.35);
+}
+/* Gold sweep for hero mastheads — reuses the site's shine cadence. */
+.pui-sweep { position: relative; overflow: hidden; }
+.pui-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgb(var(--pui-gold) / 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: puiSweep 6s ease-in-out 1s infinite;
+}
+@keyframes puiSweep {
+  0%, 70% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+@media (prefers-reduced-motion: reduce) { .pui-sweep::after { animation: none; opacity: 0; } }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   9 · MOTION PACING — Gallery is near-silent: drop the reveal's vertical travel
+   (Reveal reads --reveal-y) so entrances are a plain fade, deliberately still.
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium="obsidian"] .reveal { --reveal-y: 0px; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   10 · LUXURY MOTION & MICRO-INTERACTIONS
+   Velvet-smooth, restrained. A slow expo-out curve drives reveals + hovers; a
+   gentle card/plate lift and a soft image magnify add craft without noise.
+   Everything degrades under prefers-reduced-motion.
+   ───────────────────────────────────────────────────────────────────────────── */
+html[data-premium] { --pui-ease-lux: cubic-bezier(0.16, 1, 0.3, 1); }
+
+/* Silkier, slower scroll reveals for the expressive skins; Gallery stays near-
+   silent (its reveal travel is already flattened in §9). */
+html[data-premium="sapphire"] .reveal,
+html[data-premium="aurora"] .reveal,
+html[data-premium="champion"] .reveal { --reveal-y: 18px; }
+html[data-premium="sapphire"] .reveal-in,
+html[data-premium="aurora"] .reveal-in,
+html[data-premium="champion"] .reveal-in {
+  animation-duration: 820ms;
+  animation-timing-function: var(--pui-ease-lux);
+}
+
+/* Card lift — a gentle rise + soft shadow on hover (ShoeCard links + surfaces). */
+html[data-premium] a.glass-lite.block,
+html[data-premium] .surface-card {
+  transition: transform 460ms var(--pui-ease-lux), box-shadow 460ms var(--pui-ease-lux),
+    border-color 260ms var(--ease), background-color 260ms var(--ease);
+}
+html[data-premium] a.glass-lite.block:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 26px 52px -30px rgb(var(--shadow) / 0.5);
+}
+
+/* Soft image magnify on grid-card hover (images carry .shoe-img--zoom). */
+html[data-premium] .shoe-img--zoom { transition: transform 640ms var(--pui-ease-lux); }
+html[data-premium] .group:hover .shoe-img--zoom { transform: scale(calc(var(--img-scale, 1) * 1.045)); }
+
+/* CTA — a whisper of lift. */
+html[data-premium] .pui-cta {
+  transition: transform 340ms var(--pui-ease-lux), box-shadow 340ms var(--pui-ease-lux),
+    background-color 260ms var(--ease), opacity 260ms var(--ease), border-color 260ms var(--ease);
+}
+html[data-premium] .pui-cta:hover { transform: translateY(-2px); }
+
+/* Row hovers (shortlist / index / scene) ease smoothly rather than snap. */
+html[data-premium] .pui-ed-list-row,
+html[data-premium] .pui-index-row,
+html[data-premium] .pui-scene-row {
+  transition: background-color 300ms var(--ease), opacity 420ms var(--pui-ease-lux);
+}
+
+/* Featured plate (Gallery) — a gentle lift; the inner image magnifies via its
+   own inline transition. */
+html[data-premium="obsidian"] .pui-plate { transition: transform 520ms var(--pui-ease-lux), box-shadow 520ms var(--pui-ease-lux); }
+html[data-premium="obsidian"] a.group:hover .pui-plate {
+  transform: translateY(-5px);
+  box-shadow: 0 30px 60px -34px rgb(var(--shadow) / 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-premium] a.glass-lite.block:hover,
+  html[data-premium] .pui-cta:hover,
+  html[data-premium="obsidian"] a.group:hover .pui-plate,
+  html[data-premium] .group:hover .shoe-img--zoom { transform: none; }
+  html[data-premium="sapphire"] .reveal-in,
+  html[data-premium="aurora"] .reveal-in,
+  html[data-premium="champion"] .reveal-in { animation: none; opacity: 1; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   11 · INSTRUMENT — 中央指挥台 (central command console + mirrored readout rails)
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-command { display: grid; grid-template-columns: 1fr; gap: 1.5rem; align-items: stretch; margin-top: clamp(1.5rem, 4vw, 2.75rem); }
+/* Let the columns shrink below their content (grid items default to min-width:auto),
+   so the console's mono command line truncates instead of widening the whole band. */
+.pui-command > * { min-width: 0; }
+@media (min-width: 920px) {
+  .pui-command { grid-template-columns: minmax(150px, 0.82fr) minmax(0, 2.5fr) minmax(150px, 0.82fr); gap: clamp(1.5rem, 3vw, 2.75rem); align-items: center; }
+}
+.pui-rail { display: flex; flex-direction: column; gap: clamp(1.1rem, 2.4vw, 1.9rem); }
+.pui-rail--right { text-align: left; }
+@media (min-width: 920px) { .pui-rail--right { text-align: right; } }
+.pui-readout { display: flex; flex-direction: column; gap: 0.2rem; }
+.pui-readout .v { font-family: var(--font-geist-mono), ui-monospace, monospace; font-variant-numeric: tabular-nums; font-weight: 700; font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1; }
+.pui-readout .k { font-size: 0.58rem; letter-spacing: 0.2em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-console-input {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 0.86rem;
+  padding: 0.75rem 0.95rem; margin: 1.25rem 0; border-radius: 12px;
+  border: 1px solid rgb(var(--pui-glow) / 0.32); background: rgb(4 14 22 / 0.28); color: rgb(var(--subtext));
+}
+.dark .pui-console-input { background: rgb(0 0 0 / 0.22); }
+.pui-console-input .prompt { color: rgb(var(--pui-glow)); }
+.pui-console-input .cursor { width: 8px; height: 1.05em; background: rgb(var(--pui-glow)); box-shadow: 0 0 8px rgb(var(--pui-glow)); animation: puiBlink 1.1s steps(1) infinite; }
+@keyframes puiBlink { 0%, 50% { opacity: 1; } 51%, 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pui-console-input .cursor { animation: none; } }
+.pui-reco-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.55rem 0; min-width: 0; }
+/* Mirror the right rail (thumb on the outer edge) ONLY on desktop, where it sits
+   beside the console. Stacked on mobile it reads as a normal left-aligned list. */
+@media (min-width: 920px) {
+  .pui-rail--right .pui-reco-row { flex-direction: row-reverse; text-align: right; }
+}
+.pui-reco-thumb { width: 44px; height: 44px; flex: none; border-radius: 8px; overflow: hidden; display: grid; place-items: center; border: 1px solid rgb(var(--pui-glow) / 0.22); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   12 · ARENA — 殿堂之墙 (hall-of-fame wall: gold-plaque framed inductees)
+   ───────────────────────────────────────────────────────────────────────────── */
+.pui-hall { display: grid; grid-template-columns: 1fr; gap: clamp(2.25rem, 5vw, 3.5rem); }
+@media (min-width: 640px) { .pui-hall { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 900px) { .pui-hall { grid-template-columns: repeat(3, 1fr); gap: clamp(2.5rem, 4vw, 4rem) clamp(1.75rem, 3vw, 3rem); } }
+.pui-plaque { display: block; }
+.pui-plaque-plate {
+  position: relative; aspect-ratio: 4 / 5; display: grid; place-items: center; overflow: hidden;
+  border: 1px solid rgb(var(--pui-gold) / 0.45); border-radius: 3px;
+  box-shadow: inset 0 0 0 3px rgb(var(--pui-gold) / 0.08), 0 20px 44px -30px rgb(var(--shadow) / 0.6);
+  transition: transform 520ms var(--pui-ease-lux, ease), box-shadow 520ms var(--pui-ease-lux, ease), border-color 320ms var(--ease);
+}
+.pui-plaque.group:hover .pui-plaque-plate { transform: translateY(-5px); border-color: rgb(var(--pui-gold) / 0.75); box-shadow: inset 0 0 0 3px rgb(var(--pui-gold) / 0.12), 0 30px 60px -34px rgb(var(--shadow) / 0.6); }
+.pui-plaque-serial { position: absolute; left: 0.6rem; top: 0.55rem; font-family: var(--pui-label, var(--font-geist-sans)); font-size: 0.66rem; letter-spacing: 0.16em; color: rgb(var(--pui-accent-ink)); }
+.pui-plaque-cap { margin-top: 0.95rem; padding-top: 0.85rem; border-top: 1px solid rgb(var(--pui-gold) / 0.35); }
+.pui-plaque-brand { display: block; font-family: var(--pui-label, var(--font-geist-sans)); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.22em; color: rgb(var(--subtext)); }
+.pui-plaque-name { display: block; margin-top: 0.35rem; font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; font-size: 1.05rem; line-height: 1.08; }
+@media (prefers-reduced-motion: reduce) { .pui-plaque.group:hover .pui-plaque-plate { transform: none; } }

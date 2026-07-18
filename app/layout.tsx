@@ -1,8 +1,11 @@
 import "./globals.css";
+import "./premium-skins.css";
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
+import { premiumFontVars } from "@/lib/fonts/premium-fonts";
+import { isSkinId } from "@/lib/subscription/skins";
 const GeistMono = localFont({
   src: "../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
@@ -31,7 +34,8 @@ import {
 } from "@/components/consent/cookie-consent";
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
-import { PremiumSkinInitScript, PremiumSkinGuard } from "@/components/theme/premium-skin";
+import { PremiumSkinInitScript, PremiumSkinProvider } from "@/components/theme/premium-skin-context";
+import { PremiumSkinGuard } from "@/components/theme/premium-skin";
 import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
@@ -89,10 +93,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // while a Chinese client re-rendered in Chinese on hydration — an app-wide
   // hydration mismatch that corrupted the DOM and, most visibly, left the Smart
   // Picker's suggestion chips and composer unresponsive.
-  const localeCookie = (await cookies()).get("locale")?.value;
+  const cookieStore = await cookies();
+  const localeCookie = cookieStore.get("locale")?.value;
   const initialLocale = localeCookie === "zh" || localeCookie === "en" ? localeCookie : "en";
+  // Read the Premium UI skin on the server so the correct structural variant is
+  // rendered on first paint (no flash). data-premium is also stamped here; the
+  // pre-paint PremiumSkinInitScript then reconciles it against localStorage.
+  const premiumCookie = cookieStore.get("sf-premium-ui")?.value;
+  const initialSkin = isSkinId(premiumCookie) ? premiumCookie : null;
   return (
-    <html lang={initialLocale} suppressHydrationWarning className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html
+      lang={initialLocale}
+      suppressHydrationWarning
+      data-premium={initialSkin ?? undefined}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${premiumFontVars}`}
+    >
       <head>
         <link rel="preconnect" href="https://www.googletagmanager.com" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
@@ -109,6 +124,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RouteProgress />
         <RouteMemory />
         <LocaleProvider initialLocale={initialLocale}>
+          <PremiumSkinProvider initialSkin={initialSkin}>
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
@@ -143,6 +159,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <VercelAnalyticsGate />
             <AnnouncementModal />
           </CookieConsentProvider>
+          </PremiumSkinProvider>
         </LocaleProvider>
       </body>
     </html>

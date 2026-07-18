@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { HomeView } from "@/components/home/home-view";
+import { HomeSwitch } from "@/components/premium/home/home-switch";
 import { MembershipPromo } from "@/components/subscribe/membership-promo";
 import { PageLoader } from "@/components/ui/page-loader";
 import { getForYouData } from "@/lib/personalize/for-you-data";
@@ -60,7 +60,7 @@ async function HomeContent({ searchParams }: { searchParams: Promise<{ q?: strin
   }
 
   return (
-    <HomeView
+    <HomeSwitch
       shoes={shoes}
       shoesCount={shoes.length}
       brandsCount={brands}
