@@ -84,15 +84,17 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
         type="button"
         onClick={() => void openPicker()}
         disabled={!model}
-        aria-label={title}
+        aria-label={current ? `${title} — ${current.name}` : title}
         aria-haspopup="dialog"
-        className="tap-44 inline-flex h-8 min-w-0 shrink items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] disabled:cursor-default"
+        className="tap-44 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-2.5 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] disabled:cursor-default min-[480px]:px-3"
       >
         <CurrentIcon className="h-3.5 w-3.5 shrink-0" style={{ color: "rgb(var(--brand))" }} aria-hidden />
+        {/* On narrow phones the name yields its space to the textarea — the
+            per-model brand-tinted icon still identifies the choice. */}
         {current ? (
-          <span className="truncate">{current.name}</span>
+          <span className="hidden max-w-[7rem] truncate min-[480px]:inline">{current.name}</span>
         ) : (
-          <span aria-hidden className="skeleton inline-block h-3.5 w-12" />
+          <span aria-hidden className="skeleton hidden h-3.5 w-12 min-[480px]:inline-block" />
         )}
         <ChevronDown className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
       </button>
