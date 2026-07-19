@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList } from "lucide-react";
+import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList, Loader2 } from "lucide-react";
 import { HOME_SECTIONS, resolveHomeOrder, type HomeSectionId } from "@/lib/home/sections";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
@@ -20,6 +20,36 @@ import { MembershipCard } from "@/components/subscribe/membership-card";
 
 // Preset "Signature" accents Max members can pick from (or use the color wheel).
 const SIGNATURE_PRESETS = ["#e0559c", "#29c2e6", "#7a5cff", "#d9b45a", "#ff6e40", "#38d39f", "#f0456b", "#12b886"];
+
+// Visible save feedback for the personalization prefs. The writes were always
+// real but silent — members couldn't tell whether a pick had landed. Each card
+// now shows its own saving → saved (→ auto-fades) / failed status.
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+function SaveStatus({ state, zh }: { state: SaveState; zh: boolean }) {
+  if (state === "idle") return null;
+  if (state === "saving") {
+    return (
+      <span role="status" className="inline-flex items-center gap-1 text-[0.7rem] font-medium soft-text">
+        <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+        {zh ? "保存中…" : "Saving…"}
+      </span>
+    );
+  }
+  if (state === "saved") {
+    return (
+      <span role="status" className="inline-flex items-center gap-1 text-[0.7rem] font-semibold" style={{ color: "#12b886" }}>
+        <Check className="h-3 w-3" strokeWidth={3} aria-hidden />
+        {zh ? "已保存" : "Saved"}
+      </span>
+    );
+  }
+  return (
+    <span role="status" className="inline-flex items-center gap-1 text-[0.7rem] font-semibold text-[rgb(var(--error))]">
+      {zh ? "保存失败，请重试" : "Save failed — try again"}
+    </span>
+  );
+}
 
 // English duration labels (DURATIONS carries the Chinese ones).
 const DURATION_LABEL_EN: Record<Duration, string> = {
@@ -115,6 +145,35 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
 
   const [homeOrder, setHomeOrder] = useState<HomeSectionId[]>(resolveHomeOrder(current.homeOrder));
+  const [accentSave, setAccentSave] = useState<SaveState>("idle");
+  const [orderSave, setOrderSave] = useState<SaveState>("idle");
+  const saveSeq = useRef({ accent: 0, order: 0 });
+
+  // Persist a prefs patch with visible status. The seq guard keeps rapid edits
+  // (arrow taps, color-wheel drags) from letting a slow early response
+  // overwrite the status of a later one; "saved" auto-fades after a beat.
+  function persistPrefs(patch: Record<string, unknown>, kind: "accent" | "order", set: (s: SaveState) => void) {
+    const seq = ++saveSeq.current[kind];
+    set("saving");
+    void fetch("/api/member/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch)
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (saveSeq.current[kind] !== seq) return;
+        set(data?.ok ? "saved" : "error");
+        if (data?.ok) {
+          setTimeout(() => {
+            if (saveSeq.current[kind] === seq) set("idle");
+          }, 2200);
+        }
+      })
+      .catch(() => {
+        if (saveSeq.current[kind] === seq) set("error");
+      });
+  }
 
   function moveSection(index: number, dir: -1 | 1) {
     const next = [...homeOrder];
@@ -122,11 +181,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
     setHomeOrder(next);
-    void fetch("/api/member/prefs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ homeOrder: next })
-    }).catch(() => {});
+    persistPrefs({ homeOrder: next }, "order", setOrderSave);
   }
 
   function chooseSkin(id: SkinId) {
@@ -162,11 +217,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
     setCustomAccent(hex);
     applyBrandLive(hex);
     if (!canSignature) return;
-    void fetch("/api/member/prefs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ customAccent: hex })
-    }).catch(() => {});
+    persistPrefs({ customAccent: hex }, "accent", setAccentSave);
   }
 
   const fade = reduce ? {} : { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true } };
@@ -511,6 +562,9 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 >
                   Max
                 </span>
+                <span className="ml-auto">
+                  <SaveStatus state={accentSave} zh={zh} />
+                </span>
               </div>
               <p className="mb-3 text-xs soft-text">
                 {t(
@@ -558,7 +612,10 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           )}
 
           <div className="rounded-2xl border border-[rgb(var(--muted)/0.4)] bg-[rgb(var(--bg-elev))] p-5">
-            <p className="mb-3 text-sm font-medium">{t("首页板块顺序", "Home section order")}</p>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">{t("首页板块顺序", "Home section order")}</p>
+              <SaveStatus state={orderSave} zh={zh} />
+            </div>
             <ul className="flex flex-col gap-2">
               {homeOrder.map((id, i) => {
                 const meta = HOME_SECTIONS.find((s) => s.id === id);
