@@ -1,26 +1,34 @@
 "use client";
 
-// Detail performance, re-designed per theme. Instead of the same radar card on
-// every skin, the shoe's six metric scores render in each kit's own language —
-// Editorial "the numbers" list · Instrument channel meters · Gallery quiet lines
-// · Arena power bars — over a themed heading, with the tech/feel descriptors kept
-// below. Reads the same METRICS/scoreFor + spec descriptors the standard
-// PerformanceSection uses. Premium-only; standard users keep PerformanceSection.
+// Detail performance, re-designed per theme. The radar chart is back — but as
+// four structurally different drawings, one per skin (see PremiumRadar):
+// Editorial ink plate · Instrument scope · Gallery catalogue plate · Arena
+// rating card — over a themed heading, with the tech/feel descriptors kept
+// below. Reads the same radarAxes the standard PerformanceSection feeds its
+// PerformanceRadar. Premium-only; standard users keep PerformanceSection.
 
-import { METRICS, scoreFor } from "@/components/compare/compare-metrics";
-import { scoreColor } from "@/lib/score-tone";
+import { PremiumRadar } from "@/components/premium/detail/premium-radar";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { pickLocalized } from "@/components/i18n/localized-field";
+import type { RadarAxis } from "@/components/detail/performance-radar";
 import type { Shoe } from "@/lib/types";
 import type { PremiumVariant } from "@/components/premium/variants";
 
 type Variant = Exclude<PremiumVariant, "standard">;
 type ExtraTechCards = Record<string, { field: string; value: string | null | undefined }>;
 
-export function PremiumPerformance({ variant, shoe, extraTechCards }: { variant: Variant; shoe: Shoe; extraTechCards: ExtraTechCards }) {
+export function PremiumPerformance({
+  variant,
+  shoe,
+  extraTechCards,
+  radarAxes,
+}: {
+  variant: Variant;
+  shoe: Shoe;
+  extraTechCards: ExtraTechCards;
+  radarAxes: RadarAxis[];
+}) {
   const { translate, locale } = useLocale();
-
-  const metrics = METRICS.map((m) => ({ key: m.key, label: translate(m.label), score: scoreFor(shoe, m.key) }));
 
   const techItems = [
     { label: "Forefoot midsole tech", field: "forefoot_midsole_tech", value: pickLocalized(locale, shoe.spec.forefoot_midsole_tech, shoe.spec.forefoot_midsole_tech_zh) },
@@ -43,15 +51,7 @@ export function PremiumPerformance({ variant, shoe, extraTechCards }: { variant:
         <span className="pui-kicker">{translate("Performance profile")}</span>
       </div>
 
-      <div className={`pui-mx pui-mx--${variant}`}>
-        {metrics.map((m) => (
-          <div key={m.key} className="pui-mx-row">
-            <span className="pui-mx-label">{m.label}</span>
-            <span className="pui-mx-bar"><span style={{ width: `${Math.max(3, m.score)}%`, background: variant === "arena" ? scoreColor(m.score) : undefined }} /></span>
-            <span className="pui-mx-val">{m.score}</span>
-          </div>
-        ))}
-      </div>
+      <PremiumRadar variant={variant} axes={radarAxes} />
 
       <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {descriptors.map((d) => (

@@ -8,7 +8,7 @@
 // original CompareSlides via CompareSwitch; this file is premium-only.
 
 import { Bookmark, Plus, Share2 } from "lucide-react";
-import { CompareRadar } from "@/components/compare/compare-radar";
+import { PremiumCompareRadar } from "@/components/premium/compare/premium-compare-radar";
 import { CompareSpecTable } from "@/components/compare/compare-spec-table";
 import { PremiumPlinths } from "@/components/premium/compare/premium-plinths";
 import { PremiumVerdict } from "@/components/premium/compare/premium-verdict";
@@ -114,7 +114,7 @@ function EditorialCompare(props: LayoutProps) {
         ) : null}
         <p className="pui-kicker mb-6">{translate("By the numbers")}</p>
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-14">
-          <CompareRadar shoes={shoes} />
+          <PremiumCompareRadar variant="editorial" shoes={shoes} />
           {multi ? <PremiumDiff variant="editorial" shoes={shoes} /> : null}
         </div>
       </section>
@@ -161,7 +161,7 @@ function InstrumentCompare(props: LayoutProps) {
 
         <section id="compare-profile" style={OFFSET} className="pui-section">
           <div className="grid items-start gap-5 lg:grid-cols-2">
-            <div className="pui-panel"><span className="pui-panel-tag">{translate("Radar")}</span><CompareRadar shoes={shoes} /></div>
+            <div className="pui-panel"><span className="pui-panel-tag">{translate("Radar")}</span><PremiumCompareRadar variant="instrument" shoes={shoes} /></div>
             <div className="pui-panel"><span className="pui-panel-tag">{translate("Delta")}</span>{multi ? <PremiumDiff variant="instrument" shoes={shoes} /> : <p className="text-[0.82rem] soft-text">{translate("Add another shoe to see the delta.")}</p>}</div>
           </div>
         </section>
@@ -209,7 +209,7 @@ function GalleryCompare(props: LayoutProps) {
       <section id="compare-profile" style={OFFSET} className="container-shell pui-section">
         <p className="pui-kicker mb-6">{translate("Profile")}</p>
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-14">
-          <CompareRadar shoes={shoes} />
+          <PremiumCompareRadar variant="gallery" shoes={shoes} />
           {multi ? <PremiumDiff variant="gallery" shoes={shoes} /> : null}
         </div>
       </section>
@@ -253,7 +253,7 @@ function ArenaCompare(props: LayoutProps) {
       <section id="compare-specs" style={OFFSET} className="container-shell pui-section">
         <p className="pui-kicker mb-6 text-center">{translate("Fight card")}</p>
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-14">
-          <CompareRadar shoes={shoes} />
+          <PremiumCompareRadar variant="arena" shoes={shoes} />
           <CompareSpecTable shoes={shoes} />
         </div>
       </section>

@@ -82,6 +82,7 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "scout report": "球探报告",
   "feature": "专题",
   "data panel": "数据面板",
+  "ovr": "总评",
   "full standings": "全榜单",
   "open the standings": "打开榜单",
   "pull up to refresh": "上拉刷新",
