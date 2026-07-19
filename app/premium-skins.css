@@ -34,6 +34,14 @@ html[data-premium="sapphire"] {
      ink pressed onto it. Constant across themes — the plate IS the object. */
   --pui-ed-paper: 243 235 216;
   --pui-ed-ink: 13 38 80;
+  /* Compare-plate inks (PremiumCompareRadar): the light-theme radar identity
+     palette, frozen so each shoe's line stays legible on the cream plate in
+     dark theme too (the theme-aware --radar-c* pastels would wash out). */
+  --pui-ed-radar-c1: 37 99 235;
+  --pui-ed-radar-c2: 234 88 12;
+  --pui-ed-radar-c3: 147 51 234;
+  --pui-ed-radar-c4: 13 148 136;
+  --pui-ed-radar-c5: 219 39 119;
   /* Gold INK (kickers / issue no / CTA text / drop cap). Theme-aware: a deep
      bronze on the light page so it stays AA-legible, champagne on the dark page.
      Mirrors globals.css's --gold-ink pattern. */
@@ -970,6 +978,10 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
 .pui-ovr { position: absolute; top: 0; right: 0; display: flex; align-items: baseline; gap: 0.35rem; padding: 0.3rem 0.6rem; border-radius: 4px; border: 1px solid rgb(var(--pui-accent-ink) / 0.8); background: rgb(var(--pui-gold) / 0.1); transition: opacity 420ms var(--ease); }
 .pui-ovr span { font-family: var(--pui-label, sans-serif); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(var(--text) / 0.85); }
 .pui-ovr strong { font-family: var(--pui-display); font-size: 1.15rem; line-height: 1; color: rgb(var(--pui-accent-ink)); font-variant-numeric: tabular-nums; }
+
+/* Compare radar (PremiumCompareRadar) — the arena legend carries each shoe's
+   overall rating as a scoreboard chip. */
+.pui-cradar-ovr { display: inline-flex; align-items: center; padding: 0.05rem 0.35rem; border-radius: 3px; background: rgb(26 18 6); border: 1px solid rgb(var(--pui-gold) / 0.7); font-family: var(--pui-label, sans-serif); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; color: rgb(250 247 240); font-variant-numeric: tabular-nums; }
 
 /* The scope's rotating sweep beam is pure ornament — gone under reduced motion. */
 @media (prefers-reduced-motion: reduce) { .pui-scope-sweep { display: none; } }
