@@ -14,7 +14,8 @@ import {
   getPackyTarget,
   describePackyError
 } from "@/lib/ai/packy-client";
-import { tierConfig } from "@/lib/subscription/tiers";
+import { tierConfig, tierSupportsModel, type ModelId } from "@/lib/subscription/tiers";
+import { resolveModelChoice } from "@/lib/subscription/resolve";
 import {
   getMemberContext,
   getAllowanceBalance,
@@ -57,7 +58,10 @@ function checkRateLimit(userId: string): boolean {
 const schema = z.object({
   chatId: z.string().uuid(),
   message: z.string().trim().min(1, "Message is required.").max(2000),
-  count: z.number().int().min(1).max(MAX_RECOMMENDATIONS)
+  count: z.number().int().min(1).max(MAX_RECOMMENDATIONS),
+  // Model chosen in the picker for THIS request. Optional — absent (or not
+  // supported by the member's tier) falls back to the saved pref / tier default.
+  model: z.string().max(64).optional()
 });
 
 type HistoryRow = { role: "user" | "assistant"; content: string; recommendations: RecommendationRaw[] | null };
@@ -81,7 +85,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
-  const { chatId, message, count } = parsed.data;
+  const { chatId, message, count, model: requestedModel } = parsed.data;
 
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ ok: false, message: "Database is not configured." }, { status: 500 });
@@ -102,11 +106,14 @@ export async function POST(request: Request) {
   // Tier caps the recommendation count (Free 3 / Pro 5 / Max 8).
   const effectiveCount = Math.min(count, cfg.prompt.count);
 
-  // Premium (Fable) runs when the tier unlocks it and either it's Max (premium
-  // by default) or the member opted in. Admins also preview premium, unmetered.
-  let usePremium =
-    cfg.capabilities.premiumModel != null &&
-    (ctx.isAdmin || tier === "max" || member.prefs.modelPref === "premium");
+  // Which model runs: the picker's explicit request wins when the tier supports
+  // it, else the saved pref / tier default (legacy modelPref honored). An
+  // unsupported id (crafted request or stale client) falls back silently.
+  let model: ModelId =
+    requestedModel && tierSupportsModel(tier, requestedModel)
+      ? (requestedModel as ModelId)
+      : resolveModelChoice(tier, member.prefs);
+  const premiumSelected = cfg.capabilities.premiumModel != null && model === cfg.capabilities.premiumModel;
 
   type Billing = "credits" | "unlimited" | "allowance";
   let billing: Billing;
@@ -115,6 +122,7 @@ export async function POST(request: Request) {
   let preBalance = 0;
 
   if (ctx.isAdmin) {
+    // Admins run whatever they picked, unmetered.
     billing = "unlimited";
   } else if (tier === "free") {
     billing = "credits";
@@ -122,23 +130,21 @@ export async function POST(request: Request) {
     if (preBalance < effectiveCount) {
       return NextResponse.json({ ok: true, insufficient: true, balance: preBalance, needed: effectiveCount });
     }
-  } else if (usePremium) {
+  } else if (premiumSelected) {
     // Paid tier on the premium model: metered by the monthly allowance, with a
     // graceful downgrade to the (unlimited) base model when it's exhausted — so
     // a spent allowance never blocks a paid member, it just changes the model.
     preBalance = await getAllowanceBalance(ctx.userId, tier);
     if (preBalance < effectiveCount) {
-      usePremium = false;
+      model = cfg.baseModel;
       billing = "unlimited";
     } else {
       billing = "allowance";
     }
   } else {
-    // Paid tier on the (unlimited) base model.
+    // Paid tier on an unmetered (base or lighter) model.
     billing = "unlimited";
   }
-
-  const model = usePremium ? cfg.capabilities.premiumModel! : cfg.baseModel;
   const depthSuffix = buildDepthSuffix(cfg.prompt);
 
   // Fail fast if the AI provider isn't configured (before persisting anything).

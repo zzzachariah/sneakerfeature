@@ -234,10 +234,14 @@ final class NativeNavBarController: NSObject {
                 let key = (node["key"] as? String) ?? ""
                 let checked = (node["checked"] as? Bool) ?? false
                 let destructive = (node["destructive"] as? Bool) ?? false
+                let disabled = (node["disabled"] as? Bool) ?? false
+                var attributes: UIMenuElement.Attributes = []
+                if destructive { attributes.insert(.destructive) }
+                if disabled { attributes.insert(.disabled) }
                 let action = UIAction(
                     title: label,
                     image: image,
-                    attributes: destructive ? .destructive : [],
+                    attributes: attributes,
                     state: checked ? .on : .off
                 ) { [weak self] _ in self?.onAction?(key) }
                 elements.append(action)

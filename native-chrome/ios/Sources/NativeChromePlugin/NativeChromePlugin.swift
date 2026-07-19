@@ -21,6 +21,7 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setSearchText", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPullToRefreshEnabled", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "presentMenu", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "presentOptions", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "confirm", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "configureFab", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setFabVisible", returnType: CAPPluginReturnPromise),
@@ -278,6 +279,53 @@ public class NativeChromePlugin: CAPPlugin, CAPBridgedPlugin {
                 popover.permittedArrowDirections = []
             }
             vc.present(sheet, animated: true)
+        }
+    }
+
+    /// Rich single-choice options sheet (Liquid Glass): icon + title + subtitle
+    /// rows with a checkmark on the current choice and grayed-out locked rows.
+    /// Resolves with the tapped row's key, or null on dismiss.
+    @objc func presentOptions(_ call: CAPPluginCall) {
+        let title = call.getString("title")
+        let items: [JSObject] = (call.getArray("items") ?? []).compactMap { $0 as? JSObject }
+        DispatchQueue.main.async {
+            guard let vc = self.bridge?.viewController else {
+                call.resolve(["key": NSNull()])
+                return
+            }
+            if #available(iOS 15.0, *) {
+                let sheet = NativeOptionSheetController(title: title, items: items) { key in
+                    if let key = key {
+                        call.resolve(["key": key])
+                    } else {
+                        call.resolve(["key": NSNull()])
+                    }
+                }
+                vc.present(sheet, animated: true)
+            } else {
+                // Pre-15 fallback: a plain system action sheet. Locked rows stay
+                // visible but grayed; the current choice gets a leading check.
+                let sheet = UIAlertController(title: title, message: nil, preferredStyle: .actionSheet)
+                for item in items {
+                    guard let key = item["key"] as? String else { continue }
+                    let label = (item["label"] as? String) ?? key
+                    let checked = (item["checked"] as? Bool) ?? false
+                    let action = UIAlertAction(title: checked ? "✓ \(label)" : label, style: .default) { _ in
+                        call.resolve(["key": key])
+                    }
+                    action.isEnabled = !((item["disabled"] as? Bool) ?? false)
+                    sheet.addAction(action)
+                }
+                sheet.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
+                    call.resolve(["key": NSNull()])
+                })
+                if let popover = sheet.popoverPresentationController {
+                    popover.sourceView = vc.view
+                    popover.sourceRect = CGRect(x: vc.view.bounds.midX, y: vc.view.bounds.maxY, width: 0, height: 0)
+                    popover.permittedArrowDirections = []
+                }
+                vc.present(sheet, animated: true)
+            }
         }
     }
 

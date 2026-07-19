@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { NativeChrome, type NativeMenuItem } from "@/components/native/native-chrome";
+import { NativeChrome, type NativeMenuItem, type NativeOptionItem } from "@/components/native/native-chrome";
 
 // True only inside the iOS app with the native-chrome plugin compiled in. Use
 // this to decide whether to swap a web dropdown / window.confirm for a native
@@ -15,6 +15,19 @@ export async function presentNativeMenu(
   opts?: { title?: string; message?: string; cancelLabel?: string }
 ): Promise<string | null> {
   const { key } = await NativeChrome.presentMenu({ items, ...opts });
+  return key;
+}
+
+/**
+ * Present the native Liquid Glass options sheet (icon + title + subtitle rows,
+ * checkmark on the current choice, locked rows grayed out). Resolves to the
+ * chosen key or null (dismissed). Callers must guard with nativeMenuAvailable().
+ */
+export async function presentNativeOptions(
+  items: NativeOptionItem[],
+  opts?: { title?: string }
+): Promise<string | null> {
+  const { key } = await NativeChrome.presentOptions({ items, ...opts });
   return key;
 }
 

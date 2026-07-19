@@ -2,7 +2,7 @@
 // server entitlement layer and by client components (auth state, badges) that
 // need to resolve a member's effective tier / prefs without touching the DB.
 
-import { isPaidTier, tierConfig, type Tier, type TierConfig } from "@/lib/subscription/tiers";
+import { isModelId, isPaidTier, tierConfig, tierSupportsModel, type ModelId, type Tier, type TierConfig } from "@/lib/subscription/tiers";
 import { DEFAULT_SKIN, isSkinId, type SkinId } from "@/lib/subscription/skins";
 
 export type MemberPrefs = {
@@ -11,8 +11,10 @@ export type MemberPrefs = {
   homeOrder: string[];
   /** Ordered/filtered list of nav item ids (empty = default menu). */
   menu: string[];
-  /** Preferred model for AI: "base" or "premium". */
+  /** Preferred model for AI: "base" or "premium" (legacy binary switch). */
   modelPref: "base" | "premium";
+  /** Explicit Smart Picker model choice; null = tier default (modelPref legacy). */
+  modelId: ModelId | null;
   /** Max-only "Signature" custom accent hex (e.g. "#e0559c"); null = use skin. */
   customAccent: string | null;
 };
@@ -61,8 +63,22 @@ export function parseMemberPrefs(raw: unknown): MemberPrefs {
   const homeOrder = Array.isArray(obj.homeOrder) ? obj.homeOrder.filter((x): x is string => typeof x === "string") : [];
   const menu = Array.isArray(obj.menu) ? obj.menu.filter((x): x is string => typeof x === "string") : [];
   const modelPref = obj.modelPref === "premium" ? "premium" : "base";
+  const modelId = isModelId(obj.modelId) ? obj.modelId : null;
   const customAccent = normalizeAccentHex(obj.customAccent);
-  return { skin, homeOrder, menu, modelPref, customAccent };
+  return { skin, homeOrder, menu, modelPref, modelId, customAccent };
+}
+
+/**
+ * The model a member's Smart Picker actually runs: their explicit pick when the
+ * tier still supports it (a downgrade silently invalidates it), else the legacy
+ * base/premium preference mapped onto the tier's models (Max defaults premium).
+ */
+export function resolveModelChoice(tier: Tier, prefs: MemberPrefs): ModelId {
+  if (prefs.modelId && tierSupportsModel(tier, prefs.modelId)) return prefs.modelId;
+  const cfg = tierConfig(tier);
+  const premium = cfg.capabilities.premiumModel;
+  if (premium && (tier === "max" || prefs.modelPref === "premium")) return premium;
+  return cfg.baseModel;
 }
 
 // A stable, decorative 8-digit "member number" derived from the user id, shown
