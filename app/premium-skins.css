@@ -30,6 +30,10 @@ html[data-premium="sapphire"] {
   --pui-radius-control: 2px;
   --pui-dur-scale: 1.4;
   --pui-gold: 240 212 136;      /* champagne — hairlines / fills (used with alpha) + gold-on-dark grounds */
+  /* Ink-plate radar (PremiumRadar): a cream "printed page" disc and the navy
+     ink pressed onto it. Constant across themes — the plate IS the object. */
+  --pui-ed-paper: 243 235 216;
+  --pui-ed-ink: 13 38 80;
   /* Gold INK (kickers / issue no / CTA text / drop cap). Theme-aware: a deep
      bronze on the light page so it stays AA-legible, champagne on the dark page.
      Mirrors globals.css's --gold-ink pattern. */
@@ -938,34 +942,34 @@ html[data-premium="obsidian"] a.group:hover .pui-plate {
 .pui-power-bar > span { display: block; height: 100%; border-radius: 2px; }
 .pui-power-val { text-align: right; font-family: var(--pui-label, sans-serif); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-/* ── Re-designed detail performance metrics (PremiumPerformance) ──────────── */
-.pui-mx { display: grid; grid-template-columns: 1fr; gap: 0.15rem 2.5rem; }
-@media (min-width: 640px) { .pui-mx { grid-template-columns: 1fr 1fr; } }
-.pui-mx-row { display: grid; grid-template-columns: minmax(0, 7rem) 1fr 2.2rem; align-items: center; gap: 0.7rem; padding: 0.45rem 0; border-bottom: 1px solid rgb(var(--text) / 0.07); }
-.pui-mx-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; }
-.pui-mx-bar { height: 6px; border-radius: 999px; background: rgb(var(--text) / 0.1); overflow: hidden; }
-.pui-mx-bar > span { display: block; height: 100%; border-radius: 999px; background: rgb(var(--brand)); transition: width 600ms var(--pui-ease-lux, ease); }
-.pui-mx-val { text-align: right; font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+/* ── Per-skin detail radars (PremiumRadar) ────────────────────────────────────
+   Four structurally different charts share one caption layer: .pui-radar-axis
+   pins each axis caption around the SVG (same overlay pattern as the standard
+   PerformanceRadar), and each variant dresses it in its own type. ─────────── */
+.pui-radar-axis { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; width: 24%; text-align: center; line-height: 1.2; }
+.pui-radar-axis p { margin: 0; }
 
-/* Editorial — serif, gold. */
-.pui-mx--editorial .pui-mx-label { font-family: var(--pui-cjk); font-size: 0.86rem; }
-.pui-mx--editorial .pui-mx-bar > span { background: rgb(var(--pui-accent-ink)); }
-.pui-mx--editorial .pui-mx-val { font-family: var(--pui-cjk); color: rgb(var(--pui-accent-ink)); }
+/* Editorial — serif captions around the ink plate. */
+.pui-radar--editorial .pui-radar-lab { font-family: var(--pui-cjk); font-style: italic; font-size: 0.78rem; color: rgb(var(--pui-accent-ink)); }
+.pui-radar--editorial .pui-radar-val { font-family: var(--pui-cjk); font-size: 0.82rem; color: rgb(var(--text) / 0.85); font-variant-numeric: tabular-nums; }
 
-/* Instrument — mono channel meters. */
-.pui-mx--instrument .pui-mx-label { font-family: var(--font-geist-mono), monospace; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: rgb(var(--subtext)); }
-.pui-mx--instrument .pui-mx-bar > span { background: rgb(var(--pui-glow)); }
-.pui-mx--instrument .pui-mx-val { font-family: var(--font-geist-mono), monospace; }
+/* Instrument — mono readouts with bracketed values. */
+.pui-radar--instrument .pui-radar-lab { font-family: var(--font-geist-mono), monospace; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgb(var(--text) / 0.85); }
+.pui-radar--instrument .pui-radar-val { font-family: var(--font-geist-mono), monospace; font-size: 0.72rem; color: rgb(var(--brand)); font-variant-numeric: tabular-nums; }
 
-/* Gallery — quiet hairlines. */
-.pui-mx--gallery .pui-mx-row { border-bottom-color: rgb(var(--text) / 0.06); }
-.pui-mx--gallery .pui-mx-label { letter-spacing: 0.06em; color: rgb(var(--subtext)); }
-.pui-mx--gallery .pui-mx-bar { height: 1px; background: rgb(var(--text) / 0.12); }
-.pui-mx--gallery .pui-mx-bar > span { background: rgb(var(--text)); opacity: 0.75; }
-.pui-mx--gallery .pui-mx-val { color: rgb(var(--subtext)); }
+/* Gallery — tiny tracked captions, a numbered plate line below. */
+.pui-radar--gallery .pui-radar-lab { font-size: 0.6rem; letter-spacing: 0.22em; font-weight: 350; color: rgb(var(--subtext)); }
+.pui-radar--gallery .pui-radar-val { font-size: 0.7rem; letter-spacing: 0.06em; font-weight: 350; color: rgb(var(--text)); font-variant-numeric: tabular-nums; }
+.pui-fig-cap { margin: 0.75rem 0 0; font-size: 0.6rem; letter-spacing: 0.24em; color: rgb(var(--subtext) / 0.85); }
 
-/* Arena — power bars. */
-.pui-mx--arena .pui-mx-label { font-family: var(--pui-label, sans-serif); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.74rem; }
-.pui-mx--arena .pui-mx-bar { height: 9px; border-radius: 2px; }
-.pui-mx--arena .pui-mx-bar > span { border-radius: 2px; }
-.pui-mx--arena .pui-mx-val { font-family: var(--pui-label, sans-serif); font-weight: 700; }
+/* Arena — a scoreboard chip at every vertex (kept dark in BOTH themes, like a
+   real scoreboard) with the label on its outward side, plus the OVR badge. */
+.pui-radar--arena .pui-radar-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 2.1rem; padding: 0.1rem 0.3rem; border-radius: 3px; background: rgb(26 18 6); border: 1px solid rgb(var(--pui-gold) / 0.75); font-family: var(--pui-label, sans-serif); font-size: 0.78rem; font-weight: 700; color: rgb(250 247 240); font-variant-numeric: tabular-nums; }
+.pui-radar--arena .pui-radar-lab { font-family: var(--pui-label, sans-serif); font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(var(--text) / 0.85); }
+.pui-radar--arena .pui-radar-axis.is-flipped { flex-direction: column-reverse; }
+.pui-ovr { position: absolute; top: 0; right: 0; display: flex; align-items: baseline; gap: 0.35rem; padding: 0.3rem 0.6rem; border-radius: 4px; border: 1px solid rgb(var(--pui-accent-ink) / 0.8); background: rgb(var(--pui-gold) / 0.1); transition: opacity 420ms var(--ease); }
+.pui-ovr span { font-family: var(--pui-label, sans-serif); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(var(--text) / 0.85); }
+.pui-ovr strong { font-family: var(--pui-display); font-size: 1.15rem; line-height: 1; color: rgb(var(--pui-accent-ink)); font-variant-numeric: tabular-nums; }
+
+/* The scope's rotating sweep beam is pure ornament — gone under reduced motion. */
+@media (prefers-reduced-motion: reduce) { .pui-scope-sweep { display: none; } }

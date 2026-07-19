@@ -91,7 +91,7 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
       <OverviewSection {...props} onShareCard={() => setShareOpen(true)} onJumpToComments={() => jumpTo("detail-comments")} />
     ),
     performance: () => (
-      <PremiumPerformance variant={variant} shoe={props.shoe} extraTechCards={props.extraTechCards} />
+      <PremiumPerformance variant={variant} shoe={props.shoe} extraTechCards={props.extraTechCards} radarAxes={props.radarAxes} />
     ),
     reviews: () => <ReviewsSection bloggerReviews={props.bloggerReviews} />,
     story: () => <StorySection {...props} />,
