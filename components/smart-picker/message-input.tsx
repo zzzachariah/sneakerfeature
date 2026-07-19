@@ -4,13 +4,18 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import Link from "next/link";
 import { ArrowUp, ChevronRight, Crown, Loader2 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { ModelPicker } from "@/components/smart-picker/model-picker";
 import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
+import type { ModelId, Tier } from "@/lib/subscription/tiers";
 
 type Props = {
   balance: number;
   unlimited: boolean;
   sending: boolean;
+  tier: Tier;
+  model: ModelId | null;
+  onSelectModel: (id: ModelId) => void;
   onSend: (message: string, count: number) => void;
   prefillText?: string;
   // Bumps on every suggestion tap. Keying the prefill effect on this (not on the
@@ -19,7 +24,7 @@ type Props = {
   prefillNonce?: number;
 };
 
-export function MessageInput({ balance, unlimited, sending, onSend, prefillText, prefillNonce = 0 }: Props) {
+export function MessageInput({ balance, unlimited, sending, tier, model, onSelectModel, onSend, prefillText, prefillNonce = 0 }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
   // String state so the user can clear "1" and retype — enforce range only on blur.
@@ -108,6 +113,13 @@ export function MessageInput({ balance, unlimited, sending, onSend, prefillText,
           style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "2.5rem" }}
           className="flex-1 resize-none bg-transparent py-2 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
         />
+
+        {/* Model chip — an h-10 box (matching the count row and the send
+            button) with the h-8 pill centered inside, so all four controls
+            share one baseline while the pill stays visually light. */}
+        <div className="flex h-10 shrink-0 items-center">
+          <ModelPicker tier={tier} model={model} onSelect={onSelectModel} />
+        </div>
 
         {/* Count — sized to match the send button so they sit on the same
             line with the same visual height. 16px font prevents iOS zoom. */}
