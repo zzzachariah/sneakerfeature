@@ -3,6 +3,7 @@ import { getSmartPickerContext } from "@/lib/ai/access";
 import { getBalance } from "@/lib/ai/credits";
 import { getCheckinStatus } from "@/lib/ai/checkin";
 import { getMemberContext, getAllowanceBalance } from "@/lib/subscription/entitlements";
+import { resolveModelChoice } from "@/lib/subscription/resolve";
 import { isPaidTier, tierConfig } from "@/lib/subscription/tiers";
 
 export async function GET() {
@@ -23,5 +24,10 @@ export async function GET() {
     allowance = { balance: await getAllowanceBalance(ctx.userId, member.tier), grant };
   }
 
-  return NextResponse.json({ ok: true, balance, unlimited: ctx.isAdmin, checkin, allowance });
+  // Tier + effective model selection for the Smart Picker's model chooser.
+  // Admins get the Max experience, so the picker unlocks everything for them.
+  const tier = ctx.isAdmin ? "max" : member.tier;
+  const model = resolveModelChoice(tier, member.prefs);
+
+  return NextResponse.json({ ok: true, balance, unlimited: ctx.isAdmin, checkin, allowance, tier, model });
 }

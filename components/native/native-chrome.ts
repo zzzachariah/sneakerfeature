@@ -14,6 +14,8 @@ export type NativeMenuNode = {
   symbol?: string;
   checked?: boolean;
   destructive?: boolean;
+  /** Grayed out and untappable (UIMenuElement.Attributes.disabled). */
+  disabled?: boolean;
   children?: NativeMenuNode[];
 };
 
@@ -21,6 +23,22 @@ export type NativeNavButton = { key: string; symbol: string; menu?: NativeMenuNo
 
 // Flat item for an action-sheet style menu (presentMenu).
 export type NativeMenuItem = { key: string; label: string; destructive?: boolean };
+
+// Rich row for the native options sheet (presentOptions) — a Liquid Glass sheet
+// with icon + title + subtitle rows that supports a checkmark on the current
+// choice and grayed-out (locked) rows, e.g. the Smart Picker's model list.
+export type NativeOptionItem = {
+  key: string;
+  label: string;
+  subtitle?: string;
+  /** SF Symbol name for the leading icon. */
+  symbol?: string;
+  checked?: boolean;
+  /** Grayed out and untappable (e.g. a model the plan doesn't include). */
+  disabled?: boolean;
+  /** Small trailing tag shown on locked rows (e.g. "Pro"). */
+  tag?: string;
+};
 
 export interface NativeChromePlugin {
   // Bottom tab bar
@@ -56,6 +74,9 @@ export interface NativeChromePlugin {
     items: NativeMenuItem[];
     cancelLabel?: string;
   }): Promise<{ key: string | null }>;
+  // Native Liquid Glass options sheet with checkable / disableable rich rows.
+  // Resolves with the chosen key, or null when dismissed.
+  presentOptions(options: { title?: string; items: NativeOptionItem[] }): Promise<{ key: string | null }>;
   confirm(options: {
     title?: string;
     message?: string;

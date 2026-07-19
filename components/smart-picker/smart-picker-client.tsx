@@ -6,6 +6,7 @@ import { ChatConversation } from "@/components/smart-picker/chat-conversation";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { isModelId, type ModelId, type Tier } from "@/lib/subscription/tiers";
 
 const INITIAL_CHECKIN: CheckinStatus = { canClaim: false, nextClaimAt: null, dailyAmount: 3 };
 
@@ -65,6 +66,11 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   const [creditsLoaded, setCreditsLoaded] = useState(false);
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
   const [allowance, setAllowance] = useState<{ balance: number; grant: number } | null>(null);
+  // Membership tier + the model the picker currently targets. Loaded with the
+  // credits payload; selection is optimistic and persists via member prefs so
+  // it follows the account across devices.
+  const [tier, setTier] = useState<Tier>("free");
+  const [model, setModel] = useState<ModelId | null>(null);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
@@ -90,6 +96,10 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         setUnlimited(Boolean(creditsRes.unlimited));
         if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
         setAllowance((creditsRes.allowance as { balance: number; grant: number } | null) ?? null);
+        if (creditsRes.tier === "free" || creditsRes.tier === "pro" || creditsRes.tier === "max") {
+          setTier(creditsRes.tier);
+        }
+        if (isModelId(creditsRes.model)) setModel(creditsRes.model);
       }
       setCreditsLoaded(true);
     })();
@@ -152,6 +162,18 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       const next = prev.filter((c) => c.id !== id);
       setActiveChatId((cur) => (cur === id ? next[0]?.id ?? null : cur));
       return next;
+    });
+  }, []);
+
+  // Optimistic model switch; the pref write is fire-and-forget (open to every
+  // tier — the server drops unsupported ids). Each send also carries the model
+  // explicitly, so the switch applies even before this write lands.
+  const handleSelectModel = useCallback((id: ModelId) => {
+    setModel(id);
+    void getJson("/api/member/prefs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ modelId: id })
     });
   }, []);
 
@@ -219,7 +241,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         const res = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chatId, message, count })
+          body: JSON.stringify({ chatId, message, count, ...(model ? { model } : {}) })
         });
 
         // Pre-flight failures (auth, insufficient credits, provider not
@@ -370,6 +392,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                   creditsCharged?: number;
                   balance?: number;
                   unlimited?: boolean;
+                  billing?: string;
                 };
                 patch((m) => ({
                   ...m,
@@ -380,7 +403,13 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                   // The turn is over — check off any status still shown as running.
                   steps: m.steps?.map((s) => (s.kind === "status" && !s.done ? { ...s, done: true } : s))
                 }));
-                if (typeof d.balance === "number") setBalance(d.balance);
+                // A premium (allowance-billed) turn drains the monthly meter,
+                // not the credits pill — route the returned balance accordingly.
+                if (typeof d.balance === "number") {
+                  const bal = d.balance;
+                  if (d.billing === "allowance") setAllowance((a) => (a ? { ...a, balance: bal } : a));
+                  else setBalance(bal);
+                }
                 if (typeof d.unlimited === "boolean") setUnlimited(d.unlimited);
                 void refreshChats();
                 break;
@@ -412,7 +441,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         setSending(false);
       }
     },
-    [activeChatId, refreshChats, sending, zhUI, failMsg]
+    [activeChatId, refreshChats, sending, zhUI, failMsg, model]
   );
 
   return (
@@ -441,6 +470,9 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         unlimited={unlimited}
         checkin={checkin}
         allowance={allowance}
+        tier={tier}
+        model={model}
+        onSelectModel={handleSelectModel}
         initialPrompt={initialPrompt}
         chats={chats}
         activeChatId={activeChatId}

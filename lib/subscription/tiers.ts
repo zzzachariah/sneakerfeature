@@ -19,6 +19,71 @@ export const MODEL_IDS = {
 } as const;
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
 
+// --- Smart Picker model catalog ---------------------------------------------
+// Every model the Smart Picker offers, in display order. The picker shows the
+// FULL list to every tier and grays out what the member's plan can't run, so
+// upgrades stay discoverable in place (same idea as the tier-locked skins).
+export type PickerModelInfo = {
+  id: ModelId;
+  /** Short display name shown on the picker chip and rows. */
+  name: string;
+  /** One-line description of the trade-off this model represents. */
+  tagline: string;
+  taglineZh: string;
+  /** SF Symbol for the native iOS picker rows. */
+  symbol: string;
+  /** Lowest tier whose plan may run this model. */
+  minTier: Tier;
+  /** Metered from the monthly premium allowance (vs unlimited / credits). */
+  premium: boolean;
+};
+
+export const PICKER_MODELS: PickerModelInfo[] = [
+  {
+    id: MODEL_IDS.haiku,
+    name: "Haiku",
+    tagline: "Light and fast for everyday picks",
+    taglineZh: "轻量快速，日常选鞋够用",
+    symbol: "hare.fill",
+    minTier: "free",
+    premium: false
+  },
+  {
+    id: MODEL_IDS.deepseek,
+    name: "DeepSeek V4",
+    tagline: "Balanced workhorse, unlimited on paid plans",
+    taglineZh: "均衡主力，会员不限次数",
+    symbol: "bolt.fill",
+    minTier: "pro",
+    premium: false
+  },
+  {
+    id: MODEL_IDS.fable,
+    name: "Fable",
+    tagline: "Flagship reasoning, uses the monthly allowance",
+    taglineZh: "顶级推理，使用月度额度",
+    symbol: "sparkles",
+    minTier: "pro",
+    premium: true
+  }
+];
+
+const TIER_RANK: Record<Tier, number> = { free: 0, pro: 1, max: 2 };
+
+export function isModelId(v: unknown): v is ModelId {
+  return typeof v === "string" && Object.values(MODEL_IDS).includes(v as ModelId);
+}
+
+export function pickerModelInfo(id: string): PickerModelInfo | null {
+  return PICKER_MODELS.find((m) => m.id === id) ?? null;
+}
+
+/** Whether `tier`'s plan may run `modelId`. Admin overrides are the caller's job. */
+export function tierSupportsModel(tier: Tier, modelId: string): boolean {
+  const info = pickerModelInfo(modelId);
+  return info != null && TIER_RANK[tier] >= TIER_RANK[info.minTier];
+}
+
 // How deep the AI prompt/pipeline runs. Strategy A (depth ladder): one core
 // expert prompt, scaled per tier by these knobs, with Max layering a concierge
 // voice on top.

@@ -13,9 +13,11 @@ import { RecommendationGroup } from "@/components/smart-picker/recommendation-gr
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import { AllowanceMeter } from "@/components/smart-picker/allowance-meter";
+import { ModelPicker } from "@/components/smart-picker/model-picker";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
+import type { ModelId, Tier } from "@/lib/subscription/tiers";
 
 type Props = {
   messages: AiChatMessage[];
@@ -26,6 +28,9 @@ type Props = {
   unlimited: boolean;
   checkin: CheckinStatus;
   allowance: { balance: number; grant: number } | null;
+  tier: Tier;
+  model: ModelId | null;
+  onSelectModel: (id: ModelId) => void;
   initialPrompt?: string;
   chats: AiChatSummary[];
   activeChatId: string | null;
@@ -46,6 +51,9 @@ export function ChatConversation({
   unlimited,
   checkin,
   allowance,
+  tier,
+  model,
+  onSelectModel,
   initialPrompt,
   chats,
   activeChatId,
@@ -124,47 +132,52 @@ export function ChatConversation({
 
   return (
     <div className="flex h-full min-w-0 flex-1 flex-col">
-      {/* Header — history + balance only, no title */}
+      {/* Header — history + model picker on the left, balances on the right */}
       <div className="flex items-center justify-between gap-2 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-[var(--container-gutter)] py-2">
-        <div ref={historyRef} className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((prev) => !prev)}
-            aria-label={translate("Conversations")}
-            aria-haspopup="menu"
-            aria-expanded={historyOpen}
-            className="tap-44 relative inline-flex h-9 items-center gap-1 rounded-full px-2 transition-colors hover:bg-[rgb(var(--text)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
-          >
-            <History className="h-5 w-5" />
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
-          </button>
-          {historyOpen && (
-            <ConversationHistoryPopover
-              chats={chats}
-              activeChatId={activeChatId}
-              onSelect={(id) => {
-                onSelectChat(id);
-                setHistoryOpen(false);
-              }}
-              onNewChat={() => {
-                onNewChat();
-                setHistoryOpen(false);
-              }}
-            />
-          )}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <div ref={historyRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((prev) => !prev)}
+              aria-label={translate("Conversations")}
+              aria-haspopup="menu"
+              aria-expanded={historyOpen}
+              className="tap-44 relative inline-flex h-9 items-center gap-1 rounded-full px-2 transition-colors hover:bg-[rgb(var(--text)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
+            >
+              <History className="h-5 w-5" />
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+            </button>
+            {historyOpen && (
+              <ConversationHistoryPopover
+                chats={chats}
+                activeChatId={activeChatId}
+                onSelect={(id) => {
+                  onSelectChat(id);
+                  setHistoryOpen(false);
+                }}
+                onNewChat={() => {
+                  onNewChat();
+                  setHistoryOpen(false);
+                }}
+              />
+            )}
+          </div>
+          <ModelPicker tier={tier} model={model} onSelect={onSelectModel} />
         </div>
-        <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
-          <Wallet className="h-3.5 w-3.5" />
-          {creditsLoaded ? (
-            <>{unlimited ? "∞" : balance} {translate("credits")}</>
-          ) : (
-            <span aria-hidden className="skeleton inline-block h-3.5 w-12" />
-          )}
-          {creditsLoaded && (
-            <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
-          )}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
+            <Wallet className="h-3.5 w-3.5" />
+            {creditsLoaded ? (
+              <>{unlimited ? "∞" : balance} {translate("credits")}</>
+            ) : (
+              <span aria-hidden className="skeleton inline-block h-3.5 w-12" />
+            )}
+            {creditsLoaded && (
+              <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
+            )}
+          </div>
+          {creditsLoaded && allowance && <AllowanceMeter balance={allowance.balance} grant={allowance.grant} />}
         </div>
-        {creditsLoaded && allowance && <AllowanceMeter balance={allowance.balance} grant={allowance.grant} />}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-[var(--container-gutter)] py-4">
