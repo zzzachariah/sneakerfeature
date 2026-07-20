@@ -102,6 +102,7 @@ export function ClosetHomeRail({ shoes }: { shoes: Shoe[] }) {
                     src={shoe.image_url ?? undefined}
                     alt={`${shoe.brand} ${shoe.shoe_name}`}
                     fallbackLabel={shoe.shoe_name}
+                    variant="closet"
                     stage={variant === "standard"}
                     className="pui-cell-img"
                   />
