@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { DIM_KEYS } from "@/lib/star-rating";
-import { POSITIONS, SKILL_LEVELS, HEIGHT_MIN, HEIGHT_MAX, WEIGHT_MIN, WEIGHT_MAX } from "@/lib/persona/types";
+import { POSITIONS, SKILL_LEVELS, INJURY_KEYS, HEIGHT_MIN, HEIGHT_MAX, WEIGHT_MIN, WEIGHT_MAX } from "@/lib/persona/types";
 
 export const authSchema = z.object({
   identifier: z.string().min(3, "Use at least 3 characters for username/email."),
@@ -89,7 +89,14 @@ export const personaSchema = z.object({
   skill_level: z.enum(SKILL_LEVELS),
   flat_foot: z.boolean(),
   height_cm: z.coerce.number().int().min(HEIGHT_MIN).max(HEIGHT_MAX),
-  weight_kg: z.coerce.number().int().min(WEIGHT_MIN).max(WEIGHT_MAX)
+  weight_kg: z.coerce.number().int().min(WEIGHT_MIN).max(WEIGHT_MAX),
+  // Pro deep-questionnaire injury history. Optional so pre-existing personas
+  // (and free members' saves) keep validating; tier gating happens in the route.
+  injuries: z
+    .array(z.enum(INJURY_KEYS))
+    .max(INJURY_KEYS.length)
+    .refine((arr) => new Set(arr).size === arr.length, "Duplicate injuries are not allowed.")
+    .optional()
 });
 
 export const submissionSchema = z.object({
@@ -130,4 +137,31 @@ export const submissionSchema = z.object({
       message: "Correction submissions must include a target shoe."
     });
   }
+});
+
+// --- Shoe closet / rotation manager -----------------------------------------
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date.");
+
+export const closetAddSchema = z.object({
+  shoeId: z.string().uuid(),
+  sizeLabel: z.string().trim().max(20).optional(),
+  purchasePrice: z.coerce.number().min(0).max(100000).nullable().optional(),
+  purchasedAt: isoDate.nullable().optional()
+});
+
+// PATCH: only the provided fields change; explicit null clears a value.
+export const closetUpdateSchema = z.object({
+  shoeId: z.string().uuid(),
+  sizeLabel: z.string().trim().max(20).nullable().optional(),
+  purchasePrice: z.coerce.number().min(0).max(100000).nullable().optional(),
+  purchasedAt: isoDate.nullable().optional(),
+  retired: z.boolean().optional()
+});
+
+export const closetWearSchema = z.object({
+  shoeId: z.string().uuid(),
+  hours: z.coerce.number().gt(0, "Hours must be positive.").max(24, "One session can't exceed 24 hours."),
+  note: z.string().trim().max(200).optional(),
+  playedAt: isoDate.optional()
 });

@@ -20,6 +20,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { resolveCollection, topRated, type PremiumHomeProps } from "@/components/premium/home/shared";
 import type { Shoe } from "@/lib/types";
+import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
 
 function isoWeek(d: Date): number {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -101,6 +102,9 @@ export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, fo
             </div>
           )}
         </section>
+
+        {/* The rotation — the member's own closet, magazine-rack styled */}
+        <ClosetHomeRail shoes={shoes} />
 
         {/* Editor's spread: hero pick + curated shortlist */}
         {feature && (

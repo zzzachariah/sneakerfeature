@@ -12,6 +12,8 @@ function isPublicPath(pathname: string) {
     pathname === "/smart-picker" ||
     pathname === "/subscribe" ||
     pathname === "/favorites" ||
+    pathname === "/closet" ||
+    pathname === "/advisor" ||
     pathname === "/search/advanced" ||
     pathname === "/terms" ||
     pathname === "/privacy" ||

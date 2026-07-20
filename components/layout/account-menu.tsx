@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Heart, LogOut, LayoutDashboard, LogIn, Shield, UserCircle, UserPlus, Crown } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, LogIn, Shield, ShoppingBag, Sparkles, UserCircle, UserPlus, Crown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -168,6 +168,28 @@ export function AccountMenu({ className }: { className?: string }) {
                 >
                   <Heart className="h-4 w-4" />
                   {translate("Saved shoes")}
+                </Link>
+
+                <Link
+                  href="/closet"
+                  prefetch={true}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  {translate("My closet")}
+                </Link>
+
+                <Link
+                  href="/advisor"
+                  prefetch={true}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {translate("AI Advisor")}
                 </Link>
 
                 {(SUBSCRIBE_LIVE || isAdmin) && (

@@ -1,11 +1,10 @@
 "use client";
 
-// Max-only "AI concierge" entry on the shoe page. Rather than a separate,
-// fragile AI endpoint, this deep-links into the existing (tested) Smart Picker
-// with the composer pre-filled with a personalized question about THIS shoe —
-// so the member gets a concierge verdict through the same pipeline that already
-// handles their persona, foot scan, allowance and model tier. Rendered only for
-// Max members (gated server-side on the shoe page).
+// Max-only "AI concierge" entry on the shoe page. Deep-links into the AI
+// Advisor with the composer pre-filled with a personalized question about THIS
+// shoe — a real back-and-forth conversation that remembers the member's persona,
+// foot scan and allowance. Rendered only for Max members (gated server-side on
+// the shoe page).
 
 import Link from "next/link";
 import type { Route } from "next";
@@ -20,7 +19,7 @@ export function ConciergeCta({ shoeName }: { shoeName: string }) {
   const question = zh
     ? `帮我看看「${shoeName}」适不适合我的打法和脚型，值不值得入？`
     : `Is the "${shoeName}" right for my playstyle and feet — worth buying?`;
-  const href = `/smart-picker?ask=${encodeURIComponent(question)}` as Route;
+  const href = `/advisor?ask=${encodeURIComponent(question)}` as Route;
 
   return (
     <section className="mx-auto mt-4 w-full max-w-3xl px-4 sm:px-6">

@@ -14,6 +14,9 @@ import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import type { RadarAxis } from "@/components/detail/performance-radar";
 import { captureCardToBlob, safeFilename, triggerDownload } from "@/lib/card/capture";
 import { canShareFiles, isNativeApp, shareFiles } from "@/lib/native/native";
+import { useAuthState } from "@/components/auth/auth-state-provider";
+import { darkenHex, skinPalette } from "@/lib/subscription/skins";
+import { isPaidTier } from "@/lib/subscription/tiers";
 import type { RecommendationItem } from "@/lib/ai/types";
 import type { Shoe } from "@/lib/types";
 
@@ -31,7 +34,20 @@ type Props = {
 export function CardPreviewModal({ open, onClose, mode }: Props) {
   const reduce = useReducedMotion();
   const { translate } = useLocale();
+  const { tier, skin, customAccent } = useAuthState();
   useBodyScrollLock(open);
+
+  // Compare share-card membership treatment: paid members get a clean card
+  // tinted with their skin accent (custom "Signature" wins when set); free
+  // members get a watermarked, graphite-verdict version. Admins resolve to a
+  // paid tier so they can preview the clean card. Legibility on the light card
+  // is ensured via the skin's light-tuned accent / darkened custom hex.
+  const isMember = isPaidTier(tier);
+  const cardAccent = isMember
+    ? customAccent
+      ? darkenHex(customAccent, 0.24)
+      : skinPalette(skin, tier).accentLight ?? skinPalette(skin, tier).accent
+    : null;
   const [mounted, setMounted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +156,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
   const renderCard = () => {
     if (mode.kind === "single") return <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />;
     if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} summary={mode.summary} recommendations={mode.recommendations} />;
-    return <CompareCard shoes={mode.shoes} />;
+    return <CompareCard shoes={mode.shoes} accent={cardAccent} watermark={!isMember} />;
   };
 
   return createPortal(

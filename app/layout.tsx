@@ -1,5 +1,6 @@
 import "./globals.css";
 import "./premium-skins.css";
+import "./closet-skins.css";
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { GeistSans } from "geist/font/sans";

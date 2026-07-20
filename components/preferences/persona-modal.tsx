@@ -20,10 +20,15 @@ import {
   SKILL_LEVEL_LABEL,
   WEIGHT_MAX,
   WEIGHT_MIN,
+  type InjuryKey,
   type Persona,
   type Position,
   type SkillLevel
 } from "@/lib/persona/types";
+import { InjurySection } from "@/components/preferences/injury-section";
+import { useAuthState } from "@/components/auth/auth-state-provider";
+import { isPaidTier } from "@/lib/subscription/tiers";
+import { haptics } from "@/lib/native/haptics";
 import {
   isFootProfile,
   WIDTH_LABEL,
@@ -53,10 +58,14 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
   const { persona, isLoggedIn, savePersona, clearPersona, saving, isRefreshing, message, isError } =
     usePersona();
   const { focus, saveFocus, saving: focusSaving, isRefreshing: focusRefreshing } = useRatingFocus();
+  // Effective tier gates the injury deep questionnaire (admins resolve to max).
+  const { tier } = useAuthState();
+  const injuriesUnlocked = isPaidTier(tier);
 
   const [picks, setPicks] = useState<Position[]>([]);
   const [skill, setSkill] = useState<SkillLevel>("amateur");
   const [flatFoot, setFlatFoot] = useState(false);
+  const [injuryPicks, setInjuryPicks] = useState<InjuryKey[]>([]);
   const [heightStr, setHeightStr] = useState("");
   const [weightStr, setWeightStr] = useState("");
   const [playstylePicks, setPlaystylePicks] = useState<DimKey[]>([]);
@@ -92,6 +101,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
       setPicks(persona ? persona.positions : []);
       setSkill(persona ? persona.skill_level : "amateur");
       setFlatFoot(persona ? persona.flat_foot : false);
+      setInjuryPicks(persona?.injuries ?? []);
       setHeightStr(persona ? String(persona.height_cm) : "");
       setWeightStr(persona ? String(persona.weight_kg) : "");
       setPlaystylePicks(focus ? [focus.primary, focus.secondary, focus.tertiary] : []);
@@ -126,6 +136,13 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
     });
   }
 
+  function toggleInjury(key: InjuryKey) {
+    haptics.selection();
+    setInjuryPicks((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }
+
   async function handleSave() {
     setLocalError(null);
     if (picks.length < 1) {
@@ -152,7 +169,10 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
       skill_level: skill,
       flat_foot: flatFoot,
       height_cm: height,
-      weight_kg: weight
+      weight_kg: weight,
+      // Only paid tiers carry the deep questionnaire; the server strips it
+      // anyway, this just keeps the client honest.
+      ...(injuriesUnlocked ? { injuries: injuryPicks } : {})
     };
 
     const okPersona = await savePersona(nextPersona);
@@ -354,6 +374,13 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
               />
             </div>
           </div>
+
+          <InjurySection
+            picks={injuryPicks}
+            onToggle={toggleInjury}
+            disabled={busy}
+            gated={injuriesUnlocked}
+          />
 
           <div className="space-y-2 border-t border-[rgb(var(--muted)/0.25)] pt-3">
             <div className="flex items-center justify-between">

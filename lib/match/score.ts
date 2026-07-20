@@ -1,4 +1,4 @@
-import type { Persona, Position } from "@/lib/persona/types";
+import type { InjuryKey, Persona, Position } from "@/lib/persona/types";
 import type { Shoe } from "@/lib/types";
 
 export const WEIGHTS = {
@@ -6,15 +6,21 @@ export const WEIGHTS = {
   weight: 20,
   flatFoot: 20,
   skill: 20,
-  height: 10
+  height: 10,
+  protection: 24
 } as const;
 
+// The denominator renormalizes over applicable dims, so `protection` joining
+// the mix (only when the Pro deep questionnaire flagged injuries AND the shoe
+// carries usable signals) leaves personas without injuries scoring EXACTLY as
+// before. With it active its relative share is 0.24/1.24 ≈ 19%.
 const BASE_WEIGHTS = {
   position: 0.30,
   weight: 0.18,
   flatFoot: 0.17,
   skill: 0.25,
-  height: 0.10
+  height: 0.10,
+  protection: 0.24
 } as const;
 
 const GUARD_POSITIONS: Position[] = ["PG", "SG"];
@@ -22,7 +28,7 @@ const WING_POSITIONS: Position[] = ["SG", "SF"];
 const BIG_POSITIONS: Position[] = ["PF", "C"];
 
 type DimResult = { score: number; applicable: boolean };
-type DimensionKey = "position" | "weight" | "flatFoot" | "skill" | "height";
+type DimensionKey = "position" | "weight" | "flatFoot" | "skill" | "height" | "protection";
 
 export function parseShoeWeightOz(raw: string | null | undefined): number | null {
   if (!raw) return null;
@@ -168,13 +174,85 @@ function heightDimension(shoe: Shoe, heightCm: number): DimResult {
   return { score: 0.30, applicable: true };
 }
 
+// ── Protection (Pro deep questionnaire) ─────────────────────────────────────
+// Each flagged injury area reads its own protective signals off the spec text;
+// the dimension is the average of the areas that had usable signals. Purely
+// keyword-driven, same register as the other dimensions.
+
+const CUSHION_PROTECTIVE = ["soft", "plush", "pillow", "bouncy", "thick", "max", "impact"];
+const CUSHION_HARSH = ["firm", "minimal", "thin", "dead", "low to the ground", "harsh"];
+
+function cushionComfortScore(spec: Shoe["spec"]): number | null {
+  const text = [spec.cushioning_feel, spec.bounce].filter(Boolean).join(" ").toLowerCase();
+  if (!text) return null;
+  const protective = CUSHION_PROTECTIVE.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
+  const harsh = CUSHION_HARSH.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
+  if (protective >= 2) return 1.0;
+  if (protective === 1) return harsh > 0 ? 0.55 : 0.80;
+  if (harsh >= 2) return 0.10;
+  if (harsh === 1) return 0.30;
+  return 0.50;
+}
+
+function injuryScore(shoe: Shoe, injury: InjuryKey): number | null {
+  const spec = shoe.spec ?? {};
+  const tags = (spec.tags ?? []).map((t) => t.toLowerCase());
+
+  if (injury === "ankle") {
+    const signals: number[] = [];
+    for (const c of [spec.support, spec.containment, spec.stability]) {
+      const s = keywordScore(c);
+      if (s !== null) signals.push(s);
+    }
+    if (tags.some((t) => t.includes("high") || t.includes("ankle") || t.includes("strap"))) {
+      signals.push(0.92);
+    }
+    if (signals.length < 2) return null;
+    return signals.reduce((a, b) => a + b, 0) / signals.length;
+  }
+
+  if (injury === "knee") {
+    return cushionComfortScore(spec);
+  }
+
+  if (injury === "achilles") {
+    // Heel forgiveness: the cushion read, nudged up when a named heel setup
+    // exists at all (a real heel unit beats a bare foam wedge for the tendon).
+    const comfort = cushionComfortScore(spec);
+    if (comfort === null) return null;
+    const hasHeelTech = Boolean(spec.heel_midsole_tech?.trim());
+    return Math.min(1, comfort + (hasHeelTech ? 0.10 : 0));
+  }
+
+  // plantar — arch support + torsional rigidity carry the fascia.
+  const signals: number[] = [];
+  for (const c of [spec.torsional_rigidity, spec.stability, spec.support]) {
+    const s = keywordScore(c);
+    if (s !== null) signals.push(s);
+  }
+  if (signals.length < 2) return null;
+  return signals.reduce((a, b) => a + b, 0) / signals.length;
+}
+
+function protectionDimension(shoe: Shoe, injuries: InjuryKey[] | undefined): DimResult {
+  if (!injuries || injuries.length === 0) return { score: 0, applicable: false };
+  const scores: number[] = [];
+  for (const injury of injuries) {
+    const s = injuryScore(shoe, injury);
+    if (s !== null) scores.push(s);
+  }
+  if (scores.length === 0) return { score: 0, applicable: false };
+  return { score: scores.reduce((a, b) => a + b, 0) / scores.length, applicable: true };
+}
+
 export function computeDimensions(persona: Persona, shoe: Shoe): Record<DimensionKey, DimResult> {
   return {
     position: positionDimension(shoe, persona.positions),
     weight: weightDimension(shoe, persona.weight_kg),
     flatFoot: flatFootDimension(shoe, persona.flat_foot),
     skill: skillDimension(shoe, persona.skill_level),
-    height: heightDimension(shoe, persona.height_cm)
+    height: heightDimension(shoe, persona.height_cm),
+    protection: protectionDimension(shoe, persona.injuries)
   };
 }
 
@@ -234,6 +312,14 @@ export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
   if (dims.height.applicable && dims.height.score >= REASON_THRESHOLD) {
     if (persona.height_cm < 175) reasons.push("Low-profile for shorter players");
     else if (persona.height_cm > 195) reasons.push("Containment for taller players");
+  }
+
+  if (dims.protection.applicable && dims.protection.score >= REASON_THRESHOLD) {
+    const injuries = persona.injuries ?? [];
+    if (injuries.includes("ankle")) reasons.push("Locked-in support for your ankle history");
+    else if (injuries.includes("knee")) reasons.push("Impact protection for your knees");
+    else if (injuries.includes("achilles")) reasons.push("Forgiving heel for your Achilles");
+    else if (injuries.includes("plantar")) reasons.push("Arch support for your plantar fascia");
   }
 
   return reasons.slice(0, 4);
