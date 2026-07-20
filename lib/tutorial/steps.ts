@@ -17,102 +17,96 @@ export type TutorialStep = {
   awaitUserAction?: boolean;
 };
 
+// Onboarding tour, written from a first-time visitor's point of view.
+//
+// It answers, in order, the questions a newcomer actually has:
+//   1. What is this?              → welcome
+//   2. How does it get personal?  → avatar (the player profile — our #1 feature)
+//   3. How do I choose a shoe?    → nav (Compare + Smart Picker, the decision tools)
+//   4. Where's everything?        → database (the full catalog)
+//   5. How do I keep my stuff?    → account (sign in to save)
+//   6. Let's actually do it       → persona-setup (interactive finale)
+//
+// Every selector points at an element that exists in the live DOM, and each step
+// is breakpoint-aware: `isStepAvailable` (bottom of file) drops any step whose
+// target is missing or laid out with a zero box, so the desktop nav cluster and
+// the mobile bottom tab bar each contribute their own variant without the
+// other's dead target ever showing. Utility surfaces (advanced search, the
+// language / download / legal menu) are intentionally NOT their own steps — a
+// newcomer doesn't need them yet, and the finale points back to the menu for
+// re-opening the tour. Anchors:
+//   navbar.tsx        — nav-links (md+), nav-account (all)
+//   mobile-bottom-nav — mobile-nav (phone tab bar)
+//   for-you-view.tsx  — home-avatar (the player figure on the homepage)
+//   home page         — #home-database (both the standard and premium layouts)
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
     title: "Welcome to sneakerfeature",
-    body: "Personalized basketball sneaker recommendations. Let me show you around in under a minute.",
+    body: "Basketball sneakers, scored to how you actually play. Here's the quick tour — about a minute.",
     placement: "center"
   },
   {
-    id: "nav-links",
+    id: "avatar",
+    selector: "[data-tutorial='home-avatar']",
+    title: "This little baller is you",
+    body: "This figure is your player profile. Once it's set, every shoe gets a match score tuned to how you actually play. Tap it whenever you're ready to fill it in.",
+    placement: "bottom",
+    padding: 10,
+    requiresPath: "/"
+  },
+  {
+    // Desktop: the centered primary nav (Home / Compare / Smart Picker / Submit /
+    // Account). Hidden on phones, so this is filtered out there and the
+    // mobile-nav variant below takes over.
+    id: "nav-desktop",
     selector: "[data-tutorial='nav-links']",
-    title: "Primary navigation",
-    body: "Jump to Home, Compare, Smart Picker, Submit, and your Account from here.",
+    title: "Compare & Smart Picker",
+    body: "Line up to 5 shoes side by side with Compare, or let Smart Picker's AI recommend a pair — plus Home and Submit, all from here.",
     placement: "bottom",
-    padding: 10
+    padding: 10,
+    scrollIntoView: false
   },
   {
-    id: "nav-search",
-    selector: "[data-tutorial='nav-search']",
-    title: "Advanced search",
-    body: "Filter by tech, keywords, and structured fields when the homepage feed isn't enough.",
-    placement: "bottom",
-    shape: "circle",
-    padding: 6
+    // Phones only: the floating bottom tab bar.
+    id: "nav-mobile",
+    selector: "[data-tutorial='mobile-nav']",
+    title: "Compare & Smart Picker",
+    body: "These tabs are your map: Compare lines shoes up side by side, Smart Picker's AI recommends a pair, and Home, Submit and Account are a thumb away.",
+    placement: "top",
+    padding: 8,
+    radius: 30,
+    scrollIntoView: false
   },
   {
-    id: "nav-language",
-    selector: "[data-tutorial='nav-language']",
-    title: "Language",
-    body: "Switch between English and Chinese. Machine-translated content is marked.",
-    placement: "bottom",
-    shape: "circle",
-    padding: 6
+    id: "database",
+    selector: "#home-database",
+    title: "The whole catalog",
+    body: "Open this to browse every indexed pair — sortable and searchable. With a profile set, each one shows how well it fits you.",
+    placement: "top",
+    padding: 12,
+    requiresPath: "/"
   },
   {
-    id: "nav-persona",
-    selector: "[data-tutorial='nav-persona']",
-    title: "Player profile",
-    body: "Set your position, skill, height, weight, and playstyle here. We use these to recommend shoes.",
-    placement: "bottom",
-    shape: "circle",
-    padding: 6
-  },
-  {
-    id: "nav-account",
+    id: "account",
     selector: "[data-tutorial='nav-account']",
-    title: "Account",
-    body: "Sign in to save comparisons, rate shoes, and join discussions.",
+    title: "Save your progress",
+    body: "Sign in here to save comparisons, rate shoes, sync your closet, and join the discussion.",
     placement: "bottom",
-    shape: "circle",
-    padding: 6
+    padding: 6,
+    scrollIntoView: false
   },
   {
+    // Interactive finale: hand control to the real player-profile modal. Kept
+    // last so a visitor who dismisses it (which ends the tour) has still seen the
+    // whole walkthrough, and saving both finishes the tour and unlocks
+    // personalized scoring. Also where we point them back to re-open the tour.
     id: "persona-setup",
     title: "Set up your player profile",
-    body: "Tell us your position(s), skill level, flat-feet, and height & weight so we can score every shoe for you. Tap below to open it — the tour pauses while you fill it in, then continues after you save.",
+    body: "Ready? Set your position, skill, height, weight and playstyle so every shoe gets scored for you. You can reopen this tour anytime from the menu.",
     placement: "center",
     action: { type: "open-modal", modalId: "persona" },
     awaitUserAction: true
-  },
-  {
-    id: "feed",
-    selector: "[data-tutorial='home-feed']",
-    title: "Your personalized feed",
-    body: "Every shoe scored against your player profile. Tap a card to open the full spec sheet.",
-    placement: "top",
-    padding: 12,
-    requiresPath: "/",
-    scrollIntoView: false
-  },
-  {
-    id: "mode-toggle",
-    selector: "[data-tutorial='home-mode-toggle']",
-    title: "Browse all or Personalized",
-    body: "Flip between personalized recommendations and the unfiltered database any time.",
-    placement: "bottom",
-    requiresPath: "/",
-    padding: 8
-  },
-  {
-    id: "feed-search",
-    selector: "[data-tutorial='home-feed-search']",
-    title: "Quick search",
-    body: "Type a model, player, or tech keyword. Filter by brand from the toolbar.",
-    placement: "bottom",
-    padding: 8,
-    requiresPath: "/",
-    scrollIntoView: false
-  },
-  {
-    id: "trigger",
-    selector: "[data-tutorial='nav-tutorial']",
-    title: "Want a refresher?",
-    body: "Re-open this tour anytime from this icon in the navbar. Enjoy sneakerfeature.",
-    placement: "bottom",
-    shape: "circle",
-    padding: 6
   }
 ];
 
@@ -120,8 +114,10 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
  * Whether a step can be shown right now on this device/page. Center, no-selector,
  * and action (modal) steps are always shown. Selector steps require a target
  * that exists AND is laid out (nonzero box) — this transparently skips controls
- * that are `display:none` on the current breakpoint (e.g. desktop-only navbar
- * icons hidden on phones), so the tour never lands on a dead target.
+ * that are `display:none` on the current breakpoint (e.g. the desktop-only nav
+ * cluster on phones, or the phone-only bottom tab bar on desktop), so the tour
+ * never lands on a dead target. Path-scoped steps also require the matching
+ * route, so homepage-only anchors never show when the tour is opened elsewhere.
  */
 export function isStepAvailable(step: TutorialStep): boolean {
   if (typeof document === "undefined") return true;

@@ -95,7 +95,10 @@ export function MobileBottomNav() {
       style={{ bottom: "calc(var(--safe-bottom) + 5px)" }}
       data-no-translate="true"
     >
-      <ul className="glass glass-refract glass-rim pointer-events-auto relative flex h-[60px] items-center gap-0.5 rounded-full px-2">
+      <ul
+        className="glass glass-refract glass-rim pointer-events-auto relative flex h-[60px] items-center gap-0.5 rounded-full px-2"
+        data-tutorial="mobile-nav"
+      >
         {tabs.map((tab, i) => {
           const active = i === activeIdx;
           const Icon = tab.icon;

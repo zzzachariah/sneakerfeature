@@ -633,7 +633,10 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "save my ratings": "保存我的评分",
   "my ratings": "我的评分",
 
-  // Tutorial
+  // Onboarding tour. Step copy is authored in lib/tutorial/steps.ts — keep every
+  // sentence below in sync with it so Chinese users never fall back to the raw
+  // English source. ("next" / "advanced search" / "set up profile" /
+  // "set up your player profile" already live elsewhere in this map.)
   "site tour": "网站导览",
   "tour": "导览",
   "close tour": "关闭导览",
@@ -643,32 +646,24 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "this part lives on the homepage.": "这部分内容在首页。",
   "return home": "返回首页",
   "welcome to sneakerfeature": "欢迎来到 sneakerfeature",
-  "a living index of basketball sneakers. let me show you around in under a minute.":
-    "一份持续更新的篮球鞋索引，让我用不到一分钟带你看一遍。",
-  "primary navigation": "主导航",
-  "jump to home, compare, submit, and your account from here.":
-    "在这里可以前往首页、对比、提交和你的账号。",
-  "filter by tech, keywords, and structured fields when the homepage table isn't enough.":
-    "需要更精细的筛选时，可在此按科技、关键词等字段查找。",
-  "switch between english and chinese. machine-translated content is marked.":
-    "在英文和中文之间切换，机器翻译内容会有标注。",
-  "pick your playstyle and ratings reweight to what matters to you on court.":
-    "选择你的打法后，评分会根据你在场上看重的维度重新加权。",
-  "cycle light, dark, and system. your choice is remembered.":
-    "循环切换浅色、深色和跟随系统，选择会被记住。",
-  "sign in to save comparisons, rate shoes, and join discussions.":
-    "登录后可保存对比、为球鞋打分并参与讨论。",
-  "home — the index at a glance": "首页 — 索引一览",
-  "live counts, what we cover, and quick links to compare and submit.":
-    "实时计数、收录范围，以及对比与提交的快捷入口。",
-  "every indexed pair, sortable and searchable. tap a row to open the full spec sheet.":
-    "所有已收录的球鞋，可排序和搜索。点击行可查看完整规格。",
-  "quick search": "快速搜索",
-  "type a model, player, or tech keyword. filter by brand on the left.":
-    "输入型号、球员或科技关键词，左侧可按品牌筛选。",
-  "want a refresher?": "想再看一遍？",
-  "re-open this tour anytime from this icon in the navbar. enjoy sneakerfeature.":
-    "随时通过导航栏的这个图标重新打开导览。祝你使用愉快。",
+  "basketball sneakers, scored to how you actually play. here's the quick tour — about a minute.":
+    "篮球鞋，按你真实的打法来打分。这里是不到一分钟的快速导览。",
+  "this little baller is you": "这个小球员就是你",
+  "this figure is your player profile. once it's set, every shoe gets a match score tuned to how you actually play. tap it whenever you're ready to fill it in.":
+    "这个小人就是你的球员档案。设置好之后，每双鞋都会按你真实的打法给出专属匹配分。想填写时，随时点它即可。",
+  "compare & smart picker": "对比 & 智能选鞋",
+  "line up to 5 shoes side by side with compare, or let smart picker's ai recommend a pair — plus home and submit, all from here.":
+    "用「对比」把最多 5 双鞋并排比较，或让「智能选鞋」的 AI 帮你推荐——首页和提交也都在这里。",
+  "these tabs are your map: compare lines shoes up side by side, smart picker's ai recommends a pair, and home, submit and account are a thumb away.":
+    "这几个标签就是你的导航：「对比」把多双鞋并排比较，「智能选鞋」的 AI 帮你推荐，首页、提交和账号也都一指可达。",
+  "the whole catalog": "整个鞋库",
+  "open this to browse every indexed pair — sortable and searchable. with a profile set, each one shows how well it fits you.":
+    "点开即可浏览收录的每一双鞋——可排序、可搜索。设置好档案后，每双鞋还会显示它有多适合你。",
+  "save your progress": "保存你的进度",
+  "sign in here to save comparisons, rate shoes, sync your closet, and join the discussion.":
+    "在这里登录，即可保存对比、给球鞋打分、同步你的鞋柜，并参与讨论。",
+  "ready? set your position, skill, height, weight and playstyle so every shoe gets scored for you. you can reopen this tour anytime from the menu.":
+    "准备好了吗？设置你的位置、水平、身高、体重和打法，我们就能为每双鞋按你打分。你随时可以从菜单里重新打开本导览。",
 
   // Persona / personalized recommendations
   "sneaker database": "球鞋信息库",
