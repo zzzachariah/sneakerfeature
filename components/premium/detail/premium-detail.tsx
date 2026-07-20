@@ -23,6 +23,8 @@ import { PremiumPerformance } from "@/components/premium/detail/premium-performa
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { PremiumVariant } from "@/components/premium/variants";
+import { usePremiumTier } from "@/components/theme/premium-tier-context";
+import type { Tier } from "@/lib/subscription/tiers";
 
 const CardPreviewModal = dynamic(
   () => import("@/components/card/card-preview-modal").then((m) => ({ default: m.CardPreviewModal })),
@@ -40,18 +42,30 @@ const SECTION_ID: Record<SectionKey, string> = {
   related: "detail-related",
 };
 
-// Each skin keeps the overview (title + hero) as the identity block, then reads
-// the rest in its own order + FRAMES the data block to match its layout:
+// PRO reads each skin its own way — the overview (title + hero) stays the
+// identity block, then the rest follows the skin's native pacing:
 //   • Editorial — the cover story: story leads, numbers follow ("By the numbers").
 //   • Instrument — the cockpit: performance next, wrapped as an instrument panel.
 //   • Gallery — the monograph: performance, then story; quiet, unframed.
 //   • Arena — the scout report: a gold "stat sheet" performance frame, reviews next.
-const ORDERS: Record<Exclude<PremiumVariant, "standard">, SectionKey[]> = {
+const PRO_ORDERS: Record<Exclude<PremiumVariant, "standard">, SectionKey[]> = {
   editorial: ["overview", "story", "performance", "reviews", "comments", "related"],
   instrument: ["overview", "performance", "story", "reviews", "comments", "related"],
   gallery: ["overview", "performance", "story", "reviews", "comments", "related"],
   arena: ["overview", "performance", "reviews", "story", "comments", "related"],
 };
+
+// MAX composes the page differently — one concierge cut regardless of skin:
+// lead with the analysis (performance), then the pros' takes (reviews), and only
+// then the story. This is the structural expression of the Max tier's "deep /
+// concierge" promise (see TIERS.max.prompt), paired with the ConciergeStrip
+// below. Champion → arena is Max-only, so PRO_ORDERS.arena is never actually
+// reached; it's kept for type completeness.
+const MAX_ORDER: SectionKey[] = ["overview", "performance", "reviews", "story", "comments", "related"];
+
+function orderFor(variant: Exclude<PremiumVariant, "standard">, tier: Tier): SectionKey[] {
+  return tier === "max" ? MAX_ORDER : PRO_ORDERS[variant];
+}
 
 const HASH_TO_ID: Record<string, string> = {
   "#overview": "detail-overview",
@@ -64,8 +78,9 @@ const HASH_TO_ID: Record<string, string> = {
 
 export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Exclude<PremiumVariant, "standard"> }) {
   const { translate } = useLocale();
+  const tier = usePremiumTier();
   const [shareOpen, setShareOpen] = useState(false);
-  const order = ORDERS[variant];
+  const order = orderFor(variant, tier);
 
   const NAV_LABEL: Record<SectionKey, string> = {
     overview: translate("Overview"),
@@ -102,6 +117,7 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
   return (
     <>
       <div className="has-mobile-nav-pad">
+        {tier === "max" ? <ConciergeStrip /> : null}
         <DetailBanner variant={variant} brand={props.shoe.brand} />
         {order.map((key) => (
           <DetailSection key={key} id={SECTION_ID[key]}>
@@ -116,6 +132,33 @@ export function PremiumDetail({ variant, ...props }: DetailProps & { variant: Ex
         mode={{ kind: "single", shoe: props.shoe, axes: props.radarAxes }}
       />
     </>
+  );
+}
+
+// Max-only lead block. It both signals the Max edition and frames WHY the page
+// is ordered the way it is (analysis → reviews → story), so the reordering reads
+// as intentional concierge curation rather than a shuffle. Tinted with --brand,
+// which is the skin's Max accent once data-member-tier="max".
+function ConciergeStrip() {
+  const { locale } = useLocale();
+  const zh = locale === "zh";
+  return (
+    <div className="container-shell pt-4">
+      <div
+        className="flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-full px-3.5 py-1.5"
+        style={{ border: "1px solid rgb(var(--brand) / 0.4)", background: "rgb(var(--brand) / 0.08)" }}
+      >
+        <span aria-hidden className="text-sm leading-none" style={{ color: "rgb(var(--brand))" }}>
+          ❖
+        </span>
+        <span className="text-[0.58rem] font-bold uppercase tracking-[0.22em]" style={{ color: "rgb(var(--brand))" }}>
+          Max Concierge
+        </span>
+        <span className="text-[0.75rem] soft-text">
+          {zh ? "先看数据与专业口碑，再读故事" : "Numbers and the pros' takes first — the story follows"}
+        </span>
+      </div>
+    </div>
   );
 }
 

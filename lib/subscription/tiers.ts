@@ -9,6 +9,14 @@
 export type Tier = "free" | "pro" | "max";
 export type Duration = "monthly" | "quarterly" | "yearly" | "permanent";
 
+// Cookie the client writes (MemberThemeApplier) so the SERVER can render a paid
+// member's tier on first paint — used by app/layout.tsx to stamp
+// `data-member-tier` on <html>. That attribute drives BOTH the tier-aware
+// Premium UI accent (the Max half of a skin, via CSS) and the per-tier
+// structural variant (via PremiumTierProvider). Mirrors the `sf-premium-ui` skin
+// cookie: only set for paid tiers, absent means free. Client + server safe.
+export const MEMBER_TIER_COOKIE = "sf-member-tier";
+
 // Model IDs as configured on the packyapi relay. Each paid model uses its own
 // key env var (see packy-client.ts); the ID strings live here so UI and server
 // agree on what each tier runs.

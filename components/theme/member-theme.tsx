@@ -22,11 +22,29 @@
 import { useEffect } from "react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { darkenHex, hexToRgbTriple, skinPalette } from "@/lib/subscription/skins";
-import { isPaidTier } from "@/lib/subscription/tiers";
+import { isPaidTier, MEMBER_TIER_COOKIE, type Tier } from "@/lib/subscription/tiers";
 
 const BRAND_DARK_KEY = "sf-member-brand-dark";
 const BRAND_LIGHT_KEY = "sf-member-brand-light";
 const CONTRAST_KEY = "sf-member-brand-contrast";
+
+// One year, matching the skin / locale cookies.
+const TIER_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
+// Mirror the resolved paid tier into a cookie so the SERVER can stamp
+// data-member-tier on first paint (see app/layout.tsx) — this drives both the
+// Max-tier accent in the premium CSS and the per-tier structural variant. Free
+// / signed-out clears it. Paired with the data-member-tier attribute set below.
+function writeMemberTierCookie(tier: Tier | null) {
+  try {
+    document.cookie =
+      tier === "pro" || tier === "max"
+        ? `${MEMBER_TIER_COOKIE}=${tier}; path=/; max-age=${TIER_COOKIE_MAX_AGE}; samesite=lax`
+        : `${MEMBER_TIER_COOKIE}=; path=/; max-age=0; samesite=lax`;
+  } catch {
+    /* cookies blocked — the attribute path still themes this session */
+  }
+}
 
 export function MemberThemeApplier() {
   const { tier, skin, customAccent, loaded } = useAuthState();
@@ -41,6 +59,8 @@ export function MemberThemeApplier() {
       root.style.removeProperty("--brand");
       root.style.removeProperty("--brand-contrast");
       root.removeAttribute("data-member-skin");
+      root.removeAttribute("data-member-tier");
+      writeMemberTierCookie(null);
       try {
         window.localStorage.removeItem(BRAND_DARK_KEY);
         window.localStorage.removeItem(BRAND_LIGHT_KEY);
@@ -65,13 +85,22 @@ export function MemberThemeApplier() {
       return window.matchMedia("(prefers-color-scheme: dark)").matches;
     };
     const apply = () => {
-      // A menu-bar "Premium UI" skin (data-premium) themes the whole site,
-      // including the accent, from its own stylesheet. When one is active, defer
-      // to it — clear our inline override so the skin's --brand wins; restore it
-      // when premium is switched back off (the observer below re-runs apply()).
+      // A menu-bar "Premium UI" skin (data-premium) themes the whole site from
+      // its own stylesheet — and now tier-aware: html[data-member-tier="max"]
+      // carries the skin's Max accent, so deferring already gives a Max member
+      // their real (gold / purple / indigo) accent, not the Pro one. We only
+      // step in for a Max "Signature" accent, which must still win site-wide over
+      // the skin — set it inline (out-specifies the attribute selector). The
+      // observer below re-runs this when the skin toggles on/off.
       if (root.hasAttribute("data-premium")) {
-        root.style.removeProperty("--brand");
-        root.style.removeProperty("--brand-contrast");
+        if (custom) {
+          const triple = isDark() ? dark : light;
+          if (triple) root.style.setProperty("--brand", triple);
+          if (contrast) root.style.setProperty("--brand-contrast", contrast);
+        } else {
+          root.style.removeProperty("--brand");
+          root.style.removeProperty("--brand-contrast");
+        }
         return;
       }
       const triple = isDark() ? dark : light;
@@ -81,6 +110,11 @@ export function MemberThemeApplier() {
 
     apply();
     root.setAttribute("data-member-skin", skin);
+    // Expose the paid tier to the server (cookie) and the CSS (attribute) so the
+    // Max half of the skin themes the whole site, and the per-tier structural
+    // variant renders on first paint.
+    root.setAttribute("data-member-tier", tier);
+    writeMemberTierCookie(tier);
     try {
       if (dark) window.localStorage.setItem(BRAND_DARK_KEY, dark);
       if (light) window.localStorage.setItem(BRAND_LIGHT_KEY, light);
