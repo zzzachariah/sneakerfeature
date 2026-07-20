@@ -2047,6 +2047,37 @@ html[data-premium="champion"].dark {
   }
 }
 
+/* ── Max-tier accent — the SAME skin, carried in its Max palette. Each skin's
+      data-premium block above bakes the PRO-side accent into --brand, but a Max
+      member's card / subscribe preview advertises the MAX half (Sapphire → gold,
+      Aurora → magenta-purple, Obsidian → electric indigo). Without this the site
+      accent the member actually gets — buttons, active states, focus rings,
+      hairlines, ambient wash, everything that reads rgb(var(--brand)) — would
+      contradict their own membership card (the "fake colors" bug).
+
+      data-member-tier="max" (stamped from the sf-member-tier cookie) swaps ONLY
+      the accent to the Max half; grounds, stages and hairlines stay skin-level so
+      Pro and Max still read as one skin family. Dark uses the bright `accent`,
+      light the AA-safe `accentLight`, and --brand-contrast the palette's
+      onAccent — mirroring member-theme.tsx exactly, so premium-on now matches
+      what member-theme applies when premium is off. Champion is already Max-only,
+      so its block IS the Max look and needs no override. ── */
+html[data-premium="sapphire"][data-member-tier="max"] { --brand: 169 129 42; --brand-contrast: 26 19 5; }
+html[data-premium="sapphire"][data-member-tier="max"].dark { --brand: 217 180 90; --brand-contrast: 26 19 5; }
+@media (prefers-color-scheme: dark) {
+  html[data-premium="sapphire"][data-member-tier="max"]:not(.light) { --brand: 217 180 90; --brand-contrast: 26 19 5; }
+}
+html[data-premium="aurora"][data-member-tier="max"] { --brand: 139 70 214; --brand-contrast: 255 255 255; }
+html[data-premium="aurora"][data-member-tier="max"].dark { --brand: 176 108 240; --brand-contrast: 42 10 52; }
+@media (prefers-color-scheme: dark) {
+  html[data-premium="aurora"][data-member-tier="max"]:not(.light) { --brand: 176 108 240; --brand-contrast: 42 10 52; }
+}
+html[data-premium="obsidian"][data-member-tier="max"] { --brand: 91 63 224; --brand-contrast: 255 255 255; }
+html[data-premium="obsidian"][data-member-tier="max"].dark { --brand: 122 92 255; --brand-contrast: 10 7 19; }
+@media (prefers-color-scheme: dark) {
+  html[data-premium="obsidian"][data-member-tier="max"]:not(.light) { --brand: 122 92 255; --brand-contrast: 10 7 19; }
+}
+
 /* ── Shared premium chrome (all four skins) — ambient wash, selection, scrollbar
       and a set-surface card treatment in the skin accent. The standard look
       (no data-premium) is byte-for-byte untouched. Placed last so it wins over

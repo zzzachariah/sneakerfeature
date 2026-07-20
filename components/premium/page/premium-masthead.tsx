@@ -16,8 +16,28 @@
 // untouched, so the no-skin render path never changes.
 
 import type { PremiumVariant } from "@/components/premium/variants";
+import { usePremiumTier } from "@/components/theme/premium-tier-context";
 
 type Variant = Exclude<PremiumVariant, "standard">;
+
+// The Max signal — a small chip in the skin's Max accent (--brand is the Max half
+// of the skin once data-member-tier="max"), so every masthead that renders it
+// announces the Max edition of the page. Locale-free: "Max" is the tier name in
+// both languages (TIERS.max.nameZh === "Max").
+function MaxSignal() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[0.5rem] font-bold uppercase tracking-[0.2em]"
+      style={{
+        color: "rgb(var(--brand))",
+        border: "1px solid rgb(var(--brand) / 0.5)",
+        background: "rgb(var(--brand) / 0.12)",
+      }}
+    >
+      <span aria-hidden>❖</span> Max
+    </span>
+  );
+}
 
 export function PremiumMasthead({
   variant,
@@ -33,12 +53,14 @@ export function PremiumMasthead({
   /** Small contextual label, shown per-skin (issue line / live pip / plate). */
   meta?: string;
 }) {
+  const isMax = usePremiumTier() === "max";
   if (variant === "editorial") {
     return (
       <header className="pui-page-head">
         <div className="pui-ed-flag">
           <span className="pui-display text-base sm:text-lg">{kicker}</span>
           {meta ? <span className="pui-ed-issue">{meta}</span> : null}
+          {isMax ? <MaxSignal /> : null}
         </div>
         <h1 className="pui-ed-title" style={{ fontSize: "clamp(1.9rem, 5vw, 3.2rem)" }}>
           {title}
@@ -60,7 +82,8 @@ export function PremiumMasthead({
             </span>
             {subtitle ? <span className="k">{subtitle}</span> : null}
           </div>
-          <span className="ml-auto pui-hud-live">{meta ?? "Live"}</span>
+          {isMax ? <span className="ml-auto"><MaxSignal /></span> : null}
+          <span className={`${isMax ? "" : "ml-auto "}pui-hud-live`}>{meta ?? "Live"}</span>
         </div>
         <h1 className="t-display-sm mt-4" style={{ fontSize: "clamp(1.6rem, 3.6vw, 2.5rem)" }}>
           {title}
@@ -74,9 +97,12 @@ export function PremiumMasthead({
       <header className="pui-page-head">
         <div className="flex items-center justify-between gap-3">
           <span className="pui-kicker">{kicker}</span>
-          {meta ? (
-            <span className="pui-label shrink-0 text-[0.7rem] uppercase tracking-[0.2em] text-[rgb(var(--subtext))]">{meta}</span>
-          ) : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {isMax ? <MaxSignal /> : null}
+            {meta ? (
+              <span className="pui-label text-[0.7rem] uppercase tracking-[0.2em] text-[rgb(var(--subtext))]">{meta}</span>
+            ) : null}
+          </div>
         </div>
         <hr className="pui-hairline mt-3" style={{ background: "rgb(var(--pui-gold) / 0.4)" }} />
         <div className="pui-sweep mt-5">
@@ -94,7 +120,10 @@ export function PremiumMasthead({
   // gallery — quiet-luxury: a whisper of a kicker, generous air, no rules.
   return (
     <header className="pui-page-head pui-page-head--gallery">
-      <span className="pui-kicker">{kicker}</span>
+      <div className="flex items-center gap-2">
+        <span className="pui-kicker">{kicker}</span>
+        {isMax ? <MaxSignal /> : null}
+      </div>
       <h1 className="pui-display mt-3" style={{ fontSize: "clamp(1.8rem, 4.4vw, 2.9rem)", lineHeight: 1.05 }}>
         {title}
       </h1>

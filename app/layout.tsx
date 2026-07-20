@@ -7,6 +7,7 @@ import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
 import { premiumFontVars } from "@/lib/fonts/premium-fonts";
 import { isSkinId } from "@/lib/subscription/skins";
+import { MEMBER_TIER_COOKIE } from "@/lib/subscription/tiers";
 const GeistMono = localFont({
   src: "../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2",
   variable: "--font-geist-mono",
@@ -36,6 +37,7 @@ import {
 import { ThemeInitScript } from "@/components/theme/theme-toggle";
 import { SkinInitScript } from "@/components/theme/skin-init";
 import { PremiumSkinInitScript, PremiumSkinProvider } from "@/components/theme/premium-skin-context";
+import { PremiumTierProvider, PremiumTierSync } from "@/components/theme/premium-tier-context";
 import { PremiumSkinGuard } from "@/components/theme/premium-skin";
 import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
@@ -102,11 +104,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // pre-paint PremiumSkinInitScript then reconciles it against localStorage.
   const premiumCookie = cookieStore.get("sf-premium-ui")?.value;
   const initialSkin = isSkinId(premiumCookie) ? premiumCookie : null;
+  // Read the paid tier on the server too, so the Max-tier accent (CSS) and the
+  // per-tier structural variant render correctly on first paint. Only pro/max
+  // are stamped; MemberThemeApplier keeps this cookie in sync with real auth.
+  const tierCookie = cookieStore.get(MEMBER_TIER_COOKIE)?.value;
+  const initialTier = tierCookie === "pro" || tierCookie === "max" ? tierCookie : null;
   return (
     <html
       lang={initialLocale}
       suppressHydrationWarning
       data-premium={initialSkin ?? undefined}
+      data-member-tier={initialTier ?? undefined}
       className={`${GeistSans.variable} ${GeistMono.variable} ${premiumFontVars}`}
     >
       <head>
@@ -126,10 +134,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RouteMemory />
         <LocaleProvider initialLocale={initialLocale}>
           <PremiumSkinProvider initialSkin={initialSkin}>
+          <PremiumTierProvider initialTier={initialTier ?? "free"}>
           <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
               <MemberThemeApplier />
+              <PremiumTierSync />
               <PremiumSkinGuard />
               <FavoritesProvider>
               <RatingFocusProvider>
@@ -160,6 +170,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <VercelAnalyticsGate />
             <AnnouncementModal />
           </CookieConsentProvider>
+          </PremiumTierProvider>
           </PremiumSkinProvider>
         </LocaleProvider>
       </body>
