@@ -8,7 +8,7 @@ type ShoeImageProps = {
   src?: string | null;
   alt: string;
   fallbackLabel: string;
-  variant?: "thumbnail" | "detail" | "suggestion" | "compare";
+  variant?: "thumbnail" | "detail" | "suggestion" | "compare" | "closet";
   className?: string;
   /** When inside a `.group` (e.g. a card), gently zooms the image on hover/press. */
   interactive?: boolean;
@@ -27,14 +27,18 @@ const VARIANT_CLASS: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
   thumbnail: "aspect-square w-14 min-w-14",
   detail: "aspect-square w-full max-w-[30rem]",
   suggestion: "aspect-square w-16 min-w-16",
-  compare: "aspect-square w-full max-w-[13rem]"
+  compare: "aspect-square w-full max-w-[13rem]",
+  // Closet grid/rail cells: fill the host `.pui-cell-stage` (callers size the
+  // box via `pui-cell-img`), so no fixed clamp here.
+  closet: "aspect-square w-full"
 };
 
 const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
   thumbnail: 1.12,
   detail: 1.1,
   suggestion: 1.1,
-  compare: 1.08
+  compare: 1.08,
+  closet: 1.02
 };
 
 // Rendered size hints so the optimizer serves appropriately small variants —
@@ -44,7 +48,10 @@ const VARIANT_SIZES: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
   thumbnail: "56px",
   suggestion: "64px",
   compare: "(max-width: 767px) 45vw, 208px",
-  detail: "(max-width: 767px) 100vw, 480px"
+  detail: "(max-width: 767px) 100vw, 480px",
+  // 2-col mobile ≈ 46vw, 3-col ≈ 31vw, 4-col desktop ≈ 260px; Next adds the
+  // retina widths to the srcset. Serving a 56px thumbnail here read as blurry.
+  closet: "(max-width: 640px) 46vw, (max-width: 1024px) 31vw, 260px"
 };
 
 // Only route sources through the Next image optimizer when they match the

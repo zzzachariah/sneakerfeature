@@ -64,7 +64,7 @@ export function ShelfCell({
       src={shoe.image_url ?? undefined}
       alt={`${shoe.brand} ${shoe.shoe_name}`}
       fallbackLabel={shoe.shoe_name}
-      variant="thumbnail"
+      variant="closet"
       stage={variant === "standard"}
       className="pui-cell-img"
     />
