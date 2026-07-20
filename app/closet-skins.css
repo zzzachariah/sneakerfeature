@@ -1,0 +1,605 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHOE CLOSET — the display hall
+   Loaded after premium-skins.css. This file owns the closet's structural
+   skeleton (wall grid, shelf cell, wear meter, analytics) for the STANDARD
+   render, then rebuilds each cell as a different physical object per skin:
+     • editorial  — a wooden sample-rack bay (warm paper, bronze plate, stamp)
+     • instrument — a floating glass pod (cyan rim, LED meter, HUD readouts)
+     • gallery    — a museum pedestal (near-black plinth, spotlight, hairline)
+     • arena      — a locker stall (brushed metal, number plate, stat bar)
+   Everything is scoped so the standard closet (no data-premium) is a clean,
+   self-consistent card grid, and the per-skin blocks only add material.
+   Text color (--text) is never overridden; grounds follow the theme.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Wall grid + summary strip (shared skeleton) ───────────────────────────── */
+.pui-closet-wall {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+@media (min-width: 640px) { .pui-closet-wall { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; } }
+@media (min-width: 1024px) { .pui-closet-wall { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.pui-closet-wall > li { min-width: 0; list-style: none; }
+.pui-closet-wall.is-retired { opacity: 0.9; }
+
+.pui-closet-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+}
+.pui-closet-stat { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.pui-closet-stat-v { font-size: 1.15rem; line-height: 1.1; font-weight: 700; }
+.pui-closet-stat-k { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: rgb(var(--subtext)); }
+@media (max-width: 380px) { .pui-closet-stat-v { font-size: 1rem; } .pui-closet-stat-k { font-size: 0.56rem; } }
+
+.pui-closet-add {
+  border: 1px solid rgb(var(--brand) / 0.5);
+  background: rgb(var(--brand) / 0.1);
+  color: rgb(var(--text));
+}
+.pui-closet-add:hover { background: rgb(var(--brand) / 0.16); }
+
+/* ── Shelf cell — standard skeleton ────────────────────────────────────────── */
+.pui-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 14px;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  background: rgb(var(--surface) / 0.6);
+  overflow: hidden;
+  transition: transform var(--dur-base, 240ms) var(--ease), border-color var(--dur-base, 240ms) var(--ease),
+    box-shadow var(--dur-base, 240ms) var(--ease);
+}
+@media (hover: hover) { .pui-cell:hover { transform: translateY(-3px); border-color: rgb(var(--text) / 0.28); } }
+.pui-cell.is-retired { opacity: 0.62; filter: saturate(0.6); }
+.pui-cell.is-retired:hover { opacity: 0.85; }
+
+.pui-cell-stage {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  background: radial-gradient(78% 68% at 50% 34%, rgb(var(--shoe-stage-hi, 252 252 254)), rgb(var(--shoe-stage-lo, 235 235 240)) 82%);
+}
+.pui-cell-img { width: 92%; }
+.pui-cell-body { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.7rem 0.8rem 0.85rem; flex: 1; }
+.pui-cell-id { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
+.pui-cell-brand { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(var(--subtext)); }
+.pui-cell-name { font-size: 0.9rem; font-weight: 600; line-height: 1.25; color: rgb(var(--text)); }
+.pui-cell-size {
+  align-self: flex-start;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgb(var(--muted) / 0.5);
+  font-size: 0.62rem;
+  color: rgb(var(--subtext));
+  font-variant-numeric: tabular-nums;
+}
+.pui-cell-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.74rem;
+  color: rgb(var(--subtext));
+}
+.pui-cell-nudge {
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: rgb(var(--error));
+}
+.pui-cell-actions { display: flex; align-items: center; gap: 0.4rem; margin-top: auto; padding-top: 0.15rem; }
+.pui-cell-log {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  padding: 0.45rem 0.6rem;
+  border-radius: 9px;
+  border: 1px solid rgb(var(--brand) / 0.4);
+  background: rgb(var(--brand) / 0.1);
+  color: rgb(var(--text));
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur-base, 240ms) var(--ease);
+}
+.pui-cell-log span { white-space: nowrap; }
+.pui-cell-log:hover { background: rgb(var(--brand) / 0.18); }
+.pui-cell-log:active { transform: scale(0.97); }
+.pui-cell-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9px;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  color: rgb(var(--subtext));
+  transition: color var(--dur-base, 240ms) var(--ease), border-color var(--dur-base, 240ms) var(--ease);
+}
+.pui-cell-more:hover { color: rgb(var(--text)); border-color: rgb(var(--text) / 0.4); }
+.pui-cell-retired-note { flex: 1; font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(var(--subtext)); }
+
+/* Rail cells (home + horizontal scroller) drop the actions/meter chrome down. */
+.pui-cell--rail { transition: transform var(--dur-base, 240ms) var(--ease); }
+.pui-cell--rail .pui-cell-stage { aspect-ratio: 5 / 4; }
+.pui-cell--rail .pui-cell-body { gap: 0.4rem; padding: 0.55rem 0.65rem 0.7rem; }
+
+/* ── Wear meter — standard skeleton ────────────────────────────────────────── */
+.pui-meter { display: flex; align-items: center; gap: 0.5rem; }
+.pui-meter-track {
+  position: relative;
+  flex: 1;
+  height: 5px;
+  border-radius: 999px;
+  background: rgb(var(--text) / 0.1);
+  overflow: hidden;
+}
+.pui-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: rgb(var(--brand));
+  transition: width 900ms var(--ease);
+}
+.pui-meter-pct, .pui-meter-chip { font-size: 0.68rem; color: rgb(var(--subtext)); font-variant-numeric: tabular-nums; }
+/* Status tints — the fill warms as the midsole cooks. */
+.pui-meter[data-status="aging"] .pui-meter-fill { background: #e0a44a; }
+.pui-meter[data-status="retire"] .pui-meter-fill { background: rgb(var(--error)); }
+
+/* ── Analytics (shared) ────────────────────────────────────────────────────── */
+.pui-closet-panel { border: 1px solid rgb(var(--glass-stroke-soft) / 0.4); background: rgb(var(--surface) / 0.5); border-radius: 16px; }
+.pui-closet-bar {
+  width: 100%;
+  max-width: 2.2rem;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, rgb(var(--brand)), rgb(var(--brand) / 0.55));
+  transition: height 800ms var(--ease);
+}
+.pui-closet-rankfill { background: rgb(var(--brand)); transition: width 800ms var(--ease); }
+
+/* Rail heading (premium homes) */
+.pui-closet-rail-title { font-family: var(--pui-display); font-size: 1rem; letter-spacing: var(--pui-display-tracking); color: rgb(var(--text)); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITORIAL (Sapphire) — the wooden sample rack
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="sapphire"] .pui-cell--editorial {
+  border-radius: 4px;
+  border: 1px solid rgb(var(--pui-accent-ink) / 0.28);
+  background:
+    linear-gradient(180deg, rgb(var(--pui-ed-paper) / 0.5), transparent 40%),
+    rgb(var(--surface) / 0.7);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.3);
+}
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-stage {
+  aspect-ratio: 4 / 3;
+  background: radial-gradient(80% 70% at 50% 30%, rgb(var(--pui-ed-paper)), rgb(var(--pui-ed-paper) / 0.6) 85%);
+  border-bottom: 1px solid rgb(var(--pui-accent-ink) / 0.22);
+}
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-brand { font-family: var(--pui-cjk); font-style: italic; letter-spacing: 0.06em; text-transform: none; color: rgb(var(--pui-accent-ink)); }
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-name { font-family: var(--pui-display); font-weight: 700; }
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-log {
+  border-radius: 2px;
+  border-color: rgb(var(--pui-accent-ink) / 0.4);
+  background: rgb(var(--pui-accent-ink) / 0.08);
+}
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-more { border-radius: 2px; }
+/* Ink "mileage" rule */
+html[data-premium="sapphire"] .pui-meter--editorial { flex-direction: column; align-items: stretch; gap: 0.25rem; }
+html[data-premium="sapphire"] .pui-meter--editorial .pui-meter-cap { font-family: var(--pui-cjk); font-style: italic; font-size: 0.66rem; color: rgb(var(--pui-accent-ink)); }
+html[data-premium="sapphire"] .pui-meter--editorial .pui-meter-track { height: 2px; background: rgb(var(--pui-accent-ink) / 0.18); border-radius: 0; }
+html[data-premium="sapphire"] .pui-meter--editorial .pui-meter-fill { background: rgb(var(--pui-ed-ink)); border-radius: 0; }
+html[data-premium="sapphire"] .pui-meter--editorial .pui-meter-pct { display: none; }
+/* Rotated ink stamp for retirement */
+.pui-cell-stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+  padding: 0.2rem 0.7rem;
+  border: 2px solid rgb(var(--error) / 0.7);
+  border-radius: 3px;
+  color: rgb(var(--error) / 0.85);
+  font-family: var(--pui-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgb(var(--pui-ed-paper) / 0.4);
+  pointer-events: none;
+}
+.pui-cell-stamp.is-final { color: rgb(var(--subtext)); border-color: rgb(var(--subtext) / 0.6); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INSTRUMENT (Aurora) — the floating glass pod
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="aurora"] .pui-cell--instrument {
+  border-radius: 18px;
+  border: 1px solid rgb(var(--pui-glow) / 0.3);
+  background: linear-gradient(180deg, rgb(var(--pui-glow) / 0.05), rgb(var(--surface) / 0.65));
+  box-shadow: 0 0 0 1px rgb(var(--pui-glow-2) / 0.08), 0 16px 40px -26px rgb(var(--pui-glow) / 0.5);
+}
+@media (hover: hover) {
+  html[data-premium="aurora"] .pui-cell--instrument:hover {
+    border-color: rgb(var(--pui-glow) / 0.55);
+    box-shadow: 0 0 0 1px rgb(var(--pui-glow-2) / 0.14), 0 20px 44px -22px rgb(var(--pui-glow) / 0.6);
+  }
+}
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-stage {
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgb(var(--pui-glow) / 0.04) 3px, rgb(var(--pui-glow) / 0.04) 4px),
+    radial-gradient(70% 60% at 50% 40%, rgb(var(--pui-glow) / 0.1), transparent 75%),
+    rgb(var(--bg-elev) / 0.5);
+}
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-name,
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-stats { font-variant-numeric: tabular-nums; }
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-log {
+  border-radius: 12px;
+  border-color: rgb(var(--pui-glow) / 0.4);
+  background: rgb(var(--pui-glow) / 0.1);
+}
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-more { border-radius: 12px; }
+/* Status lamp + corner brackets */
+.pui-cell-lamp {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  z-index: 2;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgb(var(--pui-glow));
+  box-shadow: 0 0 8px 1px rgb(var(--pui-glow) / 0.7);
+}
+.pui-cell-lamp[data-status="aging"] { background: #ffca4a; box-shadow: 0 0 8px 1px rgb(255 202 74 / 0.7); }
+.pui-cell-lamp[data-status="retire"] { background: rgb(var(--error)); box-shadow: 0 0 8px 1px rgb(var(--error) / 0.7); animation: puiPulse 1.6s var(--ease) infinite; }
+.pui-cell-brackets {
+  position: absolute;
+  inset: 0.4rem;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgb(var(--pui-glow) / 0.5), rgb(var(--pui-glow) / 0.5)) 0 0 / 12px 1px no-repeat,
+    linear-gradient(rgb(var(--pui-glow) / 0.5), rgb(var(--pui-glow) / 0.5)) 0 0 / 1px 12px no-repeat,
+    linear-gradient(rgb(var(--pui-glow) / 0.5), rgb(var(--pui-glow) / 0.5)) 100% 100% / 12px 1px no-repeat,
+    linear-gradient(rgb(var(--pui-glow) / 0.5), rgb(var(--pui-glow) / 0.5)) 100% 100% / 1px 12px no-repeat;
+}
+@keyframes puiPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) { .pui-cell-lamp { animation: none !important; } }
+/* LED meter */
+.pui-meter--instrument { gap: 0.5rem; }
+.pui-meter-leds { display: flex; gap: 2px; flex: 1; }
+.pui-meter-led {
+  flex: 1;
+  height: 8px;
+  border-radius: 1px;
+  background: rgb(var(--text) / 0.1);
+  transition: background 240ms var(--ease), box-shadow 240ms var(--ease);
+}
+.pui-meter-led.is-lit { background: rgb(var(--pui-glow)); box-shadow: 0 0 5px rgb(var(--pui-glow) / 0.7); }
+.pui-meter--instrument[data-status="aging"] .pui-meter-led.is-lit { background: #ffca4a; box-shadow: 0 0 5px rgb(255 202 74 / 0.7); }
+.pui-meter--instrument[data-status="retire"] .pui-meter-led.is-lit { background: rgb(var(--error)); box-shadow: 0 0 5px rgb(var(--error) / 0.7); }
+.pui-meter-read { font-size: 0.66rem; color: rgb(var(--subtext)); font-variant-numeric: tabular-nums; font-family: var(--font-geist-mono, monospace); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GALLERY (Obsidian) — the museum pedestal
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="obsidian"] .pui-cell--gallery {
+  border-radius: 2px;
+  border: 1px solid rgb(var(--pui-platinum) / 0.18);
+  background: rgb(var(--surface) / 0.5);
+}
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-stage {
+  aspect-ratio: 1 / 1;
+  background: radial-gradient(60% 50% at 50% 22%, rgb(var(--pui-platinum) / 0.12), transparent 72%), rgb(var(--bg) / 0.7);
+}
+/* Spotlight cone */
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-stage::before {
+  content: "";
+  position: absolute;
+  top: -12%;
+  left: 50%;
+  width: 62%;
+  height: 78%;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, rgb(var(--pui-platinum) / 0.16), transparent 78%);
+  clip-path: polygon(38% 0, 62% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-body {
+  border-top: 1px solid rgb(var(--pui-platinum) / 0.14);
+}
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-brand,
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-name { letter-spacing: 0.08em; font-weight: 300; }
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-log {
+  border-radius: 2px;
+  border-color: rgb(var(--pui-platinum) / 0.3);
+  background: transparent;
+  letter-spacing: 0.08em;
+}
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-more { border-radius: 2px; }
+/* Engraved plaque number */
+.pui-cell-no {
+  position: absolute;
+  top: 0.6rem;
+  left: 0.7rem;
+  z-index: 2;
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(var(--pui-platinum) / 0.7);
+  font-variant-numeric: tabular-nums;
+}
+/* Hairline meter with a platinum dot */
+.pui-meter--gallery { gap: 0.6rem; }
+.pui-meter-hairline { position: relative; flex: 1; height: 1px; background: rgb(var(--pui-platinum) / 0.3); }
+.pui-meter-dot {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--pui-platinum));
+  transform: translate(-50%, -50%);
+  transition: left 900ms var(--ease);
+  box-shadow: 0 0 6px rgb(var(--pui-platinum) / 0.5);
+}
+.pui-meter--gallery[data-status="retire"] .pui-meter-dot { background: rgb(var(--error)); box-shadow: 0 0 6px rgb(var(--error) / 0.5); }
+.pui-meter-fig { font-size: 0.66rem; font-weight: 300; letter-spacing: 0.06em; color: rgb(var(--subtext)); font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARENA (Champion) — the locker stall
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="champion"] .pui-cell--arena {
+  border-radius: 6px;
+  border: 1px solid rgb(var(--pui-gold) / 0.35);
+  background:
+    repeating-linear-gradient(90deg, transparent, transparent 5px, rgb(255 255 255 / 0.015) 5px, rgb(255 255 255 / 0.015) 6px),
+    linear-gradient(180deg, rgb(var(--pui-gold) / 0.05), rgb(var(--surface) / 0.7));
+}
+@media (hover: hover) { html[data-premium="champion"] .pui-cell--arena:hover { border-color: rgb(var(--pui-gold) / 0.6); } }
+html[data-premium="champion"] .pui-cell--arena .pui-cell-stage {
+  background: radial-gradient(70% 60% at 50% 34%, rgb(var(--shoe-stage-hi, 252 252 254)), rgb(var(--shoe-stage-lo, 235 235 240)) 82%);
+  border-bottom: 2px solid rgb(var(--pui-gold) / 0.4);
+}
+html[data-premium="champion"] .pui-cell--arena .pui-cell-brand { font-family: var(--pui-label); letter-spacing: 0.18em; }
+html[data-premium="champion"] .pui-cell--arena .pui-cell-name { font-family: var(--pui-display); text-transform: uppercase; letter-spacing: 0.02em; }
+html[data-premium="champion"] .pui-cell--arena .pui-cell-log {
+  border-color: rgb(var(--pui-gold) / 0.5);
+  background: rgb(var(--pui-gold) / 0.12);
+  font-family: var(--pui-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+/* Gold number plate, vent slits via border, broadcast RETIRE flash */
+.pui-cell-plate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0 0 6px 0;
+  background: linear-gradient(135deg, rgb(var(--pui-gold)), rgb(var(--pui-gold) / 0.7));
+  color: #1a1305;
+  font-family: var(--pui-display);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.pui-cell-flash {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  padding: 0.2rem 0.7rem;
+  border-radius: 3px;
+  background: rgb(var(--error));
+  color: #fff;
+  font-family: var(--pui-label, sans-serif);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgb(var(--error) / 0.4);
+  animation: puiFlash 1.4s var(--ease) infinite;
+}
+@keyframes puiFlash { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .pui-cell-flash { animation: none; } }
+/* Broadcast stat bar */
+html[data-premium="champion"] .pui-meter--arena .pui-meter-track { height: 7px; border-radius: 2px; background: rgb(0 0 0 / 0.35); }
+html[data-premium="champion"] .pui-meter--arena .pui-meter-fill {
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgb(var(--pui-gold) / 0.7), rgb(var(--pui-gold)));
+}
+html[data-premium="champion"] .pui-meter--arena[data-status="retire"] .pui-meter-fill { background: linear-gradient(90deg, rgb(var(--error) / 0.7), rgb(var(--error))); }
+.pui-meter-chip {
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  background: rgb(26 18 6);
+  border: 1px solid rgb(var(--pui-gold) / 0.7);
+  color: rgb(250 247 240);
+  font-family: var(--pui-label, sans-serif);
+  font-weight: 700;
+  font-size: 0.62rem;
+}
+
+/* ── Analytics per-skin fills ──────────────────────────────────────────────── */
+html[data-premium="aurora"] .pui-closet-bar { background: linear-gradient(180deg, rgb(var(--pui-glow)), rgb(var(--pui-glow) / 0.4)); box-shadow: 0 0 12px -2px rgb(var(--pui-glow) / 0.5); }
+html[data-premium="champion"] .pui-closet-bar { background: linear-gradient(180deg, rgb(var(--pui-gold)), rgb(var(--pui-gold) / 0.5)); }
+html[data-premium="obsidian"] .pui-closet-bar { background: linear-gradient(180deg, rgb(var(--pui-platinum) / 0.8), rgb(var(--pui-platinum) / 0.3)); border-radius: 1px; }
+html[data-premium="sapphire"] .pui-closet-bar { background: linear-gradient(180deg, rgb(var(--pui-ed-ink)), rgb(var(--pui-ed-ink) / 0.5)); border-radius: 2px; }
+html[data-premium="aurora"] .pui-closet-rankfill { background: rgb(var(--pui-glow)); }
+html[data-premium="champion"] .pui-closet-rankfill { background: rgb(var(--pui-gold)); }
+html[data-premium="obsidian"] .pui-closet-rankfill { background: rgb(var(--pui-platinum)); }
+html[data-premium="sapphire"] .pui-closet-rankfill { background: rgb(var(--pui-ed-ink)); }
+
+/* ── Injury deep questionnaire (persona modal) — per skin ──────────────────── */
+.pui-inj-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.pui-inj-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--muted) / 0.55);
+  background: rgb(var(--bg-elev) / 0.4);
+  color: rgb(var(--subtext));
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: left;
+  transition: border-color 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
+}
+.pui-inj-chip.is-on { border-color: rgb(var(--brand) / 0.6); background: rgb(var(--brand) / 0.12); color: rgb(var(--text)); }
+.pui-inj-chip .pui-inj-name { min-width: 0; }
+.pui-inj-mark { font-size: 0.85rem; color: rgb(var(--brand)); }
+.pui-inj-tag { margin-left: auto; font-size: 0.56rem; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(var(--pui-accent-ink, var(--brand))); }
+.pui-inj-title { font-family: var(--pui-display); }
+
+/* Editorial injuries — paper checklist with serif entries */
+html[data-premium="sapphire"] .pui-inj-chip { border-radius: 2px; border-color: rgb(var(--pui-accent-ink) / 0.3); }
+html[data-premium="sapphire"] .pui-inj-chip.is-on { border-color: rgb(var(--pui-accent-ink) / 0.55); background: rgb(var(--pui-accent-ink) / 0.08); }
+html[data-premium="sapphire"] .pui-inj-chip .pui-inj-name { font-family: var(--pui-cjk); }
+
+/* Instrument injuries — console rows with status lamps + [ARMED] readouts */
+.pui-inj-panel { display: flex; flex-direction: column; gap: 0.35rem; }
+.pui-inj-panel .pui-inj-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--pui-glow) / 0.25);
+  background: rgb(var(--pui-glow) / 0.04);
+  color: rgb(var(--subtext));
+  font-size: 0.82rem;
+  text-align: left;
+  transition: border-color 200ms var(--ease), background 200ms var(--ease), color 200ms var(--ease);
+}
+.pui-inj-panel .pui-inj-row.is-on { border-color: rgb(var(--pui-glow) / 0.6); background: rgb(var(--pui-glow) / 0.1); color: rgb(var(--text)); }
+.pui-inj-panel .pui-inj-lamp { width: 8px; height: 8px; border-radius: 999px; background: rgb(var(--text) / 0.2); transition: background 200ms var(--ease), box-shadow 200ms var(--ease); }
+.pui-inj-panel .pui-inj-row.is-on .pui-inj-lamp { background: rgb(var(--pui-glow)); box-shadow: 0 0 8px 1px rgb(var(--pui-glow) / 0.7); }
+.pui-inj-panel .pui-inj-name { flex: 1; min-width: 0; }
+.pui-inj-panel .pui-inj-read { font-family: var(--font-geist-mono, monospace); font-size: 0.66rem; letter-spacing: 0.05em; color: rgb(var(--pui-glow)); }
+
+/* Gallery injuries — numbered hairline index */
+.pui-inj-list { display: flex; flex-direction: column; }
+.pui-inj-list .pui-inj-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.2rem;
+  border-bottom: 1px solid rgb(var(--pui-platinum) / 0.14);
+  color: rgb(var(--subtext));
+  font-size: 0.85rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  text-align: left;
+  transition: color 200ms var(--ease);
+}
+.pui-inj-list .pui-inj-row.is-on { color: rgb(var(--text)); }
+.pui-inj-list .pui-inj-idx { font-size: 0.62rem; letter-spacing: 0.16em; color: rgb(var(--pui-platinum) / 0.7); font-variant-numeric: tabular-nums; }
+.pui-inj-list .pui-inj-name { flex: 1; min-width: 0; }
+.pui-inj-list .pui-inj-dot { width: 7px; height: 7px; border-radius: 999px; border: 1px solid rgb(var(--pui-platinum) / 0.5); transition: background 200ms var(--ease); }
+.pui-inj-list .pui-inj-row.is-on .pui-inj-dot { background: rgb(var(--pui-platinum)); }
+
+/* Arena injuries — gold badge chips */
+html[data-premium="champion"] .pui-inj-chip { border-radius: 6px; border-color: rgb(var(--pui-gold) / 0.35); }
+html[data-premium="champion"] .pui-inj-chip.is-on { border-color: rgb(var(--pui-gold) / 0.6); background: rgb(var(--pui-gold) / 0.14); }
+html[data-premium="champion"] .pui-inj-chip .pui-inj-name { font-family: var(--pui-label); text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.74rem; }
+html[data-premium="champion"] .pui-inj-tag { color: #1a1305; background: rgb(var(--pui-gold)); padding: 0.05rem 0.3rem; border-radius: 3px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AI ADVISOR — the conversation surface
+   Base bubble skeleton for the standard render, then a per-skin voice for each
+   material (paper note / glass pod / museum caption / broadcast lower-third).
+   Themes to --brand (the member's skin accent) throughout.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.pui-adv-scroll { scroll-padding-bottom: 1rem; }
+.pui-adv-bubble { position: relative; }
+.pui-adv-bubble--user {
+  background: rgb(var(--brand) / 0.14);
+  border: 1px solid rgb(var(--brand) / 0.28);
+  color: rgb(var(--text));
+  border-bottom-right-radius: 6px;
+}
+.pui-adv-bubble--bot {
+  background: rgb(var(--surface) / 0.75);
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  color: rgb(var(--text));
+  border-bottom-left-radius: 6px;
+}
+.pui-adv-composer { transition: border-color 200ms var(--ease), box-shadow 200ms var(--ease); }
+.pui-adv-composer:focus-within { border-color: rgb(var(--brand) / 0.55); box-shadow: 0 0 0 3px rgb(var(--brand) / 0.12); }
+.pui-adv-suggestion { transition: border-color 200ms var(--ease), background 200ms var(--ease), transform 200ms var(--ease); }
+.pui-adv-suggestion:active { transform: scale(0.98); }
+
+/* Typing indicator */
+.pui-adv-typing { height: 1rem; }
+.pui-adv-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgb(var(--brand));
+  opacity: 0.5;
+  animation: puiTyping 1.2s var(--ease) infinite;
+}
+.pui-adv-typing span:nth-child(2) { animation-delay: 0.18s; }
+.pui-adv-typing span:nth-child(3) { animation-delay: 0.36s; }
+@keyframes puiTyping { 0%, 60%, 100% { opacity: 0.3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .pui-adv-typing span { animation: none; } }
+
+/* Editorial — the concierge writes on letterpress cards */
+html[data-premium="sapphire"] .pui-adv--editorial .pui-adv-bubble--bot {
+  border-radius: 4px;
+  border-bottom-left-radius: 4px;
+  background: linear-gradient(180deg, rgb(var(--pui-ed-paper) / 0.45), transparent 60%), rgb(var(--surface) / 0.8);
+  border-color: rgb(var(--pui-accent-ink) / 0.28);
+  font-family: var(--pui-cjk);
+}
+html[data-premium="sapphire"] .pui-adv--editorial .pui-adv-bubble--user { border-radius: 4px; border-bottom-right-radius: 4px; }
+
+/* Instrument — glass pods with a cyan rim */
+html[data-premium="aurora"] .pui-adv--instrument .pui-adv-bubble--bot {
+  border-radius: 16px;
+  border-bottom-left-radius: 6px;
+  border-color: rgb(var(--pui-glow) / 0.3);
+  box-shadow: 0 0 0 1px rgb(var(--pui-glow-2) / 0.06), 0 10px 26px -20px rgb(var(--pui-glow) / 0.5);
+}
+html[data-premium="aurora"] .pui-adv--instrument .pui-adv-bubble--user { border-radius: 16px; border-bottom-right-radius: 6px; }
+
+/* Gallery — quiet captions, hairline frame */
+html[data-premium="obsidian"] .pui-adv--gallery .pui-adv-bubble--bot {
+  border-radius: 2px;
+  border-bottom-left-radius: 2px;
+  border-color: rgb(var(--pui-platinum) / 0.2);
+  background: rgb(var(--surface) / 0.55);
+  font-weight: 300;
+}
+html[data-premium="obsidian"] .pui-adv--gallery .pui-adv-bubble--user { border-radius: 2px; border-bottom-right-radius: 2px; }
+
+/* Arena — broadcast lower-thirds */
+html[data-premium="champion"] .pui-adv--arena .pui-adv-bubble--bot {
+  border-radius: 6px;
+  border-bottom-left-radius: 2px;
+  border-left: 3px solid rgb(var(--pui-gold) / 0.6);
+}
+html[data-premium="champion"] .pui-adv--arena .pui-adv-bubble--user {
+  border-radius: 6px;
+  border-bottom-right-radius: 2px;
+  background: rgb(var(--pui-gold) / 0.14);
+  border-color: rgb(var(--pui-gold) / 0.4);
+}

@@ -199,9 +199,21 @@ function languageDirective(input: string): string {
     : "【Language】Think and answer ENTIRELY in the same language as the request above — your reasoning/thinking, reply, reason, pros, cons and title must all be in that language. Do NOT switch to Chinese just because these instructions happen to be written in Chinese.";
 }
 
+// Injury history from the Pro deep questionnaire — worded so the model treats
+// each flag as a protective requirement, not medical advice.
+const INJURY_ZH: Record<string, string> = {
+  ankle: "有崴脚史(需要包裹与支撑)",
+  knee: "膝盖有旧伤(需要缓震保护)",
+  achilles: "跟腱易紧张(需要后跟缓冲)",
+  plantar: "足底筋膜易劳损(需要足弓支撑与抗扭)"
+};
+
 function formatPersona(persona: Persona): string {
   const skill = SKILL_LABEL_ZH[persona.skill_level] ?? persona.skill_level;
-  return `位置=${persona.positions.join("/")}；水平=${skill}；扁平足=${persona.flat_foot ? "是" : "否"}；身高=${persona.height_cm}cm；体重=${persona.weight_kg}kg`;
+  const injuries = persona.injuries?.length
+    ? `；伤病史=${persona.injuries.map((k) => INJURY_ZH[k] ?? k).join("、")}`
+    : "";
+  return `位置=${persona.positions.join("/")}；水平=${skill}；扁平足=${persona.flat_foot ? "是" : "否"}；身高=${persona.height_cm}cm；体重=${persona.weight_kg}kg${injuries}`;
 }
 
 // Foot-shape profile from the Foot Scan tool — surfaced so the model can match

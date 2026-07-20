@@ -7,10 +7,17 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { useTranslatedText } from "@/components/i18n/use-translated-text";
 import { pickLocalized } from "@/components/i18n/localized-field";
 import { proxiedImageSrc } from "@/lib/card/proxy-image";
+import { computeVerdict, metricLabel } from "@/components/premium/compare/verdict-compute";
 import type { Shoe } from "@/lib/types";
 
 type Props = {
   shoes: Shoe[];
+  /** Member skin accent (a light-legible hex) applied to the verdict band and
+   *  winner highlight. null → free/no-skin: a neutral graphite verdict. */
+  accent?: string | null;
+  /** Free (non-member) export: tile a faint wordmark across the card. Members
+   *  get the clean, watermark-free version. */
+  watermark?: boolean;
 };
 
 function gridForCount(count: number): {
@@ -249,10 +256,11 @@ function ShoeCell({
   );
 }
 
-export function CompareCard({ shoes }: Props) {
+export function CompareCard({ shoes, accent = null, watermark = false }: Props) {
   const { translate } = useLocale();
   const safe = shoes.slice(0, 4);
   const grid = gridForCount(safe.length);
+  const verdict = computeVerdict(safe);
   // Pre-fetch translation for the title summary (no-op in en).
   const translatedHeadToHead = useTranslatedText("Head to Head", { contentType: "descriptive" });
   const translatedShoes = useTranslatedText("shoes", { contentType: "descriptive" });
@@ -264,10 +272,10 @@ export function CompareCard({ shoes }: Props) {
           flex: 1,
           minHeight: 0,
           display: "grid",
-          gridTemplateRows: "auto 1fr auto auto",
-          rowGap: 28,
-          paddingTop: 32,
-          paddingBottom: 28,
+          gridTemplateRows: "auto auto 1fr auto auto",
+          rowGap: 22,
+          paddingTop: 30,
+          paddingBottom: 26,
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -285,7 +293,7 @@ export function CompareCard({ shoes }: Props) {
           </span>
           <h1
             style={{
-              fontSize: 64,
+              fontSize: 58,
               fontWeight: 900,
               letterSpacing: "-0.045em",
               lineHeight: 0.95,
@@ -296,6 +304,8 @@ export function CompareCard({ shoes }: Props) {
             {safe.map((s) => s.shoe_name).join("  /  ")}
           </h1>
         </div>
+
+        <VerdictBand verdict={verdict} accent={accent} translate={translate} />
 
         <div
           style={{
@@ -326,10 +336,10 @@ export function CompareCard({ shoes }: Props) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            paddingTop: 8,
+            paddingTop: 4,
           }}
         >
-          <CardCompareRadar shoes={safe} size={420} />
+          <CardCompareRadar shoes={safe} size={380} />
         </div>
 
         <div
@@ -371,6 +381,131 @@ export function CompareCard({ shoes }: Props) {
           })}
         </div>
       </div>
+
+      {watermark ? <Watermark /> : null}
     </CardFrame>
+  );
+}
+
+// The verdict band — the compare page's conclusion, reused on the share card.
+// A left accent rule (member skin color, or graphite when free) leads into the
+// winner line and a top scenario, so the shared image carries a real takeaway,
+// not just a table.
+function VerdictBand({
+  verdict,
+  accent,
+  translate,
+}: {
+  verdict: ReturnType<typeof computeVerdict>;
+  accent: string | null;
+  translate: (s: string) => string;
+}) {
+  const bar = accent ?? "rgba(0,0,0,0.82)";
+  const winnerColor = accent ?? "rgb(var(--text))";
+  if (!verdict.ok) {
+    return <div style={{ height: 0 }} />;
+  }
+  const a0 = Math.round(verdict.averages[0].avg);
+  const a1 = Math.round(verdict.averages[1].avg);
+  const topScenario = verdict.scenarios[0];
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "stretch",
+        gap: 18,
+        padding: "16px 20px",
+        borderRadius: 16,
+        border: "1px solid rgba(0,0,0,0.08)",
+        background: accent
+          ? `linear-gradient(90deg, ${accent}14, rgba(255,255,255,0.5))`
+          : "rgba(255,255,255,0.6)",
+      }}
+    >
+      <div style={{ width: 4, borderRadius: 4, background: bar, flexShrink: 0 }} />
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minWidth: 0 }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace',
+            fontSize: 10,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.3em",
+            color: "rgba(0,0,0,0.5)",
+          }}
+        >
+          {translate("The verdict")}
+        </span>
+        <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.1, color: "rgb(var(--text))" }}>
+          {verdict.evenMatch ? (
+            translate("A dead heat.")
+          ) : (
+            <>
+              <span style={{ color: winnerColor }}>{verdict.averages[0].name}</span> {translate("takes it.")}
+            </>
+          )}
+        </span>
+        {topScenario ? (
+          <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(0,0,0,0.6)", letterSpacing: "-0.005em" }}>
+            {translate("Best for")} {translate(metricLabel(topScenario.metrics[0]))}: {topScenario.name}
+          </span>
+        ) : null}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+          <span style={{ fontSize: 34, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1, color: winnerColor }}>{a0}</span>
+          <span style={{ fontSize: 9, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.2em", color: "rgba(0,0,0,0.45)" }}>
+            {translate("avg score")}
+          </span>
+        </div>
+        <span style={{ fontSize: 18, fontWeight: 600, color: "rgba(0,0,0,0.3)" }}>vs</span>
+        <span style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1, color: "rgba(0,0,0,0.4)" }}>{a1}</span>
+      </div>
+    </div>
+  );
+}
+
+// Free-tier watermark: a faint diagonal lattice of the wordmark tiled across the
+// whole card. Rendered as real DOM so modern-screenshot rasterizes it into the
+// PNG. Members export without it.
+function Watermark() {
+  const rows = Array.from({ length: 9 });
+  const cols = Array.from({ length: 6 });
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 3,
+        pointerEvents: "none",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-around",
+        transform: "rotate(-24deg) scale(1.4)",
+        transformOrigin: "center",
+      }}
+    >
+      {rows.map((_, r) => (
+        <div key={r} style={{ display: "flex", justifyContent: "space-around", gap: 48 }}>
+          {cols.map((__, c) => (
+            <span
+              key={c}
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                letterSpacing: "0.06em",
+                whiteSpace: "nowrap",
+                color: "rgba(0,0,0,0.045)",
+              }}
+            >
+              snkrfeature.com
+            </span>
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }

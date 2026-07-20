@@ -21,6 +21,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { resolveCollection, topRated, type PremiumHomeProps } from "@/components/premium/home/shared";
 import type { Shoe } from "@/lib/types";
+import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
 
 // Count-up on mount for a single numeric readout (respects reduced motion).
 function useCountUp(target: number, ms = 850) {
@@ -135,6 +136,9 @@ export function InstrumentHome({ shoes, shoesCount, brandsCount, initialQuery, f
             ))}
           </div>
         </section>
+
+        {/* Rotation console — the member's own closet as a pod row */}
+        <ClosetHomeRail shoes={shoes} />
 
         {/* Datasets */}
         {collections.length > 0 && (

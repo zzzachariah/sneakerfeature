@@ -21,6 +21,8 @@ const FOOTER_ROUTES = [
   "/announcements",
   "/download",
   "/favorites",
+  "/closet",
+  "/advisor",
   "/search",
   "/for-you",
 ];

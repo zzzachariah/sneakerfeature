@@ -20,6 +20,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { topRated, type PremiumHomeProps } from "@/components/premium/home/shared";
 import type { Shoe } from "@/lib/types";
+import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
 
 function Plaque({ shoe, rank, priority }: { shoe: Shoe; rank: number; priority?: boolean }) {
   const { translate } = useLocale();
@@ -106,6 +107,9 @@ export function ArenaHome({ shoes, shoesCount, brandsCount, initialQuery, forYou
           </div>
           <ArenaLineup shoes={shoes} fallback={popular} />
         </section>
+
+        {/* The locker room — the member's own closet as locker stalls */}
+        <ClosetHomeRail shoes={shoes} />
 
         {/* Scout report */}
         <section className="container-shell pui-section">

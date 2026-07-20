@@ -7,6 +7,7 @@ import { HomeFeed } from "@/components/home/home-feed";
 import { HomeFeedHeader } from "@/components/home/home-feed-header";
 import { HomeCollections } from "@/components/home/home-collections";
 import { QuickPickerEntry } from "@/components/home/quick-picker-entry";
+import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
 import { HomeModeProvider } from "@/components/home/home-mode-context";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -50,6 +51,11 @@ export function HomeView({ shoes, shoesCount, brandsCount, initialQuery, forYou,
         </section>
         <QuickPickerEntry />
       </>
+    ),
+    closet: (
+      <section id="home-closet" style={{ scrollMarginTop: "var(--top-nav-h)" }}>
+        <ClosetHomeRail shoes={shoes} />
+      </section>
     ),
     collections:
       collections.length > 0 ? (

@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { personaSchema } from "@/lib/validation/schemas";
 import { isValidPersona } from "@/lib/persona/types";
+import { getMemberContext } from "@/lib/subscription/entitlements";
+import { isPaidTier } from "@/lib/subscription/tiers";
 
 function invalidateFeedViews() {
   revalidatePath("/", "layout");
@@ -75,9 +77,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Authentication required." }, { status: 401 });
   }
 
+  // The injury deep questionnaire is a paid-tier entitlement: strip it from
+  // free members' saves (rather than rejecting) so older clients and expired
+  // members can still update the base profile.
+  const persona = { ...parsed.data };
+  if (persona.injuries !== undefined) {
+    const member = await getMemberContext(user.id);
+    if (!isPaidTier(member.tier)) delete persona.injuries;
+  }
+
   const { error } = await supabase
     .from("profiles")
-    .update({ persona: parsed.data })
+    .update({ persona })
     .eq("id", user.id);
 
   if (error) {
@@ -85,7 +96,7 @@ export async function POST(request: Request) {
   }
 
   invalidateFeedViews();
-  return NextResponse.json({ ok: true, persona: parsed.data, message: "Profile saved." });
+  return NextResponse.json({ ok: true, persona, message: "Profile saved." });
 }
 
 export async function DELETE() {

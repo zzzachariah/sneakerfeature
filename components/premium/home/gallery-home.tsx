@@ -15,6 +15,7 @@ import { GalleryCatalogue } from "@/components/premium/home/gallery-catalogue";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { resolveCollection, type PremiumHomeProps } from "@/components/premium/home/shared";
+import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
 
 export function GalleryHome({ shoes, shoesCount, brandsCount, collections }: PremiumHomeProps) {
   const { translate } = useLocale();
@@ -38,6 +39,9 @@ export function GalleryHome({ shoes, shoesCount, brandsCount, collections }: Pre
           <span><span className="num-display">{brandsCount}</span> {translate("brands")}</span>
         </div>
       </section>
+
+      {/* The collection — the member's own closet on quiet pedestals */}
+      <ClosetHomeRail shoes={shoes} />
 
       {/* Catalogue */}
       <section id="home-catalogue" className="pui-section" style={{ scrollMarginTop: "var(--top-nav-h)" }}>

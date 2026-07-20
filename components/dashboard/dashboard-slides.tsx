@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Eye, EyeOff, MessageCircle, ThumbsUp, ThumbsDown, Trash2, UserCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle2, Eye, EyeOff, Heart, MessageCircle, ShoppingBag, ThumbsUp, ThumbsDown, Trash2, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -202,6 +202,42 @@ export function DashboardSlides(props: Props) {
             title={translate("Library")}
             description={translate("Your submissions and saved comparisons.")}
           />
+
+          {!signedOut && (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <Link
+                href={"/closet" as Route}
+                className="premium-hover-lift glass-lite group flex items-center justify-between gap-3 rounded-2xl p-4"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--brand))]">
+                    <ShoppingBag className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium">{translate("My closet")}</span>
+                    <span className="text-xs soft-text">{translate("Track wear, retirement and cost per run.")}</span>
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 soft-text transition group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+              <Link
+                href={"/favorites" as Route}
+                className="premium-hover-lift glass-lite group flex items-center justify-between gap-3 rounded-2xl p-4"
+              >
+                <span className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[rgb(var(--brand)/0.12)] text-[rgb(var(--brand))]">
+                    <Heart className="h-4 w-4" aria-hidden />
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-sm font-medium">{translate("Saved shoes")}</span>
+                    <span className="text-xs soft-text">{translate("The shelf of shoes you're considering.")}</span>
+                  </span>
+                </span>
+                <ArrowRight className="h-4 w-4 soft-text transition group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            </div>
+          )}
+
           <div className="mt-5 grid gap-6 lg:grid-cols-2">
             <section>
               <h3 className="text-sm font-semibold uppercase tracking-[0.18em] soft-text">
