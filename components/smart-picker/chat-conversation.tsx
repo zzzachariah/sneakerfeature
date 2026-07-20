@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ChevronDown, Download, History, Plus, Wallet } from "lucide-react";
+import { ChevronDown, Download, History, Plus, Sparkles, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { haptics } from "@/lib/native/haptics";
 import { DUR, EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { ProfileTip } from "@/components/smart-picker/profile-tip";
+import { PromptQuestionnaire } from "@/components/smart-picker/prompt-questionnaire";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
@@ -66,6 +67,7 @@ export function ChatConversation({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [questionnaireOpen, setQuestionnaireOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement | null>(null);
   // Prefill flows to the composer; suggestion chips on the empty state set it so
   // a fresh conversation has concrete starting points instead of a blank box.
@@ -210,6 +212,21 @@ export function ChatConversation({
                 ))}
               </div>
 
+              {/* Escape hatch for users who don't know what to type: a short,
+                  all-optional questionnaire that stitches their answers into a
+                  request and drops it into the composer to review and send. */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptics.selection();
+                  setQuestionnaireOpen(true);
+                }}
+                className="tap-44 mt-4 inline-flex items-center gap-2 rounded-full border border-[rgb(var(--brand)/0.45)] bg-[rgb(var(--brand)/0.08)] px-4 py-2.5 text-[0.82rem] font-semibold text-[rgb(var(--text))] transition hover:border-[rgb(var(--brand)/0.7)] hover:bg-[rgb(var(--brand)/0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+              >
+                <Sparkles className="h-4 w-4 text-[rgb(var(--brand))]" />
+                {locale === "zh" ? "不知道怎么描述？帮我生成" : "Not sure what to type? Build it for me"}
+              </button>
+
               {/* Collapsible hint: a saved player profile skips height/weight and
                   richer detail yields better picks. Collapses to a small pill. */}
               <ProfileTip />
@@ -290,6 +307,18 @@ export function ChatConversation({
         onSend={onSend}
         prefillText={prefill.text}
         prefillNonce={prefill.nonce}
+      />
+
+      <PromptQuestionnaire
+        open={questionnaireOpen}
+        onClose={() => setQuestionnaireOpen(false)}
+        onGenerate={(text) => {
+          setQuestionnaireOpen(false);
+          // Reuse the suggestion prefill path: fill the composer and bump the
+          // nonce so MessageInput re-applies it. The user reviews, edits if
+          // needed, and sends — flowing through the normal billed pipeline.
+          setPrefill((p) => ({ text, nonce: p.nonce + 1 }));
+        }}
       />
 
       <CardPreviewModal
