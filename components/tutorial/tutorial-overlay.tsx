@@ -42,6 +42,14 @@ export function TutorialOverlay() {
   // hides so the opened modal (e.g. the player profile) is unobstructed, until
   // they save (advance) or cancel (stop).
   const [awaitingModal, setAwaitingModal] = useState(false);
+  // Real measured card height (copy length + the language toggle / missing-target
+  // hint make it vary a lot) so placement math never overflows or overlaps —
+  // seeded with the estimate for the very first paint before measurement.
+  const [cardH, setCardH] = useState(CARD_H_EST);
+  // Top nav + bottom tab-bar footprints, resolved from CSS vars, so the card is
+  // never tucked under the sticky navbar or the floating mobile bottom nav.
+  const [insets, setInsets] = useState({ top: 0, bottom: 0 });
+  const cardRef = useRef<HTMLDivElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -98,17 +106,38 @@ export function TutorialOverlay() {
     };
   }, [active, awaitUserAction, next, stop]);
 
-  // Viewport tracking
+  // Viewport tracking (+ nav insets). The insets are read off a throwaway probe
+  // so the CSS `calc()`/`env()` in --top-nav-h / --mobile-nav-h resolve to real
+  // pixels (and correctly collapse to 0 for the bottom bar on desktop).
   useEffect(() => {
     if (!active) return;
+    const readInset = (name: string) => {
+      const probe = document.createElement("div");
+      probe.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;height:var(${name});`;
+      document.body.appendChild(probe);
+      const h = probe.getBoundingClientRect().height;
+      probe.remove();
+      return Number.isFinite(h) ? h : 0;
+    };
     const update = () => {
       setVw(window.innerWidth);
       setVh(window.innerHeight);
+      setInsets({ top: readInset("--top-nav-h"), bottom: readInset("--mobile-nav-h") });
     };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, [active]);
+
+  // Measure the real card height after each render that can change it (step,
+  // viewport, language, the missing-target hint). Guarded so the placement pass
+  // it feeds settles in one reflow instead of looping.
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const h = el.offsetHeight;
+    if (h > 0) setCardH((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+  }, [stepIndex, vw, vh, missingTarget, awaitingModal, locale]);
 
   // Continuous rAF rect tracking (handles slide transitions, layout shifts)
   useLayoutEffect(() => {
@@ -279,14 +308,22 @@ export function TutorialOverlay() {
   }, [hole, radius, step]);
 
   const cardPos = useMemo(() => {
+    // Vertical bounds keep the card between the sticky top nav and the bottom
+    // tab bar; horizontal keeps an 8px gutter. `topMax` is the largest valid top.
+    const topMin = 8 + insets.top;
+    const topMax = Math.max(topMin, vh - cardH - 8 - insets.bottom);
+    const leftMin = 8;
+    const leftMax = Math.max(leftMin, vw - CARD_W - 8);
+    const centered = {
+      left: clamp(vw / 2 - CARD_W / 2, leftMin, leftMax),
+      top: clamp(vh / 2 - cardH / 2, topMin, topMax),
+      placement: "center" as const
+    };
+
     if (!step) return { left: 0, top: 0, placement: "center" as const };
 
     if (!hole || step.placement === "center" || missingTarget) {
-      return {
-        left: clamp(vw / 2 - CARD_W / 2, 16, Math.max(16, vw - CARD_W - 16)),
-        top: clamp(vh / 2 - CARD_H_EST / 2, 16, Math.max(16, vh - CARD_H_EST - 16)),
-        placement: "center" as const
-      };
+      return centered;
     }
 
     const preferred = step.placement ?? "bottom";
@@ -299,17 +336,17 @@ export function TutorialOverlay() {
         top = hole.y + hole.h + CARD_GAP;
         left = hole.x + hole.w / 2 - CARD_W / 2;
       } else if (p === "top") {
-        top = hole.y - CARD_H_EST - CARD_GAP;
+        top = hole.y - cardH - CARD_GAP;
         left = hole.x + hole.w / 2 - CARD_W / 2;
       } else if (p === "right") {
         left = hole.x + hole.w + CARD_GAP;
-        top = hole.y + hole.h / 2 - CARD_H_EST / 2;
+        top = hole.y + hole.h / 2 - cardH / 2;
       } else {
         left = hole.x - CARD_W - CARD_GAP;
-        top = hole.y + hole.h / 2 - CARD_H_EST / 2;
+        top = hole.y + hole.h / 2 - cardH / 2;
       }
       const fits =
-        left >= 8 && top >= 8 && left + CARD_W <= vw - 8 && top + CARD_H_EST <= vh - 8;
+        left >= leftMin && top >= topMin && left + CARD_W <= vw - 8 && top + cardH <= vh - 8 - insets.bottom;
       return { left, top, fits };
     };
 
@@ -326,19 +363,15 @@ export function TutorialOverlay() {
       const r = tryPlace(p);
       if (r.fits) {
         return {
-          left: clamp(r.left, 8, Math.max(8, vw - CARD_W - 8)),
-          top: clamp(r.top, 8, Math.max(8, vh - CARD_H_EST - 8)),
+          left: clamp(r.left, leftMin, leftMax),
+          top: clamp(r.top, topMin, topMax),
           placement: p
         };
       }
     }
 
-    return {
-      left: clamp(vw / 2 - CARD_W / 2, 16, Math.max(16, vw - CARD_W - 16)),
-      top: clamp(vh / 2 - CARD_H_EST / 2, 16, Math.max(16, vh - CARD_H_EST - 16)),
-      placement: "center" as const
-    };
-  }, [hole, step, vw, vh, missingTarget]);
+    return centered;
+  }, [hole, step, vw, vh, missingTarget, cardH, insets]);
 
   if (!mounted || !active || !step) return null;
   // While the user fills in the handed-off modal, render nothing — the listeners
@@ -444,6 +477,7 @@ export function TutorialOverlay() {
           so the user-driven modal stays clear. */}
       <div
         key={step.id}
+        ref={cardRef}
         className="glass-card tutorial-card"
         style={{
           position: "fixed",

@@ -192,6 +192,7 @@ export function Navbar() {
                 aria-haspopup="menu"
                 aria-expanded={moreOpen}
                 aria-label={zh ? "更多" : "More"}
+                data-tutorial="nav-more"
               >
                 <MoreHorizontal className="h-[18px] w-[18px] md:h-4 md:w-4" />
               </button>
@@ -329,6 +330,7 @@ export function Navbar() {
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label={translate("Menu")}
+              data-tutorial="nav-menu"
             >
               <Menu className="h-[18px] w-[18px]" />
             </button>
