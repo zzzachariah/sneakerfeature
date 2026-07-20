@@ -16,9 +16,12 @@ import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { resolveCollection, type PremiumHomeProps } from "@/components/premium/home/shared";
 import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
+import { usePremiumTier } from "@/components/theme/premium-tier-context";
+import { MaxSignal } from "@/components/premium/page/premium-masthead";
 
 export function GalleryHome({ shoes, shoesCount, brandsCount, collections }: PremiumHomeProps) {
   const { translate } = useLocale();
+  const isMax = usePremiumTier() === "max";
   const [openScene, setOpenScene] = useState<string | null>(null);
 
   useNavScrollSections([
@@ -30,6 +33,7 @@ export function GalleryHome({ shoes, shoesCount, brandsCount, collections }: Pre
     <div className="has-mobile-nav-pad container-shell">
       {/* Masthead */}
       <section style={{ paddingTop: "clamp(2.75rem, 7vw, 5rem)" }}>
+        {isMax ? <div className="mb-4"><MaxSignal /></div> : null}
         <h1 className="pui-lede" style={{ fontSize: "clamp(1.55rem, 3.6vw, 2.6rem)", maxWidth: "20ch" }}>
           {translate("A considered catalogue of basketball sneakers.")}
         </h1>

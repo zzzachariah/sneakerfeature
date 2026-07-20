@@ -23,8 +23,9 @@ type Variant = Exclude<PremiumVariant, "standard">;
 // The Max signal — a small chip in the skin's Max accent (--brand is the Max half
 // of the skin once data-member-tier="max"), so every masthead that renders it
 // announces the Max edition of the page. Locale-free: "Max" is the tier name in
-// both languages (TIERS.max.nameZh === "Max").
-function MaxSignal() {
+// both languages (TIERS.max.nameZh === "Max"). Exported so the home layouts
+// (which use their own inline mastheads, not this component) share one chip.
+export function MaxSignal() {
   return (
     <span
       className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[0.5rem] font-bold uppercase tracking-[0.2em]"

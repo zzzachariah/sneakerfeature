@@ -22,6 +22,8 @@ import { usePersona } from "@/components/preferences/persona-provider";
 import { resolveCollection, topRated, type PremiumHomeProps } from "@/components/premium/home/shared";
 import type { Shoe } from "@/lib/types";
 import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
+import { usePremiumTier } from "@/components/theme/premium-tier-context";
+import { MaxSignal } from "@/components/premium/page/premium-masthead";
 
 // Count-up on mount for a single numeric readout (respects reduced motion).
 function useCountUp(target: number, ms = 850) {
@@ -61,6 +63,7 @@ function Readout({ k, value, format }: { k: string; value: number; format?: (n: 
 export function InstrumentHome({ shoes, shoesCount, brandsCount, initialQuery, forYou, collections }: PremiumHomeProps) {
   const { translate } = useLocale();
   const { persona } = usePersona();
+  const isMax = usePremiumTier() === "max";
   const [activeId, setActiveId] = useState(collections[0]?.id ?? "");
 
   useNavScrollSections([
@@ -91,7 +94,8 @@ export function InstrumentHome({ shoes, shoesCount, brandsCount, initialQuery, f
             <span className="v pui-mono">SNEAKERFEATURE</span>
             <span className="k">{translate("Decision instrument")}</span>
           </div>
-          <div className="ml-auto pui-hud-live">{translate("Live")}</div>
+          {isMax ? <span className="ml-auto"><MaxSignal /></span> : null}
+          <div className={`${isMax ? "" : "ml-auto "}pui-hud-live`}>{translate("Live")}</div>
         </div>
 
         {/* Command band: readouts · console · recommendations */}

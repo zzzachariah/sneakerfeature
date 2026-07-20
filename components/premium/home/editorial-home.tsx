@@ -21,6 +21,8 @@ import { usePersona } from "@/components/preferences/persona-provider";
 import { resolveCollection, topRated, type PremiumHomeProps } from "@/components/premium/home/shared";
 import type { Shoe } from "@/lib/types";
 import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
+import { usePremiumTier } from "@/components/theme/premium-tier-context";
+import { MaxSignal } from "@/components/premium/page/premium-masthead";
 
 function isoWeek(d: Date): number {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -33,6 +35,7 @@ function isoWeek(d: Date): number {
 export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, forYou, collections }: PremiumHomeProps) {
   const { translate } = useLocale();
   const { persona } = usePersona();
+  const isMax = usePremiumTier() === "max";
 
   useNavScrollSections([
     { id: "home-cover", label: translate("Cover") },
@@ -74,6 +77,7 @@ export function EditorialHome({ shoes, shoesCount, brandsCount, initialQuery, fo
             <span className="pui-ed-issue" suppressHydrationWarning>
               № {String(week).padStart(2, "0")} · {year}
             </span>
+            {isMax ? <MaxSignal /> : null}
           </div>
 
           {coverShoe && (

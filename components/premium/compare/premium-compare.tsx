@@ -16,11 +16,39 @@ import { PremiumDiff } from "@/components/premium/compare/premium-diff";
 import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { usePremiumTier } from "@/components/theme/premium-tier-context";
 import type { Props as CompareProps } from "@/components/compare/compare-slides";
 import type { PremiumVariant } from "@/components/premium/variants";
 
 const OFFSET = { scrollMarginTop: "var(--top-nav-h)" } as const;
 type LayoutProps = CompareProps & { variant: Exclude<PremiumVariant, "standard"> };
+
+// Max leads with the answer. Pro reads the skin's native order (the verdict sits
+// mid-page, after the lineup); Max hoists the synthesized verdict to the top as a
+// concierge call — the structural mirror of the detail page's analysis-first cut.
+// Rendered only when there's more than one shoe (nothing to adjudicate at one).
+function LeadVerdict({
+  variant,
+  shoes,
+  inShell = false,
+}: {
+  variant: Exclude<PremiumVariant, "standard">;
+  shoes: CompareProps["shoes"];
+  /** True when the caller already sits inside a .container-shell (instrument), so
+   *  we don't nest one and double the gutter. */
+  inShell?: boolean;
+}) {
+  const { translate } = useLocale();
+  return (
+    <section className={`${inShell ? "" : "container-shell "}pui-section-sm`}>
+      <p className="pui-kicker mb-4">
+        <span aria-hidden style={{ color: "rgb(var(--brand))" }}>❖ </span>
+        {translate("The verdict")}
+      </p>
+      <PremiumVerdict variant={variant} shoes={shoes} />
+    </section>
+  );
+}
 
 export function PremiumCompare(props: LayoutProps) {
   switch (props.variant) {
@@ -93,6 +121,7 @@ function EditorialCompare(props: LayoutProps) {
     { id: "compare-specs", label: translate("Specs") },
   ]);
   const multi = shoes.length > 1;
+  const isMax = usePremiumTier() === "max";
   return (
     <div className="has-mobile-nav-pad">
       <section className="container-shell pt-6">
@@ -101,12 +130,14 @@ function EditorialCompare(props: LayoutProps) {
         <ActionBar {...actionKeys(props)} />
       </section>
 
+      {isMax && multi ? <LeadVerdict variant="editorial" shoes={shoes} /> : null}
+
       <section id="compare-lineup" style={OFFSET} className="container-shell pui-section-sm">
         <PremiumPlinths variant="editorial" shoes={shoes} onRemove={onRemove} onAdd={onAdd} canAdd={canAdd} />
       </section>
 
       <section id="compare-profile" style={OFFSET} className="container-shell pui-section">
-        {multi ? (
+        {multi && !isMax ? (
           <>
             <p className="pui-kicker mb-6">{translate("The verdict")}</p>
             <div className="mb-12"><PremiumVerdict variant="editorial" shoes={shoes} /></div>
@@ -137,6 +168,7 @@ function InstrumentCompare(props: LayoutProps) {
     { id: "compare-specs", label: translate("Data") },
   ]);
   const multi = shoes.length > 1;
+  const isMax = usePremiumTier() === "max";
   return (
     <div className="has-mobile-nav-pad">
       <div className="container-shell">
@@ -148,11 +180,13 @@ function InstrumentCompare(props: LayoutProps) {
         </div>
         <ActionBar className="mt-4" {...actionKeys(props)} />
 
+        {isMax && multi ? <LeadVerdict variant="instrument" shoes={shoes} inShell /> : null}
+
         <section id="compare-lineup" style={OFFSET} className="pui-section-sm">
           <PremiumPlinths variant="instrument" shoes={shoes} onRemove={onRemove} onAdd={onAdd} canAdd={canAdd} />
         </section>
 
-        {multi ? (
+        {multi && !isMax ? (
           <section className="pui-section-sm">
             <span className="pui-panel-tag mb-2 inline-block">{translate("Readout")}</span>
             <PremiumVerdict variant="instrument" shoes={shoes} />
@@ -184,6 +218,7 @@ function GalleryCompare(props: LayoutProps) {
     { id: "compare-profile", label: translate("Profile") },
   ]);
   const multi = shoes.length > 1;
+  const isMax = usePremiumTier() === "max";
   return (
     <div className="has-mobile-nav-pad">
       <section className="container-shell pt-10">
@@ -191,11 +226,13 @@ function GalleryCompare(props: LayoutProps) {
         <ActionBar className="mt-5" {...actionKeys(props)} />
       </section>
 
+      {isMax && multi ? <LeadVerdict variant="gallery" shoes={shoes} /> : null}
+
       <section id="compare-lineup" style={OFFSET} className="container-shell pui-section">
         <PremiumPlinths variant="gallery" shoes={shoes} onRemove={onRemove} onAdd={onAdd} canAdd={canAdd} />
       </section>
 
-      {multi ? (
+      {multi && !isMax ? (
         <section style={OFFSET} className="container-shell pui-section-sm">
           <PremiumVerdict variant="gallery" shoes={shoes} />
         </section>
@@ -227,6 +264,7 @@ function ArenaCompare(props: LayoutProps) {
     { id: "compare-specs", label: translate("Fight card") },
   ]);
   const multi = shoes.length > 1;
+  const isMax = usePremiumTier() === "max";
   return (
     <div className="has-mobile-nav-pad">
       <section className="container-shell pt-6">
@@ -238,6 +276,8 @@ function ArenaCompare(props: LayoutProps) {
         <ActionBar center className="mt-4" {...actionKeys(props)} />
       </section>
 
+      {isMax && multi ? <LeadVerdict variant="arena" shoes={shoes} /> : null}
+
       <section id="compare-lineup" style={OFFSET} className="container-shell pui-section-sm">
         <PremiumPlinths variant="arena" shoes={shoes} onRemove={onRemove} onAdd={onAdd} canAdd={canAdd} />
       </section>
@@ -246,7 +286,7 @@ function ArenaCompare(props: LayoutProps) {
         <section id="compare-profile" style={OFFSET} className="container-shell pui-section">
           <div className="pui-tape-head mb-6"><span className="pui-kicker shrink-0">{translate("Tale of the tape")}</span></div>
           <PremiumDiff variant="arena" shoes={shoes} />
-          <div className="mx-auto mt-10 max-w-2xl"><PremiumVerdict variant="arena" shoes={shoes} /></div>
+          {!isMax ? <div className="mx-auto mt-10 max-w-2xl"><PremiumVerdict variant="arena" shoes={shoes} /></div> : null}
         </section>
       ) : null}
 
