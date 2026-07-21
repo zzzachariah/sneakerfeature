@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList, Loader2 } from "lucide-react";
+import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { HOME_SECTIONS, resolveHomeOrder, type HomeSectionId } from "@/lib/home/sections";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
@@ -14,6 +14,7 @@ import {
   type Tier,
   type Duration
 } from "@/lib/subscription/tiers";
+import { purchaseDecision } from "@/lib/subscription/resolve";
 import { SKINS, SKIN_ORDER, skinPalette, hexToRgbTriple, darkenHex, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
 import { Lock } from "lucide-react";
 import { MembershipCard } from "@/components/subscribe/membership-card";
@@ -144,6 +145,11 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
 
   const canPersonalize = current.isAdmin || current.tier === "pro" || current.tier === "max";
 
+  // Membership-change policy surface: a signed-in member on an ACTIVE paid tier
+  // is locked to it until it expires (renew/extend the same tier is fine;
+  // switching tiers is not). Admins bypass so they can test both checkouts.
+  const activePaid = current.signedIn && !current.isAdmin && (current.tier === "pro" || current.tier === "max");
+
   const [homeOrder, setHomeOrder] = useState<HomeSectionId[]>(resolveHomeOrder(current.homeOrder));
   const [accentSave, setAccentSave] = useState<SaveState>("idle");
   const [orderSave, setOrderSave] = useState<SaveState>("idle");
@@ -224,6 +230,9 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
 
   async function onSubscribe(tier: "pro" | "max") {
     if (pending) return;
+    // Client mirror of the server policy: block switching tiers while an active
+    // paid plan exists. The server (/api/stripe/checkout) is the real guard.
+    if (!current.isAdmin && !purchaseDecision(current.tier, tier).allowed) return;
     setError(null);
     setPending(tier);
     try {
@@ -391,6 +400,43 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         </div>
       </motion.section>
 
+      {/* Active-member policy reminder: you already hold a paid plan and can't
+          switch tiers until it expires (renewing the same tier stays open). */}
+      {activePaid && (
+        <motion.div
+          className="mt-8 flex items-start gap-3 rounded-2xl border p-4"
+          style={{ borderColor: `${TIERS[current.tier].badgeHue}55`, background: `${TIERS[current.tier].badgeHue}12` }}
+          {...fade}
+          transition={{ duration: 0.4 }}
+        >
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" style={{ color: TIERS[current.tier].badgeHue }} />
+          <div className="text-sm">
+            <p className="font-semibold" style={{ color: TIERS[current.tier].badgeHue }}>
+              {t(`你已是 ${TIERS[current.tier].name} 会员`, `You're already on ${TIERS[current.tier].name}`)}
+              {current.isPermanent
+                ? t("（永久）", " (Lifetime)")
+                : current.expiresAt
+                  ? t(
+                      `（${new Date(current.expiresAt).toLocaleDateString()} 到期）`,
+                      ` (until ${new Date(current.expiresAt).toLocaleDateString()})`
+                    )
+                  : ""}
+            </p>
+            <p className="mt-1 soft-text">
+              {current.isPermanent
+                ? t(
+                    "永久会员暂不支持更换其他档位，你已享有当前会员的全部权益。",
+                    "Lifetime members can't switch tiers for now — you already have everything your plan includes."
+                  )
+                : t(
+                    "根据会员政策，当前会员到期前不可更换其他档位；但你可以随时续费延长同一档位。",
+                    "Per our membership policy, you can't switch tiers until your current plan expires — but you can renew or extend the same tier anytime."
+                  )}
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       {/* Tier cards */}
       <section className="mt-10 grid gap-6 md:grid-cols-2">
         {(["pro", "max"] as const).map((tier, i) => {
@@ -398,6 +444,11 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           const pal = skinPalette(skin, tier);
           const { price, per } = priceLabel(tier, duration, zh);
           const saved = savingsPct(tier, duration);
+          // Policy gate for this card: lock the OTHER tier while a paid plan is
+          // active; the CURRENT tier's CTA becomes a renew/extend action.
+          const gate = purchaseDecision(current.tier, tier);
+          const locked = activePaid && !gate.allowed;
+          const isRenew = current.signedIn && gate.allowed && gate.kind === "extend";
           return (
             <motion.div
               key={tier}
@@ -482,14 +533,37 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               <button
                 type="button"
                 onClick={() => onSubscribe(tier)}
-                disabled={pending !== null}
+                disabled={pending !== null || locked}
+                aria-disabled={locked}
                 className="mt-6 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold transition active:scale-[0.99] disabled:opacity-70"
-                style={{ background: pal.buttonBg, color: pal.onButton }}
+                style={
+                  locked
+                    ? { background: "rgb(var(--text) / 0.06)", color: "rgb(var(--subtext))", cursor: "not-allowed" }
+                    : { background: pal.buttonBg, color: pal.onButton }
+                }
               >
-                <Crown className="h-4 w-4" />
-                {pending === tier ? t("跳转中…", "Redirecting…") : `${t("开通", "Get")} ${cfg.name}`}
-                <ChevronRight className="h-4 w-4" />
+                {locked ? (
+                  <>
+                    <Lock className="h-4 w-4" />
+                    {t("到期前不可更换", "Locked until expiry")}
+                  </>
+                ) : (
+                  <>
+                    {isRenew ? <RefreshCw className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+                    {pending === tier
+                      ? t("跳转中…", "Redirecting…")
+                      : isRenew
+                        ? t(`续费 ${cfg.name}`, `Renew ${cfg.name}`)
+                        : `${t("开通", "Get")} ${cfg.name}`}
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
               </button>
+              {locked && (
+                <p className="mt-2 text-center text-xs soft-text">
+                  {t("当前会员到期后可更换此档位", "Available to switch once your current plan expires")}
+                </p>
+              )}
             </motion.div>
           );
         })}
