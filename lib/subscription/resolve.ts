@@ -57,6 +57,31 @@ export function resolveTier(row: SubscriptionRow): { tier: Tier; expired: boolea
   return { tier, expired: false };
 }
 
+// --- Membership-change policy ----------------------------------------------
+
+export type PurchaseDecision =
+  | { allowed: true; kind: "new" | "extend" }
+  | { allowed: false; reason: "locked"; currentTier: "pro" | "max" };
+
+/**
+ * Decide whether a member may check out `targetTier` right now, per the
+ * membership-change policy: once a paid plan is ACTIVE the member is locked to
+ * that tier until it expires. Renewing/extending the SAME tier is fine, but
+ * switching to the other tier (Pro <-> Max) is blocked mid-term
+ * ("买任何一个，在截止日期前，不能更换"). Permanent plans never expire, so their tier
+ * is effectively fixed until the member goes free.
+ *
+ * Pass the EFFECTIVE tier (post-expiry, from `resolveTier`) — an expired paid
+ * plan counts as free and unlocks every purchase. This is the single source of
+ * truth shared by the checkout API (authoritative) and the subscribe UI, so the
+ * two can never drift. Admin test-checkout bypasses are the caller's job.
+ */
+export function purchaseDecision(effectiveTier: Tier, targetTier: "pro" | "max"): PurchaseDecision {
+  if (!isPaidTier(effectiveTier)) return { allowed: true, kind: "new" };
+  if (effectiveTier === targetTier) return { allowed: true, kind: "extend" };
+  return { allowed: false, reason: "locked", currentTier: effectiveTier };
+}
+
 export function parseMemberPrefs(raw: unknown): MemberPrefs {
   const obj = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const skin = isSkinId(obj.skin) ? obj.skin : DEFAULT_SKIN;

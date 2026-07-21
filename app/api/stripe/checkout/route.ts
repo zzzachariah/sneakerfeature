@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStripe } from "@/lib/stripe/server";
 import { getCurrentProfile } from "@/lib/data/auth";
+import { getMemberContext } from "@/lib/subscription/entitlements";
+import { purchaseDecision } from "@/lib/subscription/resolve";
 import { productFor } from "@/lib/subscription/stripe-prices";
+import { tierConfig } from "@/lib/subscription/tiers";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +44,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "请选择有效的会员档位与时长。" }, { status: 400 });
   }
   const { tier, duration } = parsed.data;
+
+  // Membership-change policy: an active paid member is locked to their current
+  // tier until it expires — they may renew/extend the SAME tier but cannot
+  // switch to the other one mid-term ("买任何一个，在截止日期前，不能更换"). This is the
+  // authoritative guard; the subscribe UI mirrors it but must not be the only
+  // gate. Admins bypass it so they can still test both checkouts end-to-end
+  // while /subscribe is admin-only.
+  if (profile.role !== "admin") {
+    const member = await getMemberContext(profile.id);
+    const decision = purchaseDecision(member.tier, tier);
+    if (!decision.allowed) {
+      const currentName = tierConfig(decision.currentTier).name;
+      const until = member.isPermanent
+        ? "（当前为永久会员）"
+        : member.expiresAt
+          ? `（当前会员至 ${new Date(member.expiresAt).toLocaleDateString("zh-CN")} 到期）`
+          : "";
+      const message = member.isPermanent
+        ? `你已是 ${currentName} 永久会员，暂不支持更换其他档位。`
+        : `你当前已是 ${currentName} 会员，到期前不能更换其他档位，可续费延长同档。${until}`;
+      return NextResponse.json({ ok: false, code: "plan_locked", message }, { status: 409 });
+    }
+  }
 
   const stripe = getStripe();
   if (!stripe) {
