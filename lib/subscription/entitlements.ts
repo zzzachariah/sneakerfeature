@@ -150,6 +150,56 @@ export async function setSubscription(
   return result;
 }
 
+// --- Cancellation / revocation ---------------------------------------------
+
+export type RevokeReason = "cancel" | "refund" | "dispute";
+
+// Revoke a member's paid access, resetting them to the free tier. Backs both
+// admin cancellations and refunds (the latter after the Stripe refund settles).
+// Safe to call when already free — it just re-asserts the free state. Once free,
+// the tier-change lock (purchaseDecision) releases so the member can buy again.
+// actorAdminId is null for webhook-driven reverts (Stripe Dashboard refund /
+// chargeback), mirroring grantFromPayment's payment-actor audit rows.
+export async function revokeSubscription(
+  userId: string,
+  opts: { actorAdminId: string | null; reason: RevokeReason; note?: string }
+): Promise<GrantResult> {
+  const db = createAdminClient();
+  if (!db) throw new Error("Service-role client unavailable");
+
+  const { data: current } = await db
+    .from("profiles")
+    .select("subscription_tier, subscription_expires_at, subscription_is_permanent, username")
+    .eq("id", userId)
+    .maybeSingle();
+
+  await db
+    .from("profiles")
+    .update({
+      subscription_tier: "free",
+      subscription_expires_at: null,
+      subscription_is_permanent: false,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", userId);
+
+  const { error: auditError } = await db.from("admin_audit_logs").insert({
+    actor_admin_id: opts.actorAdminId,
+    target_type: "profile",
+    action: `subscription:${opts.reason}:${current?.subscription_tier ?? "free"}->free`,
+    note: opts.note ?? `@${current?.username ?? userId}: ${opts.reason} → free`,
+    before_payload: {
+      tier: current?.subscription_tier ?? "free",
+      expiresAt: current?.subscription_expires_at ?? null,
+      permanent: Boolean(current?.subscription_is_permanent)
+    },
+    after_payload: { tier: "free", reason: opts.reason }
+  });
+  if (auditError) console.warn("[entitlements] revoke audit skipped:", auditError.message);
+
+  return { tier: "free", expiresAt: null, permanent: false };
+}
+
 // Persist member UI prefs (skin / home order / menu / model pref). Only paid
 // tiers may personalize; callers should gate on that first.
 export async function saveMemberPrefs(userId: string, patch: Partial<MemberPrefs>): Promise<MemberPrefs> {

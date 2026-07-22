@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronRight, Shield, ShieldOff, ShieldCheck, Crown } from "lucide-react";
+import { ChevronRight, Shield, ShieldOff, ShieldCheck, Crown, RotateCcw, XCircle } from "lucide-react";
 import { confirmDialog } from "@/components/native/native-menu";
 import { Card } from "@/components/ui/card";
 import { TIERS, DURATIONS, type Tier, type Duration } from "@/lib/subscription/tiers";
@@ -73,11 +73,15 @@ function TierBadge({ tier }: { tier: Tier }) {
 function MembershipEditor({
   row,
   busy,
-  onApply
+  onApply,
+  onRefund,
+  onCancel
 }: {
   row: UserRow;
   busy: boolean;
   onApply: (tier: Tier, duration: Duration) => void;
+  onRefund: () => void;
+  onCancel: () => void;
 }) {
   const [tier, setTier] = useState<Tier>(row.tier);
   const [duration, setDuration] = useState<Duration>("monthly");
@@ -123,6 +127,30 @@ function MembershipEditor({
           Apply
         </button>
       </div>
+      {/* Refund (Stripe refund + revoke) / Cancel (revoke to free, no refund).
+          Only meaningful once the member is on a paid tier. */}
+      {row.tier !== "free" && (
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onRefund}
+            className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--error)/0.6)] px-2.5 py-1 text-xs text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] disabled:opacity-40"
+          >
+            <RotateCcw className="h-3 w-3" />
+            Refund
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onCancel}
+            className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--muted)/0.6)] px-2.5 py-1 text-xs soft-text transition hover:bg-[rgb(var(--text)/0.05)] disabled:opacity-40"
+          >
+            <XCircle className="h-3 w-3" />
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -201,6 +229,42 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
     }
   }
 
+  // Revoke premium and return the row to free — shared by refund and cancel,
+  // which differ only in the endpoint mode (Stripe refund vs. no refund).
+  async function revokeMembership(row: UserRow, mode: "refund" | "cancel") {
+    const ok = await confirmDialog({
+      message:
+        mode === "refund"
+          ? `Refund @${row.username}'s latest payment and revoke ${TIERS[row.tier].name}? This issues a real Stripe refund and can't be undone.`
+          : `Cancel @${row.username}'s ${TIERS[row.tier].name} membership? This revokes access to free with no refund.`,
+      okLabel: mode === "refund" ? "Refund" : "Revoke",
+      destructive: true
+    });
+    if (!ok) return;
+    setBusy(row.id);
+    setMessage("");
+    try {
+      const res = await fetch("/api/admin/users/subscription/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: row.id, mode })
+      });
+      const json = await res.json();
+      if (json?.ok) {
+        setRows((prev) =>
+          prev.map((r) => (r.id === row.id ? { ...r, tier: "free", expiresAt: null, isPermanent: false } : r))
+        );
+        setMessage(`@${row.username} ${mode === "refund" ? "refunded" : "cancelled"} → free.`);
+      } else {
+        setMessage(json?.message ?? (mode === "refund" ? "Refund failed." : "Cancellation failed."));
+      }
+    } catch {
+      setMessage("Network error. Please retry.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <Card className="p-0 overflow-hidden">
       {message && (
@@ -252,6 +316,8 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                   row={row}
                   busy={busy === row.id}
                   onApply={(tier, duration) => changeMembership(row, tier, duration)}
+                  onRefund={() => revokeMembership(row, "refund")}
+                  onCancel={() => revokeMembership(row, "cancel")}
                 />
               </div>
               {!isSelf && (
@@ -335,6 +401,8 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                       row={row}
                       busy={busy === row.id}
                       onApply={(tier, duration) => changeMembership(row, tier, duration)}
+                      onRefund={() => revokeMembership(row, "refund")}
+                      onCancel={() => revokeMembership(row, "cancel")}
                     />
                   </td>
                   <td className="px-3 py-3 text-xs soft-text whitespace-nowrap">
