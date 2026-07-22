@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/server";
 import { fulfillCheckoutSession } from "@/lib/stripe/fulfill";
+import { handleExternalRefund } from "@/lib/stripe/refund";
+
+function paymentIntentId(v: string | Stripe.PaymentIntent | null | undefined): string | null {
+  if (!v) return null;
+  return typeof v === "string" ? v : v.id;
+}
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +44,26 @@ export async function POST(request: Request) {
       const session = event.data.object as Stripe.Checkout.Session;
       const result = await fulfillCheckoutSession(session.id);
       console.log(`[stripe/webhook] ${event.type} ${session.id} -> ${result.status}`);
+    } else if (event.type === "charge.refunded") {
+      // A refund settled (issued from our API or the Stripe Dashboard). Revoke
+      // the membership and reconcile the payment row.
+      const charge = event.data.object as Stripe.Charge;
+      const pi = paymentIntentId(charge.payment_intent);
+      if (pi) {
+        const outcome = await handleExternalRefund(pi, {
+          status: "refunded",
+          refundId: charge.refunds?.data?.[0]?.id ?? null
+        });
+        console.log(`[stripe/webhook] charge.refunded ${pi} -> ${outcome}`);
+      }
+    } else if (event.type === "charge.dispute.created") {
+      // A chargeback was opened — treat it like a refund and pull access.
+      const dispute = event.data.object as Stripe.Dispute;
+      const pi = paymentIntentId(dispute.payment_intent);
+      if (pi) {
+        const outcome = await handleExternalRefund(pi, { status: "disputed" });
+        console.log(`[stripe/webhook] charge.dispute.created ${pi} -> ${outcome}`);
+      }
     }
   } catch (err) {
     console.error("[stripe/webhook] handler error", (err as Error).message);

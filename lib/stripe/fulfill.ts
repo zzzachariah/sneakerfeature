@@ -35,6 +35,10 @@ export async function fulfillCheckoutSession(sessionId: string): Promise<Fulfill
 
   // Claim the session (idempotency guard). A unique-violation means another
   // caller already fulfilled it.
+  // Persist the PaymentIntent id so a later refund (admin action or a Stripe
+  // Dashboard / dispute webhook) can be issued and matched back to this row.
+  const paymentIntentId =
+    typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null;
   const { error: claimError } = await db.from("stripe_payments").insert({
     session_id: session.id,
     user_id: userId,
@@ -42,6 +46,7 @@ export async function fulfillCheckoutSession(sessionId: string): Promise<Fulfill
     duration,
     amount_total: session.amount_total,
     currency: session.currency,
+    payment_intent_id: paymentIntentId,
     status: "paid"
   });
   if (claimError) {
