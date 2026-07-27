@@ -13,7 +13,8 @@
     "cap:ios": "cap sync ios && cap open ios",
     "cap:android": "cap sync android && cap open android",
     "cap:assets": "capacitor-assets generate --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#ffffff' --splashBackgroundColor '#0a0a0a' --splashBackgroundColorDark '#0a0a0a'",
-    "images:nobg": "tsx scripts/remove-backgrounds.mts"
+    "images:nobg": "tsx scripts/remove-backgrounds.mts",
+    "gift:pro-all": "tsx scripts/grant-pro-all.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
