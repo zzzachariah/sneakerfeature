@@ -10,7 +10,7 @@ import {
   clientOptionsForModel,
   getPackyEnvReport,
   describePackyEnvProblem,
-  getPackyTarget,
+  describePackyTarget,
   describePackyError
 } from "@/lib/ai/packy-client";
 import { tierConfig } from "@/lib/subscription/tiers";
@@ -168,9 +168,10 @@ export async function POST(request: Request) {
           });
           full = result.text || full;
         } catch (error) {
-          console.error("[ai/advisor] stream failed", error);
-          const target = getPackyTarget();
-          send("error", { message: `AI 调用失败：${describePackyError(error)}。模型：${target.model}。` });
+          console.error("[ai/advisor] stream failed", { model, error });
+          // The advisor always runs the premium model — report that one, not the
+          // shared base model the old hardcoded target reported.
+          send("error", { message: `AI 调用失败：${describePackyError(error)}。请求目标 ${describePackyTarget(model)}。` });
           return;
         }
 

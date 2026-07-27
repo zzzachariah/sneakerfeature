@@ -122,11 +122,62 @@ export function describePackyEnvProblem(report: PackyEnvReport, opts?: PackyClie
   );
 }
 
-// The (non-secret) target we send requests to — handy to surface in errors so
-// a wrong base URL / model is obvious. Never includes the API key.
-export function getPackyTarget(): { baseURL: string | null; model: string } {
+// Which env var actually supplied the key for `model`. The fallback inside
+// clientOptionsForModel is SILENT, so this is the only way to tell a request
+// that used the model's own key from one that quietly borrowed the shared key.
+export function resolvedKeyEnvName(model: string): string | null {
+  for (const name of apiKeyNames(clientOptionsForModel(model))) {
+    if (process.env[name]?.trim()) return name;
+  }
+  return null;
+}
+
+export type PackyTarget = {
+  baseURL: string | null;
+  /** The model actually sent to the relay for this request. */
+  model: string;
+  /** Env var name the key came from (never the value). */
+  keyEnv: string | null;
+  /** True when `model` has dedicated key envs but none were set, so the shared key ran it. */
+  sharedKeyFallback: boolean;
+};
+
+// The (non-secret) target we send requests to — handy to surface in errors so a
+// wrong base URL / model / key is obvious. Never includes the API key value.
+// Pass the model the request actually ran on; it defaults to the shared base
+// model only for callers that don't do per-request model routing.
+export function getPackyTarget(model: string = PACKY_MODEL): PackyTarget {
   const baseURL = readEnv(BASE_URL_NAMES);
-  return { baseURL: baseURL ? normalizeBaseURL(baseURL) : null, model: PACKY_MODEL };
+  const keyEnv = resolvedKeyEnvName(model);
+  const dedicated = clientOptionsForModel(model)?.apiKeyEnv;
+  return {
+    baseURL: baseURL ? normalizeBaseURL(baseURL) : null,
+    model,
+    keyEnv,
+    sharedKeyFallback: dedicated != null && keyEnv != null && !dedicated.includes(keyEnv)
+  };
+}
+
+// Admin-readable "where did this request go" line for error surfaces. Calls out
+// the shared-key fallback explicitly: a premium model running on the shared key
+// lands in that key's relay group, which usually has no channel for it — the
+// relay then answers 503 model_not_found and the cause is otherwise invisible.
+export function describePackyTarget(model: string = PACKY_MODEL): string {
+  const target = getPackyTarget(model);
+  const parts = [
+    `Base URL：${target.baseURL ?? "(未设置)"}`,
+    `模型：${target.model}`,
+    `API key 来自：${target.keyEnv ?? "(未找到)"}`
+  ];
+  if (target.sharedKeyFallback) {
+    const names = (clientOptionsForModel(target.model)?.apiKeyEnv ?? []).join(" 或 ");
+    parts.push(
+      `⚠️ 未配置 ${target.model} 的专属 key（${names}），本次回退使用了共享 key。` +
+        "共享 key 所属的中转分组通常没有该模型的渠道，会直接返回 503 model_not_found。" +
+        "请在部署环境中设置该模型的专属 key 并 Redeploy。"
+    );
+  }
+  return parts.join("，");
 }
 
 // Turn an SDK/network error into a short, admin-readable detail string. Only
