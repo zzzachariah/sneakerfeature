@@ -9,8 +9,10 @@ export const dynamic = "force-dynamic";
 
 // Admin refunds or cancels a member's premium membership.
 //   * mode "refund" — issue a Stripe refund for their latest paid payment AND
-//     revoke access. Fails with "no_payment" for comped / manual grants.
-//   * mode "cancel" — revoke access to free WITHOUT a refund.
+//     revoke access. Refused with "gifted" for a comped / bulk-gifted membership
+//     (赠送的会员无法退款) and with "no_payment" when nothing is on file.
+//   * mode "cancel" — revoke access to free WITHOUT a refund. This is the
+//     correct action for a gift the admin wants to take back.
 // Either way the member returns to free, which releases the tier-change lock.
 const schema = z.object({
   userId: z.string().uuid(),
@@ -43,6 +45,18 @@ export async function POST(request: Request) {
     }
 
     const result = await refundLatestPayment(userId, ctx.userId);
+    if (result.status === "gifted") {
+      return NextResponse.json(
+        {
+          ok: false,
+          code: "gifted",
+          message:
+            "This membership was gifted, not purchased — there is nothing to refund. " +
+            "Use Cancel to revoke it.（赠送的会员无法退款，请使用「取消」收回权益。）"
+        },
+        { status: 409 }
+      );
+    }
     if (result.status === "no_payment") {
       return NextResponse.json(
         {

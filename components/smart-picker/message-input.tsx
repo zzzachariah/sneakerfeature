@@ -7,7 +7,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { ModelPicker } from "@/components/smart-picker/model-picker";
 import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
-import { hasUnmeteredBase, type ModelId, type Tier } from "@/lib/subscription/tiers";
+import { hasUnmeteredBase, tierConfig, type ModelId, type Tier } from "@/lib/subscription/tiers";
 
 type Props = {
   balance: number;
@@ -31,8 +31,25 @@ export function MessageInput({ balance, unlimited, sending, tier, model, onSelec
   const [countStr, setCountStr] = useState("3");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // How many picks this plan may actually ask for (Free 3 / Pro 5 / Max 8).
+  // /api/ai/chat silently clamps `count` to exactly this, so letting the box go
+  // to MAX_RECOMMENDATIONS promised shoes the server was never going to return —
+  // and, worse, priced the request at the typed number: a free member with 5
+  // credits who typed ×8 saw "insufficient" and had the send button disabled for
+  // a request that would have cost 3 and succeeded.
+  const maxCount = Math.min(MAX_RECOMMENDATIONS, tierConfig(tier).prompt.count);
+
   // Derived numeric count used for logic and credit display.
-  const count = Math.min(MAX_RECOMMENDATIONS, Math.max(1, parseInt(countStr) || 1));
+  const count = Math.min(maxCount, Math.max(1, parseInt(countStr) || 1));
+
+  // The tier arrives asynchronously (/api/ai/credits), so a value typed against
+  // the optimistic "free" cap is re-clamped once the real plan lands — upward
+  // for a paid member whose cap just grew, downward after a downgrade.
+  useEffect(() => {
+    const typed = parseInt(countStr);
+    if (!Number.isNaN(typed) && typed > maxCount) setCountStr(String(maxCount));
+  }, [maxCount, countStr]);
+
   // Only the FREE tier is metered by ai_credits. A paid plan's base model is
   // unmetered server-side, so its credit balance is irrelevant here — gate on
   // the tier as well as the flag so a stale/absent `unlimited` can never lock a
@@ -81,7 +98,7 @@ export function MessageInput({ balance, unlimited, sending, tier, model, onSelec
 
   const handleCountBlur = () => {
     const v = parseInt(countStr);
-    setCountStr(String(isNaN(v) || v < 1 ? 1 : Math.min(MAX_RECOMMENDATIONS, v)));
+    setCountStr(String(isNaN(v) || v < 1 ? 1 : Math.min(maxCount, v)));
   };
 
   return (
@@ -138,7 +155,9 @@ export function MessageInput({ balance, unlimited, sending, tier, model, onSelec
             type="number"
             inputMode="numeric"
             min="1"
-            max={MAX_RECOMMENDATIONS}
+            max={maxCount}
+            title={translate("Shoes per pick")}
+            aria-label={translate("Shoes per pick")}
             value={countStr}
             onChange={(e) => handleCountChange(e.target.value)}
             onBlur={handleCountBlur}

@@ -1,6 +1,7 @@
 import { getStripe } from "@/lib/stripe/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { revokeSubscription } from "@/lib/subscription/entitlements";
+import { getMemberContext, revokeSubscription } from "@/lib/subscription/entitlements";
+import type { Tier } from "@/lib/subscription/tiers";
 
 // Stripe refund + membership revocation. Two entry points:
 //   * refundLatestPayment — admin-initiated: refund a member's most recent paid
@@ -14,6 +15,8 @@ export type RefundResult =
   | { status: "refunded"; refundId: string; amount: number | null; currency: string | null }
   | { status: "already_refunded" }
   | { status: "no_payment" }
+  /** The active membership was gifted/comped — there is nothing to refund. */
+  | { status: "gifted"; tier: Tier }
   | { status: "error"; message: string };
 
 type PaymentRow = {
@@ -44,8 +47,15 @@ async function latestPaidPayment(userId: string): Promise<PaymentRow | null> {
 
 // Refund the user's most recent paid Stripe payment, then revoke membership.
 // Idempotent: a user with no remaining paid payment returns "no_payment" (so the
-// caller can offer a no-refund cancellation instead). Comped / manual grants
-// carry no payment_intent and also return "no_payment".
+// caller can offer a no-refund cancellation instead).
+//
+// A GIFTED membership is refused outright ("gifted"), before Stripe is touched.
+// This is not merely cosmetic: "no payment on file" is the wrong test, because a
+// gifted member may well have bought a membership months ago. Falling through to
+// latestPaidPayment would then find that old, fully-consumed purchase and refund
+// real money for a term that was already delivered — while revoking a membership
+// the member never paid for. The subscription_source marker (migration 047) is
+// the only thing that ties the CURRENT membership to the money that bought it.
 export async function refundLatestPayment(
   userId: string,
   actorAdminId: string,
@@ -54,6 +64,9 @@ export async function refundLatestPayment(
   const stripe = getStripe();
   const db = createAdminClient();
   if (!stripe || !db) return { status: "error", message: "Stripe or database not configured" };
+
+  const member = await getMemberContext(userId);
+  if (member.isGift) return { status: "gifted", tier: member.tier };
 
   const payment = await latestPaidPayment(userId);
   if (!payment) return { status: "no_payment" };

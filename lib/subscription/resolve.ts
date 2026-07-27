@@ -27,10 +27,24 @@ export function normalizeAccentHex(v: unknown): string | null {
   return m ? `#${m[1].toLowerCase()}` : null;
 }
 
+/**
+ * Where an active membership came from (migration 047).
+ *   "paid" — a completed Stripe Checkout Session. Refundable.
+ *   "gift" — comped by an admin, or handed out by the bulk 全站送会员 flow.
+ *            Never refundable: no money ever changed hands.
+ * null means "no paid tier" (free member) or a row written before 047.
+ */
+export type SubscriptionSource = "paid" | "gift";
+
+export function parseSubscriptionSource(v: unknown): SubscriptionSource | null {
+  return v === "paid" || v === "gift" ? v : null;
+}
+
 export type SubscriptionRow = {
   subscription_tier?: string | null;
   subscription_expires_at?: string | null;
   subscription_is_permanent?: boolean | null;
+  subscription_source?: string | null;
   member_prefs?: unknown;
 };
 
@@ -41,6 +55,10 @@ export type MemberContext = {
   expiresAt: string | null;
   /** True when a paid tier is set but its expiry has passed. */
   expired: boolean;
+  /** How the ACTIVE membership was obtained; null on the free tier. */
+  source: SubscriptionSource | null;
+  /** Convenience: the active membership was gifted, so it can't be refunded. */
+  isGift: boolean;
   prefs: MemberPrefs;
 };
 
@@ -61,23 +79,33 @@ export function resolveTier(row: SubscriptionRow): { tier: Tier; expired: boolea
 
 export type PurchaseDecision =
   | { allowed: true; kind: "new" | "extend" }
-  | { allowed: false; reason: "locked"; currentTier: "pro" | "max" };
+  | { allowed: false; reason: "locked" | "permanent"; currentTier: "pro" | "max" };
 
 /**
  * Decide whether a member may check out `targetTier` right now, per the
  * membership-change policy: once a paid plan is ACTIVE the member is locked to
  * that tier until it expires. Renewing/extending the SAME tier is fine, but
  * switching to the other tier (Pro <-> Max) is blocked mid-term
- * ("买任何一个，在截止日期前，不能更换"). Permanent plans never expire, so their tier
- * is effectively fixed until the member goes free.
+ * ("买任何一个，在截止日期前，不能更换").
+ *
+ * A PERMANENT plan can't be bought against at all. There is nothing to extend —
+ * a lifetime membership has no expiry to push out — and taking the payment would
+ * be strictly worse than doing nothing: the grant path writes a fresh
+ * duration-based expiry, which turns "lifetime" into "30 days". So a permanent
+ * member is refused both tiers (`reason: "permanent"`), not just the other one.
  *
  * Pass the EFFECTIVE tier (post-expiry, from `resolveTier`) — an expired paid
  * plan counts as free and unlocks every purchase. This is the single source of
  * truth shared by the checkout API (authoritative) and the subscribe UI, so the
  * two can never drift. Admin test-checkout bypasses are the caller's job.
  */
-export function purchaseDecision(effectiveTier: Tier, targetTier: "pro" | "max"): PurchaseDecision {
+export function purchaseDecision(
+  effectiveTier: Tier,
+  targetTier: "pro" | "max",
+  isPermanent = false
+): PurchaseDecision {
   if (!isPaidTier(effectiveTier)) return { allowed: true, kind: "new" };
+  if (isPermanent) return { allowed: false, reason: "permanent", currentTier: effectiveTier };
   if (effectiveTier === targetTier) return { allowed: true, kind: "extend" };
   return { allowed: false, reason: "locked", currentTier: effectiveTier };
 }
@@ -119,12 +147,17 @@ export function memberSerial(userId: string): string {
 
 export function memberContextFromRow(row: SubscriptionRow): MemberContext {
   const { tier, expired } = resolveTier(row);
+  // The source describes the ACTIVE membership, so an expired (or absent) paid
+  // tier reports null — there is nothing left to refund or to label as a gift.
+  const source = isPaidTier(tier) ? parseSubscriptionSource(row.subscription_source) : null;
   return {
     tier,
     config: tierConfig(tier),
     isPermanent: Boolean(row.subscription_is_permanent) && isPaidTier(tier),
     expiresAt: row.subscription_expires_at ?? null,
     expired,
+    source,
+    isGift: source === "gift",
     prefs: parseMemberPrefs(row.member_prefs)
   };
 }

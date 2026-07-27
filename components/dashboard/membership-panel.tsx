@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, Crown, Share2 } from "lucide-react";
+import { ChevronRight, Crown, Gift, Share2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
@@ -11,7 +11,7 @@ import { MemberBadge } from "@/components/subscribe/member-badge";
 import { MembershipCard } from "@/components/subscribe/membership-card";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { TIERS, isPaidTier } from "@/lib/subscription/tiers";
-import { resolveTier, memberSerial } from "@/lib/subscription/resolve";
+import { resolveTier, memberSerial, parseSubscriptionSource, type SubscriptionRow } from "@/lib/subscription/resolve";
 import { captureNodeToBlob, triggerDownload, safeFilename } from "@/lib/card/capture";
 import { shareContent, canShareFiles } from "@/lib/native/native";
 import { haptics } from "@/lib/native/haptics";
@@ -20,6 +20,8 @@ type Expiry = {
   isPermanent: boolean;
   expiresAt: string | null;
   startedAt: string | null;
+  /** True when this membership was gifted/comped rather than bought. */
+  isGift: boolean;
 };
 
 // Membership status card for the user center's Overview section. Reads tier +
@@ -45,22 +47,26 @@ export function MembershipPanel() {
     const supabase = createClient();
     if (!supabase) return;
     let cancelled = false;
-    // Tolerant fetch — the membership columns live behind migration 041, so a
-    // pre-migration deployment simply keeps the status line minimal.
-    void supabase
-      .from("profiles")
-      .select("subscription_tier, subscription_expires_at, subscription_is_permanent, subscription_started_at")
-      .eq("id", userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        const { tier: rowTier } = resolveTier(data);
-        setExpiry({
-          isPermanent: Boolean(data.subscription_is_permanent) && isPaidTier(rowTier),
-          expiresAt: isPaidTier(rowTier) ? (data.subscription_expires_at ?? null) : null,
-          startedAt: (data as { subscription_started_at?: string | null }).subscription_started_at ?? null
-        });
+    // Tolerant fetch — the membership columns live behind migration 041 and
+    // subscription_source behind 047, so a pre-migration deployment simply keeps
+    // the status line minimal instead of erroring.
+    const BASE = "subscription_tier, subscription_expires_at, subscription_is_permanent, subscription_started_at";
+    void (async () => {
+      const read = (columns: string) =>
+        supabase.from("profiles").select(columns).eq("id", userId).maybeSingle();
+      const attempt = await read(`${BASE}, subscription_source`);
+      const { data } = attempt.error ? await read(BASE) : attempt;
+      if (cancelled || !data) return;
+      const row = data as unknown as SubscriptionRow & { subscription_started_at?: string | null };
+      const { tier: rowTier } = resolveTier(row);
+      const isPaid = isPaidTier(rowTier);
+      setExpiry({
+        isPermanent: Boolean(row.subscription_is_permanent) && isPaid,
+        expiresAt: isPaid ? (row.subscription_expires_at ?? null) : null,
+        startedAt: row.subscription_started_at ?? null,
+        isGift: isPaid && parseSubscriptionSource(row.subscription_source) === "gift"
       });
+    })();
     return () => {
       cancelled = true;
     };
@@ -75,6 +81,7 @@ export function MembershipPanel() {
   const cfg = TIERS[subscriptionTier];
   const serial = userId ? memberSerial(userId) : null;
 
+  const gifted = Boolean(expiry?.isGift);
   const statusLine = !paid
     ? translate("Free plan")
     : expiry?.isPermanent
@@ -147,6 +154,7 @@ export function MembershipPanel() {
           serial={serial}
           validThrough={expiry?.expiresAt ?? null}
           permanent={Boolean(expiry?.isPermanent)}
+          gift={gifted}
         />
       </div>
 
@@ -154,8 +162,24 @@ export function MembershipPanel() {
         <p className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--text))]">
           {translate("Membership")}
           <MemberBadge tier={subscriptionTier} skin={skin} />
+          {/* A gifted plan is stated plainly wherever the member sees their own
+              status — the perks match a paid plan, but it isn't refundable. */}
+          {gifted && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide"
+              style={{ color: "#12b886", backgroundColor: "#12b8861f", border: "1px solid #12b88655" }}
+            >
+              <Gift className="h-2.5 w-2.5" aria-hidden />
+              {translate("Gifted")}
+            </span>
+          )}
         </p>
         <p className="truncate text-xs soft-text">{statusLine}</p>
+        {gifted && (
+          <p className="text-xs soft-text">
+            {translate("A gifted membership — same perks, but it can't be refunded.")}
+          </p>
+        )}
         <div className="mt-1 flex flex-wrap items-center gap-2">
           {canOpenSubscribe && (
             <Link
