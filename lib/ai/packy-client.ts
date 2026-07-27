@@ -36,9 +36,15 @@ export const PACKY_MODEL = "deepseek-v4-pro";
 // (deepseek) keeps using the shared PACKYAPI_API_KEY.
 export const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 export const FABLE_MODEL = "claude-fable-5";
+export const OPUS_MODEL = "claude-opus-5";
 
 const HAIKU_KEY_ENV = ["PACKYAPI_API_KEY_HAIKU", "PACKY_API_KEY_HAIKU"] as const;
 const FABLE_KEY_ENV = ["PACKYAPI_API_KEY_FABLE", "PACKY_API_KEY_FABLE"] as const;
+// Opus 5 (Max's flagship) rides the existing premium key: its own names are
+// checked first so a dedicated key can be added later without a code change,
+// and it falls back to the Fable key — the same packyapi premium group — so
+// nothing has to be configured to ship the model.
+const OPUS_KEY_ENV = ["PACKYAPI_API_KEY_OPUS", "PACKY_API_KEY_OPUS", ...FABLE_KEY_ENV] as const;
 
 // Which per-model key env to prefer for a given model id. Returns undefined for
 // the shared/base model. The model-specific names are checked BEFORE the shared
@@ -47,6 +53,7 @@ const FABLE_KEY_ENV = ["PACKYAPI_API_KEY_FABLE", "PACKY_API_KEY_FABLE"] as const
 export function clientOptionsForModel(model: string): PackyClientOptions | undefined {
   if (model === HAIKU_MODEL) return { apiKeyEnv: HAIKU_KEY_ENV };
   if (model === FABLE_MODEL) return { apiKeyEnv: FABLE_KEY_ENV };
+  if (model === OPUS_MODEL) return { apiKeyEnv: OPUS_KEY_ENV };
   return undefined;
 }
 

@@ -11,6 +11,8 @@ import {
   CURRENCY,
   priceFor,
   monthlyEquivalent,
+  pickerModelInfo,
+  type ModelId,
   type Tier,
   type Duration
 } from "@/lib/subscription/tiers";
@@ -116,8 +118,29 @@ type BenefitRow = {
   maxEn: string;
 };
 
+// Display name for a model id, straight from the picker catalog, so the
+// comparison table can't advertise a model the Smart Picker no longer runs.
+const modelName = (id: ModelId | null): string | null => (id ? (pickerModelInfo(id)?.name ?? id) : null);
+
+// "<base> + <premium>" for a paid tier (Pro: DeepSeek V4 + Fable, Max: … + Opus 5).
+function tierModels(tier: Exclude<Tier, "free">): string {
+  const cfg = TIERS[tier];
+  const premium = modelName(cfg.capabilities.premiumModel);
+  return [modelName(cfg.baseModel), premium].filter(Boolean).join(" + ");
+}
+
 const BENEFIT_ROWS: BenefitRow[] = [
-  { icon: Gauge, label: "AI 模型", labelEn: "AI model", free: "Haiku · 轻量", freeEn: "Haiku · light", pro: "deepseek-v4-pro", proEn: "deepseek-v4-pro", max: "Fable · 顶级", maxEn: "Fable · flagship" },
+  {
+    icon: Gauge,
+    label: "AI 模型",
+    labelEn: "AI model",
+    free: "Haiku · 轻量",
+    freeEn: "Haiku · light",
+    pro: tierModels("pro"),
+    proEn: tierModels("pro"),
+    max: `${tierModels("max")} · 顶级`,
+    maxEn: `${tierModels("max")} · flagship`
+  },
   { icon: Zap, label: "基础推理", labelEn: "Base reasoning", free: "签到计量", freeEn: "Metered by check-in", pro: "不限次", proEn: "Unlimited", max: "不限次", maxEn: "Unlimited" },
   // Allowance numbers read straight from TIERS — the comparison table used to
   // hardcode them, which silently lied the moment the grants were retuned.
@@ -532,8 +555,13 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                     ? ["精准逐款尺码 + 脚型建议", "主力模型不限次", "自定义首页顺序 / 菜单栏", "Pro 皮肤 + 专属徽章"]
                     : ["Per-shoe precise sizing + foot advice", "Unlimited main model", "Custom home order / menu", "Pro skins + member badge"]
                   : zh
-                    ? ["Pro 全部权益，额度 5×", "解锁顶级 Fable 模型", "更深度个性化 + 抢先体验", "Max 皮肤 + 尊享徽章"]
-                    : ["Everything in Pro, 5× allowance", "Unlock the top Fable model", "Deeper personalization + early access", "Max skins + signature badge"]
+                    ? ["Pro 全部权益，额度 5×", `解锁顶级 ${modelName(TIERS.max.capabilities.premiumModel)} 模型`, "更深度个性化 + 抢先体验", "Max 皮肤 + 尊享徽章"]
+                    : [
+                        "Everything in Pro, 5× allowance",
+                        `Unlock the top ${modelName(TIERS.max.capabilities.premiumModel)} model`,
+                        "Deeper personalization + early access",
+                        "Max skins + signature badge"
+                      ]
                 ).map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm">
                     <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: cfg.badgeHue }} />
@@ -622,8 +650,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         </div>
         <p className="mt-4 text-xs soft-text">
           {t(
-            "计费为混合制：基础模型对付费会员不限次，高级 Fable 模型从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。",
-            "Hybrid billing: the base model is unlimited for paid members; the premium Fable model draws from a monthly allowance (permanent plans refresh monthly, no roll-over). Launch pricing, subject to change."
+            `计费为混合制：基础模型对付费会员不限次，高级模型（Pro 用 ${modelName(TIERS.pro.capabilities.premiumModel)}，Max 用 ${modelName(TIERS.max.capabilities.premiumModel)}）从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。`,
+            `Hybrid billing: the base model is unlimited for paid members; the premium models (${modelName(TIERS.pro.capabilities.premiumModel)} on Pro, ${modelName(TIERS.max.capabilities.premiumModel)} on Max) draw from a monthly allowance (permanent plans refresh monthly, no roll-over). Launch pricing, subject to change.`
           )}
         </p>
       </motion.section>

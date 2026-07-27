@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Cpu, Lock, Rabbit, Sparkles, Zap } from "lucide-react";
+import { Check, ChevronDown, Cpu, Crown, Lock, Rabbit, Sparkles, Zap } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { haptics } from "@/lib/native/haptics";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -28,8 +28,16 @@ import {
 const MODEL_ICONS: Record<ModelId, typeof Sparkles> = {
   [MODEL_IDS.haiku]: Rabbit,
   [MODEL_IDS.deepseek]: Zap,
-  [MODEL_IDS.fable]: Sparkles
+  [MODEL_IDS.fable]: Sparkles,
+  [MODEL_IDS.opus]: Crown
 };
+
+// Locked rows advertise the plan that unlocks them — Opus 5 is Max-only, so a
+// blanket "Pro" tag would send a Pro member to a page that doesn't unlock it.
+function lockTag(minTier: Tier, zh: boolean): string {
+  const name = minTier === "max" ? "Max" : "Pro";
+  return zh ? `${name} 会员` : name;
+}
 
 type Props = {
   tier: Tier;
@@ -67,7 +75,7 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
             symbol: m.symbol,
             checked: m.id === model,
             disabled: !supported,
-            tag: supported ? undefined : zh ? "Pro 会员" : "Pro"
+            tag: supported ? undefined : lockTag(m.minTier, zh)
           };
         }),
         { title }
@@ -137,7 +145,7 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
                     style={{ color: "rgb(var(--gold-ink))", borderColor: "rgba(217,180,90,0.5)" }}
                   >
                     <Lock className="h-3 w-3" aria-hidden />
-                    Pro
+                    {m.minTier === "max" ? "Max" : "Pro"}
                   </span>
                 ) : null}
               </>
@@ -182,7 +190,7 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
               onClick={() => setSheetOpen(false)}
               className="mt-1 self-center text-xs font-medium soft-text transition hover:text-[rgb(var(--text))]"
             >
-              {zh ? "升级 Pro 解锁全部模型 →" : "Upgrade to Pro to unlock every model →"}
+              {zh ? "升级会员解锁更强模型 →" : "Upgrade to unlock stronger models →"}
             </Link>
           )}
         </div>

@@ -14,7 +14,7 @@ import {
   describePackyTarget,
   describePackyError
 } from "@/lib/ai/packy-client";
-import { tierConfig, tierSupportsModel, type ModelId } from "@/lib/subscription/tiers";
+import { tierConfig, tierSupportsModel, isAllowanceMetered, type ModelId } from "@/lib/subscription/tiers";
 import { resolveModelChoice } from "@/lib/subscription/resolve";
 import {
   getMemberContext,
@@ -113,7 +113,10 @@ export async function POST(request: Request) {
     requestedModel && tierSupportsModel(tier, requestedModel)
       ? (requestedModel as ModelId)
       : resolveModelChoice(tier, member.prefs);
-  const premiumSelected = cfg.capabilities.premiumModel != null && model === cfg.capabilities.premiumModel;
+  // Metered by the catalog's premium flag, not by "is this the tier's headline
+  // model" — Max's flagship is Opus 5, but a Max member may still pick Fable and
+  // that turn must come out of the allowance too.
+  const premiumSelected = isAllowanceMetered(tier, model);
 
   type Billing = "credits" | "unlimited" | "allowance";
   let billing: Billing;
