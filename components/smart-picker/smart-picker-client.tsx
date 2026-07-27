@@ -405,7 +405,10 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                 }));
                 // A premium (allowance-billed) turn drains the monthly meter,
                 // not the credits pill — route the returned balance accordingly.
-                if (typeof d.balance === "number") {
+                // An "unlimited" turn spent NEITHER account, so its `balance` is
+                // just the route's unread placeholder 0 — writing that into the
+                // credits pill would fabricate a zero balance for a paid member.
+                if (typeof d.balance === "number" && d.billing !== "unlimited") {
                   const bal = d.balance;
                   if (d.billing === "allowance") setAllowance((a) => (a ? { ...a, balance: bal } : a));
                   else setBalance(bal);
