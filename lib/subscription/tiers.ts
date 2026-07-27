@@ -78,6 +78,11 @@ export const PICKER_MODELS: PickerModelInfo[] = [
 
 const TIER_RANK: Record<Tier, number> = { free: 0, pro: 1, max: 2 };
 
+/** Ordering of the tier ladder (free < pro < max) for "is this an upgrade?" checks. */
+export function tierRank(tier: Tier): number {
+  return TIER_RANK[tier] ?? 0;
+}
+
 export function isModelId(v: unknown): v is ModelId {
   return typeof v === "string" && Object.values(MODEL_IDS).includes(v as ModelId);
 }
