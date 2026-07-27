@@ -35,16 +35,17 @@ export const PACKY_MODEL = "deepseek-v4-pro";
 // these reads its own key env first (see clientOptionsForModel). PACKY_MODEL
 // (deepseek) keeps using the shared PACKYAPI_API_KEY.
 export const HAIKU_MODEL = "claude-haiku-4-5-20251001";
-export const FABLE_MODEL = "claude-fable-5";
 export const OPUS_MODEL = "claude-opus-5";
 
 const HAIKU_KEY_ENV = ["PACKYAPI_API_KEY_HAIKU", "PACKY_API_KEY_HAIKU"] as const;
-const FABLE_KEY_ENV = ["PACKYAPI_API_KEY_FABLE", "PACKY_API_KEY_FABLE"] as const;
-// Opus 5 (Max's flagship) rides the existing premium key: its own names are
-// checked first so a dedicated key can be added later without a code change,
-// and it falls back to the Fable key — the same packyapi premium group — so
-// nothing has to be configured to ship the model.
-const OPUS_KEY_ENV = ["PACKYAPI_API_KEY_OPUS", "PACKY_API_KEY_OPUS", ...FABLE_KEY_ENV] as const;
+// Opus 5 is the premium model for both paid tiers. Its own names are checked
+// first; the *_FABLE names are retained as a LEGACY fallback because Fable used
+// to be the premium model and deployments configured for it hold the premium
+// group's key under that name — dropping the alias would 503 those deployments
+// until someone renamed the var. Safe to delete once every environment has
+// migrated to PACKYAPI_API_KEY_OPUS.
+const LEGACY_PREMIUM_KEY_ENV = ["PACKYAPI_API_KEY_FABLE", "PACKY_API_KEY_FABLE"] as const;
+const OPUS_KEY_ENV = ["PACKYAPI_API_KEY_OPUS", "PACKY_API_KEY_OPUS", ...LEGACY_PREMIUM_KEY_ENV] as const;
 
 // Which per-model key env to prefer for a given model id. Returns undefined for
 // the shared/base model. The model-specific names are checked BEFORE the shared
@@ -52,7 +53,6 @@ const OPUS_KEY_ENV = ["PACKYAPI_API_KEY_OPUS", "PACKY_API_KEY_OPUS", ...FABLE_KE
 // rather than hard-failing (matches the tolerant design of createPackyClient).
 export function clientOptionsForModel(model: string): PackyClientOptions | undefined {
   if (model === HAIKU_MODEL) return { apiKeyEnv: HAIKU_KEY_ENV };
-  if (model === FABLE_MODEL) return { apiKeyEnv: FABLE_KEY_ENV };
   if (model === OPUS_MODEL) return { apiKeyEnv: OPUS_KEY_ENV };
   return undefined;
 }

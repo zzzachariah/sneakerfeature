@@ -114,8 +114,8 @@ export async function POST(request: Request) {
       ? (requestedModel as ModelId)
       : resolveModelChoice(tier, member.prefs);
   // Metered by the catalog's premium flag, not by "is this the tier's headline
-  // model" — Max's flagship is Opus 5, but a Max member may still pick Fable and
-  // that turn must come out of the allowance too.
+  // model", so any premium model a tier can pick comes out of the allowance —
+  // not just the one that tier advertises.
   const premiumSelected = isAllowanceMetered(tier, model);
 
   type Billing = "credits" | "unlimited" | "allowance";

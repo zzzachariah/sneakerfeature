@@ -122,7 +122,8 @@ type BenefitRow = {
 // comparison table can't advertise a model the Smart Picker no longer runs.
 const modelName = (id: ModelId | null): string | null => (id ? (pickerModelInfo(id)?.name ?? id) : null);
 
-// "<base> + <premium>" for a paid tier (Pro: DeepSeek V4 + Fable, Max: … + Opus 5).
+// "<base> + <premium>" for a paid tier (both run DeepSeek V4 + Opus 5 — the
+// tiers differ by monthly allowance, which its own benefit row covers).
 function tierModels(tier: Exclude<Tier, "free">): string {
   const cfg = TIERS[tier];
   const premium = modelName(cfg.capabilities.premiumModel);

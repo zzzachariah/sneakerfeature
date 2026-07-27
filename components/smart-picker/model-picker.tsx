@@ -9,7 +9,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Cpu, Crown, Lock, Rabbit, Sparkles, Zap } from "lucide-react";
+import { Check, ChevronDown, Cpu, Crown, Lock, Rabbit, Zap } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { haptics } from "@/lib/native/haptics";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
@@ -25,15 +25,15 @@ import {
   type Tier
 } from "@/lib/subscription/tiers";
 
-const MODEL_ICONS: Record<ModelId, typeof Sparkles> = {
+const MODEL_ICONS: Record<ModelId, typeof Crown> = {
   [MODEL_IDS.haiku]: Rabbit,
   [MODEL_IDS.deepseek]: Zap,
-  [MODEL_IDS.fable]: Sparkles,
   [MODEL_IDS.opus]: Crown
 };
 
-// Locked rows advertise the plan that unlocks them — Opus 5 is Max-only, so a
-// blanket "Pro" tag would send a Pro member to a page that doesn't unlock it.
+// Locked rows advertise the plan that unlocks them, read off each model's own
+// minTier. Every model is Pro-or-below today, but a future Max-only one must not
+// get a blanket "Pro" tag sending a Pro member to a page that won't unlock it.
 function lockTag(minTier: Tier, zh: boolean): string {
   const name = minTier === "max" ? "Max" : "Pro";
   return zh ? `${name} 会员` : name;

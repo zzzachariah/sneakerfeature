@@ -23,7 +23,6 @@ export const MEMBER_TIER_COOKIE = "sf-member-tier";
 export const MODEL_IDS = {
   haiku: "claude-haiku-4-5-20251001",
   deepseek: "deepseek-v4-pro",
-  fable: "claude-fable-5",
   opus: "claude-opus-5"
 } as const;
 export type ModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
@@ -67,21 +66,12 @@ export const PICKER_MODELS: PickerModelInfo[] = [
     premium: false
   },
   {
-    id: MODEL_IDS.fable,
-    name: "Fable",
-    tagline: "Deep reasoning, uses the monthly allowance",
-    taglineZh: "深度推理，使用月度额度",
-    symbol: "sparkles",
-    minTier: "pro",
-    premium: true
-  },
-  {
     id: MODEL_IDS.opus,
     name: "Opus 5",
-    tagline: "The flagship — Max only, uses the monthly allowance",
-    taglineZh: "顶级旗舰，Max 专属，使用月度额度",
+    tagline: "The flagship — deep reasoning, uses the monthly allowance",
+    taglineZh: "顶级旗舰，深度推理，使用月度额度",
     symbol: "crown.fill",
-    minTier: "max",
+    minTier: "pro",
     premium: true
   }
 ];
@@ -110,8 +100,8 @@ export function tierSupportsModel(tier: Tier, modelId: string): boolean {
 /**
  * Whether running `modelId` draws from `tier`'s monthly allowance. Reads the
  * catalog's `premium` flag rather than comparing against the tier's headline
- * `premiumModel`: Max runs Opus 5 as its flagship but may still pick Fable, and
- * that turn has to be metered too instead of billing as an unlimited base turn.
+ * `premiumModel`, so any premium model a tier can pick is metered — not just the
+ * one it advertises. Opus 5 is currently the only one, but the flag is the rule.
  */
 export function isAllowanceMetered(tier: Tier, modelId: string): boolean {
   const info = pickerModelInfo(modelId);
@@ -128,9 +118,10 @@ export type TierCapabilities = {
   /** Base model runs unlimited (no per-query charge). False = metered by ai_credits. */
   baseUnlimited: boolean;
   /**
-   * The tier's headline premium model — what it defaults to and advertises
-   * (Pro: Fable, Max: Opus 5). Metered from the monthly allowance, as is any
-   * other `premium` model the tier can pick (see isAllowanceMetered).
+   * The tier's headline premium model — what it defaults to and advertises.
+   * Both paid tiers run Opus 5; they differ by monthly allowance, not by model.
+   * Metered from the monthly allowance, as is any other `premium` model the tier
+   * can pick (see isAllowanceMetered).
    */
   premiumModel: ModelId | null;
   /**
@@ -208,7 +199,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     baseModel: MODEL_IDS.deepseek,
     capabilities: {
       baseUnlimited: true,
-      premiumModel: MODEL_IDS.fable,
+      premiumModel: MODEL_IDS.opus,
       monthlyAllowance: 120,
       preciseSizing: true,
       personalization: true,
