@@ -440,7 +440,11 @@ export async function POST(request: Request) {
           createdAt: assistantRow.created_at,
           creditsCharged: assistantRow.credits_charged,
           balance: newBalance,
-          unlimited: ctx.isAdmin || billing === "unlimited",
+          // ACCOUNT-level flag, not a per-turn one: "credits never gate this
+          // member". `billing` already carries how THIS turn was charged, so
+          // deriving this from it would report false for an allowance-billed
+          // Pro turn and re-lock the composer at a 0 credit balance.
+          unlimited: ctx.isAdmin || cfg.capabilities.baseUnlimited,
           billing,
           tier,
           model,
