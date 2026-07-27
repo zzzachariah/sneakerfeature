@@ -119,7 +119,19 @@ type BenefitRow = {
 const BENEFIT_ROWS: BenefitRow[] = [
   { icon: Gauge, label: "AI 模型", labelEn: "AI model", free: "Haiku · 轻量", freeEn: "Haiku · light", pro: "deepseek-v4-pro", proEn: "deepseek-v4-pro", max: "Fable · 顶级", maxEn: "Fable · flagship" },
   { icon: Zap, label: "基础推理", labelEn: "Base reasoning", free: "签到计量", freeEn: "Metered by check-in", pro: "不限次", proEn: "Unlimited", max: "不限次", maxEn: "Unlimited" },
-  { icon: Sparkles, label: "高级模型额度", labelEn: "Premium model allowance", free: "—", freeEn: "—", pro: "300 分 / 月", proEn: "300 / mo", max: "1500 分 / 月", maxEn: "1500 / mo" },
+  // Allowance numbers read straight from TIERS — the comparison table used to
+  // hardcode them, which silently lied the moment the grants were retuned.
+  {
+    icon: Sparkles,
+    label: "高级模型额度",
+    labelEn: "Premium model allowance",
+    free: "—",
+    freeEn: "—",
+    pro: `${TIERS.pro.capabilities.monthlyAllowance} 分 / 月`,
+    proEn: `${TIERS.pro.capabilities.monthlyAllowance} / mo`,
+    max: `${TIERS.max.capabilities.monthlyAllowance} 分 / 月`,
+    maxEn: `${TIERS.max.capabilities.monthlyAllowance} / mo`
+  },
   { icon: Ruler, label: "逐款精准尺码", labelEn: "Per-shoe precise sizing", free: "品牌级", freeEn: "Brand-level", pro: "✓ 脚型精准", proEn: "✓ Foot-precise", max: "✓ 更细楦型", maxEn: "✓ Finer last" },
   { icon: Palette, label: "皮肤 · 徽章 · 个性化", labelEn: "Skins · badge · personalization", free: "—", freeEn: "—", pro: "✓", proEn: "✓", max: "✓ 深度", maxEn: "✓ Deep" },
   { icon: Crown, label: "优先级 · 抢先体验", labelEn: "Priority · early access", free: "—", freeEn: "—", pro: "—", proEn: "—", max: "✓", maxEn: "✓" }
