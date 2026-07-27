@@ -7,7 +7,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import { ModelPicker } from "@/components/smart-picker/model-picker";
 import { MAX_RECOMMENDATIONS } from "@/lib/ai/types";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
-import type { ModelId, Tier } from "@/lib/subscription/tiers";
+import { hasUnmeteredBase, type ModelId, type Tier } from "@/lib/subscription/tiers";
 
 type Props = {
   balance: number;
@@ -33,7 +33,12 @@ export function MessageInput({ balance, unlimited, sending, tier, model, onSelec
 
   // Derived numeric count used for logic and credit display.
   const count = Math.min(MAX_RECOMMENDATIONS, Math.max(1, parseInt(countStr) || 1));
-  const insufficient = !unlimited && balance < count;
+  // Only the FREE tier is metered by ai_credits. A paid plan's base model is
+  // unmetered server-side, so its credit balance is irrelevant here — gate on
+  // the tier as well as the flag so a stale/absent `unlimited` can never lock a
+  // paying member out of the composer.
+  const metered = !unlimited && !hasUnmeteredBase(tier);
+  const insufficient = metered && balance < count;
   const canSend = text.trim().length > 0 && !sending;
   const isReady = canSend && !insufficient;
 

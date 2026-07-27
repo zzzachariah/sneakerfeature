@@ -238,6 +238,18 @@ export function isPaidTier(tier: Tier): tier is "pro" | "max" {
   return tier === "pro" || tier === "max";
 }
 
+/**
+ * Whether this tier's base model runs without spending ai_credits — i.e. the
+ * member can always send, whatever their credit balance says. True for every
+ * paid tier; the premium model is metered separately by the monthly allowance
+ * and gracefully falls back to the base model when that runs out, so it never
+ * blocks either. Callers use this to decide whether to gate the composer or
+ * show "∞" instead of a credit balance.
+ */
+export function hasUnmeteredBase(tier: Tier): boolean {
+  return tierConfig(tier).capabilities.baseUnlimited;
+}
+
 export function tierConfig(tier: Tier): TierConfig {
   return TIERS[tier] ?? TIERS.free;
 }
