@@ -16,7 +16,7 @@ export async function GET() {
     getMemberContext(ctx.userId)
   ]);
 
-  // Premium-model (Fable) allowance for paid tiers — members otherwise have no
+  // Premium-model allowance for paid tiers — members otherwise have no
   // way to see how much of their monthly quota is left. Null for free / admins.
   let allowance: { balance: number; grant: number } | null = null;
   const grant = tierConfig(member.tier).capabilities.monthlyAllowance;

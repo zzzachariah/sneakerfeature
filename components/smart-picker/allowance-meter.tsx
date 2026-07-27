@@ -1,6 +1,6 @@
 "use client";
 
-// Compact premium-model (Fable) allowance meter for paid members, shown in the
+// Compact premium-model allowance meter for paid members, shown in the
 // smart-picker header beside the credits pill. Members otherwise can't see how
 // much of their monthly quota is left before the pipeline silently falls back to
 // the base model. The fill uses --brand, which is the member's skin accent, so
@@ -18,7 +18,7 @@ export function AllowanceMeter({ balance, grant }: { balance: number; grant: num
   return (
     <span
       className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium"
-      title={zh ? "高级模型（Fable）额度" : "Premium model (Fable) allowance"}
+      title={zh ? "高级模型额度" : "Premium model allowance"}
     >
       <Sparkles className="h-3.5 w-3.5" style={{ color: low ? "rgb(var(--error))" : "rgb(var(--brand))" }} aria-hidden />
       <span className="num-display">{balance}</span>
