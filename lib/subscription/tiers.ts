@@ -107,7 +107,12 @@ export type TierCapabilities = {
   baseUnlimited: boolean;
   /** Premium model (Fable) unlocked, metered from the monthly allowance. */
   premiumModel: ModelId | null;
-  /** Credits granted to the premium allowance each period. */
+  /**
+   * Credits granted to the premium allowance each period. Sized against what
+   * Fable actually costs us: a Smart Picker turn charges `prompt.count` (Pro 5 /
+   * Max 8) and an advisor reply charges 1, so Pro ≈ 24 and Max ≈ 75 flagship
+   * turns per cycle. Max stays 5× Pro — the subscribe page advertises that ratio.
+   */
   monthlyAllowance: number;
   /** Precise per-shoe sizing advisor (foot-scan personalized). Premium only. */
   preciseSizing: boolean;
@@ -178,7 +183,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     capabilities: {
       baseUnlimited: true,
       premiumModel: MODEL_IDS.fable,
-      monthlyAllowance: 300,
+      monthlyAllowance: 120,
       preciseSizing: true,
       personalization: true,
       priority: false,
@@ -197,7 +202,7 @@ export const TIERS: Record<Tier, TierConfig> = {
     capabilities: {
       baseUnlimited: true,
       premiumModel: MODEL_IDS.fable,
-      monthlyAllowance: 1500,
+      monthlyAllowance: 600,
       preciseSizing: true,
       personalization: true,
       priority: true,

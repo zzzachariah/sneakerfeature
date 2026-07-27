@@ -25,9 +25,9 @@ import { streamAdvice, type AdvisorTurn } from "@/lib/ai/advisor";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// The advisor is a Max flagship. Each reply spends this many allowance credits;
-// Max's 1500/month grant makes it effectively unlimited for real use while still
-// giving the meter something to show. Admins run unmetered.
+// The advisor is a Max flagship. Each reply spends this many allowance credits —
+// the cheapest thing the allowance buys, so advisor chat stays comfortable even
+// on the trimmed monthly grant while the meter still moves. Admins run unmetered.
 const ADVISOR_MESSAGE_COST = 1;
 
 // In-memory sliding-window rate limit: 20 messages/min per user.
