@@ -11,7 +11,7 @@ import {
   clientOptionsForModel,
   getPackyEnvReport,
   describePackyEnvProblem,
-  getPackyTarget,
+  describePackyTarget,
   describePackyError
 } from "@/lib/ai/packy-client";
 import { tierConfig, tierSupportsModel, type ModelId } from "@/lib/subscription/tiers";
@@ -243,10 +243,13 @@ export async function POST(request: Request) {
         try {
           result = await recommendShoes(client, { shoes, history, currentInput: message, count: effectiveCount, persona, footProfile, reviewsByShoe, model, depthSuffix }, onProgress);
         } catch (error) {
-          console.error("[ai/chat] recommend failed", error);
-          const target = getPackyTarget();
+          console.error("[ai/chat] recommend failed", { model, error });
+          // Report the model this request ACTUALLY ran on (`model` may have been
+          // downgraded to the base model when the allowance ran out) — the old
+          // message hardcoded the shared deepseek id and misattributed every
+          // premium-model failure.
           send("error", {
-            message: `AI 调用失败：${describePackyError(error)}。请求目标 Base URL：${target.baseURL ?? "(未设置)"}，模型：${target.model}。`
+            message: `AI 调用失败：${describePackyError(error)}。请求目标 ${describePackyTarget(model)}。`
           });
           return;
         }
