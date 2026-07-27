@@ -7,6 +7,7 @@ import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 import { UsersClient, type UserRow } from "./users-client";
+import { GiftAllPanel } from "./gift-all-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +107,8 @@ export default async function AdminUsersPage({
         description="Search the member directory, review activity and manage admin access."
         icon={UsersIcon}
       />
+
+      <GiftAllPanel />
 
       <Card className="p-4">
         <form className="grid gap-2 md:grid-cols-[1fr,180px,auto]" method="GET">
