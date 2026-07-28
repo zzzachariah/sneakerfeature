@@ -23,6 +23,7 @@ import {
   InsufficientAllowanceError
 } from "@/lib/subscription/entitlements";
 import { buildDepthSuffix } from "@/lib/ai/tier-prompt";
+import { startDeadline } from "@/lib/ai/budget";
 import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
 import { deriveDetail, detectReplyLang } from "@/lib/ai/derive-proscons";
 import { getAllBloggerReviews } from "@/lib/data/blogger-reviews";
@@ -35,6 +36,13 @@ import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/li
 // side-effecting.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// A reasoning model (Fable / Opus) legitimately thinks for minutes, and this
+// route holds the function open for the whole SSE stream. Without this the
+// platform's short default duration killed the request mid-stream — the client
+// saw the connection drop after a perfectly good "thinking" phase and showed
+// "请求失败，请稍后重试。". Must be a literal for Next's segment-config analysis;
+// keep it in sync with AI_ROUTE_MAX_DURATION, which sizes the internal deadline.
+export const maxDuration = 300;
 
 // ---------------------------------------------------------------------------
 // In-memory sliding-window rate limiter: max 30 requests per userId per minute.
@@ -67,6 +75,11 @@ const schema = z.object({
 type HistoryRow = { role: "user" | "assistant"; content: string; recommendations: RecommendationRaw[] | null };
 
 export async function POST(request: Request) {
+  // Everything this request does — DB reads, model calls, persistence — has to
+  // fit inside `maxDuration`. The deadline is set from the first line so the AI
+  // pipeline knows how much of that it has actually got left.
+  const startedAt = Date.now();
+  const deadline = startDeadline();
   const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
@@ -244,9 +257,13 @@ export async function POST(request: Request) {
 
         let result: Awaited<ReturnType<typeof recommendShoes>>;
         try {
-          result = await recommendShoes(client, { shoes, history, currentInput: message, count: effectiveCount, persona, footProfile, reviewsByShoe, model, depthSuffix }, onProgress);
+          result = await recommendShoes(
+            client,
+            { shoes, history, currentInput: message, count: effectiveCount, persona, footProfile, reviewsByShoe, model, depthSuffix, deadline },
+            onProgress
+          );
         } catch (error) {
-          console.error("[ai/chat] recommend failed", { model, error });
+          console.error("[ai/chat] recommend failed", { model, elapsedMs: Date.now() - startedAt, error });
           // Report the model this request ACTUALLY ran on (`model` may have been
           // downgraded to the base model when the allowance ran out) — the old
           // message hardcoded the shared deepseek id and misattributed every
@@ -330,6 +347,11 @@ export async function POST(request: Request) {
         // old 🔧 诊断 info so operators can still debug zero-match / prose cases.
         const sstats = result.searchStats;
         console.warn("[ai/chat] catalog", {
+          // How long the model phase actually took. This is the number to look
+          // at when a turn dies mid-stream: if it approaches `maxDuration` the
+          // platform, not the relay, is what ended the request.
+          elapsedMs: Date.now() - startedAt,
+          model,
           size: shoes.length,
           usingDemo,
           hasPersona: persona !== null,
@@ -456,8 +478,12 @@ export async function POST(request: Request) {
           fallbackUsed
         });
       } catch (error) {
-        console.error("[ai/chat] stream failed", error);
-        send("error", { message: "请求失败，请稍后重试。" });
+        // Anything that escapes the pipeline's own handling (persistence, a
+        // malformed catalog row…). The old text was a bare "请求失败，请稍后重试。",
+        // which is indistinguishable from a dropped connection and told nobody
+        // anything — report what actually broke, like the AI-call path does.
+        console.error("[ai/chat] stream failed", { model, error });
+        send("error", { message: `请求失败：${describePackyError(error)}。请稍后重试。` });
       } finally {
         clearInterval(heartbeat);
         if (!aborted) {

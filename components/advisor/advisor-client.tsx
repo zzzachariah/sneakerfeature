@@ -159,6 +159,10 @@ export function AdvisorClient({ initialPrompt }: { initialPrompt?: string }) {
         const decoder = new TextDecoder();
         let buf = "";
         let streamErr = false;
+        // Whether the server ever sent a terminal frame. A stream that just
+        // stops (function timeout, proxy drop) otherwise left the bubble stuck
+        // mid-answer with a blinking caret and no explanation.
+        let sawTerminal = false;
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -185,6 +189,7 @@ export function AdvisorClient({ initialPrompt }: { initialPrompt?: string }) {
                 prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + chunk } : m))
               );
             } else if (event === "done") {
+              sawTerminal = true;
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
@@ -203,6 +208,7 @@ export function AdvisorClient({ initialPrompt }: { initialPrompt?: string }) {
               haptics.success();
             } else if (event === "error") {
               streamErr = true;
+              sawTerminal = true;
               setError(String(payload.message ?? translate("Something went wrong.")));
               setMessages((prev) => prev.filter((m) => m.id !== assistantId));
               haptics.error();
@@ -211,10 +217,22 @@ export function AdvisorClient({ initialPrompt }: { initialPrompt?: string }) {
         }
         if (streamErr) {
           /* already handled */
+        } else if (!sawTerminal) {
+          // Cut off mid-answer: keep whatever was streamed (it's real advice)
+          // and say the connection dropped, instead of leaving a caret blinking.
+          setError(translate("Connection lost. Please try again."));
+          setMessages((prev) =>
+            prev.flatMap((m) =>
+              m.id !== assistantId ? [m] : m.content.trim() ? [{ ...m, streaming: false }] : []
+            )
+          );
         }
       } catch {
         setError(translate("Connection lost. Please try again."));
-        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
+        // Keep a partial answer rather than deleting the turn outright.
+        setMessages((prev) =>
+          prev.flatMap((m) => (m.id !== assistantId ? [m] : m.content.trim() ? [{ ...m, streaming: false }] : []))
+        );
       } finally {
         setStreaming(false);
       }
