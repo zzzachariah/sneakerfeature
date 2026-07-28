@@ -38,6 +38,12 @@ export type MembershipCardProps = {
   /** ISO expiry date for the back face; ignored when `permanent`. */
   validThrough?: string | null;
   permanent?: boolean;
+  /**
+   * The membership was gifted/comped rather than bought. Stated on the BACK
+   * face (the functional side, next to Valid thru) so the member can always see
+   * how they got it — the front stays the clean luxury face it is in previews.
+   */
+  gift?: boolean;
   /** Show the flip affordance + render a functional back face. */
   flippable?: boolean;
 };
@@ -53,6 +59,7 @@ export function MembershipCard({
   serial,
   validThrough,
   permanent = false,
+  gift = false,
   flippable = false
 }: MembershipCardProps) {
   const p = skinPalette(skin, tier);
@@ -260,8 +267,18 @@ export function MembershipCard({
 
             {/* Tier privileges — the reason this card exists. */}
             <div className="mt-2">
-              <div className="text-[0.48rem] font-bold uppercase tracking-[0.22em]" style={{ color: p.accentSoft }}>
-                {cfg.name} privileges
+              <div className="flex items-center gap-1.5">
+                <span className="text-[0.48rem] font-bold uppercase tracking-[0.22em]" style={{ color: p.accentSoft }}>
+                  {cfg.name} privileges
+                </span>
+                {gift && (
+                  <span
+                    className="rounded-full px-1.5 py-[1px] text-[0.42rem] font-bold uppercase tracking-[0.14em]"
+                    style={{ color: "#12b886", border: "1px solid #12b88680", background: "#12b8861a" }}
+                  >
+                    Gift · 赠送
+                  </span>
+                )}
               </div>
               <ul className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5">
                 {privileges.map((item) => (

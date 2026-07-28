@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
-import { Check, Crown, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { Check, Crown, Gift, Sparkles, Zap, Ruler, Palette, Gauge, ChevronRight, ArrowUp, ArrowDown, LayoutList, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { HOME_SECTIONS, resolveHomeOrder, type HomeSectionId } from "@/lib/home/sections";
 import { useLocale } from "@/components/i18n/locale-provider";
 import {
@@ -72,6 +72,8 @@ export type SubscribeCurrent = {
   isAdmin: boolean;
   tier: Tier;
   isPermanent: boolean;
+  /** The active membership was gifted/comped rather than bought. */
+  isGift: boolean;
   expiresAt: string | null;
   skin: SkinId;
   customAccent: string | null;
@@ -266,8 +268,9 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   async function onSubscribe(tier: "pro" | "max") {
     if (pending) return;
     // Client mirror of the server policy: block switching tiers while an active
-    // paid plan exists. The server (/api/stripe/checkout) is the real guard.
-    if (!current.isAdmin && !purchaseDecision(current.tier, tier).allowed) return;
+    // paid plan exists, and block every purchase for a permanent member. The
+    // server (/api/stripe/checkout) is the real guard.
+    if (!current.isAdmin && !purchaseDecision(current.tier, tier, current.isPermanent).allowed) return;
     setError(null);
     setPending(tier);
     try {
@@ -313,22 +316,35 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         </p>
 
         {current.signedIn && current.tier !== "free" && (
-          <div
-            className="mx-auto mt-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium"
-            style={{
-              color: TIERS[current.tier].badgeHue,
-              backgroundColor: `${TIERS[current.tier].badgeHue}1f`,
-              border: `1px solid ${TIERS[current.tier].badgeHue}55`
-            }}
-          >
-            <Crown className="h-4 w-4" />
-            {t("当前：", "Current: ")}
-            {TIERS[current.tier].name}
-            {current.isPermanent
-              ? t(" · 永久", " · Permanent")
-              : current.expiresAt
-                ? `${t(" · 至 ", " · until ")}${new Date(current.expiresAt).toLocaleDateString()}`
-                : ""}
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <span
+              className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium"
+              style={{
+                color: TIERS[current.tier].badgeHue,
+                backgroundColor: `${TIERS[current.tier].badgeHue}1f`,
+                border: `1px solid ${TIERS[current.tier].badgeHue}55`
+              }}
+            >
+              <Crown className="h-4 w-4" />
+              {t("当前：", "Current: ")}
+              {TIERS[current.tier].name}
+              {current.isPermanent
+                ? t(" · 永久", " · Permanent")
+                : current.expiresAt
+                  ? `${t(" · 至 ", " · until ")}${new Date(current.expiresAt).toLocaleDateString()}`
+                  : ""}
+            </span>
+            {/* A gifted membership says so, everywhere it's shown — it behaves
+                identically but carries no purchase and so can't be refunded. */}
+            {current.isGift && (
+              <span
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium"
+                style={{ color: "#12b886", backgroundColor: "#12b8861f", border: "1px solid #12b88655" }}
+              >
+                <Gift className="h-4 w-4" />
+                {t("赠送会员", "Gifted")}
+              </span>
+            )}
           </div>
         )}
       </motion.header>
@@ -460,14 +476,22 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
             <p className="mt-1 soft-text">
               {current.isPermanent
                 ? t(
-                    "永久会员暂不支持更换其他档位，你已享有当前会员的全部权益。",
-                    "Lifetime members can't switch tiers for now — you already have everything your plan includes."
+                    "永久会员权益不会到期，无需也无法再次购买（再次付款只会把「永久」换成一段有限期）；也暂不支持更换其他档位。",
+                    "A lifetime membership never expires, so there is nothing to renew — buying again would only replace \"lifetime\" with a fixed term. Switching tiers isn't supported either."
                   )
                 : t(
                     "根据会员政策，当前会员到期前不可更换其他档位；但你可以随时续费延长同一档位。",
                     "Per our membership policy, you can't switch tiers until your current plan expires — but you can renew or extend the same tier anytime."
                   )}
             </p>
+            {current.isGift && (
+              <p className="mt-1.5 soft-text">
+                {t(
+                  "这是一份赠送的会员：权益与付费会员完全相同，但因为没有实际付款，所以不支持退款。",
+                  "This membership was a gift: the perks are identical to a paid plan, but since no payment was made it can't be refunded."
+                )}
+              </p>
+            )}
           </div>
         </motion.div>
       )}
@@ -480,9 +504,11 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           const { price, per } = priceLabel(tier, duration, zh);
           const saved = savingsPct(tier, duration);
           // Policy gate for this card: lock the OTHER tier while a paid plan is
-          // active; the CURRENT tier's CTA becomes a renew/extend action.
-          const gate = purchaseDecision(current.tier, tier);
+          // active; the CURRENT tier's CTA becomes a renew/extend action. A
+          // permanent plan locks BOTH cards — see purchaseDecision.
+          const gate = purchaseDecision(current.tier, tier, current.isPermanent);
           const locked = activePaid && !gate.allowed;
+          const lockedPermanent = locked && !gate.allowed && gate.reason === "permanent";
           const isRenew = current.signedIn && gate.allowed && gate.kind === "extend";
           return (
             <motion.div
@@ -585,7 +611,9 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
                 {locked ? (
                   <>
                     <Lock className="h-4 w-4" />
-                    {t("到期前不可更换", "Locked until expiry")}
+                    {lockedPermanent
+                      ? t("已是永久会员", "You're a lifetime member")
+                      : t("到期前不可更换", "Locked until expiry")}
                   </>
                 ) : (
                   <>
@@ -601,7 +629,9 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               </button>
               {locked && (
                 <p className="mt-2 text-center text-xs soft-text">
-                  {t("当前会员到期后可更换此档位", "Available to switch once your current plan expires")}
+                  {lockedPermanent
+                    ? t("你的权益永不过期，无需再次付款", "Your perks never expire — there's nothing to pay for")
+                    : t("当前会员到期后可更换此档位", "Available to switch once your current plan expires")}
                 </p>
               )}
             </motion.div>

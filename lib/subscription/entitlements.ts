@@ -7,25 +7,97 @@ import { ALLOWANCE_PERIOD_SECONDS, DURATIONS, tierConfig, tierRank, type Duratio
 import {
   memberContextFromRow,
   parseMemberPrefs,
+  parseSubscriptionSource,
   resolveTier,
   type MemberContext,
   type MemberPrefs,
-  type SubscriptionRow
+  type SubscriptionRow,
+  type SubscriptionSource
 } from "@/lib/subscription/resolve";
 
-export type { MemberPrefs, MemberContext, SubscriptionRow } from "@/lib/subscription/resolve";
+export type { MemberPrefs, MemberContext, SubscriptionRow, SubscriptionSource } from "@/lib/subscription/resolve";
 export { resolveTier, parseMemberPrefs, memberContextFromRow } from "@/lib/subscription/resolve";
+
+// --- subscription_source, tolerantly ----------------------------------------
+// `subscription_source` lands with migration 047. A deployment that ships this
+// code before the migration runs would otherwise fail EVERY membership read and
+// write with 42703 (undefined_column) — silently demoting every paying member to
+// free and breaking Stripe fulfilment. So each statement that mentions the
+// column falls back to its pre-047 shape once, instead of erroring.
+
+/** Columns getMemberContext needs, with and without the 047 column. */
+export const MEMBER_COLUMNS =
+  "subscription_tier, subscription_expires_at, subscription_is_permanent, subscription_source, member_prefs";
+const MEMBER_COLUMNS_LEGACY =
+  "subscription_tier, subscription_expires_at, subscription_is_permanent, member_prefs";
+
+/** Columns the grant/revoke paths read before writing, with and without 047. */
+const CURRENT_COLUMNS =
+  "subscription_tier, subscription_expires_at, subscription_is_permanent, subscription_source, username";
+const CURRENT_COLUMNS_LEGACY =
+  "subscription_tier, subscription_expires_at, subscription_is_permanent, username";
+
+type PgError = { code?: string; message?: string } | null;
+
+/** True when the failure is "profiles.subscription_source doesn't exist yet". */
+export function isMissingSourceColumn(error: PgError): boolean {
+  if (!error) return false;
+  return error.code === "42703" || /subscription_source/i.test(error.message ?? "");
+}
+
+/**
+ * Run a profile UPDATE that sets `subscription_source`, retrying without it if
+ * migration 047 hasn't been applied. `apply` is called with the patch to write,
+ * so callers keep their own `.eq(...)` / `.in(...)` targeting.
+ */
+async function updateWithSource<T extends { error: PgError }>(
+  patch: Record<string, unknown>,
+  apply: (patch: Record<string, unknown>) => PromiseLike<T>
+): Promise<T> {
+  const first = await apply(patch);
+  if (!isMissingSourceColumn(first.error)) return first;
+  const legacy = { ...patch };
+  delete legacy.subscription_source;
+  return apply(legacy);
+}
+
+/**
+ * Run a profiles SELECT that asks for `subscription_source`, retrying with the
+ * pre-047 column list if the column isn't there yet. Returns the row (or null).
+ */
+async function selectWithSource<T extends { data: unknown; error: PgError }>(
+  read: (columns: string) => PromiseLike<T>,
+  columns: string,
+  legacyColumns: string
+): Promise<unknown> {
+  const first = await read(columns);
+  if (!isMissingSourceColumn(first.error)) return first.data;
+  return (await read(legacyColumns)).data;
+}
 
 // Server read of a user's membership context straight from profiles.
 export async function getMemberContext(userId: string): Promise<MemberContext> {
   const db = createAdminClient();
   if (!db) return memberContextFromRow({});
-  const { data } = await db
-    .from("profiles")
-    .select("subscription_tier, subscription_expires_at, subscription_is_permanent, member_prefs")
-    .eq("id", userId)
-    .maybeSingle();
-  return memberContextFromRow(data ?? {});
+  const data = await selectWithSource(
+    (columns: string) => db.from("profiles").select(columns).eq("id", userId).maybeSingle(),
+    MEMBER_COLUMNS,
+    MEMBER_COLUMNS_LEGACY
+  );
+  return memberContextFromRow((data as SubscriptionRow | null) ?? {});
+}
+
+/**
+ * The source to write when granting/extending a membership that is NOT a
+ * purchase (admin grant or bulk gift). Money is never downgraded: a member whose
+ * ACTIVE membership was bought stays "paid" — and therefore stays refundable —
+ * even when an admin stacks a gift on top of it. Everyone else becomes "gift".
+ */
+export function giftSourceFor(current: SubscriptionRow | null | undefined): SubscriptionSource {
+  if (!current) return "gift";
+  const { tier } = resolveTier(current);
+  if (tier === "free") return "gift"; // expired / never paid — the old source is spent
+  return parseSubscriptionSource(current.subscription_source) === "paid" ? "paid" : "gift";
 }
 
 // --- Monthly premium allowance ---------------------------------------------
@@ -85,11 +157,17 @@ export type GrantResult = {
   tier: Tier;
   expiresAt: string | null;
   permanent: boolean;
+  /** How the resulting membership is recorded; null when reset to free. */
+  source: SubscriptionSource | null;
 };
 
 // Admin manually grants/extends a membership. If the user already has the same
 // paid tier and isn't permanent, the new duration STACKS onto the remaining
 // time; switching tiers or granting permanent resets from now.
+//
+// The grant is recorded as a GIFT unless it lands on top of an active membership
+// the member actually paid for (see giftSourceFor) — a comped membership must
+// never look, or refund, like a purchase.
 export async function setSubscription(
   userId: string,
   tier: Tier,
@@ -99,24 +177,25 @@ export async function setSubscription(
   const db = createAdminClient();
   if (!db) throw new Error("Service-role client unavailable");
 
-  const { data: current } = await db
-    .from("profiles")
-    .select("subscription_tier, subscription_expires_at, subscription_is_permanent, username")
-    .eq("id", userId)
-    .maybeSingle();
+  const current = (await selectWithSource(
+    (columns: string) => db.from("profiles").select(columns).eq("id", userId).maybeSingle(),
+    CURRENT_COLUMNS,
+    CURRENT_COLUMNS_LEGACY
+  )) as (SubscriptionRow & { username?: string | null }) | null;
 
   let result: GrantResult;
   if (tier === "free") {
-    result = { tier: "free", expiresAt: null, permanent: false };
-    await db
-      .from("profiles")
-      .update({
+    result = { tier: "free", expiresAt: null, permanent: false, source: null };
+    await updateWithSource(
+      {
         subscription_tier: "free",
         subscription_expires_at: null,
         subscription_is_permanent: false,
+        subscription_source: null,
         updated_at: new Date().toISOString()
-      })
-      .eq("id", userId);
+      },
+      (patch) => db.from("profiles").update(patch).eq("id", userId)
+    );
   } else {
     // Stack onto remaining time only when extending the SAME non-permanent tier.
     const sameTier = current?.subscription_tier === tier;
@@ -127,17 +206,19 @@ export async function setSubscription(
         : new Date();
     const base = remaining.getTime() > Date.now() ? remaining : new Date();
     const { expiresAt, permanent } = computeExpiry(duration, base);
-    result = { tier, expiresAt, permanent };
-    await db
-      .from("profiles")
-      .update({
+    const source = giftSourceFor(current);
+    result = { tier, expiresAt, permanent, source };
+    await updateWithSource(
+      {
         subscription_tier: tier,
         subscription_started_at: new Date().toISOString(),
         subscription_expires_at: expiresAt,
         subscription_is_permanent: permanent,
+        subscription_source: source,
         updated_at: new Date().toISOString()
-      })
-      .eq("id", userId);
+      },
+      (patch) => db.from("profiles").update(patch).eq("id", userId)
+    );
 
     // Seed / refresh the allowance row so premium usage works immediately.
     await getAllowanceBalance(userId, tier);
@@ -148,9 +229,18 @@ export async function setSubscription(
     actor_admin_id: actorAdminId,
     target_type: "profile",
     action: `subscription:${current?.subscription_tier ?? "free"}->${tier}`,
-    note: `@${current?.username ?? userId}: ${tier} (${duration})`,
-    before_payload: { tier: current?.subscription_tier ?? "free" },
-    after_payload: { tier, duration, expiresAt: result.expiresAt, permanent: result.permanent }
+    note: `@${current?.username ?? userId}: ${tier} (${duration}${result.source ? `, ${result.source}` : ""})`,
+    before_payload: {
+      tier: current?.subscription_tier ?? "free",
+      source: parseSubscriptionSource(current?.subscription_source)
+    },
+    after_payload: {
+      tier,
+      duration,
+      expiresAt: result.expiresAt,
+      permanent: result.permanent,
+      source: result.source
+    }
   });
   if (auditError) console.warn("[entitlements] audit log skipped:", auditError.message);
 
@@ -174,21 +264,25 @@ export async function revokeSubscription(
   const db = createAdminClient();
   if (!db) throw new Error("Service-role client unavailable");
 
-  const { data: current } = await db
-    .from("profiles")
-    .select("subscription_tier, subscription_expires_at, subscription_is_permanent, username")
-    .eq("id", userId)
-    .maybeSingle();
+  const current = (await selectWithSource(
+    (columns: string) => db.from("profiles").select(columns).eq("id", userId).maybeSingle(),
+    CURRENT_COLUMNS,
+    CURRENT_COLUMNS_LEGACY
+  )) as (SubscriptionRow & { username?: string | null }) | null;
 
-  await db
-    .from("profiles")
-    .update({
+  // Clearing the source too: the membership is gone, so there is nothing left to
+  // classify — and a stale "paid" marker would keep the refund button armed on a
+  // member who no longer holds anything.
+  await updateWithSource(
+    {
       subscription_tier: "free",
       subscription_expires_at: null,
       subscription_is_permanent: false,
+      subscription_source: null,
       updated_at: new Date().toISOString()
-    })
-    .eq("id", userId);
+    },
+    (patch) => db.from("profiles").update(patch).eq("id", userId)
+  );
 
   const { error: auditError } = await db.from("admin_audit_logs").insert({
     actor_admin_id: opts.actorAdminId,
@@ -198,13 +292,14 @@ export async function revokeSubscription(
     before_payload: {
       tier: current?.subscription_tier ?? "free",
       expiresAt: current?.subscription_expires_at ?? null,
-      permanent: Boolean(current?.subscription_is_permanent)
+      permanent: Boolean(current?.subscription_is_permanent),
+      source: parseSubscriptionSource(current?.subscription_source)
     },
     after_payload: { tier: "free", reason: opts.reason }
   });
   if (auditError) console.warn("[entitlements] revoke audit skipped:", auditError.message);
 
-  return { tier: "free", expiresAt: null, permanent: false };
+  return { tier: "free", expiresAt: null, permanent: false, source: null };
 }
 
 // --- Bulk gift (全站送会员) --------------------------------------------------
@@ -220,6 +315,12 @@ export type BulkGiftPlan = {
   skippedHigherTier: number;
   /** Skipped because they already hold this tier permanently. */
   skippedPermanent: number;
+  /**
+   * Of the affected members, how many bought their current membership. They keep
+   * subscription_source = 'paid' (and therefore stay refundable); everyone else
+   * is stamped 'gift'.
+   */
+  keptPaid: number;
   /** Expiry written to the fresh-term group; null when the gift is permanent. */
   expiresAt: string | null;
   permanent: boolean;
@@ -247,6 +348,10 @@ const GIFT_CONCURRENCY = 8; // parallel single-row extensions
  *   - a PERMANENT same-tier member is skipped (nothing to add);
  *   - everyone else starts a fresh term from now.
  *
+ * Every touched member is stamped subscription_source = 'gift' EXCEPT those
+ * whose active membership was bought (giftSourceFor) — stacking a free month
+ * onto a purchase must not quietly strip that buyer's right to a refund.
+ *
  * Not idempotent: running it twice stacks two terms onto everyone. Preview first.
  *
  * The monthly allowance is deliberately NOT seeded per member — refresh_allowance
@@ -264,16 +369,24 @@ export async function giftAllMembers(
   const limit = opts.limit && opts.limit > 0 ? opts.limit : null;
 
   // --- read every profile ---
+  const GIFT_COLUMNS =
+    "id, username, subscription_tier, subscription_expires_at, subscription_is_permanent, subscription_source";
+  const GIFT_COLUMNS_LEGACY =
+    "id, username, subscription_tier, subscription_expires_at, subscription_is_permanent";
+  // Falls back once (not per page) when migration 047 hasn't been applied.
+  let giftColumns = GIFT_COLUMNS;
   const rows: GiftRow[] = [];
   for (let from = 0; ; from += GIFT_PAGE) {
-    const { data, error } = await db
-      .from("profiles")
-      .select("id, username, subscription_tier, subscription_expires_at, subscription_is_permanent")
-      .order("id", { ascending: true })
-      .range(from, from + GIFT_PAGE - 1);
+    const page = () =>
+      db.from("profiles").select(giftColumns).order("id", { ascending: true }).range(from, from + GIFT_PAGE - 1);
+    let { data, error } = await page();
+    if (isMissingSourceColumn(error)) {
+      giftColumns = GIFT_COLUMNS_LEGACY;
+      ({ data, error } = await page());
+    }
     if (error) throw new Error(`Failed to read profiles: ${error.message}`);
     if (!data?.length) break;
-    rows.push(...(data as GiftRow[]));
+    rows.push(...(data as unknown as GiftRow[]));
     if (data.length < GIFT_PAGE) break;
     if (limit && rows.length >= limit) break;
   }
@@ -302,6 +415,9 @@ export async function giftAllMembers(
   }
 
   const { expiresAt: freshExpiry, permanent } = computeExpiry(duration, now);
+  const keptPaid =
+    fresh.filter((r) => giftSourceFor(r) === "paid").length +
+    extend.filter((e) => giftSourceFor(e.row) === "paid").length;
   const sample: BulkGiftPlan["sample"] = [
     ...fresh.slice(0, 5).map((r) => ({ username: r.username ?? r.id, tier, action: "grant" as const })),
     ...extend.slice(0, 5).map((e) => ({ username: e.row.username ?? e.row.id, tier, action: "extend" as const }))
@@ -313,6 +429,7 @@ export async function giftAllMembers(
     extended: extend.length,
     skippedHigherTier,
     skippedPermanent,
+    keptPaid,
     expiresAt: freshExpiry,
     permanent,
     applied: false,
@@ -322,20 +439,26 @@ export async function giftAllMembers(
 
   // --- write ---
   const stamp = now.toISOString();
-  // Fresh terms all share one expiry, so they go out as chunked bulk UPDATEs.
-  for (let i = 0; i < fresh.length; i += GIFT_CHUNK) {
-    const ids = fresh.slice(i, i + GIFT_CHUNK).map((r) => r.id);
-    const { error } = await db
-      .from("profiles")
-      .update({
-        subscription_tier: tier,
-        subscription_started_at: stamp,
-        subscription_expires_at: freshExpiry,
-        subscription_is_permanent: permanent,
-        updated_at: stamp
-      })
-      .in("id", ids);
-    if (error) throw new Error(`Bulk gift failed at offset ${i}: ${error.message}`);
+  // Fresh terms all share one expiry, so they go out as chunked bulk UPDATEs —
+  // split by the source they end up with (buyers keep 'paid', see giftSourceFor)
+  // so each half is still one statement per chunk.
+  for (const source of ["gift", "paid"] as const) {
+    const group = fresh.filter((r) => giftSourceFor(r) === source);
+    for (let i = 0; i < group.length; i += GIFT_CHUNK) {
+      const ids = group.slice(i, i + GIFT_CHUNK).map((r) => r.id);
+      const { error } = await updateWithSource(
+        {
+          subscription_tier: tier,
+          subscription_started_at: stamp,
+          subscription_expires_at: freshExpiry,
+          subscription_is_permanent: permanent,
+          subscription_source: source,
+          updated_at: stamp
+        },
+        (patch) => db.from("profiles").update(patch).in("id", ids)
+      );
+      if (error) throw new Error(`Bulk gift failed at offset ${i} (${source}): ${error.message}`);
+    }
   }
 
   // Extensions each land on their own expiry → one UPDATE per member.
@@ -343,15 +466,16 @@ export async function giftAllMembers(
     const batch = extend.slice(i, i + GIFT_CONCURRENCY);
     const results = await Promise.all(
       batch.map(({ row, expiresAt }) =>
-        db
-          .from("profiles")
-          .update({
+        updateWithSource(
+          {
             subscription_tier: tier,
             subscription_expires_at: expiresAt,
             subscription_is_permanent: permanent,
+            subscription_source: giftSourceFor(row),
             updated_at: stamp
-          })
-          .eq("id", row.id)
+          },
+          (patch) => db.from("profiles").update(patch).eq("id", row.id)
+        )
       )
     );
     const failed = results.find((r) => r.error);
@@ -371,7 +495,9 @@ export async function giftAllMembers(
       expiresAt: freshExpiry,
       permanent,
       granted: fresh.length,
-      extended: extend.length
+      extended: extend.length,
+      source: "gift",
+      keptPaid
     }
   });
   if (auditError) console.warn("[entitlements] gift audit skipped:", auditError.message);
@@ -411,11 +537,11 @@ export async function grantFromPayment(
   const db = createAdminClient();
   if (!db) throw new Error("Service-role client unavailable");
 
-  const { data: current } = await db
-    .from("profiles")
-    .select("subscription_tier, subscription_expires_at, subscription_is_permanent, username")
-    .eq("id", userId)
-    .maybeSingle();
+  const current = (await selectWithSource(
+    (columns: string) => db.from("profiles").select(columns).eq("id", userId).maybeSingle(),
+    CURRENT_COLUMNS,
+    CURRENT_COLUMNS_LEGACY
+  )) as (SubscriptionRow & { username?: string | null }) | null;
 
   const sameTier = current?.subscription_tier === tier;
   const notPermanent = !current?.subscription_is_permanent;
@@ -424,18 +550,39 @@ export async function grantFromPayment(
       ? new Date(current.subscription_expires_at)
       : new Date();
   const base = remaining.getTime() > Date.now() ? remaining : new Date();
-  const { expiresAt, permanent } = computeExpiry(duration, base);
+  let { expiresAt, permanent } = computeExpiry(duration, base);
 
-  await db
-    .from("profiles")
-    .update({
+  // NEVER shorten a lifetime membership. /api/stripe/checkout refuses a purchase
+  // from a permanent member (purchaseDecision → reason "permanent"), but admins
+  // bypass that gate and a webhook can always arrive late, so the grant itself
+  // holds the line: writing a 30-day expiry over an existing permanent plan of
+  // the same-or-lower tier would turn a paid-for lifetime into a month.
+  const alreadyPermanent = Boolean(current?.subscription_is_permanent);
+  const currentTier = resolveTier(current ?? {}).tier;
+  if (alreadyPermanent && !permanent && tierRank(currentTier) >= tierRank(tier)) {
+    console.warn("[entitlements] permanent membership preserved against a shorter purchase", {
+      userId,
+      currentTier,
+      purchased: `${tier}/${duration}`,
+      session: payment.sessionId
+    });
+    expiresAt = null;
+    permanent = true;
+  }
+
+  await updateWithSource(
+    {
       subscription_tier: tier,
       subscription_started_at: new Date().toISOString(),
       subscription_expires_at: expiresAt,
       subscription_is_permanent: permanent,
+      // A purchase always records 'paid' — this is the marker the refund flow
+      // gates on, and it upgrades a gifted member the moment they actually buy.
+      subscription_source: "paid",
       updated_at: new Date().toISOString()
-    })
-    .eq("id", userId);
+    },
+    (patch) => db.from("profiles").update(patch).eq("id", userId)
+  );
 
   // Seed / refresh the allowance row so premium usage works immediately.
   await getAllowanceBalance(userId, tier);
@@ -446,12 +593,16 @@ export async function grantFromPayment(
     target_type: "profile",
     action: `subscription:stripe:${current?.subscription_tier ?? "free"}->${tier}`,
     note: `@${current?.username ?? userId}: ${tier} (${duration}) via Stripe ${payment.sessionId}`,
-    before_payload: { tier: current?.subscription_tier ?? "free" },
+    before_payload: {
+      tier: current?.subscription_tier ?? "free",
+      source: parseSubscriptionSource(current?.subscription_source)
+    },
     after_payload: {
       tier,
       duration,
       expiresAt,
       permanent,
+      source: "paid",
       session: payment.sessionId,
       amount: payment.amountTotal,
       currency: payment.currency
@@ -459,5 +610,5 @@ export async function grantFromPayment(
   });
   if (auditError) console.warn("[entitlements] payment audit skipped:", auditError.message);
 
-  return { tier, expiresAt, permanent };
+  return { tier, expiresAt, permanent, source: "paid" };
 }

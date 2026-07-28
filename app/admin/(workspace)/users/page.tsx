@@ -1,6 +1,8 @@
 import { Users as UsersIcon } from "lucide-react";
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSourceColumn } from "@/lib/subscription/entitlements";
+import { parseSubscriptionSource, resolveTier } from "@/lib/subscription/resolve";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -22,19 +24,22 @@ export default async function AdminUsersPage({
   const q = typeof params.q === "string" ? params.q : "";
   const role = typeof params.role === "string" ? params.role : "all";
 
-  let query = db
-    .from("profiles")
-    .select("id, username, email, role, created_at, subscription_tier, subscription_expires_at, subscription_is_permanent")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  if (role === "admin" || role === "user") query = query.eq("role", role);
-  if (q) {
-    const safe = q.replace(/[,()*:]/g, " ").trim();
-    if (safe) query = query.or(`username.ilike.%${safe}%,email.ilike.%${safe}%`);
-  }
+  // subscription_source arrives with migration 047; fall back to the pre-047
+  // column list so the console still renders on a database that lacks it.
+  const BASE_COLUMNS = "id, username, email, role, created_at, subscription_tier, subscription_expires_at, subscription_is_permanent";
+  const buildQuery = (columns: string) => {
+    let query = db.from("profiles").select(columns).order("created_at", { ascending: false }).limit(200);
+    if (role === "admin" || role === "user") query = query.eq("role", role);
+    if (q) {
+      const safe = q.replace(/[,()*:]/g, " ").trim();
+      if (safe) query = query.or(`username.ilike.%${safe}%,email.ilike.%${safe}%`);
+    }
+    return query;
+  };
 
-  const { data } = await query;
-  const profiles = (data ?? []) as {
+  const attempt = await buildQuery(`${BASE_COLUMNS}, subscription_source`);
+  const { data } = isMissingSourceColumn(attempt.error) ? await buildQuery(BASE_COLUMNS) : attempt;
+  const profiles = (data ?? []) as unknown as {
     id: string;
     username: string;
     email: string;
@@ -43,6 +48,7 @@ export default async function AdminUsersPage({
     subscription_tier: string | null;
     subscription_expires_at: string | null;
     subscription_is_permanent: boolean | null;
+    subscription_source?: string | null;
   }[];
   const ids = profiles.map((p) => p.id);
 
@@ -84,21 +90,30 @@ export default async function AdminUsersPage({
     }
   }
 
-  const rows: UserRow[] = profiles.map((p) => ({
-    id: p.id,
-    username: p.username,
-    email: p.email,
-    role: p.role === "admin" ? "admin" : "user",
-    createdAt: p.created_at,
-    comments: commentsBy.get(p.id) ?? 0,
-    ratings: ratingsBy.get(p.id) ?? 0,
-    favorites: favoritesBy.get(p.id) ?? 0,
-    submissions: submissionsBy.get(p.id) ?? 0,
-    lastActiveAt: lastActiveBy.get(p.id) ?? null,
-    tier: p.subscription_tier === "pro" || p.subscription_tier === "max" ? p.subscription_tier : "free",
-    expiresAt: p.subscription_expires_at,
-    isPermanent: Boolean(p.subscription_is_permanent)
-  }));
+  const rows: UserRow[] = profiles.map((p) => {
+    // Resolve the EFFECTIVE tier rather than reading the raw column: a lapsed
+    // Pro still stores subscription_tier = 'pro', so the console used to list
+    // them as an active member — and offered a Refund button for a membership
+    // that had already ended.
+    const { tier, expired } = resolveTier(p);
+    return {
+      id: p.id,
+      username: p.username,
+      email: p.email,
+      role: p.role === "admin" ? "admin" : "user",
+      createdAt: p.created_at,
+      comments: commentsBy.get(p.id) ?? 0,
+      ratings: ratingsBy.get(p.id) ?? 0,
+      favorites: favoritesBy.get(p.id) ?? 0,
+      submissions: submissionsBy.get(p.id) ?? 0,
+      lastActiveAt: lastActiveBy.get(p.id) ?? null,
+      tier,
+      expired,
+      expiresAt: p.subscription_expires_at,
+      isPermanent: Boolean(p.subscription_is_permanent) && tier !== "free",
+      source: tier === "free" ? null : parseSubscriptionSource(p.subscription_source)
+    };
+  });
 
   return (
     <div className="space-y-4">

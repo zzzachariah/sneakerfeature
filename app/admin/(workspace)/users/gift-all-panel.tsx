@@ -16,6 +16,7 @@ type Plan = {
   extended: number;
   skippedHigherTier: number;
   skippedPermanent: number;
+  keptPaid: number;
   expiresAt: string | null;
   permanent: boolean;
   applied: boolean;
@@ -167,6 +168,9 @@ export function GiftAllPanel() {
               Skipped (already permanent): <span className="num-display font-semibold">{plan.skippedPermanent}</span>
             </li>
             <li>
+              Keep paid status: <span className="num-display font-semibold">{plan.keptPaid}</span>
+            </li>
+            <li>
               {plan.permanent
                 ? "Never expires"
                 : `Expires ${plan.expiresAt ? new Date(plan.expiresAt).toLocaleDateString() : "—"}`}
@@ -179,7 +183,8 @@ export function GiftAllPanel() {
           )}
           <p className="mt-2 text-xs soft-text">
             Each member draws {TIERS[tier].capabilities.monthlyAllowance} premium credits per 30-day period while the
-            membership is active.
+            membership is active. Gifted memberships are marked as gifts and can never be refunded — only cancelled.
+            Members who bought their current plan keep their paid status (and their refund eligibility).
           </p>
         </div>
       )}

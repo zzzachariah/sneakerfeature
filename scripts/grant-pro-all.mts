@@ -80,6 +80,9 @@ async function main() {
   console.log(`   time extended    : ${plan.extended}`);
   console.log(`   skipped (higher) : ${plan.skippedHigherTier}`);
   console.log(`   skipped (永久)    : ${plan.skippedPermanent}`);
+  // Buyers keep subscription_source = 'paid' and stay refundable; everyone else
+  // is stamped 'gift', which the admin refund flow refuses outright.
+  console.log(`   keep paid status : ${plan.keptPaid}`);
   for (const s of plan.sample) console.log(`   · @${s.username} (${s.action})`);
 
   if (!plan.applied) {

@@ -47,23 +47,32 @@ export async function POST(request: Request) {
 
   // Membership-change policy: an active paid member is locked to their current
   // tier until it expires — they may renew/extend the SAME tier but cannot
-  // switch to the other one mid-term ("买任何一个，在截止日期前，不能更换"). This is the
-  // authoritative guard; the subscribe UI mirrors it but must not be the only
-  // gate. Admins bypass it so they can still test both checkouts end-to-end
-  // while /subscribe is admin-only.
+  // switch to the other one mid-term ("买任何一个，在截止日期前，不能更换"). A PERMANENT
+  // member is refused every purchase, including a "renewal" of their own tier:
+  // lifetime has no expiry to push out, and the grant would replace it with a
+  // duration-based one — i.e. paying to be downgraded. This is the authoritative
+  // guard; the subscribe UI mirrors it but must not be the only gate. Admins
+  // bypass it so they can still test both checkouts end-to-end while
+  // /subscribe is admin-only.
   if (profile.role !== "admin") {
     const member = await getMemberContext(profile.id);
-    const decision = purchaseDecision(member.tier, tier);
+    const decision = purchaseDecision(member.tier, tier, member.isPermanent);
     if (!decision.allowed) {
       const currentName = tierConfig(decision.currentTier).name;
-      const until = member.isPermanent
-        ? "（当前为永久会员）"
-        : member.expiresAt
-          ? `（当前会员至 ${new Date(member.expiresAt).toLocaleDateString("zh-CN")} 到期）`
-          : "";
-      const message = member.isPermanent
-        ? `你已是 ${currentName} 永久会员，暂不支持更换其他档位。`
-        : `你当前已是 ${currentName} 会员，到期前不能更换其他档位，可续费延长同档。${until}`;
+      if (decision.reason === "permanent") {
+        return NextResponse.json(
+          {
+            ok: false,
+            code: "plan_permanent",
+            message: `你已是 ${currentName} 永久会员，权益不会到期，无需也无法再次购买。`
+          },
+          { status: 409 }
+        );
+      }
+      const until = member.expiresAt
+        ? `（当前会员至 ${new Date(member.expiresAt).toLocaleDateString("zh-CN")} 到期）`
+        : "";
+      const message = `你当前已是 ${currentName} 会员，到期前不能更换其他档位，可续费延长同档。${until}`;
       return NextResponse.json({ ok: false, code: "plan_locked", message }, { status: 409 });
     }
   }

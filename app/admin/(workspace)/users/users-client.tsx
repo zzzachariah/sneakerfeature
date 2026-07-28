@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ChevronRight, Shield, ShieldOff, ShieldCheck, Crown, RotateCcw, XCircle } from "lucide-react";
+import { ChevronRight, Shield, ShieldOff, ShieldCheck, Crown, Gift, RotateCcw, XCircle } from "lucide-react";
 import { confirmDialog } from "@/components/native/native-menu";
 import { Card } from "@/components/ui/card";
 import { TIERS, DURATIONS, type Tier, type Duration } from "@/lib/subscription/tiers";
+import type { SubscriptionSource } from "@/lib/subscription/resolve";
 
 export type UserRow = {
   id: string;
@@ -19,9 +20,14 @@ export type UserRow = {
   favorites: number;
   submissions: number;
   lastActiveAt: string | null;
+  /** EFFECTIVE tier (expiry-resolved) — a lapsed plan reads as "free". */
   tier: Tier;
+  /** True when a paid tier is stored but its term has already ended. */
+  expired: boolean;
   expiresAt: string | null;
   isPermanent: boolean;
+  /** How the active membership was obtained; only "paid" can be refunded. */
+  source: SubscriptionSource | null;
 };
 
 function relativeFromNow(iso: string | null): string {
@@ -42,10 +48,32 @@ function relativeFromNow(iso: string | null): string {
 }
 
 function membershipSummary(row: UserRow): string {
-  if (row.tier === "free") return "free";
-  if (row.isPermanent) return `${TIERS[row.tier].name} · permanent`;
-  if (row.expiresAt) return `${TIERS[row.tier].name} · until ${new Date(row.expiresAt).toLocaleDateString()}`;
-  return TIERS[row.tier].name;
+  if (row.tier === "free") {
+    return row.expired && row.expiresAt
+      ? `free · expired ${new Date(row.expiresAt).toLocaleDateString()}`
+      : "free";
+  }
+  const origin = row.source === "gift" ? " · gifted" : row.source === "paid" ? " · paid" : "";
+  if (row.isPermanent) return `${TIERS[row.tier].name} · permanent${origin}`;
+  if (row.expiresAt) {
+    return `${TIERS[row.tier].name} · until ${new Date(row.expiresAt).toLocaleDateString()}${origin}`;
+  }
+  return `${TIERS[row.tier].name}${origin}`;
+}
+
+// "赠送" marker. A gifted membership is never refundable, so it has to be
+// visible at a glance next to the tier — not only in the summary text.
+function GiftBadge() {
+  return (
+    <span
+      title="Gifted membership — not refundable"
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide"
+      style={{ color: "#12b886", backgroundColor: "#12b88622", border: "1px solid #12b88666" }}
+    >
+      <Gift className="h-2.5 w-2.5" aria-hidden />
+      gift
+    </span>
+  );
 }
 
 function TierBadge({ tier }: { tier: Tier }) {
@@ -88,9 +116,11 @@ function MembershipEditor({
   const dirty = tier !== row.tier || (tier !== "free" && !row.isPermanent);
   const selectCls =
     "rounded-lg border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev))] px-2 py-1 text-xs";
+  const gifted = row.tier !== "free" && row.source === "gift";
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <TierBadge tier={row.tier} />
+      {gifted && <GiftBadge />}
       <span className="text-[0.7rem] soft-text">{membershipSummary(row)}</span>
       <div className="flex items-center gap-1.5">
         <select
@@ -128,18 +158,26 @@ function MembershipEditor({
         </button>
       </div>
       {/* Refund (Stripe refund + revoke) / Cancel (revoke to free, no refund).
-          Only meaningful once the member is on a paid tier. */}
+          Only meaningful once the member is on an ACTIVE paid tier. A gifted
+          membership offers Cancel only — no money changed hands, so there is
+          nothing to send back and the API refuses it anyway (code "gifted"). */}
       {row.tier !== "free" && (
         <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onRefund}
-            className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--error)/0.6)] px-2.5 py-1 text-xs text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] disabled:opacity-40"
-          >
-            <RotateCcw className="h-3 w-3" />
-            Refund
-          </button>
+          {gifted ? (
+            <span className="text-[0.7rem] soft-text" title="Gifted memberships can't be refunded">
+              Gift · not refundable
+            </span>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onRefund}
+              className="inline-flex items-center gap-1 rounded-lg border border-[rgb(var(--error)/0.6)] px-2.5 py-1 text-xs text-[rgb(var(--error))] transition hover:bg-[rgb(var(--error)/0.1)] disabled:opacity-40"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Refund
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -214,7 +252,14 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
         setRows((prev) =>
           prev.map((r) =>
             r.id === row.id
-              ? { ...r, tier: json.tier as Tier, expiresAt: json.expiresAt ?? null, isPermanent: Boolean(json.permanent) }
+              ? {
+                  ...r,
+                  tier: json.tier as Tier,
+                  expired: false,
+                  expiresAt: json.expiresAt ?? null,
+                  isPermanent: Boolean(json.permanent),
+                  source: (json.source as UserRow["source"]) ?? null
+                }
               : r
           )
         );
@@ -252,7 +297,11 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
       const json = await res.json();
       if (json?.ok) {
         setRows((prev) =>
-          prev.map((r) => (r.id === row.id ? { ...r, tier: "free", expiresAt: null, isPermanent: false } : r))
+          prev.map((r) =>
+            r.id === row.id
+              ? { ...r, tier: "free", expired: false, expiresAt: null, isPermanent: false, source: null }
+              : r
+          )
         );
         setMessage(`@${row.username} ${mode === "refund" ? "refunded" : "cancelled"} → free.`);
       } else {
@@ -296,6 +345,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
                       {row.role}
                     </span>
                     <TierBadge tier={row.tier} />
+                    {row.tier !== "free" && row.source === "gift" && <GiftBadge />}
                   </div>
                   <p className="truncate text-xs soft-text">{row.email}</p>
                   <p className="mt-1.5 text-[0.7rem] soft-text">
