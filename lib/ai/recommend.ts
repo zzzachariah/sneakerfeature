@@ -8,6 +8,7 @@ import { dimScores } from "@/lib/star-rating";
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
 import { normalizeSearchText, normalizeCompactText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { PACKY_MODEL } from "@/lib/ai/packy-client";
+import { callOptions, hasBudget, startDeadline, type Deadline } from "@/lib/ai/budget";
 import { detectReplyLang } from "@/lib/ai/derive-proscons";
 import {
   bochaWebSearch,
@@ -117,7 +118,8 @@ export type LoopExitReason =
   | "max_iterations"      // hit MAX_TOOL_ITERATIONS without finishing
   | "no_search_no_recs"   // model called only recommend_shoes with bad args
   | "no_choice_message"   // upstream returned no message at all
-  | "api_error";          // client.create threw
+  | "api_error"           // client.create threw
+  | "deadline";           // the turn's wall-clock budget ran out mid-pipeline
 
 export type RecommendResult = {
   reply: string;
@@ -436,19 +438,24 @@ type StreamedMessage = {
 // silent phase). Falls back to a plain non-streaming call when the relay
 // rejects streaming for these params. Never streams `content` deltas live —
 // content routinely carries JSON on this relay; the caller sanitizes it whole.
+// `deadline` bounds this single call: its timeout is whatever is left of the
+// turn (capped), and the SDK's automatic retry is disabled so one slow relay
+// response can't quietly consume double the budget.
 async function completeWithProgress(
   client: OpenAI,
   params: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming,
-  onProgress?: OnProgress
+  onProgress?: OnProgress,
+  deadline?: Deadline
 ): Promise<StreamedMessage | null> {
+  const reqOpts = callOptions(deadline);
   let stream: AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
   try {
-    stream = await client.chat.completions.create({ ...params, stream: true });
+    stream = await client.chat.completions.create({ ...params, stream: true }, reqOpts);
   } catch (err) {
     // A param-level rejection (e.g. unsupported tool_choice) would fail the
     // non-streaming call identically — surface it to the caller's fallback.
     if (isToolChoiceUnsupported(err)) throw err;
-    const c = await client.chat.completions.create(params);
+    const c = await client.chat.completions.create(params, reqOpts);
     const msg = c.choices?.[0]?.message;
     return msg
       ? { content: msg.content ?? null, tool_calls: msg.tool_calls, finishReason: c.choices?.[0]?.finish_reason ?? null }
@@ -470,6 +477,21 @@ async function completeWithProgress(
     // out this way so static analysis sees that path too.
     const iterator = stream[Symbol.asyncIterator]();
     for (;;) {
+      // The SDK's `timeout` only covers time-to-first-byte: once headers land it
+      // is cleared, so a relay that trickles tokens forever would run until the
+      // platform killed the function. Stop reading at the turn's deadline and
+      // keep what arrived — a truncated payload is still salvageable, a dead
+      // connection is not.
+      if (!hasBudget(deadline, 0)) {
+        console.warn("[ai/chat] stream cut at turn deadline", { model: params.model, chars: content.length });
+        finishReason = finishReason ?? "length";
+        try {
+          await iterator.return?.();
+        } catch {
+          /* aborting the stream is best-effort */
+        }
+        break;
+      }
       const step = await iterator.next();
       if (step.done) break;
       const chunk = step.value;
@@ -500,7 +522,7 @@ async function completeWithProgress(
     // Stream died before producing anything → one plain retry; otherwise the
     // partial state is unusable and the caller's error handling takes over.
     if (!sawChunk) {
-      const c = await client.chat.completions.create(params);
+      const c = await client.chat.completions.create(params, callOptions(deadline));
       const msg = c.choices?.[0]?.message;
       return msg
         ? { content: msg.content ?? null, tool_calls: msg.tool_calls, finishReason: c.choices?.[0]?.finish_reason ?? null }
@@ -830,7 +852,8 @@ async function tryToolLoopWithSearch(
   // stuffed another round of search results into the context for no new signal.
   // The model can still CHOOSE to search; refs stay trustworthy either way
   // (route only surfaces them when a search succeeded in the same turn).
-  isFollowUp = false
+  isFollowUp = false,
+  deadline?: Deadline
 ): Promise<LoopOutcome> {
   const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [...initialMessages];
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
@@ -894,7 +917,9 @@ async function tryToolLoopWithSearch(
     // attempt truncated and burned a full pass (observed 3-4 wasted passes per
     // request). The commit phase below uses response_format=json_object on the
     // SAME searched context instead, which this relay handles reliably.
-    if (i > 0 && (proseNudges >= 2 || stats.attempts >= MAX_SEARCHES)) break;
+    // …or once the turn's wall-clock budget no longer has room for another
+    // model call — the commit phase below still needs its share.
+    if (i > 0 && (proseNudges >= 2 || stats.attempts >= MAX_SEARCHES || !hasBudget(deadline, 60_000))) break;
     const desiredChoice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption =
       i === 0 && !isFollowUp ? { type: "function", function: { name: "web_search" } } : "auto";
 
@@ -908,7 +933,8 @@ async function tryToolLoopWithSearch(
       completeWithProgress(
         client,
         { ...base, messages: convo, tools: [WEB_SEARCH_TOOL, RECOMMEND_TOOL], tool_choice },
-        onProgress
+        onProgress,
+        deadline
       );
 
     let msg: StreamedMessage | null;
@@ -1047,6 +1073,12 @@ async function tryToolLoopWithSearch(
   // the thinking-mode token budget, and it reuses the identical convo prefix
   // (catalog + searches), so the relay's prompt cache absorbs most input cost.
   for (let attempt = 0; attempt < 2; attempt++) {
+    // Out of wall clock → stop here rather than start a call the platform will
+    // kill mid-flight. Whatever was salvaged below still gets returned.
+    if (!hasBudget(deadline)) {
+      console.warn("[ai/chat] commit phase skipped — turn budget exhausted", { attempt });
+      break;
+    }
     onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
     convo.push({
       role: "user",
@@ -1070,14 +1102,16 @@ async function tryToolLoopWithSearch(
           tool_choice: "none",
           response_format: { type: "json_object" }
         },
-        onProgress
+        onProgress,
+        deadline
       );
     } catch {
       try {
         msg = await completeWithProgress(
           client,
           { ...base, messages: convo, response_format: { type: "json_object" } },
-          onProgress
+          onProgress,
+          deadline
         );
       } catch (err) {
         console.warn("[ai/chat] commit call failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
@@ -1108,7 +1142,7 @@ async function tryToolLoopWithSearch(
     console.warn("[ai/chat] finishing with salvaged partial payload", { recs: bestSalvage.recommendations.length });
     return finalize(bestSalvage);
   }
-  return bail("max_iterations");
+  return bail(hasBudget(deadline) ? "max_iterations" : "deadline");
 }
 
 // packyapi's relay behavior (tools / response_format support) is unknown, so we
@@ -1125,7 +1159,8 @@ async function getRecommendations(
   currentInput: string,
   onProgress?: OnProgress,
   isFollowUp = false,
-  model: string = PACKY_MODEL
+  model: string = PACKY_MODEL,
+  deadline?: Deadline
 ): Promise<RecommendResult> {
   onProgress?.({ type: "status", phase: "thinking", message: "正在分析你的需求…" });
   // max_tokens on this relay caps reasoning + answer TOGETHER (thinking models
@@ -1152,6 +1187,22 @@ async function getRecommendations(
     searchStats: r.searchStats ?? loopStats,
     loopExitReason: r.loopExitReason ?? loopExitReason
   });
+  // The turn's wall clock ran out. Return the best thing we already have (shoe
+  // names salvaged from any prose seen) instead of starting another strategy —
+  // the platform would kill the function mid-call and the user would get a bare
+  // "request failed" after watching the model think. An empty result is fine:
+  // the route tops it up with deterministic picks, so cards still come back.
+  const outOfTime = (): RecommendResult => {
+    console.warn("[ai/chat] turn budget exhausted — finalizing early", { model: base.model });
+    onProgress?.({ type: "status", phase: "finalizing", message: "本次思考耗时较长，正在用已有结果整理推荐…" });
+    for (const text of prose) {
+      const recs = salvageFromProse(text, shoes);
+      if (recs.length) {
+        return withLoop({ reply: text.trim().slice(0, 500), recommendations: recs, loopExitReason: "deadline" });
+      }
+    }
+    return withLoop({ reply: "", recommendations: [], loopExitReason: "deadline" });
+  };
 
   // 0) Bocha web search configured → run the multi-turn tool loop FIRST. It's
   //    the only path that calls bochaWebSearch, and iteration 0 forces a real
@@ -1160,7 +1211,7 @@ async function getRecommendations(
   //    we fall through to JSON mode → prefill → plain, carrying loop diagnostics.
   if (isBochaConfigured()) {
     try {
-      const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput, onProgress, isFollowUp);
+      const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput, onProgress, isFollowUp, deadline);
       loopStats = outcome.stats;
       loopExitReason = outcome.exitReason;
       if (outcome.result) return outcome.result;
@@ -1175,11 +1226,13 @@ async function getRecommendations(
   //    primitive; the prompt contains the word "JSON" + an example as required.
   //    Shared fallback for the not-configured case and a bailed tool loop.
   try {
+    if (!hasBudget(deadline)) return outOfTime();
     onProgress?.({ type: "status", phase: "generating", message: "正在生成推荐结果…" });
     const msg = await completeWithProgress(
       client,
       { ...base, messages, response_format: { type: "json_object" } },
-      onProgress
+      onProgress,
+      deadline
     );
     if (typeof msg?.content === "string") {
       const r = ok(msg.content);
@@ -1196,8 +1249,9 @@ async function getRecommendations(
   //    models reject the forced choice — downgrade to "auto" once, like the loop.
   if (!isBochaConfigured()) {
     try {
+      if (!hasBudget(deadline)) return outOfTime();
       const attempt = (tool_choice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption) =>
-        completeWithProgress(client, { ...base, messages, tools: [RECOMMEND_TOOL], tool_choice }, onProgress);
+        completeWithProgress(client, { ...base, messages, tools: [RECOMMEND_TOOL], tool_choice }, onProgress, deadline);
       let msg: StreamedMessage | null;
       if (forcedChoiceUnsupportedModels.has(base.model)) {
         msg = await attempt("auto"); // model already known to 400 on forcing — skip the dead probe
@@ -1226,12 +1280,14 @@ async function getRecommendations(
 
   // 3) Assistant prefill — Claude continues the JSON object we started.
   try {
+    if (!hasBudget(deadline)) return outOfTime();
     onProgress?.({ type: "status", phase: "generating", message: "换一种方式生成推荐…" });
     const prefill = '{"recommendations":';
     const msg = await completeWithProgress(
       client,
       { ...base, messages: [...messages, { role: "assistant", content: prefill }] },
-      onProgress
+      onProgress,
+      deadline
     );
     const out = msg?.content;
     if (typeof out === "string") {
@@ -1243,8 +1299,9 @@ async function getRecommendations(
   }
 
   // 4) Plain call — last resort; parse whatever comes back (may be prose).
+  if (!hasBudget(deadline)) return outOfTime();
   onProgress?.({ type: "status", phase: "generating", message: "再次尝试生成推荐…" });
-  const msg4 = await completeWithProgress(client, { ...base, messages }, onProgress);
+  const msg4 = await completeWithProgress(client, { ...base, messages }, onProgress, deadline);
   const content = msg4?.content;
   if (typeof content !== "string") {
     const snippet = JSON.stringify(msg4 ?? {}).slice(0, 300);
@@ -1279,6 +1336,12 @@ export type RecommendOpts = {
   // (Free = concise, Pro = standard, Max = deep + concierge). See lib/ai/tier-prompt.ts.
   model?: string;
   depthSuffix?: string;
+  /**
+   * Wall-clock ceiling for the whole turn. The route sets it from the platform's
+   * function-duration limit, so the pipeline finalizes on its own terms instead
+   * of being killed mid-stream (see lib/ai/budget.ts).
+   */
+  deadline?: Deadline;
 };
 
 // Persona / foot-profile context appended to the ask in every pipeline phase.
@@ -1334,7 +1397,8 @@ const DIGEST_SNIPPET_CHARS = 300;
 async function candidateEvidencePipeline(
   client: OpenAI,
   opts: RecommendOpts,
-  onProgress?: OnProgress
+  onProgress?: OnProgress,
+  deadline?: Deadline
 ): Promise<RecommendResult | null> {
   const { shoes, history, currentInput, count } = opts;
   const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
@@ -1360,7 +1424,8 @@ async function candidateEvidencePipeline(
   const msgA = await completeWithProgress(
     client,
     { ...base, messages: shortlistMessages, response_format: { type: "json_object" } },
-    onProgress
+    onProgress,
+    deadline
   );
   let candidateNames: string[] = [];
   let backupNames: string[] = [];
@@ -1516,6 +1581,12 @@ async function candidateEvidencePipeline(
   rounds: for (let round = 0; round < 2; round++) {
     let extendThisRound = false;
     for (let attempt = 0; attempt < 2; attempt++) {
+      // No wall clock left for another commit call — keep whatever was salvaged
+      // and let the caller finalize rather than get killed mid-request.
+      if (!hasBudget(deadline)) {
+        console.warn("[ai/chat] candidate commit skipped — turn budget exhausted", { round, attempt });
+        break rounds;
+      }
       onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
       const messages =
         attempt === 0
@@ -1527,7 +1598,12 @@ async function candidateEvidencePipeline(
             ];
       let msg: StreamedMessage | null = null;
       try {
-        msg = await completeWithProgress(client, { ...base, messages, response_format: { type: "json_object" } }, onProgress);
+        msg = await completeWithProgress(
+          client,
+          { ...base, messages, response_format: { type: "json_object" } },
+          onProgress,
+          deadline
+        );
       } catch (err) {
         console.warn("[ai/chat] candidate commit failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
         break rounds;
@@ -1555,7 +1631,9 @@ async function candidateEvidencePipeline(
         continue;
       }
       // Extension trigger: the model asked for more shoes, or under-returned.
-      if (round === 0 && !extensionUsed) {
+      // Skipped when the remaining wall clock can't cover another search burst
+      // AND another commit call — a good answer now beats a killed request.
+      if (round === 0 && !extensionUsed && hasBudget(deadline, 45_000)) {
         let addNames: string[] = [];
         try {
           addNames = coerceStringArray(
@@ -1613,18 +1691,33 @@ export async function recommendShoes(
   opts: RecommendOpts,
   onProgress?: OnProgress
 ): Promise<RecommendResult> {
+  // Every model call in this turn runs against one shared wall-clock budget, so
+  // a slow reasoning model degrades into "finalize with what we have" instead of
+  // running until the platform kills the function (see lib/ai/budget.ts).
+  const deadline = opts.deadline ?? startDeadline();
+
   // Candidate-first pipeline is the default whenever web search is available;
   // the legacy multi-strategy path below is the fallback when it can't produce
   // a usable result (shortlist unparseable, relay hiccup, …).
   if (isBochaConfigured()) {
     try {
-      const viaCandidates = await candidateEvidencePipeline(client, opts, onProgress);
+      const viaCandidates = await candidateEvidencePipeline(client, opts, onProgress, deadline);
       if (viaCandidates) return viaCandidates;
     } catch (err) {
       console.warn("[ai/chat] candidate pipeline threw — falling back", {
         msg: err instanceof Error ? err.message.slice(0, 200) : "unknown"
       });
     }
+  }
+
+  // The fallback path below is a fresh multi-call pass over the whole catalog.
+  // Starting it with no budget left guarantees the request dies mid-flight, so
+  // hand back an empty result and let the route finalize with its deterministic
+  // picks — the user gets cards instead of "请求失败，请稍后重试。".
+  if (!hasBudget(deadline)) {
+    console.warn("[ai/chat] skipping fallback strategies — turn budget exhausted", { model: opts.model ?? PACKY_MODEL });
+    onProgress?.({ type: "status", phase: "finalizing", message: "本次思考耗时较长，正在用已有结果整理推荐…" });
+    return { reply: "", recommendations: [], loopExitReason: "deadline" };
   }
 
   const catalog = buildCompactCatalog(opts.shoes, opts.persona, opts.reviewsByShoe);
@@ -1671,7 +1764,8 @@ export async function recommendShoes(
     opts.currentInput,
     onProgress,
     opts.history.length > 0,
-    opts.model ?? PACKY_MODEL
+    opts.model ?? PACKY_MODEL,
+    deadline
   );
 }
 

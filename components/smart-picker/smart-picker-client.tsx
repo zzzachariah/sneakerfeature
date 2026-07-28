@@ -59,6 +59,12 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   const { locale } = useLocale();
   const zhUI = locale === "zh";
   const failMsg = zhUI ? "请求失败，请稍后重试。" : "Request failed — please try again.";
+  // A stream that dies after the thinking phase is NOT the same failure as a
+  // request that never started: the model did the work and the connection went
+  // away. Say so, so it isn't mistaken for the app rejecting the request.
+  const dropMsg = zhUI
+    ? "与服务器的连接在生成推荐时中断了，请再发送一次。"
+    : "The connection dropped while your picks were being generated — please send it again.";
   const [chats, setChats] = useState<AiChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AiChatMessage[]>([]);
@@ -213,6 +219,12 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       setMessages((prev) => [...prev, tempUser]);
       setSending(true);
 
+      // Id of the streaming assistant bubble, and whether the server ever sent a
+      // terminal frame. Hoisted so the error paths below can finish THAT bubble
+      // instead of appending a second, context-free one.
+      let streamingId: string | null = null;
+      let sawTerminal = false;
+
       try {
         // Ensure there's a chat to post into.
         let chatId = activeChatId;
@@ -285,6 +297,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         // bubble renders nothing until the first step, so an empty placeholder
         // is invisible (the typing dots cover the "thinking" gap).
         const assistantId = `stream-${Date.now()}`;
+        streamingId = assistantId;
         setMessages((prev) => [
           ...prev,
           {
@@ -385,6 +398,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                 break;
               }
               case "done": {
+                sawTerminal = true;
                 const d = data as {
                   assistantMessageId?: string;
                   content?: string;
@@ -418,6 +432,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                 break;
               }
               case "error": {
+                sawTerminal = true;
                 const msg = (data as { message?: string }).message ?? failMsg;
                 patch((m) => ({ ...m, content: msg, steps: undefined, recommendations: null }));
                 break;
@@ -427,24 +442,52 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
             }
           }
         }
+
+        // The stream closed without `done` or `error`: the server was cut off
+        // mid-turn (function timeout, proxy drop). Without this the bubble sat
+        // in "thinking" forever with no explanation.
+        if (!sawTerminal) {
+          patch((m) => ({
+            ...m,
+            content: m.content || dropMsg,
+            steps: m.steps?.map((s) => (s.kind === "status" && !s.done ? { ...s, done: true } : s))
+          }));
+        }
       } catch {
-        // Network/transport error — surface a transient error bubble.
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `err-${Date.now()}`,
-            role: "assistant",
-            content: failMsg,
-            recommendations: null,
-            credits_charged: 0,
-            created_at: new Date().toISOString()
-          }
-        ]);
+        // Network/transport error. Finish the streaming bubble in place when
+        // there is one — appending a second bubble stranded the user's live
+        // "thought process" above a message that looked unrelated to it.
+        const id = streamingId;
+        if (id) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === id
+                ? {
+                    ...m,
+                    content: m.content || dropMsg,
+                    steps: m.steps?.map((s) => (s.kind === "status" && !s.done ? { ...s, done: true } : s))
+                  }
+                : m
+            )
+          );
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: `err-${Date.now()}`,
+              role: "assistant",
+              content: failMsg,
+              recommendations: null,
+              credits_charged: 0,
+              created_at: new Date().toISOString()
+            }
+          ]);
+        }
       } finally {
         setSending(false);
       }
     },
-    [activeChatId, refreshChats, sending, zhUI, failMsg, model]
+    [activeChatId, refreshChats, sending, zhUI, failMsg, dropMsg, model]
   );
 
   return (

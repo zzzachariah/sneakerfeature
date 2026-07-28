@@ -21,9 +21,16 @@ import {
   InsufficientAllowanceError
 } from "@/lib/subscription/entitlements";
 import { streamAdvice, type AdvisorTurn } from "@/lib/ai/advisor";
+import { startDeadline } from "@/lib/ai/budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Same reason as the Smart Picker route: the advisor runs the flagship
+// reasoning model and holds the function open for the whole SSE stream, so it
+// needs a duration ceiling well above the platform default or the stream is cut
+// off mid-answer. Literal by necessity (Next segment config); keep it in sync
+// with AI_ROUTE_MAX_DURATION.
+export const maxDuration = 300;
 
 // The advisor is a Max flagship. Each reply spends this many allowance credits —
 // the cheapest thing the allowance buys, so advisor chat stays comfortable even
@@ -50,6 +57,9 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
+  // Wall-clock ceiling for the whole turn — bounds the upstream call so it can
+  // never outlive `maxDuration` and drop the stream on the user.
+  const deadline = startDeadline();
   const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
@@ -162,10 +172,14 @@ export async function POST(request: Request) {
       try {
         let full = "";
         try {
-          const result = await streamAdvice(client, { shoes, history, message, persona, footProfile, model }, (delta) => {
-            full += delta;
-            send("delta", { text: delta });
-          });
+          const result = await streamAdvice(
+            client,
+            { shoes, history, message, persona, footProfile, model, deadline },
+            (delta) => {
+              full += delta;
+              send("delta", { text: delta });
+            }
+          );
           full = result.text || full;
         } catch (error) {
           console.error("[ai/advisor] stream failed", { model, error });
@@ -223,8 +237,10 @@ export async function POST(request: Request) {
           title: chatUpdate.title ?? null
         });
       } catch (error) {
-        console.error("[ai/advisor] handler failed", error);
-        send("error", { message: "请求失败，请稍后重试。" });
+        // Report what actually failed instead of an opaque "请求失败" that reads
+        // exactly like a dropped connection (see the same fix in ai/chat).
+        console.error("[ai/advisor] handler failed", { model, error });
+        send("error", { message: `请求失败：${describePackyError(error)}。请稍后重试。` });
       } finally {
         clearInterval(heartbeat);
         if (!aborted) {

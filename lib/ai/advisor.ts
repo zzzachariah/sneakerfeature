@@ -8,6 +8,7 @@ import type OpenAI from "openai";
 import type { Persona } from "@/lib/persona/types";
 import type { FootProfile } from "@/lib/foot-scan/types";
 import type { Shoe } from "@/lib/types";
+import { callOptions, hasBudget, type Deadline } from "@/lib/ai/budget";
 import { detectReplyLang } from "@/lib/ai/derive-proscons";
 
 export type AdvisorTurn = { role: "user" | "assistant"; content: string };
@@ -83,6 +84,8 @@ export type AdvisorOpts = {
   persona: Persona | null;
   footProfile: FootProfile | null;
   model: string;
+  /** Wall-clock ceiling for the turn; bounds the upstream call (lib/ai/budget.ts). */
+  deadline?: Deadline;
 };
 
 function buildMessages(opts: AdvisorOpts): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
@@ -128,17 +131,28 @@ export async function streamAdvice(
   onDelta: (chunk: string) => void
 ): Promise<AdvisorResult> {
   const messages = buildMessages(opts);
+  // Both attempts are bounded by what's left of the turn: a relay that accepts
+  // the request and then stalls must not outlive the function's duration limit,
+  // or the user loses the whole answer to a dropped connection.
+  const reqOpts = callOptions(opts.deadline);
 
   try {
-    const stream = await client.chat.completions.create({
-      model: opts.model,
-      messages,
-      temperature: 0.7,
-      max_tokens: 900,
-      stream: true
-    });
+    const stream = await client.chat.completions.create(
+      {
+        model: opts.model,
+        messages,
+        temperature: 0.7,
+        max_tokens: 900,
+        stream: true
+      },
+      reqOpts
+    );
     let text = "";
     for await (const chunk of stream) {
+      // `timeout` above only covers time-to-first-byte; stop reading at the
+      // turn's deadline so a stalled relay can't outlive the function and take
+      // the already-streamed answer down with it. Breaking aborts the stream.
+      if (!hasBudget(opts.deadline, 0)) break;
       const delta = chunk.choices?.[0]?.delta?.content ?? "";
       if (delta) {
         text += delta;
@@ -151,12 +165,15 @@ export async function streamAdvice(
     // Streaming unsupported / rejected — fall back to a plain completion.
   }
 
-  const completion = await client.chat.completions.create({
-    model: opts.model,
-    messages,
-    temperature: 0.7,
-    max_tokens: 900
-  });
+  const completion = await client.chat.completions.create(
+    {
+      model: opts.model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 900
+    },
+    callOptions(opts.deadline)
+  );
   const text = completion.choices?.[0]?.message?.content?.trim() ?? "";
   if (text) onDelta(text);
   return { text };
