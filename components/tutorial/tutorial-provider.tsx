@@ -10,11 +10,16 @@ import {
   useState
 } from "react";
 import { TUTORIAL_STEPS, isStepAvailable, type TutorialStep } from "@/lib/tutorial/steps";
+import { useAuthState } from "@/components/auth/auth-state-provider";
 
 const STORAGE_KEY = "tutorial_completed_v1";
 // Separate flag so hiding the launcher pill is its own decision: a visitor can
 // dismiss the invitation without ever running (or finishing) the tour.
 const LAUNCHER_KEY = "tutorial_launcher_dismissed_v1";
+// Marks the one re-offer a visitor gets after signing up / signing in, so the
+// pill can come back at the moment the tour is finally worth taking — but only
+// that once, no matter how often they sign in and out.
+const SIGNIN_OFFER_KEY = "tutorial_signin_offer_v1";
 
 type TutorialContextValue = {
   active: boolean;
@@ -54,6 +59,11 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   // is offered a dismissible pill (TutorialLauncher) and the "Site tour" menu
   // entry; both call `start`.
   const [launcherVisible, setLauncherVisible] = useState(false);
+
+  const { signedIn, loaded } = useAuthState();
+  // Baseline captured the first time auth resolves, so an already-signed-in
+  // user opening the app isn't mistaken for a fresh sign-up.
+  const baselineSignedInRef = useRef<boolean | null>(null);
 
   const persistDone = useCallback(() => {
     try {
@@ -124,6 +134,32 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     }
     setLauncherVisible(true);
   }, []);
+
+  // Signing up is the point where the tour actually pays off (the profile it
+  // ends on is saved to the account), so bring the pill back once for someone
+  // who dismissed it while signed out. Still an offer, never an auto-open.
+  useEffect(() => {
+    if (!loaded) return;
+    if (baselineSignedInRef.current === null) {
+      baselineSignedInRef.current = signedIn;
+      return;
+    }
+    if (!signedIn) {
+      baselineSignedInRef.current = false;
+      return;
+    }
+    if (baselineSignedInRef.current) return;
+    baselineSignedInRef.current = true;
+    try {
+      if (window.localStorage.getItem(STORAGE_KEY)) return;
+      if (window.localStorage.getItem(SIGNIN_OFFER_KEY)) return;
+      window.localStorage.setItem(SIGNIN_OFFER_KEY, "1");
+      window.localStorage.removeItem(LAUNCHER_KEY);
+    } catch {
+      return;
+    }
+    setLauncherVisible(true);
+  }, [loaded, signedIn]);
 
   const value = useMemo<TutorialContextValue>(
     () => ({

@@ -19,31 +19,30 @@ export type TutorialStep = {
 
 // Onboarding tour, written from a first-time visitor's point of view.
 //
-// It answers, in order, the questions a newcomer actually has:
+// Deliberately short — four stops, one screen each, and any visitor always sees
+// exactly four because the two nav variants are mutually exclusive:
 //   1. What is this?              → welcome
 //   2. How does it get personal?  → avatar (the player profile — our #1 feature)
 //   3. How do I choose a shoe?    → nav (Compare + Smart Picker, the decision tools)
-//   4. Where's everything?        → database (the full catalog)
-//   5. How do I keep my stuff?    → account (sign in to save)
-//   6. Let's actually do it       → persona-setup (interactive finale)
+//   4. Let's actually do it       → persona-setup (interactive finale)
+//
+// Everything else a newcomer can find on their own — the catalog, sign-in,
+// advanced search, the language / download / legal menu — is intentionally NOT
+// its own step. A tour that ends before it outstays its welcome gets finished.
 //
 // Every selector points at an element that exists in the live DOM, and each step
 // is breakpoint-aware: `isStepAvailable` (bottom of file) drops any step whose
 // target is missing or laid out with a zero box, so the desktop nav cluster and
 // the mobile bottom tab bar each contribute their own variant without the
-// other's dead target ever showing. Utility surfaces (advanced search, the
-// language / download / legal menu) are intentionally NOT their own steps — a
-// newcomer doesn't need them yet, and the finale points back to the menu for
-// re-opening the tour. Anchors:
-//   navbar.tsx        — nav-links (md+), nav-account (all)
+// other's dead target ever showing. Anchors:
+//   navbar.tsx        — nav-links (md+)
 //   mobile-bottom-nav — mobile-nav (phone tab bar)
 //   for-you-view.tsx  — home-avatar (the player figure on the homepage)
-//   home page         — #home-database (both the standard and premium layouts)
 export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: "welcome",
     title: "Welcome to sneakerfeature",
-    body: "Basketball sneakers, scored to how you actually play. Here's the quick tour — about a minute.",
+    body: "Basketball sneakers, scored to how you actually play. Four quick stops — about thirty seconds.",
     placement: "center"
   },
   {
@@ -76,24 +75,6 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
     placement: "top",
     padding: 8,
     radius: 30,
-    scrollIntoView: false
-  },
-  {
-    id: "database",
-    selector: "#home-database",
-    title: "The whole catalog",
-    body: "Open this to browse every indexed pair — sortable and searchable. With a profile set, each one shows how well it fits you.",
-    placement: "top",
-    padding: 12,
-    requiresPath: "/"
-  },
-  {
-    id: "account",
-    selector: "[data-tutorial='nav-account']",
-    title: "Save your progress",
-    body: "Sign in here to save comparisons, rate shoes, sync your closet, and join the discussion.",
-    placement: "bottom",
-    padding: 6,
     scrollIntoView: false
   },
   {
