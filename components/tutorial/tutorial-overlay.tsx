@@ -11,8 +11,8 @@ import { useLocale } from "@/components/i18n/locale-provider";
 
 type Rect = { x: number; y: number; w: number; h: number };
 
-const CARD_W = 340;
-const CARD_H_EST = 210;
+const CARD_W = 320;
+const CARD_H_EST = 196;
 const SPOTLIGHT_PAD = 8;
 const CARD_GAP = 16;
 
@@ -486,29 +486,51 @@ export function TutorialOverlay() {
           width: CARD_W,
           maxWidth: "calc(100vw - 24px)",
           zIndex: 63,
-          padding: "18px 18px 14px 18px",
-          borderRadius: 20,
+          padding: "16px 16px 13px 16px",
+          borderRadius: 22,
           color: "rgb(var(--text))"
         }}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <span className="text-[0.6rem] font-medium uppercase tracking-[0.22em] text-[rgb(var(--subtext))]">
-            {translate("Tour")} · {stepIndex + 1} / {totalSteps}
+        {/* Progress reads as one thin segmented rule across the top of the card —
+            quieter than a dot row, and still a shortcut to any step. */}
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex flex-1 items-center gap-1">
+            {steps.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                aria-label={`${translate("Step")} ${i + 1}`}
+                aria-current={i === stepIndex ? "step" : undefined}
+                onClick={() => goTo(i)}
+                className="h-[3px] flex-1 rounded-full transition-colors duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                style={{
+                  background:
+                    i === stepIndex
+                      ? "rgb(var(--text)/0.85)"
+                      : i < stepIndex
+                        ? "rgb(var(--text)/0.35)"
+                        : "rgb(var(--muted)/0.6)"
+                }}
+              />
+            ))}
+          </div>
+          <span className="shrink-0 text-[0.62rem] font-medium tabular-nums text-[rgb(var(--subtext))]">
+            {stepIndex + 1}/{totalSteps}
           </span>
           <button
             type="button"
             onClick={stop}
             aria-label={translate("Close tour")}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))]"
+            className="-mr-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))]"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        <h3 className="text-[1.05rem] font-semibold tracking-[-0.018em]">
+        <h3 className="text-[1.02rem] font-semibold leading-snug tracking-[-0.018em]">
           {translate(step.title)}
         </h3>
-        <p className="mt-1.5 text-[0.86rem] leading-[1.5] text-[rgb(var(--subtext))]">
+        <p className="mt-1.5 text-[0.845rem] leading-[1.55] text-[rgb(var(--subtext))]">
           {translate(step.body)}
         </p>
 
@@ -571,35 +593,23 @@ export function TutorialOverlay() {
         ) : null}
 
         <div className="mt-4 flex items-center gap-2">
-          <div className="flex flex-1 items-center gap-1">
-            {steps.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`${translate("Step")} ${i + 1}`}
-                onClick={() => goTo(i)}
-                className="h-1 rounded-full transition-[background-color,width] duration-[260ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
-                style={{
-                  width: i === stepIndex ? 16 : 4,
-                  background:
-                    i === stepIndex
-                      ? "rgb(var(--text)/0.85)"
-                      : i < stepIndex
-                        ? "rgb(var(--text)/0.4)"
-                        : "rgb(var(--muted)/0.7)"
-                }}
-              />
-            ))}
-          </div>
           <button
             type="button"
-            onClick={prev}
-            disabled={stepIndex === 0}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] transition hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))] disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label={translate("Previous step")}
+            onClick={stop}
+            className="mr-auto rounded-lg px-1 py-1 text-[0.76rem] font-medium text-[rgb(var(--subtext))] transition hover:text-[rgb(var(--text))]"
           >
-            <ArrowLeft className="h-3.5 w-3.5" />
+            {translate("Skip")}
           </button>
+          {stepIndex > 0 ? (
+            <button
+              type="button"
+              onClick={prev}
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] text-[rgb(var(--subtext))] transition hover:border-[rgb(var(--text)/0.35)] hover:text-[rgb(var(--text))]"
+              aria-label={translate("Previous step")}
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={awaitUserAction ? openActionModal : next}

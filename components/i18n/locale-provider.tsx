@@ -638,16 +638,19 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   // English source. ("next" / "advanced search" / "set up profile" /
   // "set up your player profile" already live elsewhere in this map.)
   "site tour": "网站导览",
+  "new here? take the tour": "新来的？看看导览",
+  "dismiss tour invitation": "关闭导览提示",
   "tour": "导览",
   "close tour": "关闭导览",
+  "skip": "跳过",
   "step": "步骤",
   "previous step": "上一步",
   "finish": "完成",
   "this part lives on the homepage.": "这部分内容在首页。",
   "return home": "返回首页",
   "welcome to sneakerfeature": "欢迎来到 sneakerfeature",
-  "basketball sneakers, scored to how you actually play. here's the quick tour — about a minute.":
-    "篮球鞋，按你真实的打法来打分。这里是不到一分钟的快速导览。",
+  "basketball sneakers, scored to how you actually play. four quick stops — about thirty seconds.":
+    "篮球鞋，按你真实的打法来打分。四站就走完，大约三十秒。",
   "this little baller is you": "这个小球员就是你",
   "this figure is your player profile. once it's set, every shoe gets a match score tuned to how you actually play. tap it whenever you're ready to fill it in.":
     "这个小人就是你的球员档案。设置好之后，每双鞋都会按你真实的打法给出专属匹配分。想填写时，随时点它即可。",
@@ -656,12 +659,6 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
     "用「对比」把最多 5 双鞋并排比较，或让「智能选鞋」的 AI 帮你推荐——首页和提交也都在这里。",
   "these tabs are your map: compare lines shoes up side by side, smart picker's ai recommends a pair, and home, submit and account are a thumb away.":
     "这几个标签就是你的导航：「对比」把多双鞋并排比较，「智能选鞋」的 AI 帮你推荐，首页、提交和账号也都一指可达。",
-  "the whole catalog": "整个鞋库",
-  "open this to browse every indexed pair — sortable and searchable. with a profile set, each one shows how well it fits you.":
-    "点开即可浏览收录的每一双鞋——可排序、可搜索。设置好档案后，每双鞋还会显示它有多适合你。",
-  "save your progress": "保存你的进度",
-  "sign in here to save comparisons, rate shoes, sync your closet, and join the discussion.":
-    "在这里登录，即可保存对比、给球鞋打分、同步你的鞋柜，并参与讨论。",
   "ready? set your position, skill, height, weight and playstyle so every shoe gets scored for you. you can reopen this tour anytime from the menu.":
     "准备好了吗？设置你的位置、水平、身高、体重和打法，我们就能为每双鞋按你打分。你随时可以从菜单里重新打开本导览。",
 
