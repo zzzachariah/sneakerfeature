@@ -46,8 +46,12 @@ export function AdminMobileShell({
   return (
     <>
       <div
-        className="surface-card premium-border ios-glass-admin-shell-bar sticky top-0 z-30 mx-[calc(-1*var(--container-gutter))] mb-4 flex items-center gap-3 rounded-none px-[var(--container-gutter)] py-3 lg:hidden"
-        style={{ top: "var(--safe-top, 0px)" }}
+        className="surface-card premium-border ios-glass-admin-shell-bar sticky z-30 mx-[calc(-1*var(--container-gutter))] mb-4 flex items-center gap-3 rounded-none px-[var(--container-gutter)] py-3 lg:hidden"
+        // Sticks BELOW the site navbar, which is itself `sticky top-0 z-40`.
+        // Pinning this to the safe-area inset instead parked both bars at the
+        // same offset, and the navbar (higher z) covered this one's title.
+        // --top-nav-h already folds in --safe-top.
+        style={{ top: "var(--top-nav-h)" }}
       >
         <button
           type="button"
