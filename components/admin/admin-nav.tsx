@@ -18,6 +18,7 @@ import {
   BarChart3,
   ScrollText,
   Scale,
+  Radio,
   type LucideIcon
 } from "lucide-react";
 
@@ -114,6 +115,15 @@ export const NAV_GROUPS: AdminNavGroup[] = [
         label: "Credits & balances",
         icon: Wallet,
         match: (p) => p.startsWith("/admin/credits")
+      },
+      {
+        // Creator + growth-channel outreach. Admin-only: the table holds real
+        // people's email addresses and WeChat IDs, so this link exists here and
+        // nowhere else — never in public navigation.
+        href: "/admin/outreach",
+        label: "Creator outreach",
+        icon: Radio,
+        match: (p) => p.startsWith("/admin/outreach")
       }
     ]
   },
