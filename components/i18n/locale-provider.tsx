@@ -638,6 +638,8 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   // English source. ("next" / "advanced search" / "set up profile" /
   // "set up your player profile" already live elsewhere in this map.)
   "site tour": "网站导览",
+  "new here? take the tour": "新来的？看看导览",
+  "dismiss tour invitation": "关闭导览提示",
   "tour": "导览",
   "close tour": "关闭导览",
   "step": "步骤",

@@ -51,6 +51,7 @@ import { AuthStateProvider } from "@/components/auth/auth-state-provider";
 import { FavoritesProvider } from "@/components/favorites/favorites-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
 import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
+import { TutorialLauncher } from "@/components/tutorial/tutorial-launcher";
 import { DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -158,6 +159,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                       </div>
                     </NavScrollIndicatorProvider>
                     <TutorialOverlay />
+                    <TutorialLauncher />
                     <PushRegistration />
                     <WebPullToRefresh />
                   </TutorialProvider>

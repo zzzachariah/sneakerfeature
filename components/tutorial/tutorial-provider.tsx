@@ -10,20 +10,26 @@ import {
   useState
 } from "react";
 import { TUTORIAL_STEPS, isStepAvailable, type TutorialStep } from "@/lib/tutorial/steps";
-import { useAuthState } from "@/components/auth/auth-state-provider";
 
 const STORAGE_KEY = "tutorial_completed_v1";
+// Separate flag so hiding the launcher pill is its own decision: a visitor can
+// dismiss the invitation without ever running (or finishing) the tour.
+const LAUNCHER_KEY = "tutorial_launcher_dismissed_v1";
 
 type TutorialContextValue = {
   active: boolean;
   stepIndex: number;
   totalSteps: number;
   steps: TutorialStep[];
-  start: (fromIntro?: boolean) => void;
+  start: () => void;
   next: () => void;
   prev: () => void;
   stop: () => void;
   goTo: (index: number) => void;
+  /** Whether the "take the tour" pill should be offered right now. */
+  launcherVisible: boolean;
+  /** Hide the pill for good on this device. */
+  dismissLauncher: () => void;
 };
 
 const TutorialContext = createContext<TutorialContextValue | null>(null);
@@ -44,14 +50,23 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     stepsRef.current = steps;
   }, [steps]);
 
-  const { signedIn, loaded } = useAuthState();
-  // Baseline captured the first time auth resolves so an already-signed-in
-  // user opening the app doesn't re-trigger the tour on every visit.
-  const baselineSignedInRef = useRef<boolean | null>(null);
+  // The tour is opt-in: nothing ever opens it on its own. A first-time visitor
+  // is offered a dismissible pill (TutorialLauncher) and the "Site tour" menu
+  // entry; both call `start`.
+  const [launcherVisible, setLauncherVisible] = useState(false);
 
   const persistDone = useCallback(() => {
     try {
       window.localStorage.setItem(STORAGE_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const dismissLauncher = useCallback(() => {
+    setLauncherVisible(false);
+    try {
+      window.localStorage.setItem(LAUNCHER_KEY, "1");
     } catch {
       // ignore
     }
@@ -66,8 +81,10 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const start = useCallback(() => {
+    // Taking the tour retires the invitation, however the tour ends.
+    dismissLauncher();
     begin();
-  }, [begin]);
+  }, [begin, dismissLauncher]);
 
   const stop = useCallback(() => {
     setActive(false);
@@ -95,65 +112,18 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
     setStepIndex(index);
   }, []);
 
+  // Offer the pill once per device: never after it's been dismissed, and never
+  // to someone who has already been through the tour. Decided on the client
+  // after mount so the server render and the first paint agree.
   useEffect(() => {
-    if (!loaded) return;
-
-    if (baselineSignedInRef.current === null) {
-      baselineSignedInRef.current = signedIn;
-      return;
-    }
-
-    if (!baselineSignedInRef.current && signedIn) {
-      baselineSignedInRef.current = true;
-      let completed: string | null = null;
-      try {
-        completed = window.localStorage.getItem(STORAGE_KEY);
-      } catch {
-        return;
-      }
-      if (completed) return;
-      const t = window.setTimeout(() => {
-        begin();
-      }, 650);
-      return () => window.clearTimeout(t);
-    }
-
-    if (!signedIn) {
-      baselineSignedInRef.current = false;
-    }
-  }, [signedIn, loaded, begin]);
-
-  // Anonymous first visit: most first-time visitors are signed out, and the
-  // login-transition trigger above meant they never saw the tour at all. Fire
-  // it once per device — after the language first-run has been answered and no
-  // announcement overlay is on screen (retry briefly until both clear). The
-  // done-flag is persisted up front so an abandoned tour never re-fires.
-  useEffect(() => {
-    if (!loaded || signedIn || active) return;
     try {
+      if (window.localStorage.getItem(LAUNCHER_KEY)) return;
       if (window.localStorage.getItem(STORAGE_KEY)) return;
     } catch {
       return;
     }
-    let cancelled = false;
-    let tries = 0;
-    const attempt = () => {
-      if (cancelled) return;
-      const langPending = window.localStorage.getItem("locale") === null;
-      const overlayOpen = Boolean(document.querySelector('div[class*="z-[120]"]'));
-      if (langPending || overlayOpen) {
-        if (++tries < 20) window.setTimeout(attempt, 1000);
-        return;
-      }
-      persistDone();
-      begin();
-    };
-    const t = window.setTimeout(attempt, 1200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
-  }, [loaded, signedIn, active, begin, persistDone]);
+    setLauncherVisible(true);
+  }, []);
 
   const value = useMemo<TutorialContextValue>(
     () => ({
@@ -165,9 +135,11 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       next,
       prev,
       stop,
-      goTo
+      goTo,
+      launcherVisible,
+      dismissLauncher
     }),
-    [active, stepIndex, steps, start, next, prev, stop, goTo]
+    [active, stepIndex, steps, start, next, prev, stop, goTo, launcherVisible, dismissLauncher]
   );
 
   return <TutorialContext.Provider value={value}>{children}</TutorialContext.Provider>;
