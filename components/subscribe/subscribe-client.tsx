@@ -20,6 +20,7 @@ import { purchaseDecision } from "@/lib/subscription/resolve";
 import { SKINS, SKIN_ORDER, skinPalette, hexToRgbTriple, darkenHex, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
 import { Lock } from "lucide-react";
 import { MembershipCard } from "@/components/subscribe/membership-card";
+import { SignInRequiredModal } from "@/components/auth/sign-in-required-modal";
 
 // Preset "Signature" accents Max members can pick from (or use the color wheel).
 const SIGNATURE_PRESETS = ["#e0559c", "#29c2e6", "#7a5cff", "#d9b45a", "#ff6e40", "#38d39f", "#f0456b", "#12b886"];
@@ -171,6 +172,9 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
   const [skin, setSkin] = useState<SkinId>(current.skin);
   const [pending, setPending] = useState<"pro" | "max" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Signed-out visitors get a "log in or sign up first" dialog instead of a
+  // checkout redirect — see onSubscribe.
+  const [authPrompt, setAuthPrompt] = useState(false);
   const reduce = useReducedMotion();
 
   // The duration that saves the most vs month-to-month (Pro as the reference),
@@ -267,6 +271,14 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
 
   async function onSubscribe(tier: "pro" | "max") {
     if (pending) return;
+    // No account, no checkout: a purchase is fulfilled against a user id, so a
+    // signed-out visitor gets the sign-in dialog rather than a payment page (or
+    // the bare 401 the API would answer with).
+    if (!current.signedIn) {
+      setError(null);
+      setAuthPrompt(true);
+      return;
+    }
     // Client mirror of the server policy: block switching tiers while an active
     // paid plan exists, and block every purchase for a permanent member. The
     // server (/api/stripe/checkout) is the real guard.
@@ -279,6 +291,13 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tier, duration })
       });
+      // Session expired between page render and click — same prompt, not an
+      // error line the user can't act on.
+      if (res.status === 401) {
+        setPending(null);
+        setAuthPrompt(true);
+        return;
+      }
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) {
         throw new Error(data?.message || t("创建支付会话失败，请重试。", "Couldn't start checkout. Please try again."));
@@ -450,6 +469,34 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           })}
         </div>
       </motion.section>
+
+      {/* Signed-out notice: say up front that checkout needs an account, so the
+          requirement isn't only discovered after tapping "开通". */}
+      {!current.signedIn && (
+        <motion.div
+          className="mt-8 flex items-start gap-3 rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface))] p-4"
+          {...fade}
+          transition={{ duration: 0.4 }}
+        >
+          <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 soft-text" />
+          <div className="text-sm">
+            <p className="font-semibold">{t("开通前请先登录或注册", "Sign in before subscribing")}</p>
+            <p className="mt-1 soft-text">
+              {t(
+                "会员权益会绑定到你的账号，所以付款前需要一个账号。",
+                "Membership is tied to your account, so you'll need one before paying."
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAuthPrompt(true)}
+              className="mt-2 text-sm font-semibold text-[rgb(var(--brand))] underline-offset-4 hover:underline"
+            >
+              {t("登录 / 注册 →", "Sign in / Sign up →")}
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {/* Active-member policy reminder: you already hold a paid plan and can't
           switch tiers until it expires (renewing the same tier stays open). */}
@@ -801,6 +848,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
           </div>
         </motion.section>
       )}
+
+      <SignInRequiredModal open={authPrompt} onClose={() => setAuthPrompt(false)} next="/subscribe" />
     </div>
   );
 }
