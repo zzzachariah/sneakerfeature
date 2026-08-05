@@ -124,7 +124,8 @@ type BenefitRow = {
 // comparison table can't advertise a model the Smart Picker no longer runs.
 const modelName = (id: ModelId | null): string | null => (id ? (pickerModelInfo(id)?.name ?? id) : null);
 
-// "<base> + <premium>" for a paid tier (Pro: DeepSeek V4 + Fable, Max: … + Opus 5).
+// "<base> + <premium>" for a paid tier. Both paid tiers run the same pair —
+// they differ in monthly allowance and pipeline depth, not in model access.
 function tierModels(tier: Exclude<Tier, "free">): string {
   const cfg = TIERS[tier];
   const premium = modelName(cfg.capabilities.premiumModel);
@@ -140,8 +141,8 @@ const BENEFIT_ROWS: BenefitRow[] = [
     freeEn: "Haiku · light",
     pro: tierModels("pro"),
     proEn: tierModels("pro"),
-    max: `${tierModels("max")} · 顶级`,
-    maxEn: `${tierModels("max")} · flagship`
+    max: `${tierModels("max")} · 深度模式`,
+    maxEn: `${tierModels("max")} · deep mode`
   },
   { icon: Zap, label: "基础推理", labelEn: "Base reasoning", free: "签到计量", freeEn: "Metered by check-in", pro: "不限次", proEn: "Unlimited", max: "不限次", maxEn: "Unlimited" },
   // Allowance numbers read straight from TIERS — the comparison table used to
@@ -578,13 +579,32 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               <ul className="mt-5 flex flex-1 flex-col gap-2.5">
                 {(tier === "pro"
                   ? zh
-                    ? ["精准逐款尺码 + 脚型建议", "主力模型不限次", "自定义首页顺序 / 菜单栏", "Pro 皮肤 + 专属徽章"]
-                    : ["Per-shoe precise sizing + foot advice", "Unlimited main model", "Custom home order / menu", "Pro skins + member badge"]
+                    ? [
+                        `顶级 ${modelName(TIERS.pro.capabilities.premiumModel)} 模型`,
+                        "精准逐款尺码 + 脚型建议",
+                        "主力模型不限次",
+                        "自定义首页顺序 / 菜单栏",
+                        "Pro 皮肤 + 专属徽章"
+                      ]
+                    : [
+                        `The top ${modelName(TIERS.pro.capabilities.premiumModel)} model`,
+                        "Per-shoe precise sizing + foot advice",
+                        "Unlimited main model",
+                        "Custom home order / menu",
+                        "Pro skins + member badge"
+                      ]
                   : zh
-                    ? ["Pro 全部权益，额度 5×", `解锁顶级 ${modelName(TIERS.max.capabilities.premiumModel)} 模型`, "更深度个性化 + 抢先体验", "Max 皮肤 + 尊享徽章"]
+                    ? [
+                        "Pro 全部权益，额度 5×",
+                        `${modelName(TIERS.max.capabilities.premiumModel)} 深度模式 · 推荐更多`,
+                        "AI 顾问 Max 专属",
+                        "更深度个性化 + 抢先体验",
+                        "Max 皮肤 + 尊享徽章"
+                      ]
                     : [
                         "Everything in Pro, 5× allowance",
-                        `Unlock the top ${modelName(TIERS.max.capabilities.premiumModel)} model`,
+                        `${modelName(TIERS.max.capabilities.premiumModel)} in deep mode · more picks`,
+                        "Max-only AI advisor",
                         "Deeper personalization + early access",
                         "Max skins + signature badge"
                       ]
@@ -680,8 +700,8 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
         </div>
         <p className="mt-4 text-xs soft-text">
           {t(
-            `计费为混合制：基础模型对付费会员不限次，高级模型（Pro 用 ${modelName(TIERS.pro.capabilities.premiumModel)}，Max 用 ${modelName(TIERS.max.capabilities.premiumModel)}）从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。`,
-            `Hybrid billing: the base model is unlimited for paid members; the premium models (${modelName(TIERS.pro.capabilities.premiumModel)} on Pro, ${modelName(TIERS.max.capabilities.premiumModel)} on Max) draw from a monthly allowance (permanent plans refresh monthly, no roll-over). Launch pricing, subject to change.`
+            `计费为混合制：基础模型对付费会员不限次；高级模型 ${modelName(TIERS.max.capabilities.premiumModel)}（Pro / Max 同款，区别在每月额度与推理深度）从每月额度扣分（永久档每月刷新，不叠加）。价格为初期定价，可能调整。`,
+            `Hybrid billing: the base model is unlimited for paid members; the premium ${modelName(TIERS.max.capabilities.premiumModel)} model — the same on Pro and Max, which differ in monthly allowance and reasoning depth — draws from a monthly allowance (permanent plans refresh monthly, no roll-over). Launch pricing, subject to change.`
           )}
         </p>
       </motion.section>

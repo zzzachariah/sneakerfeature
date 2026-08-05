@@ -5,8 +5,8 @@
 // When that happens mid-stream the socket dies before the route can send
 // anything, so the user watches a full minute of real "thinking" and then gets
 // a bare "请求失败，请稍后重试。" with no cards — exactly the failure reported for
-// the premium models. Nothing about it is tier-specific: the reasoning models
-// (Fable / Opus) just think longest, so they hit the ceiling first.
+// the premium models. Nothing about it is tier-specific: the reasoning model
+// (Opus) just thinks longest, so it hits the ceiling first.
 //
 // Two halves of the fix live here:
 //   1. AI_ROUTE_MAX_DURATION documents how long each AI route asks the platform
