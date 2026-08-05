@@ -13,16 +13,57 @@
 /* ── Credits & usage panel — standard skeleton ────────────────────────────── */
 .sp-usage { display: flex; flex-direction: column; gap: 1rem; }
 
+/* Material note: the panel lives INSIDE a .glass-strong modal, whose backdrop is
+   already blurred. Nesting more backdrop-filters there buys almost nothing
+   visually and costs real frames in the iOS WebView, so these cards use the
+   app's blur-free glass tier (.glass-lite's recipe: translucent tint + a lit top
+   edge) and the hero adds the lensed rim ring for presence. The two surfaces
+   that sit on the PAGE rather than in a modal — the follow-up composer and the
+   cost chip — get genuine backdrop blur further down. */
 .sp-usage-hero {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.9rem 1rem;
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
-  background: rgb(var(--surface) / 0.6);
+  background-color: rgb(var(--glass-tint-strong) / 0.82);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.4),
+    0 2px 12px rgb(var(--glass-shadow) / 0.08);
   border-radius: 16px;
 }
+.dark .sp-usage-hero { background-color: rgb(var(--glass-tint) / 0.7); }
+
+/* Lensed edge on the headline card — same 1px gradient ring the rest of the
+   app's glass uses (.glass-rim), inlined so the class list stays on the panel's
+   own vocabulary and the per-skin overrides below can switch it off. */
+.sp-usage-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-rim) / 0.7) 0%,
+    rgb(var(--glass-rim) / 0.12) 30%,
+    transparent 52%,
+    rgb(var(--glass-rim-shade) / 0.12) 100%
+  );
+  -webkit-mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+.sp-usage-hero > * { position: relative; z-index: 2; }
 .sp-usage-hero-v {
   display: flex;
   align-items: baseline;
@@ -48,8 +89,11 @@
 .sp-usage-allowance {
   padding: 0.75rem 1rem;
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  background-color: rgb(var(--glass-tint-strong) / 0.6);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.28);
   border-radius: 14px;
 }
+.dark .sp-usage-allowance { background-color: rgb(var(--glass-tint) / 0.5); }
 .sp-usage-track {
   position: relative;
   display: block;
@@ -67,18 +111,24 @@
 }
 
 /* Lifetime counters */
+/* auto-fit, not a viewport media query: the panel is a modal whose content box
+   is much narrower than the screen, so keying the column count off the viewport
+   packed four columns into ~365px on a large phone. This reflows on the
+   CONTAINER instead — four across on desktop, two on a phone, at any width. */
 .sp-usage-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(6.25rem, 1fr));
+  gap: 0.75rem 0.5rem;
   padding: 0.75rem 1rem;
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  background-color: rgb(var(--glass-tint-strong) / 0.6);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.28);
   border-radius: 14px;
 }
+.dark .sp-usage-stats { background-color: rgb(var(--glass-tint) / 0.5); }
 .sp-usage-stat { display: flex; min-width: 0; flex-direction: column; gap: 0.15rem; }
 .sp-usage-stat-v { font-size: 1.1rem; font-weight: 700; line-height: 1.1; }
 @media (max-width: 400px) {
-  .sp-usage-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 0.5rem; }
   .sp-usage-hero-v { font-size: 1.6rem; }
 }
 
@@ -161,35 +211,149 @@
 .sp-usage-out { color: rgb(var(--subtext)); }
 
 /* ── Per-turn cost chip ───────────────────────────────────────────────────── */
+/* Sits on the page under each answer — real glass, at the light blur tier since
+   several can be on screen at once in a long conversation. */
 .sp-cost {
+  isolation: isolate;
+  overflow: hidden;
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
-  background: rgb(var(--surface) / 0.5);
+  background-color: rgb(var(--glass-tint) / 0.55);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.35);
   color: rgb(var(--subtext));
 }
 .sp-cost--button:hover { border-color: rgb(var(--text) / 0.3); color: rgb(var(--text)); }
 
 /* ── Follow-up composer ───────────────────────────────────────────────────── */
+/* The one surface in the conversation asking to be touched, so it gets the full
+   material: a brand-tinted glass slab, heavy frost, inner glow and the lensed
+   rim — the same recipe as .glass-refract, which is what the app's chrome uses.
+   At most one is ever mounted (only the newest answer carries a follow-up), so
+   the heavy blur is affordable even in the iOS WebView. */
 .sp-followup {
+  position: relative;
+  /* iOS Safari ignores border-radius when clipping a backdrop-filter; isolating
+     and clipping is the app's standard fix (.glass-clip). Safe here — nothing
+     inside overflows the box. */
+  isolation: isolate;
+  overflow: hidden;
   border-color: rgb(var(--brand) / 0.35);
-  background: linear-gradient(135deg, rgb(var(--brand) / 0.07), rgb(var(--surface) / 0.65));
+  background-image: linear-gradient(135deg, rgb(var(--brand) / 0.1), transparent 62%);
+  background-color: rgb(var(--glass-tint) / 0.6);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.1);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.1);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.6),
+    inset 0 0 22px rgb(var(--glass-rim) / 0.1),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+    0 14px 36px -14px rgb(var(--glass-shadow) / 0.3);
 }
+/* Lensed edge. Behind the content (z-index 0 + positioned children) so it never
+   sits over the input or the chips. */
+.sp-followup::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-rim) / 0.7) 0%,
+    rgb(var(--glass-rim) / 0.12) 30%,
+    transparent 52%,
+    rgb(var(--glass-rim-shade) / 0.12) 100%
+  );
+  -webkit-mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+.sp-followup > * { position: relative; z-index: 1; }
 .sp-followup-icon { color: rgb(var(--brand)); }
 .sp-followup-chip {
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
-  background: rgb(var(--bg) / 0.55);
+  background-color: rgb(var(--glass-tint) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.4);
   color: rgb(var(--text) / 0.88);
 }
 .sp-followup-chip:hover:not(:disabled) {
   border-color: rgb(var(--brand) / 0.6);
+  background-color: rgb(var(--glass-tint) / 0.72);
   color: rgb(var(--text));
 }
+.sp-followup-chip:active:not(:disabled) { transform: scale(0.97); }
+/* Recessed well: the inverse lighting of the raised chips, so the field reads as
+   cut INTO the glass rather than sitting on it. */
 .sp-followup-field {
   border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
-  background: rgb(var(--bg) / 0.65);
+  background-color: rgb(var(--glass-rim-shade) / 0.05);
+  box-shadow:
+    inset 0 1px 2px rgb(var(--glass-rim-shade) / 0.09),
+    inset 0 -1px 0 rgb(var(--glass-rim) / 0.35);
 }
-.sp-followup-field:focus-within { border-color: rgb(var(--brand) / 0.65); }
+.sp-followup-field:focus-within {
+  border-color: rgb(var(--brand) / 0.65);
+  box-shadow:
+    inset 0 1px 2px rgb(var(--glass-rim-shade) / 0.09),
+    0 0 0 3px rgb(var(--brand) / 0.14);
+}
 .sp-followup-send { background: rgb(var(--text)); color: rgb(var(--bg)); }
 .sp-followup-send:not(:disabled):hover { transform: scale(1.06); }
+.sp-followup-send:not(:disabled):active { transform: scale(0.94); }
+
+/* Inside the iOS app the surrounding chrome is REAL UIKit Liquid Glass (see
+   components/native/native-top-bar.tsx + native-bottom-nav.tsx), so the in-page
+   glass is pushed a step brighter and glossier to sit in the same material
+   family instead of reading as a flat card between two glass bars. */
+html[data-native-platform="ios"] .sp-followup {
+  -webkit-backdrop-filter: blur(var(--glass-blur-xl)) saturate(200%) brightness(1.16);
+  backdrop-filter: blur(var(--glass-blur-xl)) saturate(200%) brightness(1.16);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.8),
+    inset 0 0 26px rgb(var(--glass-rim) / 0.16),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.07),
+    0 16px 40px -14px rgb(var(--glass-shadow) / 0.34);
+}
+html[data-native-platform="ios"] .sp-cost {
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(200%) brightness(1.12);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(200%) brightness(1.12);
+}
+
+/* ── Capability & accessibility fallbacks ─────────────────────────────────── */
+/* Mirrors the guards globals.css applies to every other glass surface: no
+   backdrop-filter support, or iOS "Reduce Transparency" on, means an opaque
+   surface rather than unreadable text over a busy page. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .sp-followup, .sp-cost { background-color: rgb(var(--glass-tint-strong) / 0.98); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sp-followup, .sp-cost {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: rgb(var(--glass-tint-strong) / 0.98);
+  }
+  .sp-usage-hero, .sp-usage-stats, .sp-usage-allowance {
+    background-color: rgb(var(--glass-tint-strong) / 0.98);
+  }
+  .sp-followup::before, .sp-usage-hero::before { display: none; }
+}
+@media (prefers-contrast: more) {
+  .sp-followup, .sp-cost, .sp-usage-hero, .sp-usage-stats, .sp-usage-allowance {
+    border-color: rgb(var(--glass-stroke) / 0.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-followup-chip:active:not(:disabled),
+  .sp-followup-send:not(:disabled):hover,
+  .sp-followup-send:not(:disabled):active { transform: none; }
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    EDITORIAL (sapphire) — a printed credit statement
@@ -207,6 +371,10 @@ html[data-premium="sapphire"] .sp-usage-allowance {
      the leading digit of the balance. */
   padding-inline: 0.15rem;
 }
+html[data-premium="sapphire"] .sp-usage-hero,
+html[data-premium="sapphire"] .sp-usage-stats,
+html[data-premium="sapphire"] .sp-usage-allowance { box-shadow: none; }
+html[data-premium="sapphire"] .sp-usage-hero::before { display: none; }
 html[data-premium="sapphire"] .sp-usage-hero-v,
 html[data-premium="sapphire"] .sp-usage-stat-v {
   font-family: var(--pui-display);
@@ -276,6 +444,10 @@ html[data-premium="obsidian"] .sp-usage-allowance {
   border-radius: var(--pui-radius-card);
   background: transparent;
 }
+html[data-premium="obsidian"] .sp-usage-hero,
+html[data-premium="obsidian"] .sp-usage-stats,
+html[data-premium="obsidian"] .sp-usage-allowance { box-shadow: none; }
+html[data-premium="obsidian"] .sp-usage-hero::before { display: none; }
 html[data-premium="obsidian"] .sp-usage-hero-v,
 html[data-premium="obsidian"] .sp-usage-stat-v {
   font-family: var(--pui-display);
@@ -310,6 +482,10 @@ html[data-premium="champion"] .sp-usage-allowance {
   border-radius: var(--pui-radius-card);
   background: linear-gradient(150deg, rgb(var(--pui-gold) / 0.12), rgb(var(--surface) / 0.6));
 }
+html[data-premium="champion"] .sp-usage-hero,
+html[data-premium="champion"] .sp-usage-stats,
+html[data-premium="champion"] .sp-usage-allowance { box-shadow: none; }
+html[data-premium="champion"] .sp-usage-hero::before { display: none; }
 html[data-premium="champion"] .sp-usage-hero-v,
 html[data-premium="champion"] .sp-usage-stat-v {
   font-family: var(--pui-display);
