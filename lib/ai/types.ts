@@ -101,3 +101,7 @@ export type AiChatMessage = {
 
 export const MAX_RECOMMENDATIONS = 10;
 export const MAX_COMPARE = 5;
+// How many conversations one member may have generating at the same time. A
+// turn keeps running when the user opens another chat, so this is what stops a
+// browser tab from holding an unbounded number of open SSE streams.
+export const MAX_CONCURRENT_TURNS = 3;

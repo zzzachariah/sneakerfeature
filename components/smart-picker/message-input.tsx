@@ -13,6 +13,9 @@ type Props = {
   balance: number;
   unlimited: boolean;
   sending: boolean;
+  // Every concurrent turn is taken by OTHER conversations. Hold the send (and
+  // say why) rather than accepting text that would be silently refused.
+  atTurnLimit: boolean;
   tier: Tier;
   model: ModelId | null;
   onSelectModel: (id: ModelId) => void;
@@ -24,7 +27,7 @@ type Props = {
   prefillNonce?: number;
 };
 
-export function MessageInput({ balance, unlimited, sending, tier, model, onSelectModel, onSend, prefillText, prefillNonce = 0 }: Props) {
+export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, model, onSelectModel, onSend, prefillText, prefillNonce = 0 }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
   // String state so the user can clear "1" and retype — enforce range only on blur.
@@ -57,7 +60,7 @@ export function MessageInput({ balance, unlimited, sending, tier, model, onSelec
   const metered = !unlimited && !hasUnmeteredBase(tier);
   const insufficient = metered && balance < count;
   const canSend = text.trim().length > 0 && !sending;
-  const isReady = canSend && !insufficient;
+  const isReady = canSend && !insufficient && !atTurnLimit;
 
   useEffect(() => {
     if (prefillNonce > 0 && prefillText) {
@@ -107,6 +110,14 @@ export function MessageInput({ balance, unlimited, sending, tier, model, onSelec
       // env(safe-area-inset-bottom) covers the iOS home indicator — no black bar.
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
+      {/* Other conversations are already using every concurrent turn. Say so
+          here — the send button is held, and a silent no-op would look broken. */}
+      {atTurnLimit && (
+        <p className="mx-4 mt-3 text-xs soft-text">
+          {translate("Other conversations are still generating — you can send here once one of them finishes.")}
+        </p>
+      )}
+
       {/* Peak-intent upsell: a free user is out of credits right when they want
           another pick. Basic reasoning is unlimited on Pro. */}
       {insufficient && SUBSCRIBE_LIVE && (
