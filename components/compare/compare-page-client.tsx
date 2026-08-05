@@ -147,7 +147,7 @@ export function ComparePageClient({ selected, allShoes }: Props) {
   };
 
   // Clear-all wipes the whole lineup (and its localStorage) — confirm first via
-  // the native glass alert on iOS, window.confirm elsewhere.
+  // the native glass alert on iOS, the in-app web dialog elsewhere.
   const onClearAll = async () => {
     const ok = await confirmDialog({
       message: translate("Remove all shoes from this comparison?"),

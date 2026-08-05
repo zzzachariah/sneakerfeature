@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { consumeCheckoutPending, isInAppBrowserOpen, markInAppBrowserClosed } from "@/lib/native/checkout";
+import { webConfirmOpen } from "@/components/native/web-confirm";
 import { pathFromDeepLink } from "@/lib/native/deep-link";
 
 // Runs once on the client. When the web app is loaded inside the Capacitor
@@ -82,6 +83,12 @@ export function CapacitorBridge() {
         const { App } = await import("@capacitor/app");
         const handles = [
           await App.addListener("backButton", ({ canGoBack }) => {
+            // An in-app confirm owns the back press: on Android the dialog is
+            // our own DOM, not the WebView's native alert, so navigating (or
+            // exiting) out from under it would strand the overlay on the next
+            // page with its destructive action still armed. webConfirm closes
+            // itself on the same event.
+            if (webConfirmOpen()) return;
             if (canGoBack) {
               window.history.back();
             } else {

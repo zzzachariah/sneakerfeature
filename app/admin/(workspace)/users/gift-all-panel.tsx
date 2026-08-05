@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gift } from "lucide-react";
 import { confirmDialog } from "@/components/native/native-menu";
+import { adminPost } from "@/lib/admin/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -14,23 +15,25 @@ type Plan = {
   scanned: number;
   granted: number;
   extended: number;
+  upgraded: number;
   skippedHigherTier: number;
   skippedPermanent: number;
   keptPaid: number;
   expiresAt: string | null;
   permanent: boolean;
   applied: boolean;
-  sample: { username: string; action: "grant" | "extend" }[];
+  sample: { username: string; action: "grant" | "extend" | "upgrade" }[];
 };
 
 type GiftTier = "pro" | "max";
 
 // Bulk "gift a membership to every member" control (全站送会员).
 //
-// Deliberately two-step: Preview runs the same planner server-side with
-// apply:false and reports exactly who would be touched, and only then does the
-// Gift button unlock. Changing the tier or duration drops the preview, so the
-// button can never fire against numbers the admin didn't just read.
+// Still preview-first — nothing is written until the admin has seen the real
+// numbers — but the preview is no longer a separate button the operator has to
+// find: Gift runs the planner (apply:false), puts the counts in the confirm
+// dialog, and only writes once that is accepted. The Gift button is therefore
+// never inert; a dead primary CTA is indistinguishable from a broken one.
 export function GiftAllPanel() {
   const router = useRouter();
   const [tier, setTier] = useState<GiftTier>("pro");
@@ -41,7 +44,7 @@ export function GiftAllPanel() {
   const [error, setError] = useState("");
 
   const durationLabel = DURATIONS.find((d) => d.id === duration)?.label ?? duration;
-  const affected = plan ? plan.granted + plan.extended : 0;
+  const affected = plan ? plan.granted + plan.extended + plan.upgraded : 0;
 
   function reset(next: { tier?: GiftTier; duration?: Duration }) {
     if (next.tier) setTier(next.tier);
@@ -51,49 +54,88 @@ export function GiftAllPanel() {
     setError("");
   }
 
-  async function run(apply: boolean) {
+  /**
+   * Run the planner. Returns the plan, or null once the error is on screen.
+   * The tier/duration are passed in rather than read from state at call time,
+   * so the apply leg can only ever write what the preview it followed showed.
+   */
+  async function run(apply: boolean, at: { tier: GiftTier; duration: Duration }): Promise<Plan | null> {
     setBusy(apply ? "apply" : "preview");
     setError("");
     if (apply) setMessage("");
     try {
-      const res = await fetch("/api/admin/users/subscription/gift-all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, duration, apply })
-      });
-      const json = await res.json();
-      if (!json?.ok) {
-        setError(json?.message ?? "Bulk gift failed.");
-        return;
+      const res = await adminPost<Plan>("/api/admin/users/subscription/gift-all", { ...at, apply });
+      if (!res.ok) {
+        setError(res.message);
+        return null;
       }
-      setPlan(json as Plan);
+      setPlan(res.data);
       if (apply) {
+        // Only the new-term group lands on `expiresAt`; stacked members end at
+        // their own date + the duration, and upgraded ones keep their original
+        // (longer) date. Quoting one date for all three would be wrong for two
+        // of them — and this banner is the operator's only record of the write.
+        const d = res.data;
         setMessage(
-          `Done — ${json.granted + json.extended} member(s) now on ${TIERS[tier].name}` +
-            (json.permanent ? " (permanent)." : ` until ${new Date(json.expiresAt).toLocaleDateString()}.`)
+          `Done — ${d.granted + d.extended + d.upgraded} member(s) now on ${TIERS[at.tier].name}` +
+            (d.permanent
+              ? " (permanent)."
+              : d.granted > 0 && d.expiresAt
+                ? ` · ${d.granted} new term(s) until ${new Date(d.expiresAt).toLocaleDateString()}` +
+                  (d.extended + d.upgraded > 0
+                    ? ` · ${d.extended + d.upgraded} keep their own later date.`
+                    : ".")
+                : d.extended + d.upgraded > 0
+                  ? " — each keeping their own end date."
+                  : ".")
         );
         router.refresh();
       }
-    } catch {
-      setError("Network error. Please retry.");
+      return res.data;
     } finally {
       setBusy(null);
     }
   }
 
+  // Preview → confirm → apply, from one click. Re-previews every time so the
+  // numbers in the dialog are the ones about to be written, even if the member
+  // table moved since the last look.
   async function confirmAndApply() {
-    if (!plan) return;
+    // Pin the pickers now: everything below describes THIS tier and duration.
+    const at = { tier, duration };
+    // Drop the previous run's banner up front. Cancelling the confirm, or a
+    // preview that finds nothing to do, must not leave a stale green "Done"
+    // on screen for an irreversible action.
+    setMessage("");
+    const label = DURATIONS.find((d) => d.id === at.duration)?.label ?? at.duration;
+    const name = TIERS[at.tier].name;
+    const fresh = await run(false, at);
+    if (!fresh) return;
+    const count = fresh.granted + fresh.extended + fresh.upgraded;
+    if (count === 0) {
+      // A permanent skip is NOT the same as "already has it": a lifetime Pro
+      // member is skipped for a Max gift precisely because they never get it.
+      setError(
+        `Nothing to gift — ${fresh.skippedHigherTier} of ${fresh.scanned} member(s) are on a higher tier and ` +
+          `${fresh.skippedPermanent} hold a lifetime membership this gift must not overwrite. ` +
+          `Upgrade a lifetime member from their own row if that's the intent.`
+      );
+      return;
+    }
     const ok = await confirmDialog({
-      title: `Gift ${TIERS[tier].name} to everyone?`,
+      title: `Gift ${name} to everyone?`,
       message:
-        `${plan.granted} member(s) start a new ${durationLabel} term and ${plan.extended} active ${TIERS[tier].name} member(s) ` +
-        `get ${durationLabel} added to their remaining time. This can't be undone in bulk — each membership would have to be ` +
-        `cancelled one by one.`,
-      okLabel: `Gift to ${affected}`,
+        `${fresh.granted} member(s) start a new ${label} term and ${fresh.extended} active ${name} member(s) ` +
+        `get ${label} added to their remaining time.` +
+        (fresh.upgraded > 0
+          ? ` ${fresh.upgraded} member(s) on a lower tier that already outlives the gift move up to ${name} and keep their own longer expiry.`
+          : "") +
+        ` This can't be undone in bulk — each membership would have to be cancelled one by one.`,
+      okLabel: `Gift to ${count}`,
       destructive: true
     });
     if (!ok) return;
-    await run(true);
+    await run(true, at);
   }
 
   const selectCls = "h-9 min-h-0 text-sm";
@@ -106,7 +148,8 @@ export function GiftAllPanel() {
       </div>
       <p className="mt-1 text-xs soft-text">
         Active higher tiers are never downgraded, and members already on this tier get the time added on top of
-        what&apos;s left. Preview first — the gift is applied in one shot and isn&apos;t reversible in bulk.
+        what&apos;s left. Gift shows you the exact numbers and writes nothing until you confirm — but once applied it
+        isn&apos;t reversible in bulk. To gift only some members, tick them in the list below instead.
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-[160px,160px,auto,auto]">
@@ -133,16 +176,17 @@ export function GiftAllPanel() {
             </option>
           ))}
         </Select>
-        <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => run(false)}>
+        <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void run(false, { tier, duration })}>
           {busy === "preview" ? "Previewing…" : "Preview"}
         </Button>
-        <Button
-          type="button"
-          variant="primary"
-          disabled={busy !== null || !plan || plan.applied || affected === 0}
-          onClick={confirmAndApply}
-        >
-          {busy === "apply" ? "Gifting…" : plan ? `Gift ${TIERS[tier].name} to ${affected}` : "Preview first"}
+        <Button type="button" variant="primary" disabled={busy !== null} onClick={confirmAndApply}>
+          {busy === "apply"
+            ? "Gifting…"
+            : busy === "preview"
+              ? "Checking…"
+              : plan && !plan.applied
+                ? `Gift ${TIERS[tier].name} to ${affected}`
+                : `Gift ${TIERS[tier].name} to everyone`}
         </Button>
       </div>
 
@@ -160,6 +204,9 @@ export function GiftAllPanel() {
             </li>
             <li>
               Time extended: <span className="num-display font-semibold">{plan.extended}</span>
+            </li>
+            <li>
+              Upgraded, expiry kept: <span className="num-display font-semibold">{plan.upgraded}</span>
             </li>
             <li>
               Skipped (higher tier): <span className="num-display font-semibold">{plan.skippedHigherTier}</span>

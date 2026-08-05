@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminContext } from "@/lib/admin/auth";
-import { giftAllMembers } from "@/lib/subscription/entitlements";
+import { GiftWriteError, giftAllMembers } from "@/lib/subscription/entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,6 +47,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...plan });
   } catch (error) {
     console.error("[admin/users/subscription/gift-all] failed", error);
+    // Part-written bulk gift: say so, with the count, so the operator doesn't
+    // retry over the members who already got their term.
+    if (error instanceof GiftWriteError) {
+      return NextResponse.json(
+        { ok: false, message: error.message, partial: error.appliedIds.length > 0, applied: error.appliedIds.length },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ ok: false, message: "Bulk gift failed." }, { status: 500 });
   }
 }
