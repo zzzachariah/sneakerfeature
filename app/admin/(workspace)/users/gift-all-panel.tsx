@@ -54,26 +54,40 @@ export function GiftAllPanel() {
     setError("");
   }
 
-  /** Run the planner. Returns the plan, or null once the error is on screen. */
-  async function run(apply: boolean): Promise<Plan | null> {
+  /**
+   * Run the planner. Returns the plan, or null once the error is on screen.
+   * The tier/duration are passed in rather than read from state at call time,
+   * so the apply leg can only ever write what the preview it followed showed.
+   */
+  async function run(apply: boolean, at: { tier: GiftTier; duration: Duration }): Promise<Plan | null> {
     setBusy(apply ? "apply" : "preview");
     setError("");
     if (apply) setMessage("");
     try {
-      const res = await adminPost<Plan>("/api/admin/users/subscription/gift-all", { tier, duration, apply });
+      const res = await adminPost<Plan>("/api/admin/users/subscription/gift-all", { ...at, apply });
       if (!res.ok) {
         setError(res.message);
         return null;
       }
       setPlan(res.data);
       if (apply) {
+        // Only the new-term group lands on `expiresAt`; stacked members end at
+        // their own date + the duration, and upgraded ones keep their original
+        // (longer) date. Quoting one date for all three would be wrong for two
+        // of them — and this banner is the operator's only record of the write.
+        const d = res.data;
         setMessage(
-          `Done — ${res.data.granted + res.data.extended + res.data.upgraded} member(s) now on ${TIERS[tier].name}` +
-            (res.data.permanent
+          `Done — ${d.granted + d.extended + d.upgraded} member(s) now on ${TIERS[at.tier].name}` +
+            (d.permanent
               ? " (permanent)."
-              : res.data.expiresAt
-                ? ` until ${new Date(res.data.expiresAt).toLocaleDateString()}.`
-                : ".")
+              : d.granted > 0 && d.expiresAt
+                ? ` · ${d.granted} new term(s) until ${new Date(d.expiresAt).toLocaleDateString()}` +
+                  (d.extended + d.upgraded > 0
+                    ? ` · ${d.extended + d.upgraded} keep their own later date.`
+                    : ".")
+                : d.extended + d.upgraded > 0
+                  ? " — each keeping their own end date."
+                  : ".")
         );
         router.refresh();
       }
@@ -87,30 +101,41 @@ export function GiftAllPanel() {
   // numbers in the dialog are the ones about to be written, even if the member
   // table moved since the last look.
   async function confirmAndApply() {
-    const fresh = await run(false);
+    // Pin the pickers now: everything below describes THIS tier and duration.
+    const at = { tier, duration };
+    // Drop the previous run's banner up front. Cancelling the confirm, or a
+    // preview that finds nothing to do, must not leave a stale green "Done"
+    // on screen for an irreversible action.
+    setMessage("");
+    const label = DURATIONS.find((d) => d.id === at.duration)?.label ?? at.duration;
+    const name = TIERS[at.tier].name;
+    const fresh = await run(false, at);
     if (!fresh) return;
     const count = fresh.granted + fresh.extended + fresh.upgraded;
     if (count === 0) {
+      // A permanent skip is NOT the same as "already has it": a lifetime Pro
+      // member is skipped for a Max gift precisely because they never get it.
       setError(
-        `Nothing to gift — all ${fresh.scanned} member(s) already hold ${TIERS[tier].name} or better ` +
-          `(${fresh.skippedHigherTier} on a higher tier, ${fresh.skippedPermanent} permanent).`
+        `Nothing to gift — ${fresh.skippedHigherTier} of ${fresh.scanned} member(s) are on a higher tier and ` +
+          `${fresh.skippedPermanent} hold a lifetime membership this gift must not overwrite. ` +
+          `Upgrade a lifetime member from their own row if that's the intent.`
       );
       return;
     }
     const ok = await confirmDialog({
-      title: `Gift ${TIERS[tier].name} to everyone?`,
+      title: `Gift ${name} to everyone?`,
       message:
-        `${fresh.granted} member(s) start a new ${durationLabel} term and ${fresh.extended} active ${TIERS[tier].name} member(s) ` +
-        `get ${durationLabel} added to their remaining time.` +
+        `${fresh.granted} member(s) start a new ${label} term and ${fresh.extended} active ${name} member(s) ` +
+        `get ${label} added to their remaining time.` +
         (fresh.upgraded > 0
-          ? ` ${fresh.upgraded} member(s) on a lower tier that already outlives the gift move up to ${TIERS[tier].name} and keep their own longer expiry.`
+          ? ` ${fresh.upgraded} member(s) on a lower tier that already outlives the gift move up to ${name} and keep their own longer expiry.`
           : "") +
         ` This can't be undone in bulk — each membership would have to be cancelled one by one.`,
       okLabel: `Gift to ${count}`,
       destructive: true
     });
     if (!ok) return;
-    await run(true);
+    await run(true, at);
   }
 
   const selectCls = "h-9 min-h-0 text-sm";
@@ -151,7 +176,7 @@ export function GiftAllPanel() {
             </option>
           ))}
         </Select>
-        <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void run(false)}>
+        <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void run(false, { tier, duration })}>
           {busy === "preview" ? "Previewing…" : "Preview"}
         </Button>
         <Button type="button" variant="primary" disabled={busy !== null} onClick={confirmAndApply}>

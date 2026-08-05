@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { ChevronRight, Shield, ShieldOff, ShieldCheck, Crown, Gift, RotateCcw, XCircle } from "lucide-react";
@@ -273,6 +273,18 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // router.refresh() re-renders the server component but does NOT reset client
+  // state, so the table would keep rendering the memberships it was first
+  // mounted with — after a whole-site gift, every row still reading "free"
+  // while the panel above says it just gifted everyone. With a select-all
+  // sitting right under that panel, the operator's obvious next move on a table
+  // that "didn't change" is to tick everyone and gift again, stacking a second
+  // term on the lot. `initialRows` gets a new identity on every server render,
+  // which is exactly when the table should re-seed.
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
+
   // --- multi-select gifting (多选用户赠送) ---
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [giftTier, setGiftTier] = useState<"pro" | "max">("pro");
@@ -340,13 +352,15 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
       if (affected === 0) {
         // `scanned` counts the profiles the server FOUND, which is not the same
         // as what was ticked when a member was deleted after the page rendered.
+        // A permanent skip is not "already has it" — a lifetime Pro member is
+        // skipped for a Max gift precisely because they'd lose the lifetime.
         setError(
           plan.scanned === 0
             ? `Nothing to gift — none of the ${selectedIds.length} selected member(s) still exist. Reload the list.`
-            : `Nothing to gift — all ${plan.scanned} selected member(s) already hold ${TIERS[giftTier].name} or better ` +
-              `(${plan.skippedHigherTier} on a higher tier, ${plan.skippedPermanent} permanent)` +
+            : `Nothing to gift — of ${plan.scanned} selected member(s), ${plan.skippedHigherTier} are on a higher tier and ` +
+              `${plan.skippedPermanent} hold a lifetime membership this gift must not overwrite` +
               (plan.missing.length > 0 ? `; ${plan.missing.length} no longer exist` : "") +
-              "."
+              ". Upgrade a lifetime member from their own row if that's the intent."
         );
         return;
       }
