@@ -749,7 +749,11 @@ html[data-native-platform="ios"] [data-download-entry] {
   .glass-strong, .liquid-glass-strong,
   .glass-thin, .glass-nav, .glass-tabbar,
   .glass-refract,
-  .nav-dropdown-panel, .glass-card {
+  .nav-dropdown-panel, .glass-card,
+  /* The confirm dialog's scrim is built in JS (components/native/web-confirm.ts)
+     and styled inline, so it needs its own hook here — !important beats the
+     inline blur, while its inline scrim colour is left alone. */
+  [data-web-confirm] {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
     background-color: rgb(var(--glass-tint-strong) / 0.98);
@@ -1799,7 +1803,9 @@ html[data-skin="clean"] :where(.glass-rim, .nav-dropdown-panel, .glass-card, .na
    headers, toasts, …). Scrims keep their dimming background, just unblurred.
    Emptying the Tailwind backdrop vars neutralises the effect on engines that
    read the (autoprefixer-retained) -webkit- form too. */
-html[data-skin="clean"] [class*="backdrop-blur"] {
+html[data-skin="clean"] [class*="backdrop-blur"],
+/* Same for the JS-built confirm scrim, which carries inline blur, not a class. */
+html[data-skin="clean"] [data-web-confirm] {
   --tw-backdrop-blur: ;
   --tw-backdrop-saturate: ;
   -webkit-backdrop-filter: none !important;

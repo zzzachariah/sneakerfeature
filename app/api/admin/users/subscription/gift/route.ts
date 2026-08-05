@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAdminContext } from "@/lib/admin/auth";
-import { giftMembers } from "@/lib/subscription/entitlements";
+import { GiftWriteError, giftMembers } from "@/lib/subscription/entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,6 +54,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...plan });
   } catch (error) {
     console.error("[admin/users/subscription/gift] failed", error);
+    // A part-written gift must never read as a clean failure: the operator has
+    // to know some members already moved, or the obvious retry stacks a second
+    // term onto them. The message is admin-only and carries no member data.
+    if (error instanceof GiftWriteError) {
+      return NextResponse.json(
+        { ok: false, message: error.message, partial: error.appliedIds.length > 0, applied: error.appliedIds.length },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ ok: false, message: "Gift failed." }, { status: 500 });
   }
 }

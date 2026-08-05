@@ -4,7 +4,7 @@
 // details), log a run (quick-hour chips + note), and edit / retire / remove.
 // All three use the in-house glass BottomSheet; destructive confirms route
 // through confirmDialog, which is the native Liquid Glass alert inside the iOS
-// app and window.confirm on the web.
+// app and the in-app web dialog everywhere else.
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";

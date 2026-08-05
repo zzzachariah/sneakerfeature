@@ -98,33 +98,42 @@ function TierBadge({ tier }: { tier: Tier }) {
 }
 
 // Selection checkbox for the multi-gift flow. A plain input so it stays a real
-// checkbox for keyboard and screen readers; sized up to a comfortable target.
+// checkbox for keyboard and screen readers, wrapped in a padded label: the box
+// itself is 16px, and in the mobile card its only neighbour is a Link covering
+// the rest of the row, so a near-miss would navigate away and drop the whole
+// selection (it lives in component state). `padClass` grows the tap area there.
 function SelectBox({
   checked,
   indeterminate,
   disabled,
   label,
+  padClass,
   onChange
 }: {
   checked: boolean;
   indeterminate?: boolean;
   disabled?: boolean;
   label: string;
+  padClass?: string;
   onChange: (next: boolean) => void;
 }) {
   return (
-    <input
-      type="checkbox"
-      aria-label={label}
-      checked={checked}
-      disabled={disabled}
-      ref={(el) => {
-        if (el) el.indeterminate = Boolean(indeterminate) && !checked;
-      }}
-      onChange={(e) => onChange(e.target.checked)}
+    <label
+      className={`inline-flex cursor-pointer items-center justify-center ${padClass ?? ""}`}
       onClick={(e) => e.stopPropagation()}
-      className="h-4 w-4 shrink-0 cursor-pointer accent-[rgb(var(--accent))] disabled:cursor-not-allowed disabled:opacity-40"
-    />
+    >
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={checked}
+        disabled={disabled}
+        ref={(el) => {
+          if (el) el.indeterminate = Boolean(indeterminate) && !checked;
+        }}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 shrink-0 cursor-pointer accent-[rgb(var(--accent))] disabled:cursor-not-allowed disabled:opacity-40"
+      />
+    </label>
   );
 }
 
@@ -236,7 +245,7 @@ function MembershipEditor({
 type GiftOutcome = {
   userId: string;
   username: string | null;
-  action: "grant" | "extend" | "skipped-higher-tier" | "skipped-permanent";
+  action: "grant" | "extend" | "upgrade" | "skipped-higher-tier" | "skipped-permanent";
   tier: Tier;
   expiresAt: string | null;
   permanent: boolean;
@@ -247,6 +256,7 @@ type GiftPlan = {
   scanned: number;
   granted: number;
   extended: number;
+  upgraded: number;
   skippedHigherTier: number;
   skippedPermanent: number;
   keptPaid: number;
@@ -326,11 +336,17 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
         return;
       }
       const plan = preview.data;
-      const affected = plan.granted + plan.extended;
+      const affected = plan.granted + plan.extended + plan.upgraded;
       if (affected === 0) {
+        // `scanned` counts the profiles the server FOUND, which is not the same
+        // as what was ticked when a member was deleted after the page rendered.
         setError(
-          `Nothing to gift — all ${plan.scanned} selected member(s) already hold ${TIERS[giftTier].name} or better ` +
-            `(${plan.skippedHigherTier} on a higher tier, ${plan.skippedPermanent} permanent).`
+          plan.scanned === 0
+            ? `Nothing to gift — none of the ${selectedIds.length} selected member(s) still exist. Reload the list.`
+            : `Nothing to gift — all ${plan.scanned} selected member(s) already hold ${TIERS[giftTier].name} or better ` +
+              `(${plan.skippedHigherTier} on a higher tier, ${plan.skippedPermanent} permanent)` +
+              (plan.missing.length > 0 ? `; ${plan.missing.length} no longer exist` : "") +
+              "."
         );
         return;
       }
@@ -339,6 +355,9 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
         message:
           `${plan.granted} start a new ${durationLabel} term and ${plan.extended} get ${durationLabel} added to their ` +
           `remaining time.` +
+          (plan.upgraded > 0
+            ? ` ${plan.upgraded} already run past the gift on a lower tier — they move up to ${TIERS[giftTier].name} and keep their own longer expiry.`
+            : "") +
           (plan.skippedHigherTier + plan.skippedPermanent > 0
             ? ` ${plan.skippedHigherTier + plan.skippedPermanent} selected member(s) are skipped (higher tier or already permanent).`
             : "") +
@@ -350,6 +369,11 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
 
       const applied = await adminPost<GiftPlan>("/api/admin/users/subscription/gift", { ...body, apply: true });
       if (!applied.ok) {
+        // The write is a sequence of statements, not a transaction, so a failure
+        // can leave part of the selection already gifted. Drop the ticks: the
+        // obvious "click it again" would stack a second term onto whoever
+        // succeeded. The server message says how many landed.
+        setSelected(new Set());
         setError(applied.message);
         return;
       }
@@ -357,7 +381,7 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
       setSelected(new Set());
       const skipped = applied.data.skippedHigherTier + applied.data.skippedPermanent;
       setMessage(
-        `Gifted ${TIERS[giftTier].name} · ${durationLabel} to ${applied.data.granted + applied.data.extended} member(s)` +
+        `Gifted ${TIERS[giftTier].name} · ${durationLabel} to ${applied.data.granted + applied.data.extended + applied.data.upgraded} member(s)` +
           (skipped > 0 ? ` · ${skipped} skipped` : "") +
           (applied.data.missing.length > 0 ? ` · ${applied.data.missing.length} no longer exist` : "") +
           (applied.data.permanent
@@ -495,9 +519,11 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
       )}
 
       {/* Multi-select gift bar (多选用户赠送). Tick any set of members, pick a
-          tier + duration, gift them in one request. Same policy as the全站 panel:
-          an active higher tier is never downgraded and an active same tier gets
-          the time stacked on top. */}
+          tier + duration, gift them in one request. Same policy as the全站 panel,
+          and it only ever adds: an active higher tier or any lifetime membership
+          is skipped, an active same tier gets the time stacked on what's left,
+          and a lower tier that already outlives the gift moves up while keeping
+          its own longer expiry. */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[rgb(var(--muted)/0.35)] bg-[rgb(var(--bg-elev)/0.55)] px-3 py-2">
         <label className="flex items-center gap-2 text-xs soft-text">
           <SelectBox
@@ -574,15 +600,14 @@ export function UsersClient({ initialRows, currentAdminId }: { initialRows: User
           const isSelf = row.id === currentAdminId;
           return (
             <li key={row.id} className={selected.has(row.id) ? "bg-[rgb(var(--accent)/0.06)] p-4" : "p-4"}>
-              <div className="flex items-start gap-3">
-                <span className="pt-1">
-                  <SelectBox
-                    checked={selected.has(row.id)}
-                    disabled={anyBusy}
-                    label={`Select @${row.username}`}
-                    onChange={(next) => toggleOne(row.id, next)}
-                  />
-                </span>
+              <div className="flex items-start gap-1">
+                <SelectBox
+                  checked={selected.has(row.id)}
+                  disabled={anyBusy}
+                  label={`Select @${row.username}`}
+                  padClass="-m-2 p-2"
+                  onChange={(next) => toggleOne(row.id, next)}
+                />
                 <Link
                   href={`/admin/users/${row.id}` as Route}
                   className="flex flex-1 items-start justify-between gap-3 active:opacity-80"

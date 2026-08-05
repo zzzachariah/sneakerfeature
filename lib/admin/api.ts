@@ -18,8 +18,15 @@ export async function adminPost<T>(url: string, body: unknown): Promise<AdminPos
       body: JSON.stringify(body)
     });
   } catch (error) {
+    // A dropped connection says nothing about whether the server ran the write.
+    // Claiming "never reached the server" would invite a retry that repeats a
+    // non-idempotent action (gifts stack), so the message stays honest.
     console.error("[admin] request failed", url, error);
-    return { ok: false, message: "Network error — the request never reached the server. Please retry.", status: 0 };
+    return {
+      ok: false,
+      message: "Network error — no response from the server, so this may or may not have been applied. Reload to check before retrying.",
+      status: 0
+    };
   }
 
   const text = await res.text().catch(() => "");
@@ -34,7 +41,11 @@ export async function adminPost<T>(url: string, body: unknown): Promise<AdminPos
     const fallback =
       res.status === 403
         ? "Forbidden — your admin session may have expired. Reload and sign in again."
-        : `Request failed (HTTP ${res.status}).`;
+        : res.status >= 500
+          ? // A gateway timeout or a crash mid-write can still have committed
+            // part of the work; don't imply a clean no-op.
+            `Request failed (HTTP ${res.status}) — it may have been partly applied. Reload to check before retrying.`
+          : `Request failed (HTTP ${res.status}).`;
     const message = typeof json?.message === "string" && json.message ? json.message : fallback;
     console.error("[admin] request rejected", url, res.status, text.slice(0, 500));
     return { ok: false, message, status: res.status };

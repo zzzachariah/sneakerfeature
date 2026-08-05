@@ -15,13 +15,14 @@ type Plan = {
   scanned: number;
   granted: number;
   extended: number;
+  upgraded: number;
   skippedHigherTier: number;
   skippedPermanent: number;
   keptPaid: number;
   expiresAt: string | null;
   permanent: boolean;
   applied: boolean;
-  sample: { username: string; action: "grant" | "extend" }[];
+  sample: { username: string; action: "grant" | "extend" | "upgrade" }[];
 };
 
 type GiftTier = "pro" | "max";
@@ -43,7 +44,7 @@ export function GiftAllPanel() {
   const [error, setError] = useState("");
 
   const durationLabel = DURATIONS.find((d) => d.id === duration)?.label ?? duration;
-  const affected = plan ? plan.granted + plan.extended : 0;
+  const affected = plan ? plan.granted + plan.extended + plan.upgraded : 0;
 
   function reset(next: { tier?: GiftTier; duration?: Duration }) {
     if (next.tier) setTier(next.tier);
@@ -67,7 +68,7 @@ export function GiftAllPanel() {
       setPlan(res.data);
       if (apply) {
         setMessage(
-          `Done — ${res.data.granted + res.data.extended} member(s) now on ${TIERS[tier].name}` +
+          `Done — ${res.data.granted + res.data.extended + res.data.upgraded} member(s) now on ${TIERS[tier].name}` +
             (res.data.permanent
               ? " (permanent)."
               : res.data.expiresAt
@@ -88,7 +89,7 @@ export function GiftAllPanel() {
   async function confirmAndApply() {
     const fresh = await run(false);
     if (!fresh) return;
-    const count = fresh.granted + fresh.extended;
+    const count = fresh.granted + fresh.extended + fresh.upgraded;
     if (count === 0) {
       setError(
         `Nothing to gift — all ${fresh.scanned} member(s) already hold ${TIERS[tier].name} or better ` +
@@ -100,8 +101,11 @@ export function GiftAllPanel() {
       title: `Gift ${TIERS[tier].name} to everyone?`,
       message:
         `${fresh.granted} member(s) start a new ${durationLabel} term and ${fresh.extended} active ${TIERS[tier].name} member(s) ` +
-        `get ${durationLabel} added to their remaining time. This can't be undone in bulk — each membership would have to be ` +
-        `cancelled one by one.`,
+        `get ${durationLabel} added to their remaining time.` +
+        (fresh.upgraded > 0
+          ? ` ${fresh.upgraded} member(s) on a lower tier that already outlives the gift move up to ${TIERS[tier].name} and keep their own longer expiry.`
+          : "") +
+        ` This can't be undone in bulk — each membership would have to be cancelled one by one.`,
       okLabel: `Gift to ${count}`,
       destructive: true
     });
@@ -175,6 +179,9 @@ export function GiftAllPanel() {
             </li>
             <li>
               Time extended: <span className="num-display font-semibold">{plan.extended}</span>
+            </li>
+            <li>
+              Upgraded, expiry kept: <span className="num-display font-semibold">{plan.upgraded}</span>
             </li>
             <li>
               Skipped (higher tier): <span className="num-display font-semibold">{plan.skippedHigherTier}</span>
