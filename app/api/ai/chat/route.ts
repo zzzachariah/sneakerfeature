@@ -24,8 +24,16 @@ import {
 } from "@/lib/subscription/entitlements";
 import { buildDepthSuffix } from "@/lib/ai/tier-prompt";
 import { startDeadline } from "@/lib/ai/budget";
-import { recommendShoes, enrichRecommendations, matchShoeByName, type ChatTurn } from "@/lib/ai/recommend";
+import {
+  recommendShoes,
+  enrichRecommendations,
+  matchShoeByName,
+  formatReplyParagraphs,
+  type ChatTurn,
+  type PriorRecommendations
+} from "@/lib/ai/recommend";
 import { deriveDetail, detectReplyLang } from "@/lib/ai/derive-proscons";
+import { alreadyRecommendedTag, pick } from "@/lib/ai/lang";
 import { getAllBloggerReviews } from "@/lib/data/blogger-reviews";
 import { pickFallbackShoes } from "@/lib/ai/fallback";
 import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
@@ -73,6 +81,8 @@ const schema = z.object({
 });
 
 type HistoryRow = { role: "user" | "assistant"; content: string; recommendations: RecommendationRaw[] | null };
+/** The persisted assistant turn, as far as the SSE `done` frame cares. */
+type AssistantRow = { id: string; created_at: string; credits_charged: number };
 
 export async function POST(request: Request) {
   // Everything this request does — DB reads, model calls, persistence — has to
@@ -99,6 +109,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
   const { chatId, message, count, model: requestedModel } = parsed.data;
+
+  // The turn's language, decided ONCE from what the user just typed, then
+  // threaded through everything downstream: the per-tier depth suffix, the
+  // history annotations, every app-authored reply/error string, and the AI
+  // pipeline itself. Follow-ups re-derive it from the newest message, so a user
+  // can switch languages mid-thread and the answer follows.
+  const replyLang = detectReplyLang(message);
+  const zhReply = replyLang === "zh";
 
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ ok: false, message: "Database is not configured." }, { status: 500 });
@@ -161,7 +179,7 @@ export async function POST(request: Request) {
     // Paid tier on an unmetered (base or lighter) model.
     billing = "unlimited";
   }
-  const depthSuffix = buildDepthSuffix(cfg.prompt);
+  const depthSuffix = buildDepthSuffix(cfg.prompt, replyLang);
 
   // Fail fast if the AI provider isn't configured (before persisting anything).
   const client = createPackyClientForModel(model);
@@ -200,15 +218,30 @@ export async function POST(request: Request) {
   const focus: RatingFocus | null = isValidFocus(rawFocus) ? rawFocus : null;
 
   // Build prior LLM turns; surface previously-recommended shoe names so follow-ups
-  // ("第一双太贵了") have context.
+  // ("第一双太贵了") have context. The same names are collected structurally into
+  // `priorRecommendations`, which is what actually drives the follow-up prompt:
+  // the model is told exactly what it recommended last turn and asked to either
+  // double down on those or replace them — not to answer from scratch.
+  const allPriorNames: string[] = [];
+  let lastPriorNames: string[] = [];
   const history: ChatTurn[] = (historyRows ?? []).map((row) => {
     const r = row as HistoryRow;
     if (r.role === "assistant" && Array.isArray(r.recommendations) && r.recommendations.length) {
-      const names = r.recommendations.map((rec) => byId.get(rec.shoe_id)?.shoe_name).filter(Boolean);
-      return { role: "assistant", content: names.length ? `${r.content}\n[已推荐: ${names.join(", ")}]` : r.content };
+      const names = r.recommendations
+        .map((rec) => byId.get(rec.shoe_id)?.shoe_name)
+        .filter((n): n is string => Boolean(n));
+      if (names.length) {
+        lastPriorNames = names;
+        for (const n of names) if (!allPriorNames.includes(n)) allPriorNames.push(n);
+      }
+      return {
+        role: "assistant",
+        content: names.length ? `${r.content}\n${alreadyRecommendedTag(replyLang, names)}` : r.content
+      };
     }
     return { role: r.role, content: r.content };
   });
+  const priorRecommendations: PriorRecommendations = { last: lastPriorNames, all: allPriorNames };
 
   // Persist the user message (after capturing prior history).
   const { data: userMessage, error: userErr } = await admin
@@ -238,7 +271,12 @@ export async function POST(request: Request) {
       };
 
       // Flush headers / open the pipe immediately so proxies don't buffer.
-      send("status", { phase: "start", message: "开始为你挑选…" });
+      // `phase` is the machine-readable key the client localizes; `message` is
+      // the human fallback, written in the turn's own language.
+      send("status", {
+        phase: "start",
+        message: pick(replyLang, "开始为你挑选…", "Starting your picks…")
+      });
 
       // SSE comment heartbeat: a thinking model can go 30s+ between real events,
       // and idle streams get buffered or reaped by proxies. Comment frames are
@@ -259,7 +297,19 @@ export async function POST(request: Request) {
         try {
           result = await recommendShoes(
             client,
-            { shoes, history, currentInput: message, count: effectiveCount, persona, footProfile, reviewsByShoe, model, depthSuffix, deadline },
+            {
+              shoes,
+              history,
+              currentInput: message,
+              count: effectiveCount,
+              persona,
+              footProfile,
+              reviewsByShoe,
+              model,
+              depthSuffix,
+              priorRecommendations,
+              deadline
+            },
             onProgress
           );
         } catch (error) {
@@ -269,14 +319,18 @@ export async function POST(request: Request) {
           // message hardcoded the shared deepseek id and misattributed every
           // premium-model failure.
           send("error", {
-            message: `AI 调用失败：${describePackyError(error)}。请求目标 ${describePackyTarget(model)}。`
+            message: pick(
+              replyLang,
+              `AI 调用失败：${describePackyError(error)}。请求目标 ${describePackyTarget(model)}。`,
+              `The AI call failed: ${describePackyError(error)}. Target was ${describePackyTarget(model)}.`
+            )
           });
           return;
         }
 
         // Client left during the (slow) model phase → don't charge or persist.
         if (aborted) return;
-        send("status", { phase: "finalizing", message: "整理推荐中…" });
+        send("status", { phase: "finalizing", message: pick(replyLang, "整理推荐中…", "Putting the picks together…") });
 
         // Resolve each AI-provided name to a catalog shoe; de-duplicate. Recompute
         // the star as a strict 1-5 blend of the AI's star and a preference-weighted
@@ -327,7 +381,6 @@ export async function POST(request: Request) {
         // points come first; gaps (and the deterministic fallback's blanks) are
         // filled from real blogger-review points and the shoe's spec profile, so
         // the reason/pros/cons can never come back empty again.
-        const replyLang = detectReplyLang(message);
         validRaw = validRaw.map((raw) => {
           const shoe = byId.get(raw.shoe_id);
           if (!shoe) return raw;
@@ -384,11 +437,17 @@ export async function POST(request: Request) {
             newBalance = await deductCredits(ctx.userId, charge);
           } catch (error) {
             if (error instanceof InsufficientCreditsError) {
-              send("error", { message: `积分不足（当前余额 ${error.balance}）。每日签到可领取免费积分。` });
+              send("error", {
+                message: pick(
+                  replyLang,
+                  `积分不足（当前余额 ${error.balance}）。每日签到可领取免费积分。`,
+                  `Not enough credits (balance ${error.balance}). Claim free credits with the daily check-in.`
+                )
+              });
               return;
             }
             console.error("[ai/chat] deduct failed", error);
-            send("error", { message: "扣费失败，请重试。" });
+            send("error", { message: pick(replyLang, "扣费失败，请重试。", "Charging your credits failed — please try again.") });
             return;
           }
         } else if (billing === "allowance" && charge > 0) {
@@ -409,7 +468,6 @@ export async function POST(request: Request) {
         // a gentle note instead of the old "暂时没有找到匹配的鞋款" error. All of
         // these app-authored strings follow the user's input language (replyLang),
         // so the answer matches whatever language the user typed in.
-        const zhReply = replyLang === "zh";
         let replyText: string;
         if (fallbackUsed && charge > 0) {
           replyText = zhReply
@@ -420,29 +478,62 @@ export async function POST(request: Request) {
             ? "暂时没有找到匹配的鞋款，换个描述再试试？"
             : "I couldn't find a good match yet — try describing it a bit differently?";
           const gotResult = zhReply ? "为你推荐如下：" : "Here are my picks for you:";
-          replyText = result.reply.trim() || (charge > 0 ? gotResult : noResult);
+          // Break the model's prose into paragraphs before it is stored, so the
+          // reply reads as a few short blocks in the bubble instead of one
+          // unbroken wall — and so a reloaded conversation looks identical to
+          // the one that was just streamed.
+          replyText = formatReplyParagraphs(result.reply) || (charge > 0 ? gotResult : noResult);
         }
         if (usingDemo) {
           const demoNote = zhReply
             ? `⚠️当前使用内置示例数据（仅 ${shoes.length} 双），未连接数据库。`
             : `⚠️ Using built-in sample data (${shoes.length} shoes only) — no database connected.`;
-          replyText = `${demoNote}\n${replyText}`;
+          replyText = `${demoNote}\n\n${replyText}`;
         }
 
-        const { data: assistantRow, error: assistantErr } = await admin
-          .from("ai_messages")
-          .insert({
-            chat_id: chatId,
-            role: "assistant",
-            content: replyText,
-            recommendations: validRaw.length ? validRaw : null,
-            credits_charged: chargedAmount
-          })
-          .select("id, role, content, recommendations, credits_charged, created_at")
-          .single();
-        if (assistantErr || !assistantRow) {
-          send("error", { message: "Failed to save reply." });
-          return;
+        // The one question worth asking next, rendered by the client as its own
+        // composer box. Suppressed when the answer itself is a fallback (there's
+        // nothing grounded to follow up on) or when the model had nothing to ask.
+        const followUp = fallbackUsed ? "" : (result.followUp ?? "").trim();
+
+        const assistantPayload = {
+          chat_id: chatId,
+          role: "assistant",
+          content: replyText,
+          recommendations: validRaw.length ? validRaw : null,
+          credits_charged: chargedAmount
+        };
+        const assistantCols = "id, role, content, recommendations, credits_charged, created_at";
+        // `follow_up` arrives with migration 049. Write it when the column is
+        // there and fall back to the legacy shape when it isn't, so shipping
+        // this code ahead of the migration costs the follow-up box — not the
+        // whole turn (same tolerant pattern as profiles.foot_profile above).
+        let assistantRow: AssistantRow | null = null;
+        if (followUp) {
+          const withFollowUp = await admin
+            .from("ai_messages")
+            .insert({ ...assistantPayload, follow_up: followUp })
+            .select(assistantCols)
+            .single();
+          if (!withFollowUp.error && withFollowUp.data) {
+            assistantRow = withFollowUp.data as unknown as AssistantRow;
+          } else {
+            console.warn("[ai/chat] follow_up column unavailable — persisting without it", {
+              message: withFollowUp.error?.message?.slice(0, 160)
+            });
+          }
+        }
+        if (!assistantRow) {
+          const { data, error: assistantErr } = await admin
+            .from("ai_messages")
+            .insert(assistantPayload)
+            .select(assistantCols)
+            .single();
+          if (assistantErr || !data) {
+            send("error", { message: pick(replyLang, "回复保存失败。", "Failed to save reply.") });
+            return;
+          }
+          assistantRow = data as unknown as AssistantRow;
         }
 
         // Title the chat on the first turn — prefer the AI-summarized title, fall
@@ -462,6 +553,7 @@ export async function POST(request: Request) {
           assistantMessageId: assistantRow.id,
           userMessageId: userMessage.id,
           content: replyText,
+          followUp,
           createdAt: assistantRow.created_at,
           creditsCharged: assistantRow.credits_charged,
           balance: newBalance,
@@ -483,7 +575,13 @@ export async function POST(request: Request) {
         // which is indistinguishable from a dropped connection and told nobody
         // anything — report what actually broke, like the AI-call path does.
         console.error("[ai/chat] stream failed", { model, error });
-        send("error", { message: `请求失败：${describePackyError(error)}。请稍后重试。` });
+        send("error", {
+          message: pick(
+            replyLang,
+            `请求失败：${describePackyError(error)}。请稍后重试。`,
+            `Request failed: ${describePackyError(error)}. Please try again.`
+          )
+        });
       } finally {
         clearInterval(heartbeat);
         if (!aborted) {

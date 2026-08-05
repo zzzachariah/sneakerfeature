@@ -1,0 +1,335 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SMART PICKER — credits ledger, follow-up composer, per-turn cost chip
+   Loaded after premium-skins.css. Owns the STANDARD look for three surfaces,
+   then re-materializes each one per Premium UI skin:
+     • editorial  — a printed statement (paper rule, serif figures, small caps)
+     • instrument — a telemetry readout (glowing bars, technical labels, grid)
+     • gallery    — a gallery label (hairlines, wide tracking, near-no fill)
+     • arena      — a scoreboard (heavy condensed figures, gold, hard edges)
+   Text color (--text) is never overridden; grounds follow the theme so both
+   light and dark stay legible.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Credits & usage panel — standard skeleton ────────────────────────────── */
+.sp-usage { display: flex; flex-direction: column; gap: 1rem; }
+
+.sp-usage-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  background: rgb(var(--surface) / 0.6);
+  border-radius: 16px;
+}
+.sp-usage-hero-v {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.sp-usage-hero-unit { font-size: 0.72rem; font-weight: 600; color: rgb(var(--subtext)); }
+.sp-usage-note { font-size: 0.7rem; color: rgb(var(--subtext)); }
+
+.sp-usage-k {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--subtext));
+}
+
+/* Premium-model allowance meter */
+.sp-usage-allowance {
+  padding: 0.75rem 1rem;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  border-radius: 14px;
+}
+.sp-usage-track {
+  position: relative;
+  display: block;
+  height: 0.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--text) / 0.1);
+}
+.sp-usage-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: rgb(var(--brand));
+  transition: width 600ms var(--ease);
+}
+
+/* Lifetime counters */
+.sp-usage-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  border-radius: 14px;
+}
+.sp-usage-stat { display: flex; min-width: 0; flex-direction: column; gap: 0.15rem; }
+.sp-usage-stat-v { font-size: 1.1rem; font-weight: 700; line-height: 1.1; }
+@media (max-width: 400px) {
+  .sp-usage-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem 0.5rem; }
+  .sp-usage-hero-v { font-size: 1.6rem; }
+}
+
+.sp-usage-section { display: flex; flex-direction: column; gap: 0.55rem; }
+.sp-usage-h {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--subtext));
+}
+.sp-usage-empty { font-size: 0.8rem; color: rgb(var(--subtext)); }
+
+/* 14-day spend chart */
+.sp-usage-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+  height: 4.5rem;
+  padding: 0 0.15rem;
+}
+.sp-usage-col { display: flex; height: 100%; flex: 1 1 0; align-items: flex-end; min-width: 0; }
+.sp-usage-bar {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 2px 2px;
+  background: rgb(var(--brand) / 0.75);
+  transition: height 500ms var(--ease);
+}
+.sp-usage-bar.is-zero { background: rgb(var(--text) / 0.12); }
+
+/* Per-conversation spend rows */
+.sp-usage-row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  background: rgb(var(--surface) / 0.5);
+  transition: background 180ms var(--ease);
+}
+.sp-usage-row:hover { background: rgb(var(--surface) / 0.85); }
+.sp-usage-rowfill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgb(var(--brand) / 0.14);
+  transition: width 600ms var(--ease);
+}
+.sp-usage-rowlabel {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.sp-usage-rowmeta { position: relative; flex-shrink: 0; font-size: 0.75rem; font-weight: 600; }
+
+/* Raw ledger list */
+.sp-usage-ledger { display: flex; flex-direction: column; }
+.sp-usage-ledger > li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.15rem;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgb(var(--glass-stroke-soft) / 0.3);
+}
+.sp-usage-ledger > li:last-child { border-bottom: 0; }
+.sp-usage-in { color: rgb(var(--success)); }
+.sp-usage-out { color: rgb(var(--subtext)); }
+
+/* ── Per-turn cost chip ───────────────────────────────────────────────────── */
+.sp-cost {
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  background: rgb(var(--surface) / 0.5);
+  color: rgb(var(--subtext));
+}
+.sp-cost--button:hover { border-color: rgb(var(--text) / 0.3); color: rgb(var(--text)); }
+
+/* ── Follow-up composer ───────────────────────────────────────────────────── */
+.sp-followup {
+  border-color: rgb(var(--brand) / 0.35);
+  background: linear-gradient(135deg, rgb(var(--brand) / 0.07), rgb(var(--surface) / 0.65));
+}
+.sp-followup-icon { color: rgb(var(--brand)); }
+.sp-followup-chip {
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  background: rgb(var(--bg) / 0.55);
+  color: rgb(var(--text) / 0.88);
+}
+.sp-followup-chip:hover:not(:disabled) {
+  border-color: rgb(var(--brand) / 0.6);
+  color: rgb(var(--text));
+}
+.sp-followup-field {
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  background: rgb(var(--bg) / 0.65);
+}
+.sp-followup-field:focus-within { border-color: rgb(var(--brand) / 0.65); }
+.sp-followup-send { background: rgb(var(--text)); color: rgb(var(--bg)); }
+.sp-followup-send:not(:disabled):hover { transform: scale(1.06); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITORIAL (sapphire) — a printed credit statement
+   Paper rules instead of cards, Didone figures, small-caps labels.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="sapphire"] .sp-usage-hero,
+html[data-premium="sapphire"] .sp-usage-stats,
+html[data-premium="sapphire"] .sp-usage-allowance {
+  border: 0;
+  border-top: 2px solid rgb(var(--text) / 0.85);
+  border-bottom: 1px solid rgb(var(--text) / 0.18);
+  border-radius: 0;
+  background: transparent;
+  /* Not 0: the Didone figures overhang their box, and a flush-left edge clipped
+     the leading digit of the balance. */
+  padding-inline: 0.15rem;
+}
+html[data-premium="sapphire"] .sp-usage-hero-v,
+html[data-premium="sapphire"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+}
+html[data-premium="sapphire"] .sp-usage-hero-v { font-size: 2.4rem; }
+html[data-premium="sapphire"] .sp-usage-h { letter-spacing: 0.18em; }
+html[data-premium="sapphire"] .sp-usage-bar { border-radius: 1px; background: rgb(var(--pui-ed-ink)); }
+html[data-premium="sapphire"].dark .sp-usage-bar { background: rgb(var(--pui-gold)); }
+html[data-premium="sapphire"] .sp-usage-fill { border-radius: 1px; background: rgb(var(--pui-ed-ink)); }
+html[data-premium="sapphire"].dark .sp-usage-fill { background: rgb(var(--pui-gold)); }
+html[data-premium="sapphire"] .sp-usage-row { border-radius: 0; background: transparent; border-bottom: 1px solid rgb(var(--text) / 0.12); }
+html[data-premium="sapphire"] .sp-usage-rowfill { background: rgb(var(--text) / 0.07); }
+html[data-premium="sapphire"] .sp-followup-icon { color: rgb(var(--pui-accent-ink)); }
+html[data-premium="sapphire"] .sp-followup { border-radius: 2px; background: rgb(var(--pui-ed-paper) / 0.14); border-color: rgb(var(--text) / 0.28); }
+html[data-premium="sapphire"] .sp-followup-chip,
+html[data-premium="sapphire"] .sp-followup-field { border-radius: 2px; }
+html[data-premium="sapphire"] .sp-cost { border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INSTRUMENT (aurora) — telemetry readout
+   Glowing bars, technical grotesque figures, cyan rims.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="aurora"] .sp-usage-hero,
+html[data-premium="aurora"] .sp-usage-stats,
+html[data-premium="aurora"] .sp-usage-allowance {
+  border-color: rgb(var(--pui-glow) / 0.35);
+  border-radius: var(--pui-radius-card);
+  background: linear-gradient(160deg, rgb(var(--pui-glow) / 0.09), rgb(var(--surface) / 0.6));
+  box-shadow: inset 0 0 24px -12px rgb(var(--pui-glow) / 0.6);
+}
+html[data-premium="aurora"] .sp-usage-hero-v,
+html[data-premium="aurora"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  letter-spacing: var(--pui-display-tracking);
+}
+html[data-premium="aurora"] .sp-usage-k,
+html[data-premium="aurora"] .sp-usage-h { color: rgb(var(--pui-glow)); opacity: 0.85; }
+html[data-premium="aurora"] .sp-usage-bar {
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgb(var(--pui-glow)), rgb(var(--pui-glow) / 0.35));
+  box-shadow: 0 0 12px -2px rgb(var(--pui-glow) / 0.55);
+}
+html[data-premium="aurora"] .sp-usage-fill {
+  background: linear-gradient(90deg, rgb(var(--pui-glow)), rgb(var(--pui-glow-2)));
+  box-shadow: 0 0 10px -2px rgb(var(--pui-glow) / 0.7);
+}
+html[data-premium="aurora"] .sp-usage-rowfill { background: rgb(var(--pui-glow) / 0.16); }
+html[data-premium="aurora"] .sp-followup {
+  border-color: rgb(var(--pui-glow) / 0.45);
+  background: linear-gradient(140deg, rgb(var(--pui-glow) / 0.1), rgb(var(--surface) / 0.6));
+  box-shadow: inset 0 0 20px -10px rgb(var(--pui-glow) / 0.7);
+}
+html[data-premium="aurora"] .sp-followup-icon { color: rgb(var(--pui-glow)); }
+html[data-premium="aurora"] .sp-followup-send { background: rgb(var(--pui-glow)); color: #04222b; }
+html[data-premium="aurora"] .sp-cost { border-color: rgb(var(--pui-glow) / 0.3); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GALLERY (obsidian) — a gallery label
+   Hairlines, wide tracking, almost no fill; the numbers do the work.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="obsidian"] .sp-usage-hero,
+html[data-premium="obsidian"] .sp-usage-stats,
+html[data-premium="obsidian"] .sp-usage-allowance {
+  border: 1px solid rgb(var(--pui-platinum) / 0.22);
+  border-radius: var(--pui-radius-card);
+  background: transparent;
+}
+html[data-premium="obsidian"] .sp-usage-hero-v,
+html[data-premium="obsidian"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+}
+html[data-premium="obsidian"] .sp-usage-k,
+html[data-premium="obsidian"] .sp-usage-h { letter-spacing: 0.22em; font-weight: 500; }
+html[data-premium="obsidian"] .sp-usage-bar { border-radius: 0; background: rgb(var(--pui-platinum) / 0.75); }
+html[data-premium="obsidian"] .sp-usage-bar.is-zero { background: rgb(var(--pui-platinum) / 0.12); }
+html[data-premium="obsidian"] .sp-usage-fill { border-radius: 0; background: rgb(var(--pui-platinum)); }
+html[data-premium="obsidian"] .sp-usage-row { border-radius: 0; background: transparent; border-bottom: 1px solid rgb(var(--pui-platinum) / 0.15); }
+html[data-premium="obsidian"] .sp-usage-rowfill { background: rgb(var(--pui-platinum) / 0.1); }
+html[data-premium="obsidian"] .sp-followup {
+  border-radius: var(--pui-radius-card);
+  border-color: rgb(var(--pui-platinum) / 0.28);
+  background: rgb(var(--surface) / 0.4);
+}
+html[data-premium="obsidian"] .sp-followup-icon { color: rgb(var(--pui-platinum)); }
+html[data-premium="obsidian"] .sp-followup-chip,
+html[data-premium="obsidian"] .sp-followup-field { border-radius: var(--pui-radius-control); }
+html[data-premium="obsidian"] .sp-cost { border-radius: var(--pui-radius-control); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARENA (champion) — a scoreboard
+   Heavy condensed figures, gold fills, hard edges.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="champion"] .sp-usage-hero,
+html[data-premium="champion"] .sp-usage-stats,
+html[data-premium="champion"] .sp-usage-allowance {
+  border: 1px solid rgb(var(--pui-gold) / 0.4);
+  border-radius: var(--pui-radius-card);
+  background: linear-gradient(150deg, rgb(var(--pui-gold) / 0.12), rgb(var(--surface) / 0.6));
+}
+html[data-premium="champion"] .sp-usage-hero-v,
+html[data-premium="champion"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+  text-transform: uppercase;
+}
+html[data-premium="champion"] .sp-usage-hero-v { font-size: 2.6rem; }
+html[data-premium="champion"] .sp-usage-k,
+html[data-premium="champion"] .sp-usage-h { font-family: var(--pui-label, inherit); letter-spacing: 0.14em; }
+html[data-premium="champion"] .sp-usage-bar {
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, rgb(var(--pui-gold)), rgb(var(--pui-gold) / 0.45));
+}
+html[data-premium="champion"] .sp-usage-fill { background: rgb(var(--pui-gold)); }
+html[data-premium="champion"] .sp-usage-rowfill { background: rgb(var(--pui-gold) / 0.2); }
+html[data-premium="champion"] .sp-followup {
+  border-color: rgb(var(--pui-gold) / 0.5);
+  background: linear-gradient(140deg, rgb(var(--pui-gold) / 0.14), rgb(var(--surface) / 0.6));
+}
+html[data-premium="champion"] .sp-followup-icon { color: rgb(var(--pui-accent-ink)); }
+html[data-premium="champion"] .sp-followup-send { background: rgb(var(--pui-gold)); color: #1a1305; }
+html[data-premium="champion"] .sp-cost { border-color: rgb(var(--pui-gold) / 0.35); }

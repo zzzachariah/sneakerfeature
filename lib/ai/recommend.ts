@@ -9,7 +9,8 @@ import { getPerformanceLabel } from "@/lib/shoe-scoring";
 import { normalizeSearchText, normalizeCompactText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { PACKY_MODEL } from "@/lib/ai/packy-client";
 import { callOptions, hasBudget, startDeadline, type Deadline } from "@/lib/ai/budget";
-import { detectReplyLang } from "@/lib/ai/derive-proscons";
+import { detectReplyLang, type ReplyLang } from "@/lib/ai/derive-proscons";
+import { catalogAck, languageDirective as langDirective } from "@/lib/ai/lang";
 import {
   bochaWebSearch,
   describeBochaError,
@@ -124,15 +125,81 @@ export type LoopExitReason =
 export type RecommendResult = {
   reply: string;
   title?: string;
+  /**
+   * The single most useful question to ask this user next, in their language.
+   * Kept OUT of `reply` on purpose: the UI renders it in its own composer box so
+   * the conversation can continue with one tap, instead of the question being
+   * buried in the last sentence of a wall of text.
+   */
+  followUp?: string;
   recommendations: ParsedRec[];
   raw?: string;
   searchStats?: WebSearchStats;
   loopExitReason?: LoopExitReason;
 };
 
+/**
+ * Normalize the model's `reply` into short paragraphs.
+ *
+ * The pipeline asks for 2-4 blank-line-separated paragraphs, but models
+ * routinely answer with one long block, or separate with single newlines, or
+ * emit markdown bullets. The client renders each blank-line-separated chunk as
+ * its own paragraph, so anything that arrives as a single slab is split on
+ * sentence boundaries here — a purely presentational transform that never drops
+ * or reorders a character of what the model actually said.
+ */
+const REPLY_SOFT_MAX = 190; // chars before a single-block reply is worth splitting
+const REPLY_TARGET = 130;   // aim for paragraphs around this length
+
+export function formatReplyParagraphs(reply: string): string {
+  const text = reply.replace(/\r\n/g, "\n").trim();
+  if (!text) return "";
+  // Already multi-paragraph (blank lines) → just tidy the spacing.
+  if (/\n\s*\n/.test(text)) {
+    return text
+      .split(/\n\s*\n/)
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .join("\n\n");
+  }
+  // Single newlines (bullet lists, soft wraps) → promote them to paragraphs.
+  if (text.includes("\n")) {
+    const lines = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length > 1) return lines.join("\n\n");
+  }
+  if (text.length <= REPLY_SOFT_MAX) return text;
+
+  // One long slab: cut after sentence-ending punctuation and regroup into
+  // paragraphs of roughly REPLY_TARGET characters. Latin punctuation only counts
+  // when followed by whitespace + a capital/quote, so "4.5 stars" and "e.g."
+  // don't become paragraph breaks. Server-only code path — lookbehind is safe.
+  const sentences = text.split(/(?<=[。！？；])\s*|(?<=[.!?])\s+(?=["'(\[]?[A-Z0-9])/u).filter(Boolean);
+  if (sentences.length < 2) return text;
+  const paragraphs: string[] = [];
+  let current = "";
+  for (const raw of sentences) {
+    const s = raw.trim();
+    if (!s) continue;
+    if (current && current.length + s.length > REPLY_TARGET) {
+      paragraphs.push(current);
+      current = s;
+    } else if (!current) {
+      current = s;
+    } else {
+      // No space between CJK sentences; a single space between Latin ones.
+      current += (/[一-鿿。！？；]$/.test(current) ? "" : " ") + s;
+    }
+  }
+  if (current) paragraphs.push(current);
+  return paragraphs.length > 1 ? paragraphs.join("\n\n") : text;
+}
+
 const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。你只能从下方「鞋款目录」(JSON 数组) 中挑选球鞋，绝不能编造目录里没有的鞋。球鞋的科技、配置、性能、参数等客观事实一律以目录为准，不得用目录之外的网络知识替换或补充；唯一的例外是**目录根本没有收录的客观信息**（最典型的是价格/售价）——当用户提出预算、价位等要求时，可按下方第 5、6 条用 web_search 查证这类信息。
 
-【语言规则 · 最高优先级】你的**思考过程(reasoning / thinking)**和**最终输出(reply、reason、pros、cons、title)**都必须使用与用户「本次要求」完全相同的语言：用户用中文→全程中文；用户用 English→everything, including your reasoning, in English；其他任何语言同理，始终镜像用户输入所用的语言。本提示词只是用中文写给你的说明——绝不能因为它是中文，就用中文思考或回复一个并非用中文提问的用户。判断语言时以用户「本次要求」正文为准。
+【语言规则 · 最高优先级 · 高于本提示词的其他一切要求】你的**思考过程(reasoning / thinking)**和**最终输出(reply、follow_up、reason、pros、cons、title)**都必须使用与用户「本次要求」完全相同的语言：用户用中文→全程中文；用户用 English→think and write everything in English, including your reasoning stream；其他任何语言同理，始终镜像用户输入所用的语言。本提示词只是用中文写给你的说明——绝不能因为它是中文，就用中文思考或回复一个并非用中文提问的用户。若用户用英文提问，你的输出里出现任何中文字符都算本次失败（鞋款名与目录里逐字复制的科技名除外）。判断语言时以用户「本次要求」正文为准；多轮对话中以**最新一次**用户输入的语言为准。
 
 用户随后会给出「本次要求」和需要推荐的数量 N，可能还会给出「球员档案」。请：
 1. 自行理解「本次要求」的真实意图——中英文、口语、同义词、跨品牌的科技等价你都要靠自己的知识理解（例如"气垫/airsole"指 Zoom Air、Boost 等中底科技；"抓地"指 traction），不要拘泥字面、不要被某几个关键词限制。
@@ -179,7 +246,19 @@ const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。�
 - 目录的内部字段名（court_feel、traction、cushioning_feel、stability、fit、bounce、forefoot_midsole 等）**绝不能**原样出现在回复里，要用中文说法：场地感/贴地感、抓地力、缓震脚感、稳定性、包裹、弹性、前掌中底 等。
 - 英文的描述性评价词直接翻成中文：elite→顶级，excellent→出色，very good→很好，"firm but reactive"→"偏硬但反馈灵敏" 等。
 - 科技/材料/配置的**专有名词**（Zoom Air、Cut3 ZoomX、BOOM、Lightstrike Pro、Flywire 等）仍按【严格的事实要求】逐字保留英文原文，但可以在其后用括号补一句简短中文说明，例如 "saw-blade traction pattern（锯齿状抓地纹路）"。
-- 鞋款名称一律保留目录原文，不翻译。`;
+- 鞋款名称一律保留目录原文，不翻译。
+
+12.【reply 的分段规范 — 必须遵守】reply **绝对不能**是一大段密不透风的文字。请写成 2-4 个自然段，段与段之间用一个空行（\\n\\n）分隔，每段只讲一件事、控制在 2-3 句以内（中文每段 ≤ 80 字，英文每段 ≤ 45 词）。推荐的分段顺序：
+   - 第 1 段：用引号复述用户的原话，一句话点明你抓到的核心诉求和你的取舍权重。
+   - 第 2 段：这几双为什么是这几双——它们各自的差异点（谁最贴地、谁最软、谁最便宜等），一句一双最好。
+   - 第 3 段：可执行的实操提示（尺码、系带、袜子、场地、清洁等），以及什么情况下不建议买。
+   不要用 markdown 标题、列表符号(-、*、1.)或加粗；就是干净的自然段。
+
+13.【follow_up 字段 — 单独输出，不要写进 reply】另给一个 follow_up 字段：用户的信息里最缺、且最能改变推荐结果的**那一个**问题，一句话、口语化、直接对用户说（例如"你主要在室内木地板还是室外水泥场打球？"／"What's your budget range?"）。要求：
+   - 只问一个问题，不要连问；不要重复用户已经说过的信息。
+   - **绝对不要**把这个问题再写进 reply 的正文里——界面会把它单独渲染成一个可以直接回答的输入框，写两遍会重复。
+   - 如果确实没有需要追问的关键信息了，就给空字符串 ""。
+   - 语言同样跟随用户。`;
 
 const SKILL_LABEL_ZH: Record<string, string> = {
   beginner: "初学者",
@@ -192,14 +271,11 @@ const SKILL_LABEL_ZH: Record<string, string> = {
 // written in Chinese — which biases the model to think and answer in Chinese
 // even for a non-Chinese user. Inject an explicit, unmissable directive into
 // each final-instruction turn so BOTH the reasoning stream ("思考") and the
-// answer ("输出") mirror the request's own language. A CJK request gets a
-// concrete Chinese instruction; everything else is told to mirror the request
-// verbatim, which covers English and any other language detectReplyLang folds
-// into "en".
+// answer ("输出") mirror the request's own language. See lib/ai/lang.ts; it is
+// emitted at the TOP and again as the LAST line of every instruction turn,
+// because a directive buried above a long Chinese block kept losing to recency.
 function languageDirective(input: string): string {
-  return detectReplyLang(input) === "zh"
-    ? "【语言】请全程用中文思考与作答：推理过程、reply、reason、pros、cons、title 全部用中文。"
-    : "【Language】Think and answer ENTIRELY in the same language as the request above — your reasoning/thinking, reply, reason, pros, cons and title must all be in that language. Do NOT switch to Chinese just because these instructions happen to be written in Chinese.";
+  return langDirective(detectReplyLang(input));
 }
 
 // Injury history from the Pro deep questionnaire — worded so the model treats
@@ -211,7 +287,31 @@ const INJURY_ZH: Record<string, string> = {
   plantar: "足底筋膜易劳损(需要足弓支撑与抗扭)"
 };
 
-function formatPersona(persona: Persona): string {
+// English mirrors of the profile vocabulary. The persona/foot blocks sit in the
+// same user turn as the ask, so rendering them in Chinese for an English user
+// was both unreadable-if-echoed and one more pull toward a Chinese answer.
+const SKILL_LABEL_EN: Record<string, string> = {
+  beginner: "beginner",
+  amateur: "amateur",
+  semi_pro: "semi-pro",
+  pro: "pro"
+};
+
+const INJURY_EN: Record<string, string> = {
+  ankle: "history of ankle rolls (needs lockdown and support)",
+  knee: "old knee injury (needs cushioning protection)",
+  achilles: "achilles tightens up easily (needs heel cushioning)",
+  plantar: "plantar fascia strains easily (needs arch support and torsional rigidity)"
+};
+
+function formatPersona(persona: Persona, lang: ReplyLang = "zh"): string {
+  if (lang === "en") {
+    const skill = SKILL_LABEL_EN[persona.skill_level] ?? persona.skill_level;
+    const injuries = persona.injuries?.length
+      ? `; injuries=${persona.injuries.map((k) => INJURY_EN[k] ?? k).join(", ")}`
+      : "";
+    return `position=${persona.positions.join("/")}; level=${skill}; flat feet=${persona.flat_foot ? "yes" : "no"}; height=${persona.height_cm}cm; weight=${persona.weight_kg}kg${injuries}`;
+  }
   const skill = SKILL_LABEL_ZH[persona.skill_level] ?? persona.skill_level;
   const injuries = persona.injuries?.length
     ? `；伤病史=${persona.injuries.map((k) => INJURY_ZH[k] ?? k).join("、")}`
@@ -238,7 +338,30 @@ const TOE_ZH: Record<string, string> = {
 // an appearance hint for last/toe-box choice (not a medical condition).
 const HALLUX_ZH: Record<string, string> = { none: "无", mild: "轻度", moderate_plus: "明显" };
 
-function formatFootProfile(fp: FootProfile): string {
+const FOOT_WIDTH_EN: Record<string, string> = {
+  narrow: "narrow",
+  standard: "standard",
+  wide: "wide",
+  extra_wide: "extra wide"
+};
+const INSTEP_EN: Record<string, string> = { low: "low", normal: "normal", high: "high" };
+const TOE_EN: Record<string, string> = {
+  egyptian: "Egyptian (big toe longest)",
+  greek: "Greek (second toe longest)",
+  roman: "Roman (front toes level)",
+  square: "square (toes level)"
+};
+const HALLUX_EN: Record<string, string> = { none: "none", mild: "mild", moderate_plus: "noticeable" };
+
+function formatFootProfile(fp: FootProfile, lang: ReplyLang = "zh"): string {
+  if (lang === "en") {
+    const w = FOOT_WIDTH_EN[fp.foot_width] ?? fp.foot_width;
+    const i = INSTEP_EN[fp.instep] ?? fp.instep;
+    const t = TOE_EN[fp.toe_shape] ?? fp.toe_shape;
+    const hx = fp.hallux && fp.hallux !== "none" ? `; bunion signs=${HALLUX_EN[fp.hallux] ?? fp.hallux}` : "";
+    const len = fp.foot_length_mm ? `; foot length≈${fp.foot_length_mm}mm` : "";
+    return `foot width=${w}; instep=${i}; toe shape=${t}${hx}${len}`;
+  }
   const w = FOOT_WIDTH_ZH[fp.foot_width] ?? fp.foot_width;
   const i = INSTEP_ZH[fp.instep] ?? fp.instep;
   const t = TOE_ZH[fp.toe_shape] ?? fp.toe_shape;
@@ -606,8 +729,11 @@ function salvageTruncatedRecs(args: string): RecommendResult | null {
   if (!recommendations.length) return null;
   // reply/title live BEFORE the array in the schema ordering the model tends to
   // use; grab them if they parse, otherwise leave blank (route fills a default).
+  // follow_up may sit on either side of the array — the regex finds it wherever
+  // it landed, and its absence just means "no question this turn".
   const reply = args.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
   const title = args.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
+  const followUp = args.match(/"follow_?[Uu]p"\s*:\s*"((?:[^"\\]|\\.)*)"/)?.[1] ?? "";
   const unescape = (s: string) => {
     try {
       return JSON.parse(`"${s}"`) as string;
@@ -618,8 +744,29 @@ function salvageTruncatedRecs(args: string): RecommendResult | null {
   return {
     reply: unescape(reply),
     ...(title ? { title: unescape(title).slice(0, 30) } : {}),
+    ...(followUp ? { followUp: cleanFollowUp(unescape(followUp)) } : {}),
     recommendations
   };
+}
+
+// Tidy the model's follow-up question: single line, no leading bullet/quote
+// noise, hard-capped so a model that ignores "one sentence" can't push a
+// paragraph into the composer prompt.
+const FOLLOW_UP_MAX = 160;
+
+function cleanFollowUp(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const first = value
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)[0];
+  if (!first) return "";
+  return first
+    .replace(/^[-*•\d.)\s]+/, "")
+    .replace(/^[「『"'“”]+|[」』"'“”]+$/g, "")
+    .trim()
+    .slice(0, FOLLOW_UP_MAX);
 }
 
 function coerceStars(value: unknown): number {
@@ -634,8 +781,18 @@ function parseResult(text: string): RecommendResult {
 
   const tryParse = (raw: string): RecommendResult | null => {
     try {
-      const parsed = JSON.parse(raw) as { reply?: unknown; title?: unknown; recommendations?: unknown };
+      const parsed = JSON.parse(raw) as {
+        reply?: unknown;
+        title?: unknown;
+        follow_up?: unknown;
+        followUp?: unknown;
+        recommendations?: unknown;
+      };
       const reply = typeof parsed.reply === "string" ? parsed.reply : "";
+      // snake_case is what the schema asks for; accept camelCase too — models
+      // normalize key style often enough that rejecting it silently dropped the
+      // question and the UI fell back to a generic prompt.
+      const followUp = cleanFollowUp(parsed.follow_up ?? parsed.followUp);
       // Strip wrapping quotes / brackets and any leading/trailing punctuation the
       // model sometimes adds despite the prompt; hard-cap at 30 chars so titles
       // don't blow out the sidebar / header.
@@ -675,7 +832,7 @@ function parseResult(text: string): RecommendResult {
           };
         })
         .filter((rec) => rec.name);
-      return { reply, recommendations, ...(title ? { title } : {}) };
+      return { reply, recommendations, ...(title ? { title } : {}), ...(followUp ? { followUp } : {}) };
     } catch {
       return null;
     }
@@ -766,7 +923,16 @@ const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
     parameters: {
       type: "object",
       properties: {
-        reply: { type: "string", description: "用用户的语言写的一句总结" },
+        reply: {
+          type: "string",
+          description:
+            "用用户的语言写的总结，必须分成 2-4 个自然段、段间用空行(\\n\\n)分隔，每段 2-3 句、只讲一件事：①复述用户原话+核心诉求 ②这几双各自的差异点 ③实操提示与不建议购买的情况。禁止一大段到底，禁止 markdown 标题/列表/加粗。"
+        },
+        follow_up: {
+          type: "string",
+          description:
+            "用用户的语言写的、最值得追问的**一个**问题（一句话，直接对用户说）。绝对不要把它同时写进 reply 正文——界面会单独渲染成输入框。没有要问的就给空字符串。"
+        },
         title: {
           type: "string",
           description: "本次对话的简短标题：6-14 个汉字或 3-6 个英文词，凝练用户本次需求的关键词组合。不要标点、引号、不要带『推荐』前后缀。"
@@ -1002,7 +1168,10 @@ async function tryToolLoopWithSearch(
       convo.push({ role: "assistant", content: msg.content ?? "" });
       convo.push({
         role: "user",
-        content: "请继续：直接调用 web_search 或 recommend_shoes 工具，不要再用文字描述计划。"
+        content:
+          detectReplyLang(currentInput) === "zh"
+            ? "请继续：直接调用 web_search 或 recommend_shoes 工具，不要再用文字描述计划。"
+            : "Keep going: call the web_search or recommend_shoes tool directly — stop describing the plan in prose."
       });
       continue;
     }
@@ -1080,13 +1249,19 @@ async function tryToolLoopWithSearch(
       break;
     }
     onProgress?.({ type: "status", phase: "writing", message: "正在为每双鞋撰写推荐理由…" });
+    const commitZh = detectReplyLang(currentInput) === "zh";
     convo.push({
       role: "user",
       content:
         `${languageDirective(currentInput)}\n\n` +
         (attempt === 0
-          ? "信息已足够。现在只输出最终结果的 JSON 对象（结构按之前给出的：reply/title/recommendations，含 name/stars/reason/pros/cons/references）。不要调用工具、不要 markdown、不要 JSON 之外的任何文字。思考尽量简短，不要在思考里起草文案。"
-          : "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字，其他内容一律省略。")
+          ? commitZh
+            ? "信息已足够。现在只输出最终结果的 JSON 对象（结构按之前给出的：reply/follow_up/title/recommendations，含 name/stars/reason/pros/cons/references）。reply 必须分成 2-4 个自然段、段间空行分隔，每段 ≤80 字；最值得追问的一个问题单独放进 follow_up，不要重复写进 reply。不要调用工具、不要 markdown、不要 JSON 之外的任何文字。思考尽量简短，不要在思考里起草文案。"
+            : "You have enough information. Now output ONLY the final JSON object (the shape given earlier: reply/follow_up/title/recommendations, each recommendation carrying name/stars/reason/pros/cons/references). `reply` must be 2-4 short paragraphs separated by blank lines, each under 45 words; put the single best question to ask next in `follow_up` and do not repeat it inside `reply`. No tool calls, no markdown, nothing outside the JSON. Keep your thinking brief — don't draft copy in your reasoning."
+          : commitZh
+            ? "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reply 保留 2 段、每段 ≤40 字，reason ≤ 20 字，每条 pros/cons ≤ 10 字，其他内容一律省略。"
+            : "That output was cut off. Emit the complete JSON again, much shorter: `reply` 2 paragraphs of under 25 words each, `reason` under 12 words, each pro/con under 6 words, drop everything else.") +
+        `\n\n${languageDirective(currentInput)}`
     });
     let msg: StreamedMessage | null = null;
     try {
@@ -1337,6 +1512,13 @@ export type RecommendOpts = {
   model?: string;
   depthSuffix?: string;
   /**
+   * Shoes already recommended earlier in this thread, resolved to catalog names
+   * by the route. Drives the follow-up prompt (deepen vs replace) and seeds the
+   * shortlist, so a second turn refines the existing answer instead of starting
+   * a brand-new search that happens to land on the same shoes.
+   */
+  priorRecommendations?: PriorRecommendations;
+  /**
    * Wall-clock ceiling for the whole turn. The route sets it from the platform's
    * function-duration limit, so the pipeline finalizes on its own terms instead
    * of being killed mid-stream (see lib/ai/budget.ts).
@@ -1345,10 +1527,20 @@ export type RecommendOpts = {
 };
 
 // Persona / foot-profile context appended to the ask in every pipeline phase.
-function personaFootSuffix(opts: Pick<RecommendOpts, "persona" | "footProfile">): string {
-  const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
+function personaFootSuffix(
+  opts: Pick<RecommendOpts, "persona" | "footProfile">,
+  lang: ReplyLang = "zh"
+): string {
+  const zh = lang === "zh";
+  const personaSuffix = opts.persona
+    ? zh
+      ? `\n\n我的球员档案：${formatPersona(opts.persona, lang)}`
+      : `\n\nMy player profile: ${formatPersona(opts.persona, lang)}`
+    : "";
   const footSuffix = opts.footProfile
-    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
+    ? zh
+      ? `\n我的脚型档案：${formatFootProfile(opts.footProfile, lang)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
+      : `\nMy foot profile: ${formatFootProfile(opts.footProfile, lang)}. Match last width, toe-box shape and upper volume to it (wide/extra-wide → wide last or a roomy toe box; high instep → mid/high cut, more volume, adjustable lacing; toe shape drives toe-box preference; bunion signs → prefer a wide last and a soft, stretchable upper that doesn't press on the first MTP joint).`
     : "";
   return personaSuffix + footSuffix;
 }
@@ -1356,19 +1548,69 @@ function personaFootSuffix(opts: Pick<RecommendOpts, "persona" | "footProfile">)
 // Opening turns shared by every phase: system prompt + a catalog + the chat
 // history, delivered as user/assistant alternation (this relay rejects a
 // `system` role — see recommendShoes).
+//
+// `lang` decides the priming assistant ack. That ack is the model's own most
+// recent utterance before the user's ask, so a hardcoded Chinese line was a
+// running start into a Chinese answer no amount of later instruction reliably
+// undid — the single biggest cause of "I typed English, it replied Chinese".
 function buildBaseMessages(
   catalogLabel: string,
   catalogJson: string,
-  history: ChatTurn[]
+  history: ChatTurn[],
+  lang: ReplyLang = "zh"
 ): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "user", content: `${SYSTEM_PROMPT}\n\n${catalogLabel}:\n${catalogJson}` },
-    { role: "assistant", content: "明白，我已读取鞋款目录，请告诉我你的需求。" }
+    { role: "assistant", content: catalogAck(lang) }
   ];
   for (const turn of history) {
     messages.push(turn.role === "user" ? { role: "user", content: turn.content } : { role: "assistant", content: turn.content });
   }
   return messages;
+}
+
+// ---------------------------------------------------------------------------
+// Follow-up turns. A second message in a thread used to be prompted exactly like
+// a first one — "here is the ask, return N shoes" — so the model restarted from
+// scratch, re-introduced itself, and often re-listed the same shoes with the
+// same words. These blocks give it the thread's actual state (what it already
+// recommended) and an explicit fork: DEEPEN the existing picks, or REPLACE them,
+// and say which it did.
+// ---------------------------------------------------------------------------
+export type PriorRecommendations = {
+  /** Shoe names from the most recent assistant turn. */
+  last: string[];
+  /** Every shoe name recommended anywhere in this thread, oldest first. */
+  all: string[];
+};
+
+function followUpBlock(prior: PriorRecommendations | undefined, lang: ReplyLang): string {
+  const last = prior?.last ?? [];
+  const all = prior?.all ?? [];
+  if (!last.length && !all.length) {
+    return lang === "zh"
+      ? "【这是一次追问】用户在继续同一场对话。请把上文当作已经发生过的事：不要重新自我介绍，不要从零开始复述需求，直接顺着他这次补充的信息往下说。\n\n"
+      : "[THIS IS A FOLLOW-UP] The user is continuing the same conversation. Treat everything above as already said: don't reintroduce yourself, don't restate the brief from scratch — pick up directly from the new information they just gave.\n\n";
+  }
+  const older = all.filter((n) => !last.includes(n));
+  if (lang === "zh") {
+    return (
+      `【这是一次追问 — 必须承接上文】用户在继续同一场对话，上一轮你已经推荐过：${last.join("、") || "（见上文）"}。` +
+      (older.length ? `更早还推荐过：${older.join("、")}。` : "") +
+      "\n请先判断用户这次补充的信息**是否改变了结论**，然后二选一，并在 reply 第一段明确说出你选了哪条：\n" +
+      "  (A) 结论不变 → 从已推荐的鞋里挑出最贴合新信息的 1-2 双**重点推**，把排序和 stars 拉开差距，并给出上一轮没说过的、针对新信息的更深理由（不要复制粘贴上次的措辞）。剩余名额可以保留其他老鞋。\n" +
+      "  (B) 结论改变 → 明说哪几双因为什么被换掉，再给出更合适的新鞋。\n" +
+      "无论哪条，都不要把上一轮的 reason/pros/cons 原样重复；已经说过的话不要再说第二遍。\n\n"
+    );
+  }
+  return (
+    `[THIS IS A FOLLOW-UP — BUILD ON WHAT YOU ALREADY SAID] The user is continuing the same conversation. Last turn you recommended: ${last.join(", ") || "(see above)"}.` +
+    (older.length ? ` Earlier in this thread you also recommended: ${older.join(", ")}.` : "") +
+    "\nFirst decide whether what they just added CHANGES your conclusion, then take exactly one of these paths and say which one you took in the first paragraph of `reply`:\n" +
+    "  (A) Conclusion holds → single out the 1-2 already-recommended shoes that fit the new information best, spread the ranking and `stars` so the winner is obvious, and give a DEEPER reason tied to the new detail — never repeat last turn's wording. Remaining slots may keep the other previous picks.\n" +
+    "  (B) Conclusion changes → say plainly which shoes are being dropped and why, then bring in the better-fitting ones.\n" +
+    "Either way, never restate last turn's reason/pros/cons verbatim. Don't say the same thing twice.\n\n"
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1403,22 +1645,43 @@ async function candidateEvidencePipeline(
   const { shoes, history, currentInput, count } = opts;
   const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
-  const suffix = personaFootSuffix(opts) + (opts.depthSuffix ?? "");
-  const zh = detectReplyLang(currentInput) === "zh";
+  const lang = detectReplyLang(currentInput);
+  const zh = lang === "zh";
+  const suffix = personaFootSuffix(opts, lang) + (opts.depthSuffix ?? "");
+  const isFollowUp = history.length > 0;
+  const priorLast = opts.priorRecommendations?.last ?? [];
 
   // --- A) shortlist -------------------------------------------------------
   onProgress?.({ type: "status", phase: "shortlist", message: "正在从目录圈定候选鞋款…" });
   const wanted = Math.min(Math.max(count + SHORTLIST_EXTRA, 5), Math.max(count, MAX_CANDIDATES));
   const fullCatalog = JSON.stringify(buildCompactCatalog(shoes, opts.persona, opts.reviewsByShoe));
+  // On a follow-up the previous picks are pre-seeded into the candidate pool, so
+  // the model can double down on them without the shortlist having to
+  // rediscover them from the whole catalog.
+  const shortlistFollowUpNote = !isFollowUp
+    ? ""
+    : priorLast.length
+      ? zh
+        ? `注意：这是一次追问。你上一轮推荐过 ${priorLast.join("、")}——请把其中仍然合适的**保留在候选里**，同时按用户这次补充的信息再补上更贴合的新鞋，让最终答案既有延续性又有新意。\n`
+        : `Note: this is a follow-up. Last turn you recommended ${priorLast.join(", ")} — keep whichever of those still fit IN the candidate list, and add better-matching new shoes based on what the user just told you, so the final answer has both continuity and new value.\n`
+      : zh
+        ? "注意：这是一次追问，请结合上文已经聊过的内容来圈定候选。\n"
+        : "Note: this is a follow-up — shortlist with everything already discussed above in mind.\n";
   const shortlistMessages = [
-    ...buildBaseMessages("鞋款目录(JSON)", fullCatalog, history),
+    ...buildBaseMessages(zh ? "鞋款目录(JSON)" : "Shoe catalog (JSON)", fullCatalog, history, lang),
     {
       role: "user" as const,
-      content:
-        `${languageDirective(currentInput)}\n\n` +
-        `本次要求："${currentInput}"${suffix}\n\n` +
-        `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${BACKUP_POOL_SIZE} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
-        `只输出 JSON：{"candidates":["鞋名1","鞋名2",…],"backups":["鞋名A","鞋名B",…]}——鞋名必须逐字复制目录里的 name 字段。不要输出任何其他内容。思考尽量简短。`
+      content: zh
+        ? `${languageDirective(currentInput)}\n\n` +
+          `本次要求："${currentInput}"${suffix}\n\n` +
+          shortlistFollowUpNote +
+          `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${BACKUP_POOL_SIZE} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
+          `只输出 JSON：{"candidates":["鞋名1","鞋名2",…],"backups":["鞋名A","鞋名B",…]}——鞋名必须逐字复制目录里的 name 字段。不要输出任何其他内容。思考尽量简短。`
+        : `${languageDirective(currentInput)}\n\n` +
+          `This request: "${currentInput}"${suffix}\n\n` +
+          shortlistFollowUpNote +
+          `Step one (do NOT give final recommendations yet): shortlist the ${wanted} best-matching shoes from the catalog. I'll research each one on the web and then ask you for the final picks. Also give ${BACKUP_POOL_SIZE} second-tier backups in case a candidate's reputation turns out poor.\n` +
+          `Output JSON only: {"candidates":["shoe name 1","shoe name 2",…],"backups":["shoe name A","shoe name B",…]} — every name copied VERBATIM from the catalog's \`name\` field. Nothing else. Keep your thinking brief.`
     }
   ];
   const msgA = await completeWithProgress(
@@ -1438,7 +1701,18 @@ async function candidateEvidencePipeline(
   }
   const seen = new Set<string>();
   const candidates: Shoe[] = [];
+  // Follow-up: last turn's picks lead the candidate list whether or not the
+  // shortlist thought to re-name them. They're what the user is actually
+  // responding to, so they must be researched and available to double down on.
+  for (const name of priorLast) {
+    const shoe = matchShoeByName(name, shoes);
+    if (shoe && !seen.has(shoe.id)) {
+      seen.add(shoe.id);
+      candidates.push(shoe);
+    }
+  }
   for (const name of candidateNames) {
+    if (candidates.length >= MAX_CANDIDATES) break;
     const shoe = matchShoeByName(name, shoes);
     if (shoe && !seen.has(shoe.id)) {
       seen.add(shoe.id);
@@ -1538,28 +1812,72 @@ async function candidateEvidencePipeline(
       .map((u) => `- ${u}`)
       .join("\n");
     const candidateCatalog = JSON.stringify(buildCompactCatalog(researched, opts.persona, opts.reviewsByShoe));
-    const backupNote =
+    const followUpNote = isFollowUp ? followUpBlock(opts.priorRecommendations, lang) : "";
+    const jsonShape =
+      `{"reply":"…","follow_up":"…","title":"…","recommendations":[{"name":"…","stars":4.5,"reason":"…","pros":["…","…","…"],"cons":["…","…","…"],"references":[{"title":"…","url":"…"}]}]}`;
+
+    if (zh) {
+      const backupNote =
+        !extensionUsed && pool.length
+          ? `【备选（尚未查证）】${pool.map((s) => s.shoe_name).join("、")}。若查证摘要显示候选中匹配良好的不足 ${count} 双，不要硬凑：在输出 JSON 里额外加 "add_candidates":["鞋名",…]（≤${BACKUP_POOL_SIZE} 个，从备选或目录里选），我会补充联网查证后再请你重新决定。\n\n`
+          : "";
+      return [
+        ...buildBaseMessages("候选鞋款目录(JSON)——已按本次需求初筛", candidateCatalog, history, lang),
+        {
+          role: "user" as const,
+          content:
+            `${languageDirective(currentInput)}\n\n` +
+            `现在推荐的要求是："${currentInput}"${suffix}\n\n` +
+            followUpNote +
+            (extensionNote ? `${extensionNote}\n\n` : "") +
+            `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），再说明该鞋如何匹配那一点。\n` +
+            `每双鞋正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、blogger 博主点评与下方联网查证摘要（引用博主或网页要注明来源）。每条 pros/cons ≤ 18 个字，reason 一句话。\n\n` +
+            `【reply 必须分段】reply 写成 2-4 个自然段，段间用空行(\\n\\n)分隔，每段 2-3 句、≤80 字，只讲一件事：①复述用户原话+你的取舍权重 ②这几双各自的差异点 ③实操提示与不建议购买的情况。禁止一整段到底，禁止 markdown 标题/列表/加粗。\n` +
+            `【follow_up 单独给】把最值得追问的那**一个**问题放进 follow_up 字段（一句话），并且**不要**再写进 reply 正文——界面会把它渲染成一个可以直接作答的输入框。没什么可问就给 ""。\n\n` +
+            `【数量锁定】本次 N = ${count}。从上面候选目录里选出最终 ${count} 双，按推荐指数从高到低排序——即使用户正文里写了别的数字也以 N = ${count} 为准（唯一例外：候选中匹配良好的不足 ${count} 双时可以少返回）。\n\n` +
+            backupNote +
+            (digest
+              ? `【联网查证摘要】以下是刚刚对候选鞋的真实搜索结果，请据此做 stars 差异化（口碑差的下调、好的上调）并充实优缺点：\n${digest}\n\n` +
+                `references 只能从下列真实网页中选取（title 与 url 都逐字复制），且只填你实际引用过的；没引用就给空数组：\n${urlList}\n\n`
+              : `【联网查证摘要】本次联网查证不可用——仅依据目录与博主点评作答，所有 references 一律留空数组。\n\n`) +
+            `表达规范：reason/pros/cons 里不得出现 court_feel、traction 这类内部字段名——用"场地感/贴地感、抓地力"等中文说法；elite/excellent 等评价词翻成中文；科技专有名词（Zoom Air、BOOM 等）保留原文。\n\n` +
+            `只输出 JSON：${jsonShape}。不要调用工具、不要 markdown、不要 JSON 之外的文字。思考尽量简短，不要在思考里起草文案。\n\n` +
+            languageDirective(currentInput)
+        }
+      ];
+    }
+
+    const backupNoteEn =
       !extensionUsed && pool.length
-        ? `【备选（尚未查证）】${pool.map((s) => s.shoe_name).join("、")}。若查证摘要显示候选中匹配良好的不足 ${count} 双，不要硬凑：在输出 JSON 里额外加 "add_candidates":["鞋名",…]（≤${BACKUP_POOL_SIZE} 个，从备选或目录里选），我会补充联网查证后再请你重新决定。\n\n`
+        ? `[BACKUPS — not researched yet] ${pool.map((s) => s.shoe_name).join(", ")}. If the research digests show fewer than ${count} genuinely good matches among the candidates, do NOT pad the list: add "add_candidates":["shoe name",…] (≤${BACKUP_POOL_SIZE}, from the backups or the catalog) to your JSON and I'll research them and ask you again.\n\n`
         : "";
     return [
-      ...buildBaseMessages("候选鞋款目录(JSON)——已按本次需求初筛", candidateCatalog, history),
+      ...buildBaseMessages(
+        "Candidate shoe catalog (JSON) — already pre-filtered for this request",
+        candidateCatalog,
+        history,
+        lang
+      ),
       {
         role: "user" as const,
         content:
           `${languageDirective(currentInput)}\n\n` +
-          `现在推荐的要求是："${currentInput}"${suffix}\n\n` +
+          `The request to answer now is: "${currentInput}"${suffix}\n\n` +
+          followUpNote +
           (extensionNote ? `${extensionNote}\n\n` : "") +
-          `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），再说明该鞋如何匹配那一点。\n` +
-          `每双鞋正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、blogger 博主点评与下方联网查证摘要（引用博主或网页要注明来源）。每条 pros/cons ≤ 18 个字，reason 一句话。\n\n` +
-          `【数量锁定】本次 N = ${count}。从上面候选目录里选出最终 ${count} 双，按推荐指数从高到低排序——即使用户正文里写了别的数字也以 N = ${count} 为准（唯一例外：候选中匹配良好的不足 ${count} 双时可以少返回）。\n\n` +
-          backupNote +
+          `In every shoe's \`reason\` (and in the overall \`reply\`), quote at least one of the user's own phrases from the line above verbatim, in double quotes, then explain how that shoe matches it.\n` +
+          `Exactly 3 \`pros\` and 3 \`cons\` per shoe, drawn from the catalog's performance fields, the \`blogger\` review points, and the web research digest below (cite the source when you use a blogger or a web page). Keep each pro/con under 12 words; \`reason\` is one sentence.\n\n` +
+          `[REPLY MUST BE BROKEN UP] Write \`reply\` as 2-4 short paragraphs separated by a blank line (\\n\\n), each 2-3 sentences and under 45 words, each covering ONE thing: (1) echo the user's own words and the weighting you chose, (2) how these picks differ from each other, (3) practical notes — sizing, lacing, surface — and when NOT to buy. Never one solid block. No markdown headings, bullets or bold.\n` +
+          `[FOLLOW-UP GOES IN ITS OWN FIELD] Put the single most valuable question to ask next in \`follow_up\` (one sentence) and do NOT repeat it inside \`reply\` — the interface renders it as its own answerable input box. Use "" if there's nothing worth asking.\n\n` +
+          `[COUNT IS LOCKED] N = ${count} for this turn. Choose the final ${count} shoes from the candidate catalog above, sorted by recommendation score, highest first — N = ${count} wins even if the user's message names a different number. (Only exception: return fewer if there genuinely aren't ${count} good matches among the candidates.)\n\n` +
+          backupNoteEn +
           (digest
-            ? `【联网查证摘要】以下是刚刚对候选鞋的真实搜索结果，请据此做 stars 差异化（口碑差的下调、好的上调）并充实优缺点：\n${digest}\n\n` +
-              `references 只能从下列真实网页中选取（title 与 url 都逐字复制），且只填你实际引用过的；没引用就给空数组：\n${urlList}\n\n`
-            : `【联网查证摘要】本次联网查证不可用——仅依据目录与博主点评作答，所有 references 一律留空数组。\n\n`) +
-          `表达规范（用户是中文时）：reason/pros/cons 里不得出现 court_feel、traction 这类内部字段名——用"场地感/贴地感、抓地力"等中文说法；elite/excellent 等评价词翻成中文；科技专有名词（Zoom Air、BOOM 等）保留原文。\n\n` +
-          `只输出 JSON：{"reply":"…","title":"…","recommendations":[{"name":"…","stars":4.5,"reason":"…","pros":["…","…","…"],"cons":["…","…","…"],"references":[{"title":"…","url":"…"}]}]}。不要调用工具、不要 markdown、不要 JSON 之外的文字。思考尽量简短，不要在思考里起草文案。`
+            ? `[WEB RESEARCH DIGEST] Real search results just gathered for the candidates. Use them to differentiate \`stars\` (poor word-of-mouth down, strong up) and to enrich the pros/cons:\n${digest}\n\n` +
+              `\`references\` may ONLY be chosen from the real pages below (copy title and url verbatim), and only the ones you actually drew on; empty array otherwise:\n${urlList}\n\n`
+            : `[WEB RESEARCH DIGEST] Web research was unavailable this turn — answer from the catalog and blogger reviews alone, and leave every \`references\` array empty.\n\n`) +
+          `Wording: never let internal field names (court_feel, traction, cushioning_feel…) appear in \`reason\`/\`pros\`/\`cons\` — say "court feel", "traction", "cushioning" in plain English. Technology proper nouns (Zoom Air, BOOM, Lightstrike Pro…) stay verbatim as written in the catalog.\n\n` +
+          `Output JSON only: ${jsonShape}. No tool calls, no markdown, nothing outside the JSON. Keep your thinking brief — don't draft the copy inside your reasoning.\n\n` +
+          languageDirective(currentInput)
       }
     ];
   };
@@ -1594,7 +1912,12 @@ async function candidateEvidencePipeline(
           : [
               ...commitMessages,
               { role: "assistant" as const, content: '{"omitted":"truncated_payload"}' },
-              { role: "user" as const, content: "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reason ≤ 20 字，每条 pros/cons ≤ 10 字。" }
+              {
+                role: "user" as const,
+                content: zh
+                  ? "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reply 保留 2 段、每段 ≤40 字，reason ≤ 20 字，每条 pros/cons ≤ 10 字，follow_up 一句话。"
+                  : "That output was cut off. Emit the complete JSON again, much shorter: keep `reply` to 2 paragraphs of under 25 words each, `reason` under 12 words, each pro/con under 6 words, `follow_up` one short sentence."
+              }
             ];
       let msg: StreamedMessage | null = null;
       try {
@@ -1720,6 +2043,8 @@ export async function recommendShoes(
     return { reply: "", recommendations: [], loopExitReason: "deadline" };
   }
 
+  const lang = detectReplyLang(opts.currentInput);
+  const zh = lang === "zh";
   const catalog = buildCompactCatalog(opts.shoes, opts.persona, opts.reviewsByShoe);
 
   // The relay (packyapi) does NOT lift an OpenAI `system` turn into Anthropic's
@@ -1729,32 +2054,51 @@ export async function recommendShoes(
   // one-line assistant ack, keeping strict user/assistant alternation on every
   // relay. The model reads it the same as a system preamble.
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = buildBaseMessages(
-    "鞋款目录(JSON)",
+    zh ? "鞋款目录(JSON)" : "Shoe catalog (JSON)",
     JSON.stringify(catalog),
-    opts.history
+    opts.history,
+    lang
   );
-  const personaSuffix = opts.persona ? `\n\n我的球员档案：${formatPersona(opts.persona)}` : "";
-  const footSuffix = opts.footProfile
-    ? `\n我的脚型档案：${formatFootProfile(opts.footProfile)}。选鞋时请据此匹配鞋楦宽窄、鞋头形状与鞋面容积（偏宽/超宽→宽楦或鞋头宽松的鞋款；脚背偏高→高帮/容积更大/可调系带；脚趾型影响鞋头形状偏好；有拇趾外翻迹象→优先宽楦与柔软可延展的鞋面、避免内侧鞋头压迫第一跖趾关节）。`
-    : "";
+  const profileSuffix = personaFootSuffix(opts, lang);
+  const followUpNote = opts.history.length > 0 ? followUpBlock(opts.priorRecommendations, lang) : "";
   // The strict output contract lives here in the final user turn — the model's
   // "last word" — so it isn't buried under the long prompt + catalog above and
   // can't be answered as casual prose.
   messages.push({
     role: "user",
-    content:
-      `${languageDirective(opts.currentInput)}\n\n` +
-      `现在推荐的要求是："${opts.currentInput}"${personaSuffix}${footSuffix}\n\n` +
-      `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），然后说明该鞋如何匹配那一点。\n` +
-      `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。每条 pros/cons 精炼在 18 个字以内，reason 一句话即可。\n\n` +
-      `【数量锁定】本次 N = ${opts.count}。必须严格推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 里也只能提 ${opts.count}。` +
-      `按推荐指数从高到低排序。（唯一例外：目录里匹配良好的鞋款不足 ${opts.count} 双时可以少返回。）\n\n` +
-      `推荐流程：(1) 从目录里挑出 ${opts.count} 双初步候选；(2) 用 web_search 查与用户本次诉求/使用场景相关的通用常识（位置、打法、脚型、选鞋要点等；每次对话最多 3 次）；(3) 结合网络反馈给 stars 做差异化打分；(4) 把每双鞋引用过的网页 title/url 填到该鞋的 references 数组里。\n\n` +
-      `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 围绕用户本次诉求/使用场景）。如果已经搜过：直接发 recommend_shoes。\n\n` +
-      `⏱️ 思考过程请精炼：选定候选后就直接调工具，不要在思考里逐字起草每双鞋的完整 reason/pros/cons 文案（那些直接写进工具参数即可）。\n\n` +
-      `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
-      `{"reply":"…","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2","优点3"],"cons":["缺点1","缺点2","缺点3"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。` +
-      (opts.depthSuffix ?? "")
+    content: zh
+      ? `${languageDirective(opts.currentInput)}\n\n` +
+        `现在推荐的要求是："${opts.currentInput}"${profileSuffix}\n\n` +
+        followUpNote +
+        `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），然后说明该鞋如何匹配那一点。\n` +
+        `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。每条 pros/cons 精炼在 18 个字以内，reason 一句话即可。\n\n` +
+        `【reply 必须分段】reply 写成 2-4 个自然段、段间用空行(\\n\\n)分隔，每段 2-3 句、≤80 字。禁止一整段到底，禁止 markdown 标题/列表/加粗。\n` +
+        `【follow_up 单独给】最值得追问的那一个问题放进 follow_up 字段（一句话），不要重复写进 reply；没什么可问就给 ""。\n\n` +
+        `【数量锁定】本次 N = ${opts.count}。必须严格推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 里也只能提 ${opts.count}。` +
+        `按推荐指数从高到低排序。（唯一例外：目录里匹配良好的鞋款不足 ${opts.count} 双时可以少返回。）\n\n` +
+        `推荐流程：(1) 从目录里挑出 ${opts.count} 双初步候选；(2) 用 web_search 查与用户本次诉求/使用场景相关的通用常识（位置、打法、脚型、选鞋要点等；每次对话最多 3 次）；(3) 结合网络反馈给 stars 做差异化打分；(4) 把每双鞋引用过的网页 title/url 填到该鞋的 references 数组里。\n\n` +
+        `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 围绕用户本次诉求/使用场景）。如果已经搜过：直接发 recommend_shoes。\n\n` +
+        `⏱️ 思考过程请精炼：选定候选后就直接调工具，不要在思考里逐字起草每双鞋的完整 reason/pros/cons 文案（那些直接写进工具参数即可）。\n\n` +
+        `请调用 recommend_shoes 工具返回；若无法使用工具，则只返回 JSON：` +
+        `{"reply":"第一段…\\n\\n第二段…","follow_up":"一句话追问","title":"控卫低帮抓地好的鞋","recommendations":[{"name":"球鞋名称","stars":4.5,"reason":"理由","pros":["优点1","优点2","优点3"],"cons":["缺点1","缺点2","缺点3"],"references":[{"title":"网页标题","url":"https://..."}]}]}，不要任何 markdown 或多余文字。` +
+        (opts.depthSuffix ?? "") +
+        `\n\n${languageDirective(opts.currentInput)}`
+      : `${languageDirective(opts.currentInput)}\n\n` +
+        `The request to answer now is: "${opts.currentInput}"${profileSuffix}\n\n` +
+        followUpNote +
+        `In every shoe's \`reason\` (and in the overall \`reply\`), quote at least one of the user's own phrases from the line above verbatim, in double quotes, then explain how that shoe matches it.\n` +
+        `Give exactly 3 \`pros\` and 3 \`cons\` per shoe, drawn from the catalog's performance fields, that shoe's \`blogger\` review points, and web_search findings (cite the source when you use a blogger or a page). Keep each pro/con under 12 words; \`reason\` is one sentence.\n\n` +
+        `[REPLY MUST BE BROKEN UP] Write \`reply\` as 2-4 short paragraphs separated by a blank line (\\n\\n), each 2-3 sentences and under 45 words. Never one solid block. No markdown headings, bullets or bold.\n` +
+        `[FOLLOW-UP GOES IN ITS OWN FIELD] Put the single most valuable question to ask next in \`follow_up\` (one sentence); don't repeat it inside \`reply\`. Use "" if there's nothing worth asking.\n\n` +
+        `[COUNT IS LOCKED] N = ${opts.count} for this turn. Recommend exactly ${opts.count} shoes — ignore any other number written in the user's message ("give me 10", "5 pairs"…); N = ${opts.count} wins, and \`reply\` may only mention ${opts.count}. ` +
+        `Sort by recommendation score, highest first. (Only exception: return fewer if the catalog genuinely doesn't hold ${opts.count} good matches.)\n\n` +
+        `Process: (1) shortlist ${opts.count} candidates from the catalog; (2) use web_search for general knowledge around the user's ask and context — position, playstyle, foot shape, what to look for (max 3 searches per conversation); (3) differentiate \`stars\` using what you find; (4) put each shoe's cited page titles/urls in that shoe's \`references\` array.\n\n` +
+        `⚡ **Call a tool immediately** — never write "first I'll do X, then Y" into \`reply\`. Haven't searched yet? Send web_search (query built from the user's ask and context). Already searched? Send recommend_shoes.\n\n` +
+        `⏱️ Keep the reasoning tight: once you've picked candidates, call the tool — don't draft each shoe's full reason/pros/cons inside your thinking (write them straight into the tool arguments).\n\n` +
+        `Return via the recommend_shoes tool; if tools are unavailable, return JSON only: ` +
+        `{"reply":"First paragraph…\\n\\nSecond paragraph…","follow_up":"One short question","title":"low-top guard shoes with grip","recommendations":[{"name":"shoe name","stars":4.5,"reason":"why","pros":["pro 1","pro 2","pro 3"],"cons":["con 1","con 2","con 3"],"references":[{"title":"page title","url":"https://..."}]}]} — no markdown, nothing extra.` +
+        (opts.depthSuffix ?? "") +
+        `\n\n${languageDirective(opts.currentInput)}`
   });
 
   return getRecommendations(

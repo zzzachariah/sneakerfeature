@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown, Download, History, Plus, Sparkles, Wallet } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { haptics } from "@/lib/native/haptics";
 import { DUR, EASE } from "@/lib/motion/constants";
 import { CardPreviewModal } from "@/components/card/card-preview-modal";
+import { CreditsPanel } from "@/components/smart-picker/credits-panel";
+import { FollowUpBox } from "@/components/smart-picker/follow-up-box";
+import { MessageCost } from "@/components/smart-picker/message-cost";
 import { MessageInput } from "@/components/smart-picker/message-input";
 import { ProfileTip } from "@/components/smart-picker/profile-tip";
 import { PromptQuestionnaire } from "@/components/smart-picker/prompt-questionnaire";
@@ -15,6 +18,7 @@ import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import { AllowanceMeter } from "@/components/smart-picker/allowance-meter";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
+import { isCjkInput } from "@/lib/i18n/detect-cjk";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 import type { ModelId, Tier } from "@/lib/subscription/tiers";
@@ -68,7 +72,13 @@ export function ChatConversation({
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [questionnaireOpen, setQuestionnaireOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
+  // The ×N the composer is currently set to. The follow-up box sends into the
+  // same conversation, so it has to bill at the same count the user chose.
+  const [count, setCount] = useState(1);
   const historyRef = useRef<HTMLDivElement | null>(null);
+  const openUsage = useCallback(() => setUsageOpen(true), []);
+  const sendFollowUp = useCallback((text: string) => onSend(text, count), [onSend, count]);
   // Prefill flows to the composer; suggestion chips on the empty state set it so
   // a fresh conversation has concrete starting points instead of a blank box.
   // The `nonce` bumps on every tap so MessageInput re-fills even when the same
@@ -162,7 +172,16 @@ export function ChatConversation({
             />
           )}
         </div>
-        <div className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium">
+        {/* The balance pill opens the full ledger: what's left, what came in,
+            what each conversation cost. The check-in badge stays a nested
+            control (it stops propagation), so claiming doesn't open the panel. */}
+        <button
+          type="button"
+          onClick={() => setUsageOpen(true)}
+          aria-haspopup="dialog"
+          title={translate("View credit usage")}
+          className="tap-44 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:border-[rgb(var(--text)/0.35)] hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+        >
           <Wallet className="h-3.5 w-3.5" />
           {creditsLoaded ? (
             <>{unlimited ? "∞" : balance} {translate("credits")}</>
@@ -172,8 +191,18 @@ export function ChatConversation({
           {creditsLoaded && (
             <CheckinBadge canClaim={checkin.canClaim} dailyAmount={checkin.dailyAmount} onClaim={onClaimCheckin} />
           )}
-        </div>
-        {creditsLoaded && allowance && <AllowanceMeter balance={allowance.balance} grant={allowance.grant} />}
+        </button>
+        {creditsLoaded && allowance && (
+          <button
+            type="button"
+            onClick={() => setUsageOpen(true)}
+            aria-haspopup="dialog"
+            title={translate("View credit usage")}
+            className="tap-44 shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.3)]"
+          >
+            <AllowanceMeter balance={allowance.balance} grant={allowance.grant} />
+          </button>
+        )}
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-[var(--container-gutter)] py-4">
@@ -248,45 +277,81 @@ export function ChatConversation({
             }
 
             // The streaming turn is always the last message while `sending`.
-            const active = sending && idx === messages.length - 1;
+            const isLast = idx === messages.length - 1;
+            const active = sending && isLast;
             // Show the reasoning timeline when there are steps, or keep an animated
             // placeholder alive while this turn is still streaming.
             const showThinking = (message.steps?.length ?? 0) > 0 || active;
+            // The whole turn — steps, answer, follow-up — speaks the language
+            // the user typed in, so the panel chrome keys off the request that
+            // produced this answer rather than the app's UI locale.
+            const requestText = idx > 0 && messages[idx - 1].role === "user" ? messages[idx - 1].content : "";
+            const zhTurn = isCjkInput(requestText || message.content);
+            // The reply arrives as blank-line-separated paragraphs (the server
+            // splits a single-slab answer before persisting it). Render each as
+            // its own block so a long answer reads as a few short thoughts
+            // instead of one dense wall.
+            const paragraphs = message.content
+              .split(/\n\s*\n/)
+              .map((p) => p.trim())
+              .filter(Boolean);
+            // Only the newest answer gets an answerable follow-up: older ones
+            // are settled, and a stack of live input boxes would be noise.
+            const followUp = isLast && !active ? message.followUp?.trim() : "";
 
             return (
               <div key={message.id} className="flex flex-col gap-2.5">
-                {showThinking && <ThinkingPanel steps={message.steps ?? []} active={active} />}
+                {showThinking && <ThinkingPanel steps={message.steps ?? []} active={active} zhInput={zhTurn} />}
 
                 {/* The clean answer. Code/JSON the relay sometimes emits is filtered
                     server-side, so it never reaches this bubble or the timeline. */}
-                {message.content && (
+                {paragraphs.length > 0 && (
                   <motion.div
                     {...bubbleIn(-12)}
-                    className="max-w-[90%] whitespace-pre-wrap rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2 text-sm"
+                    className="flex max-w-[90%] flex-col gap-2 rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2.5 text-sm"
                   >
-                    {message.content}
+                    {paragraphs.map((p, i) => (
+                      <p key={i} className="whitespace-pre-wrap leading-relaxed">
+                        {p}
+                      </p>
+                    ))}
                   </motion.div>
                 )}
 
                 {message.recommendations && message.recommendations.length > 0 && (
                   <>
                     <RecommendationGroup recommendations={message.recommendations} />
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setReport({
-                          requestText: idx > 0 && messages[idx - 1].role === "user" ? messages[idx - 1].content : "",
-                          summary: message.content,
-                          recs: message.recommendations ?? []
-                        })
-                      }
-                      className="relative tap-44 inline-flex h-8 self-start items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                      {translate("Download report")}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReport({
+                            requestText: idx > 0 && messages[idx - 1].role === "user" ? messages[idx - 1].content : "",
+                            summary: message.content,
+                            recs: message.recommendations ?? []
+                          })
+                        }
+                        className="relative tap-44 inline-flex h-8 self-start items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.55)] px-3 text-[0.78rem] font-medium transition hover:bg-[rgb(var(--text)/0.06)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
+                      >
+                        <Download className="h-3.5 w-3.5" />
+                        {translate("Download report")}
+                      </button>
+                      {/* What this turn actually cost — otherwise the balance
+                          just drops with nothing to attribute it to. */}
+                      {!active && (
+                        <MessageCost
+                          charged={message.credits_charged}
+                          billing={message.billing}
+                          onOpenUsage={openUsage}
+                        />
+                      )}
+                    </div>
                   </>
                 )}
+
+                {/* One question, its own composer — the conversation continues
+                    without scrolling back to the main input. */}
+                {followUp && <FollowUpBox question={followUp} sending={sending} onSend={sendFollowUp} />}
               </div>
             );
           })}
@@ -305,6 +370,7 @@ export function ChatConversation({
         model={model}
         onSelectModel={onSelectModel}
         onSend={onSend}
+        onCountChange={setCount}
         prefillText={prefill.text}
         prefillNonce={prefill.nonce}
       />
@@ -319,6 +385,16 @@ export function ChatConversation({
           // needed, and sends — flowing through the normal billed pipeline.
           setPrefill((p) => ({ text, nonce: p.nonce + 1 }));
         }}
+      />
+
+      <CreditsPanel
+        open={usageOpen}
+        onClose={() => setUsageOpen(false)}
+        balance={balance}
+        unlimited={unlimited}
+        checkin={checkin}
+        onClaimCheckin={onClaimCheckin}
+        onSelectChat={onSelectChat}
       />
 
       <CardPreviewModal
