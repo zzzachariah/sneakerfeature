@@ -13,6 +13,7 @@ import { PromptQuestionnaire } from "@/components/smart-picker/prompt-questionna
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
+import { ChatActivityDot } from "@/components/smart-picker/chat-activity-dot";
 import { AllowanceMeter } from "@/components/smart-picker/allowance-meter";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
@@ -23,6 +24,9 @@ type Props = {
   messages: AiChatMessage[];
   loadingMessages: boolean;
   sending: boolean;
+  // Other conversations are using every concurrent turn — the composer holds
+  // the send instead of dropping the typed text on the floor.
+  atTurnLimit: boolean;
   balance: number;
   creditsLoaded: boolean;
   unlimited: boolean;
@@ -34,6 +38,10 @@ type Props = {
   initialPrompt?: string;
   chats: AiChatSummary[];
   activeChatId: string | null;
+  // Background activity in OTHER conversations: still generating, or finished
+  // while the user was reading this one.
+  streamingChatIds: string[];
+  unseenChatIds: string[];
   activeTitle: string | null;
   onClaimCheckin: () => Promise<void>;
   onSend: (message: string, count: number) => void;
@@ -46,6 +54,7 @@ export function ChatConversation({
   messages,
   loadingMessages,
   sending,
+  atTurnLimit,
   balance,
   creditsLoaded,
   unlimited,
@@ -57,6 +66,8 @@ export function ChatConversation({
   initialPrompt,
   chats,
   activeChatId,
+  streamingChatIds,
+  unseenChatIds,
   activeTitle,
   onClaimCheckin,
   onSend,
@@ -117,6 +128,10 @@ export function ChatConversation({
   }, [historyOpen]);
 
   const isEmpty = !loadingMessages && messages.length === 0;
+  // On mobile the sidebar is hidden, so the history button carries the badge for
+  // work happening in a conversation the user isn't looking at.
+  const activityElsewhere =
+    streamingChatIds.some((id) => id !== activeChatId) || unseenChatIds.some((id) => id !== activeChatId);
   const headerTitle = activeTitle?.trim() || translate("Smart Picker");
   const lastMessage = messages[messages.length - 1];
   const reduce = useReducedMotion();
@@ -145,12 +160,20 @@ export function ChatConversation({
             className="tap-44 relative inline-flex h-9 items-center gap-1 rounded-full px-2 transition-colors hover:bg-[rgb(var(--text)/0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)]"
           >
             <History className="h-5 w-5" />
+            {activityElsewhere && (
+              <span
+                aria-hidden
+                className="absolute left-4 top-1 h-2 w-2 rounded-full bg-[rgb(var(--brand))] ring-2 ring-[rgb(var(--bg))]"
+              />
+            )}
             <ChevronDown className={`h-3.5 w-3.5 transition-transform ${historyOpen ? "rotate-180" : ""}`} />
           </button>
           {historyOpen && (
             <ConversationHistoryPopover
               chats={chats}
               activeChatId={activeChatId}
+              streamingChatIds={streamingChatIds}
+              unseenChatIds={unseenChatIds}
               onSelect={(id) => {
                 onSelectChat(id);
                 setHistoryOpen(false);
@@ -301,6 +324,7 @@ export function ChatConversation({
         balance={balance}
         unlimited={unlimited}
         sending={sending}
+        atTurnLimit={atTurnLimit}
         tier={tier}
         model={model}
         onSelectModel={onSelectModel}
@@ -354,11 +378,15 @@ const HISTORY_GROUP_LABEL: Record<"today" | "yesterday" | "earlier", string> = {
 function ConversationHistoryPopover({
   chats,
   activeChatId,
+  streamingChatIds,
+  unseenChatIds,
   onSelect,
   onNewChat
 }: {
   chats: AiChatSummary[];
   activeChatId: string | null;
+  streamingChatIds: string[];
+  unseenChatIds: string[];
   onSelect: (id: string) => void;
   onNewChat: () => void;
 }) {
@@ -397,11 +425,17 @@ function ConversationHistoryPopover({
                   <button
                     type="button"
                     onClick={() => onSelect(chat.id)}
-                    className={`block w-full truncate rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)] ${
+                    className={`flex w-full items-center rounded-lg px-2.5 py-2 text-left text-sm transition hover:bg-[rgb(var(--text)/0.06)] ${
                       active ? "bg-[rgb(var(--text)/0.1)] font-medium" : ""
                     }`}
                   >
-                    {chat.title?.trim() || translate("New conversation")}
+                    <ChatActivityDot
+                      streaming={streamingChatIds.includes(chat.id)}
+                      unseen={unseenChatIds.includes(chat.id)}
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {chat.title?.trim() || translate("New conversation")}
+                    </span>
                   </button>
                 </li>
               );

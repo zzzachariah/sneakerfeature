@@ -3,12 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
-import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
+import { MAX_CONCURRENT_TURNS, type AiChatMessage, type AiChatSummary, type RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { isModelId, type ModelId, type Tier } from "@/lib/subscription/tiers";
 
 const INITIAL_CHECKIN: CheckinStatus = { canClaim: false, nextClaimAt: null, dailyAmount: 3 };
+
+// The blank conversation the picker opens on has no `ai_chats` row until its
+// first message is sent, so its thread lives under this reserved key and is
+// moved under the real id once the row exists.
+const NEW_CHAT_KEY = "new";
+
+// Stable empty thread so a conversation with no messages doesn't hand a fresh
+// array to ChatConversation on every render.
+const EMPTY_THREAD: AiChatMessage[] = [];
 
 async function getJson(input: string, init?: RequestInit) {
   try {
@@ -17,6 +26,19 @@ async function getJson(input: string, init?: RequestInit) {
   } catch {
     return null;
   }
+}
+
+// A client-only assistant bubble (error / notice). Never persisted — it exists
+// so the failure is explained where the user is looking.
+function localMessage(content: string): AiChatMessage {
+  return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+    role: "assistant",
+    content,
+    recommendations: null,
+    credits_charged: 0,
+    created_at: new Date().toISOString()
+  };
 }
 
 // Localized text for a server `status` progress event. The server's `message`
@@ -67,7 +89,18 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     : "The connection dropped while your picks were being generated — please send it again.";
   const [chats, setChats] = useState<AiChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<AiChatMessage[]>([]);
+  // One message thread per conversation, keyed by chat id (plus NEW_CHAT_KEY).
+  // A single shared `messages` array is what used to make leaving a generating
+  // conversation impossible: switching replaced the array under the live
+  // stream, so the turn wrote into the wrong chat and its progress was lost.
+  const [threads, setThreads] = useState<Record<string, AiChatMessage[]>>({});
+  // Conversations currently generating, and those whose history is being
+  // fetched. Both are per-chat so activity in one never disables another.
+  const [streamingKeys, setStreamingKeys] = useState<string[]>([]);
+  const [loadingKeys, setLoadingKeys] = useState<string[]>([]);
+  // Conversations that finished generating while the user was reading another
+  // one — flagged in history so a background answer doesn't go unnoticed.
+  const [unseenChatIds, setUnseenChatIds] = useState<string[]>([]);
   const [balance, setBalance] = useState(0);
   const [creditsLoaded, setCreditsLoaded] = useState(false);
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
@@ -77,15 +110,45 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   // it follows the account across devices.
   const [tier, setTier] = useState<Tier>("free");
   const [model, setModel] = useState<ModelId | null>(null);
-  const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sending, setSending] = useState(false);
   const [unlimited, setUnlimited] = useState(false);
-  // Chat id created inside handleSend for a fresh conversation. The activeChatId
-  // effect must NOT fetch messages for it — the async GET (empty list) would
-  // land mid-stream and wipe the optimistic user bubble + the streaming
-  // assistant turn, which is exactly the "message vanishes, then nothing ever
-  // appears" bug on the first send of a new conversation.
-  const skipLoadForChat = useRef<string | null>(null);
+
+  // Mirror of `streamingKeys` for synchronous reads inside handleSend (state is
+  // a render behind), plus the AbortController of each in-flight stream so a
+  // deleted conversation can drop its connection.
+  const streamsRef = useRef<Set<string>>(new Set());
+  const controllersRef = useRef<Map<string, AbortController>>(new Map());
+  // Conversations whose thread is already in memory — fetched, or being built
+  // live by a stream. Guards the history GET that would otherwise land
+  // mid-stream and wipe the optimistic user bubble + the streaming turn.
+  const loadedRef = useRef<Set<string>>(new Set());
+  // Which conversation the user is actually looking at, readable from inside an
+  // async send (the state closure goes stale across an await).
+  const activeKeyRef = useRef<string>(NEW_CHAT_KEY);
+
+  const activeKey = activeChatId ?? NEW_CHAT_KEY;
+  const messages = threads[activeKey] ?? EMPTY_THREAD;
+  const sending = streamingKeys.includes(activeKey);
+  const loadingMessages = loadingKeys.includes(activeKey);
+  // Every other conversation is already generating: the composer says so and
+  // holds the send rather than opening a fourth stream (and silently eating the
+  // text the user just typed).
+  const atTurnLimit = !sending && streamingKeys.length >= MAX_CONCURRENT_TURNS;
+
+  const markStreaming = useCallback((key: string, on: boolean) => {
+    const set = streamsRef.current;
+    if (on) set.add(key);
+    else set.delete(key);
+    setStreamingKeys(Array.from(set));
+  }, []);
+
+  const patchThread = useCallback((key: string, updater: (list: AiChatMessage[]) => AiChatMessage[]) => {
+    setThreads((prev) => ({ ...prev, [key]: updater(prev[key] ?? EMPTY_THREAD) }));
+  }, []);
+
+  const appendTo = useCallback(
+    (key: string, message: AiChatMessage) => patchThread(key, (list) => [...list, message]),
+    [patchThread]
+  );
 
   // Initial load: chats + balance.
   // Note: we intentionally do NOT auto-select the most recent conversation.
@@ -111,27 +174,34 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     })();
   }, []);
 
-  // Load messages whenever the active chat changes.
+  // Fetch a conversation's history the first time it's opened. Already-loaded
+  // threads (including one being streamed into right now) are kept as-is, so
+  // coming back to a generating conversation shows it still generating.
   useEffect(() => {
-    if (!activeChatId) {
-      setMessages([]);
-      return;
-    }
-    if (skipLoadForChat.current === activeChatId) {
-      skipLoadForChat.current = null;
-      return;
-    }
-    let cancelled = false;
-    setLoadingMessages(true);
+    const id = activeChatId;
+    activeKeyRef.current = id ?? NEW_CHAT_KEY;
+    if (!id) return;
+    setUnseenChatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
+    if (loadedRef.current.has(id)) return;
+    loadedRef.current.add(id);
+    setLoadingKeys((prev) => [...prev, id]);
     void (async () => {
-      const res = await getJson(`/api/ai/chats/${activeChatId}/messages`);
-      if (cancelled) return;
-      if (res?.ok) setMessages(res.messages as AiChatMessage[]);
-      setLoadingMessages(false);
+      const res = await getJson(`/api/ai/chats/${id}/messages`);
+      setLoadingKeys((prev) => prev.filter((k) => k !== id));
+      if (!res?.ok) {
+        loadedRef.current.delete(id);
+        return;
+      }
+      const fetched = res.messages as AiChatMessage[];
+      // Merge rather than replace: a turn sent while this GET was in flight
+      // only exists locally, and dropping it is what made a just-sent message
+      // vanish. Local ids (temp-/stream-/local-) never collide with saved ones.
+      setThreads((prev) => {
+        const local = prev[id] ?? EMPTY_THREAD;
+        const pending = local.filter((m) => !fetched.some((f) => f.id === m.id));
+        return { ...prev, [id]: [...fetched, ...pending] };
+      });
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [activeChatId]);
 
   const refreshChats = useCallback(async () => {
@@ -139,16 +209,19 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     if (res?.ok) setChats(res.chats as AiChatSummary[]);
   }, []);
 
-  const handleNewChat = useCallback(async () => {
-    const res = await getJson("/api/ai/chats", { method: "POST" });
-    if (res?.ok) {
-      setChats((prev) => [res.chat as AiChatSummary, ...prev]);
-      setMessages([]);
-      setActiveChatId(res.chat.id);
+  // Starting a new conversation is purely local — the ai_chats row is created
+  // on the first send. That makes "new chat" instant even while another
+  // conversation is generating, and keeps empty rows out of history.
+  const handleNewChat = useCallback(() => {
+    if (!streamsRef.current.has(NEW_CHAT_KEY)) {
+      setThreads((prev) => (prev[NEW_CHAT_KEY]?.length ? { ...prev, [NEW_CHAT_KEY]: EMPTY_THREAD } : prev));
     }
+    activeKeyRef.current = NEW_CHAT_KEY;
+    setActiveChatId(null);
   }, []);
 
   const handleSelect = useCallback((id: string) => {
+    activeKeyRef.current = id;
     setActiveChatId(id);
   }, []);
 
@@ -161,15 +234,30 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     });
   }, []);
 
-  const handleDelete = useCallback(async (id: string) => {
-    const res = await getJson(`/api/ai/chats/${id}`, { method: "DELETE" });
-    if (!res?.ok) return;
-    setChats((prev) => {
-      const next = prev.filter((c) => c.id !== id);
-      setActiveChatId((cur) => (cur === id ? next[0]?.id ?? null : cur));
-      return next;
-    });
-  }, []);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const res = await getJson(`/api/ai/chats/${id}`, { method: "DELETE" });
+      if (!res?.ok) return;
+      // Drop the stream with the conversation — the turn has nowhere to land.
+      controllersRef.current.get(id)?.abort();
+      controllersRef.current.delete(id);
+      markStreaming(id, false);
+      loadedRef.current.delete(id);
+      setThreads((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setUnseenChatIds((prev) => prev.filter((x) => x !== id));
+      setChats((prev) => {
+        const next = prev.filter((c) => c.id !== id);
+        setActiveChatId((cur) => (cur === id ? next[0]?.id ?? null : cur));
+        return next;
+      });
+    },
+    [markStreaming]
+  );
 
   // Optimistic model switch; the pref write is fire-and-forget (open to every
   // tier — the server drops unsupported ids). Each send also carries the model
@@ -197,7 +285,12 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
 
   const handleSend = useCallback(
     async (message: string, count: number) => {
-      if (sending) return;
+      // The guard is per-conversation: only a turn already running in THIS
+      // conversation blocks a send. Another chat generating does not.
+      let key = activeChatId ?? NEW_CHAT_KEY;
+      if (streamsRef.current.has(key)) return;
+      // Belt and braces — the composer already blocks this (`atTurnLimit`).
+      if (streamsRef.current.size >= MAX_CONCURRENT_TURNS) return;
 
       // The live "thought process" (status rows + search chips) follows the
       // language the user typed in — matching the model's own thinking/output —
@@ -216,8 +309,11 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         credits_charged: 0,
         created_at: new Date().toISOString()
       };
-      setMessages((prev) => [...prev, tempUser]);
-      setSending(true);
+      appendTo(key, tempUser);
+      markStreaming(key, true);
+
+      const controller = new AbortController();
+      controllersRef.current.set(key, controller);
 
       // Id of the streaming assistant bubble, and whether the server ever sent a
       // terminal frame. Hoisted so the error paths below can finish THAT bubble
@@ -225,35 +321,56 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       let streamingId: string | null = null;
       let sawTerminal = false;
 
+      // Every write targets `key`, which follows the turn (not the view) — the
+      // user can switch conversations mid-stream and the turn keeps filling in
+      // its own thread.
+      const patch = (updater: (m: AiChatMessage) => AiChatMessage) => {
+        const id = streamingId;
+        if (!id) return;
+        patchThread(key, (list) => list.map((m) => (m.id === id ? updater(m) : m)));
+      };
+
       try {
         // Ensure there's a chat to post into.
         let chatId = activeChatId;
         if (!chatId) {
           const created = await getJson("/api/ai/chats", { method: "POST" });
           if (!created?.ok) {
-            setMessages((prev) => [
-              ...prev.filter((m) => m.id !== tempUser.id),
-              {
-                id: `err-${Date.now()}`,
-                role: "assistant",
-                content: failMsg,
-                recommendations: null,
-                credits_charged: 0,
-                created_at: new Date().toISOString()
-              }
+            patchThread(NEW_CHAT_KEY, (list) => [
+              ...list.filter((m) => m.id !== tempUser.id),
+              localMessage(failMsg)
             ]);
             return;
           }
-          chatId = created.chat.id as string;
+          const newId = created.chat.id as string;
           setChats((prev) => [created.chat as AiChatSummary, ...prev]);
-          skipLoadForChat.current = chatId;
-          setActiveChatId(chatId);
+          // Move the optimistic thread under the real id and keep streaming
+          // against it. The view only follows if the user is still sitting on
+          // the blank conversation — someone who already opened another one
+          // must not be yanked back here.
+          const from = key;
+          key = newId;
+          chatId = newId;
+          loadedRef.current.add(newId);
+          setThreads((prev) => {
+            const pending = prev[from] ?? EMPTY_THREAD;
+            return { ...prev, [from]: EMPTY_THREAD, [newId]: [...(prev[newId] ?? EMPTY_THREAD), ...pending] };
+          });
+          markStreaming(from, false);
+          markStreaming(newId, true);
+          controllersRef.current.delete(from);
+          controllersRef.current.set(newId, controller);
+          if (activeKeyRef.current === from) {
+            activeKeyRef.current = newId;
+            setActiveChatId(newId);
+          }
         }
 
         const res = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chatId, message, count, ...(model ? { model } : {}) })
+          body: JSON.stringify({ chatId, message, count, ...(model ? { model } : {}) }),
+          signal: controller.signal
         });
 
         // Pre-flight failures (auth, insufficient credits, provider not
@@ -263,32 +380,17 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           const data = await res.json().catch(() => null);
           if (data?.ok && data.insufficient) {
             setBalance(data.balance);
-            setMessages((prev) => [
-              ...prev.filter((m) => m.id !== tempUser.id),
-              {
-                id: `err-${Date.now()}`,
-                role: "assistant",
-                content: zhUI
+            patchThread(key, (list) => [
+              ...list.filter((m) => m.id !== tempUser.id),
+              localMessage(
+                zhUI
                   ? `积分不足（当前余额 ${data.balance}）。每日签到可领取免费积分。`
-                  : `Not enough credits (balance ${data.balance}). Claim free daily credits with the check-in.`,
-                recommendations: null,
-                credits_charged: 0,
-                created_at: new Date().toISOString()
-              }
+                  : `Not enough credits (balance ${data.balance}). Claim free daily credits with the check-in.`
+              )
             ]);
             return;
           }
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `err-${Date.now()}`,
-              role: "assistant",
-              content: data?.message ?? failMsg,
-              recommendations: null,
-              credits_charged: 0,
-              created_at: new Date().toISOString()
-            }
-          ]);
+          appendTo(key, localMessage(data?.message ?? failMsg));
           return;
         }
 
@@ -298,20 +400,15 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         // is invisible (the typing dots cover the "thinking" gap).
         const assistantId = `stream-${Date.now()}`;
         streamingId = assistantId;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: assistantId,
-            role: "assistant",
-            content: "",
-            recommendations: null,
-            credits_charged: 0,
-            created_at: new Date().toISOString(),
-            steps: []
-          }
-        ]);
-        const patch = (updater: (m: AiChatMessage) => AiChatMessage) =>
-          setMessages((prev) => prev.map((m) => (m.id === assistantId ? updater(m) : m)));
+        appendTo(key, {
+          id: assistantId,
+          role: "assistant",
+          content: "",
+          recommendations: null,
+          credits_charged: 0,
+          created_at: new Date().toISOString(),
+          steps: []
+        });
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -454,40 +551,33 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           }));
         }
       } catch {
+        // The conversation was deleted mid-turn — its thread is gone, so there
+        // is nothing to report into.
+        if (controller.signal.aborted) return;
         // Network/transport error. Finish the streaming bubble in place when
         // there is one — appending a second bubble stranded the user's live
         // "thought process" above a message that looked unrelated to it.
-        const id = streamingId;
-        if (id) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === id
-                ? {
-                    ...m,
-                    content: m.content || dropMsg,
-                    steps: m.steps?.map((s) => (s.kind === "status" && !s.done ? { ...s, done: true } : s))
-                  }
-                : m
-            )
-          );
+        if (streamingId) {
+          patch((m) => ({
+            ...m,
+            content: m.content || dropMsg,
+            steps: m.steps?.map((s) => (s.kind === "status" && !s.done ? { ...s, done: true } : s))
+          }));
         } else {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `err-${Date.now()}`,
-              role: "assistant",
-              content: failMsg,
-              recommendations: null,
-              credits_charged: 0,
-              created_at: new Date().toISOString()
-            }
-          ]);
+          appendTo(key, localMessage(failMsg));
         }
       } finally {
-        setSending(false);
+        markStreaming(key, false);
+        if (controllersRef.current.get(key) === controller) controllersRef.current.delete(key);
+        // Finished while the user was elsewhere — flag it in history so the
+        // answer doesn't sit there unnoticed.
+        if (!controller.signal.aborted && key !== NEW_CHAT_KEY && activeKeyRef.current !== key) {
+          const finishedId = key;
+          setUnseenChatIds((prev) => (prev.includes(finishedId) ? prev : [...prev, finishedId]));
+        }
       }
     },
-    [activeChatId, refreshChats, sending, zhUI, failMsg, dropMsg, model]
+    [activeChatId, refreshChats, zhUI, failMsg, dropMsg, model, appendTo, patchThread, markStreaming]
   );
 
   return (
@@ -496,6 +586,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         <ChatSidebar
           chats={chats}
           activeChatId={activeChatId}
+          streamingChatIds={streamingKeys}
+          unseenChatIds={unseenChatIds}
           onSelect={handleSelect}
           onNewChat={handleNewChat}
           onRename={handleRename}
@@ -511,6 +603,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         messages={messages}
         loadingMessages={loadingMessages}
         sending={sending}
+        atTurnLimit={atTurnLimit}
         balance={balance}
         creditsLoaded={creditsLoaded}
         unlimited={unlimited}
@@ -522,6 +615,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         initialPrompt={initialPrompt}
         chats={chats}
         activeChatId={activeChatId}
+        streamingChatIds={streamingKeys}
+        unseenChatIds={unseenChatIds}
         activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
         onClaimCheckin={handleClaimCheckin}
         onSend={handleSend}

@@ -5,12 +5,18 @@ import { MoreHorizontal, Pencil, Plus, Trash2, Wallet, X } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { confirmDialog } from "@/components/native/native-menu";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
+import { ChatActivityDot } from "@/components/smart-picker/chat-activity-dot";
 import type { AiChatSummary } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 
 type Props = {
   chats: AiChatSummary[];
   activeChatId: string | null;
+  // Conversations generating right now, and those whose answer landed while the
+  // user was reading a different one. Both render as a dot on the row so
+  // background work is visible from anywhere in the picker.
+  streamingChatIds: string[];
+  unseenChatIds: string[];
   onSelect: (id: string) => void;
   onNewChat: () => void;
   onRename: (id: string, title: string) => void;
@@ -41,6 +47,8 @@ const GROUP_LABEL: Record<"today" | "yesterday" | "earlier", string> = {
 export function ChatSidebar({
   chats,
   activeChatId,
+  streamingChatIds,
+  unseenChatIds,
   onSelect,
   onNewChat,
   onRename,
@@ -147,9 +155,15 @@ export function ChatSidebar({
                       <button
                         type="button"
                         onClick={() => onSelect(chat.id)}
-                        className={`min-w-0 flex-1 truncate px-2.5 py-2 text-left text-sm ${active ? "font-medium" : ""}`}
+                        className={`flex min-w-0 flex-1 items-center px-2.5 py-2 text-left text-sm ${active ? "font-medium" : ""}`}
                       >
-                        {chat.title?.trim() || translate("New conversation")}
+                        <ChatActivityDot
+                          streaming={streamingChatIds.includes(chat.id)}
+                          unseen={unseenChatIds.includes(chat.id)}
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {chat.title?.trim() || translate("New conversation")}
+                        </span>
                       </button>
                       <button
                         type="button"
