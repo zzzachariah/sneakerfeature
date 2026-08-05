@@ -95,423 +95,431 @@ export function Navbar() {
     "relative inline-flex h-11 w-11 items-center justify-center rounded-full text-[rgb(var(--subtext))] transition-[background-color,color,transform] duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-[rgb(var(--text)/0.08)] hover:text-[rgb(var(--text))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] md:h-8 md:w-8";
 
   return (
-    <header
-      className={`sticky top-0 z-40 transition-[background-color,border-color] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
-        scrolled
-          ? "glass-nav"
-          : "border-b border-transparent bg-transparent"
-      }`}
-      style={{ paddingTop: "var(--safe-top)" }}
-      data-app-header="true"
-      data-no-translate="true"
-    >
-      <div className="container-shell relative flex h-16 items-center gap-2">
-        {/* Left cluster: logo + the membership chip. The chip used to sit at the
-            head of the RIGHT cluster, where it pushed that cluster wide enough
-            to run under the centered scroll indicator on phones. Sitting beside
-            the logo it balances the two icon buttons on the right and leaves the
-            middle free. */}
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Link
-            href="/"
-            aria-label="sneakerfeature — home"
-            className="inline-flex shrink-0 items-center transition-opacity hover:opacity-80"
-          >
-            <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
-              <Image src="/logo.png" alt="sneakerfeature" width={28} height={28} priority className="nav-logo" />
-            </span>
-          </Link>
-
-          <span data-tutorial="nav-upgrade">
-            <UpgradeNav />
-          </span>
-        </div>
-
-        <nav
-          className="pointer-events-auto hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
-          data-tutorial="nav-links"
-        >
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`group relative inline-flex flex-col items-center rounded-lg px-3 py-2 text-[0.825rem] font-medium transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
-                  active
-                    ? "text-[rgb(var(--text))]"
-                    : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
-                }`}
-              >
-                {translate(item.label)}
-                <span
-                  aria-hidden
-                  className="mt-1.5 h-[2px] rounded-sm transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-[rgb(var(--text)/0.4)]"
-                  style={{
-                    width: active ? 22 : 4,
-                    background: active
-                      ? "rgb(var(--text)/0.8)"
-                      : "rgb(var(--muted)/0.55)"
-                  }}
-                />
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Mobile-only in-page scroll indicator — takes the otherwise empty
-            middle of the navbar on phones (continuous-scroll pages publish their
-            sections to it). It is a real flex child rather than an absolutely
-            centered overlay, so it can only ever use the space the two clusters
-            leave behind: overlapping them is geometrically impossible, and a
-            long section title truncates instead. */}
-        <div className="pointer-events-none flex min-w-0 flex-1 items-center justify-center md:hidden">
-          <NavScrollIndicator />
-        </div>
-
-        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-1">
-          <Tooltip label={translate("Search")} className="hidden md:inline-flex">
+    <>
+      {/* The soft occlusion under the bar (see `.nav-veil` in globals.css). It
+          is a SIBLING of the header, not a child: the header's own z-40
+          stacking context would trap it at z-40 and it would then paint over
+          the z-30 chrome that pins directly beneath the nav. Driven by the same
+          `scrolled` flag as the bar's glass film, so both arrive together. */}
+      <div className="nav-veil" data-visible={scrolled ? "true" : "false"} aria-hidden="true" />
+      <header
+        className={`sticky top-0 z-40 transition-[background-color,border-color] duration-[220ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          scrolled
+            ? "glass-nav"
+            : "border-b border-transparent bg-transparent"
+        }`}
+        style={{ paddingTop: "var(--safe-top)" }}
+        data-app-header="true"
+        data-no-translate="true"
+      >
+        <div className="container-shell relative flex h-16 items-center gap-2">
+          {/* Left cluster: logo + the membership chip. The chip used to sit at the
+              head of the RIGHT cluster, where it pushed that cluster wide enough
+              to run under the centered scroll indicator on phones. Sitting beside
+              the logo it balances the two icon buttons on the right and leaves the
+              middle free. */}
+          <div className="flex shrink-0 items-center gap-1.5">
             <Link
-              href="/search/advanced"
-              className={iconBtn}
-              aria-label={translate("Advanced Search")}
-              data-tutorial="nav-search"
+              href="/"
+              aria-label="sneakerfeature — home"
+              className="inline-flex shrink-0 items-center transition-opacity hover:opacity-80"
             >
-              <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
+              <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
+                <Image src="/logo.png" alt="sneakerfeature" width={28} height={28} priority className="nav-logo" />
+              </span>
             </Link>
-          </Tooltip>
 
-          <span className="hidden md:inline-flex" data-tutorial="nav-premium">
-            <PremiumSkinToggle />
-          </span>
+            <span data-tutorial="nav-upgrade">
+              <UpgradeNav />
+            </span>
+          </div>
 
-          <span className="hidden md:inline-flex" data-tutorial="nav-theme">
-            <ThemeToggle />
-          </span>
-
-          {/* Secondary actions consolidated into a single "More" menu so the
-              desktop bar stays compact and the centered nav can't collide with
-              a wall of icons at narrow widths. The mobile hamburger below is
-              intentionally left unchanged. */}
-          <div ref={moreRef} className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
-            <Tooltip label={zh ? "更多" : "More"}>
-              <button
-                type="button"
-                onClick={() => setMoreOpen((prev) => !prev)}
-                className={iconBtn}
-                aria-haspopup="menu"
-                aria-expanded={moreOpen}
-                aria-label={zh ? "更多" : "More"}
-                data-tutorial="nav-more"
-              >
-                <MoreHorizontal className="h-[18px] w-[18px] md:h-4 md:w-4" />
-              </button>
-            </Tooltip>
-            {moreOpen && (
-              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    if (!personaLoggedIn) {
-                      router.push("/login");
-                      return;
-                    }
-                    openPersonaModal();
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <User className="h-4 w-4 shrink-0" />
-                  {translate("Player profile")}
-                </button>
+          <nav
+            className="pointer-events-auto hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
+            data-tutorial="nav-links"
+          >
+            {navItems.map((item) => {
+              const active = pathname === item.href;
+              return (
                 <Link
-                  href="/download"
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  data-download-entry
+                  key={item.href}
+                  href={item.href}
+                  className={`group relative inline-flex flex-col items-center rounded-lg px-3 py-2 text-[0.825rem] font-medium transition-colors duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.25)] ${
+                    active
+                      ? "text-[rgb(var(--text))]"
+                      : "text-[rgb(var(--subtext))] hover:text-[rgb(var(--text))]"
+                  }`}
                 >
-                  <Download className="h-4 w-4 shrink-0" />
-                  {zh ? "下载 App" : "Get the app"}
+                  {translate(item.label)}
+                  <span
+                    aria-hidden
+                    className="mt-1.5 h-[2px] rounded-sm transition-[width,background-color] duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:bg-[rgb(var(--text)/0.4)]"
+                    style={{
+                      width: active ? 22 : 4,
+                      background: active
+                        ? "rgb(var(--text)/0.8)"
+                        : "rgb(var(--muted)/0.55)"
+                    }}
+                  />
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    startTutorial();
-                    setMoreOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <HelpCircle className="h-4 w-4 shrink-0" />
-                  {translate("Site tour")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAboutOpen(true);
-                    setMoreOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Sparkles className="h-4 w-4 shrink-0" />
-                  {translate("About")}
-                </button>
+              );
+            })}
+          </nav>
 
-                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
-                <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
-                  {translate("Language")}
-                </div>
-                <button
-                  type="button"
-                  data-translation-lock="true"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  onClick={() => {
-                    requestLocaleChange("en");
-                    setMoreOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-3">
-                    <Languages className="h-4 w-4 shrink-0" /> English
-                  </span>
-                  {locale === "en" ? <Check className="h-4 w-4" /> : null}
-                </button>
-                <button
-                  type="button"
-                  data-translation-lock="true"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  onClick={() => {
-                    requestLocaleChange("zh");
-                    setMoreOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-3">
-                    <Languages className="h-4 w-4 shrink-0" /> 中文
-                  </span>
-                  {locale === "zh" ? <Check className="h-4 w-4" /> : null}
-                </button>
+          {/* Mobile-only in-page scroll indicator — takes the otherwise empty
+              middle of the navbar on phones (continuous-scroll pages publish their
+              sections to it). It is a real flex child rather than an absolutely
+              centered overlay, so it can only ever use the space the two clusters
+              leave behind: overlapping them is geometrically impossible, and a
+              long section title truncates instead. */}
+          <div className="pointer-events-none flex min-w-0 flex-1 items-center justify-center md:hidden">
+            <NavScrollIndicator />
+          </div>
 
-                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
-                {[
-                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
-                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
-                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
-                  { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
-                ].map((l) => (
+          <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-1">
+            <Tooltip label={translate("Search")} className="hidden md:inline-flex">
+              <Link
+                href="/search/advanced"
+                className={iconBtn}
+                aria-label={translate("Advanced Search")}
+                data-tutorial="nav-search"
+              >
+                <Search className="h-[18px] w-[18px] md:h-4 md:w-4" />
+              </Link>
+            </Tooltip>
+
+            <span className="hidden md:inline-flex" data-tutorial="nav-premium">
+              <PremiumSkinToggle />
+            </span>
+
+            <span className="hidden md:inline-flex" data-tutorial="nav-theme">
+              <ThemeToggle />
+            </span>
+
+            {/* Secondary actions consolidated into a single "More" menu so the
+                desktop bar stays compact and the centered nav can't collide with
+                a wall of icons at narrow widths. The mobile hamburger below is
+                intentionally left unchanged. */}
+            <div ref={moreRef} className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
+              <Tooltip label={zh ? "更多" : "More"}>
+                <button
+                  type="button"
+                  onClick={() => setMoreOpen((prev) => !prev)}
+                  className={iconBtn}
+                  aria-haspopup="menu"
+                  aria-expanded={moreOpen}
+                  aria-label={zh ? "更多" : "More"}
+                  data-tutorial="nav-more"
+                >
+                  <MoreHorizontal className="h-[18px] w-[18px] md:h-4 md:w-4" />
+                </button>
+              </Tooltip>
+              {moreOpen && (
+                <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMoreOpen(false);
+                      if (!personaLoggedIn) {
+                        router.push("/login");
+                        return;
+                      }
+                      openPersonaModal();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <User className="h-4 w-4 shrink-0" />
+                    {translate("Player profile")}
+                  </button>
                   <Link
-                    key={l.href}
-                    href={l.href}
+                    href="/download"
+                    onClick={() => setMoreOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    data-download-entry
+                  >
+                    <Download className="h-4 w-4 shrink-0" />
+                    {zh ? "下载 App" : "Get the app"}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startTutorial();
+                      setMoreOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <HelpCircle className="h-4 w-4 shrink-0" />
+                    {translate("Site tour")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAboutOpen(true);
+                      setMoreOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    {translate("About")}
+                  </button>
+
+                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+                  <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
+                    {translate("Language")}
+                  </div>
+                  <button
+                    type="button"
+                    data-translation-lock="true"
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    onClick={() => {
+                      requestLocaleChange("en");
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Languages className="h-4 w-4 shrink-0" /> English
+                    </span>
+                    {locale === "en" ? <Check className="h-4 w-4" /> : null}
+                  </button>
+                  <button
+                    type="button"
+                    data-translation-lock="true"
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    onClick={() => {
+                      requestLocaleChange("zh");
+                      setMoreOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Languages className="h-4 w-4 shrink-0" /> 中文
+                    </span>
+                    {locale === "zh" ? <Check className="h-4 w-4" /> : null}
+                  </button>
+
+                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+                  {[
+                    { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
+                    { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
+                    { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
+                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
+                  ].map((l) => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setMoreOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    >
+                      <l.icon className="h-4 w-4 shrink-0" />
+                      {l.label}
+                    </Link>
+                  ))}
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
                     onClick={() => setMoreOpen(false)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
-                    <l.icon className="h-4 w-4 shrink-0" />
-                    {l.label}
-                  </Link>
-                ))}
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  onClick={() => setMoreOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Gavel className="h-4 w-4 shrink-0" />
-                  {zh ? "联系" : "Contact"}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    reopenCookieConsent();
-                    setMoreOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Gavel className="h-4 w-4 shrink-0" />
-                  {zh ? "Cookie 设置" : "Cookie settings"}
-                </button>
-              </div>
-            )}
-          </div>
+                    <Gavel className="h-4 w-4 shrink-0" />
+                    {zh ? "联系" : "Contact"}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reopenCookieConsent();
+                      setMoreOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <Gavel className="h-4 w-4 shrink-0" />
+                    {zh ? "Cookie 设置" : "Cookie settings"}
+                  </button>
+                </div>
+              )}
+            </div>
 
-          {/* Mobile-only hamburger: collapses the icon cluster into a labeled menu.
-              `order-last` keeps it at the far right of the cluster (after the
-              username + account avatar) on phones. */}
-          <div ref={menuRef} className="relative order-last md:hidden" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              className={`${iconBtn} nav-glass-pill`}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label={translate("Menu")}
-              data-tutorial="nav-menu"
-            >
-              <Menu className="h-[18px] w-[18px]" />
-            </button>
-            {menuOpen && (
-              <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
-                <Link
-                  href="/download"
-                  prefetch={true}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  data-download-entry
-                >
-                  <Download className="h-4 w-4 shrink-0" />
-                  {zh ? "下载 App" : "Get the app"}
-                </Link>
-
-                {(SUBSCRIBE_LIVE || isAdmin) && (
+            {/* Mobile-only hamburger: collapses the icon cluster into a labeled menu.
+                `order-last` keeps it at the far right of the cluster (after the
+                username + account avatar) on phones. */}
+            <div ref={menuRef} className="relative order-last md:hidden" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((prev) => !prev)}
+                className={`${iconBtn} nav-glass-pill`}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={translate("Menu")}
+                data-tutorial="nav-menu"
+              >
+                <Menu className="h-[18px] w-[18px]" />
+              </button>
+              {menuOpen && (
+                <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
                   <Link
-                    href="/subscribe"
+                    href="/download"
+                    prefetch={true}
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    data-download-entry
+                  >
+                    <Download className="h-4 w-4 shrink-0" />
+                    {zh ? "下载 App" : "Get the app"}
+                  </Link>
+
+                  {(SUBSCRIBE_LIVE || isAdmin) && (
+                    <Link
+                      href="/subscribe"
+                      prefetch={true}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    >
+                      <Crown className="h-4 w-4 shrink-0" style={{ color: "#d9b45a" }} />
+                      {translate("Membership")}
+                    </Link>
+                  )}
+
+                  <Link
+                    href="/search/advanced"
                     prefetch={true}
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
-                    <Crown className="h-4 w-4 shrink-0" style={{ color: "#d9b45a" }} />
-                    {translate("Membership")}
+                    <Search className="h-4 w-4 shrink-0" />
+                    {translate("Advanced Search")}
                   </Link>
-                )}
 
-                <Link
-                  href="/search/advanced"
-                  prefetch={true}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Search className="h-4 w-4 shrink-0" />
-                  {translate("Advanced Search")}
-                </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!personaLoggedIn) {
+                        router.push("/login");
+                        return;
+                      }
+                      openPersonaModal();
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <User className="h-4 w-4 shrink-0" />
+                    {translate("Player profile")}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!personaLoggedIn) {
-                      router.push("/login");
-                      return;
-                    }
-                    openPersonaModal();
-                    setMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <User className="h-4 w-4 shrink-0" />
-                  {translate("Player profile")}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      startTutorial();
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <HelpCircle className="h-4 w-4 shrink-0" />
+                    {translate("Site tour")}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    startTutorial();
-                    setMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <HelpCircle className="h-4 w-4 shrink-0" />
-                  {translate("Site tour")}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAboutOpen(true);
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    {translate("About")}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAboutOpen(true);
-                    setMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Sparkles className="h-4 w-4 shrink-0" />
-                  {translate("About")}
-                </button>
+                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
 
-                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+                  {/* Language */}
+                  <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
+                    {translate("Language")}
+                  </div>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    data-translation-lock="true"
+                    onClick={() => {
+                      requestLocaleChange("en");
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Languages className="h-4 w-4 shrink-0" />
+                      English
+                    </span>
+                    {locale === "en" ? <Check className="h-4 w-4" /> : null}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    data-translation-lock="true"
+                    onClick={() => {
+                      requestLocaleChange("zh");
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <span className="flex items-center gap-3">
+                      <Languages className="h-4 w-4 shrink-0" />
+                      中文
+                    </span>
+                    {locale === "zh" ? <Check className="h-4 w-4" /> : null}
+                  </button>
 
-                {/* Language */}
-                <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
-                  {translate("Language")}
-                </div>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  data-translation-lock="true"
-                  onClick={() => {
-                    requestLocaleChange("en");
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-3">
-                    <Languages className="h-4 w-4 shrink-0" />
-                    English
-                  </span>
-                  {locale === "en" ? <Check className="h-4 w-4" /> : null}
-                </button>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  data-translation-lock="true"
-                  onClick={() => {
-                    requestLocaleChange("zh");
-                    setMenuOpen(false);
-                  }}
-                >
-                  <span className="flex items-center gap-3">
-                    <Languages className="h-4 w-4 shrink-0" />
-                    中文
-                  </span>
-                  {locale === "zh" ? <Check className="h-4 w-4" /> : null}
-                </button>
+                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
+                  <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
+                    {zh ? "整站质感" : "Premium UI"}
+                  </div>
+                  <PremiumSkinOptions onPick={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
 
-                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
-                <div className="px-3 pb-1 pt-1 text-[0.7rem] font-medium uppercase tracking-wide text-[rgb(var(--subtext))]">
-                  {zh ? "整站质感" : "Premium UI"}
-                </div>
-                <PremiumSkinOptions onPick={() => setMenuOpen(false)} onClose={() => setMenuOpen(false)} />
+                  {/* Theme still follows the system on mobile; the Premium UI skin above is separate. */}
 
-                {/* Theme still follows the system on mobile; the Premium UI skin above is separate. */}
+                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
 
-                <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
-
-                {[
-                  { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
-                  { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
-                  { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
-                  { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
-                ].map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
+                  {[
+                    { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
+                    { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
+                    { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
+                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
+                  ].map((l) => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                    >
+                      <l.icon className="h-4 w-4 shrink-0" />
+                      {l.label}
+                    </Link>
+                  ))}
+                  <a
+                    href={`mailto:${CONTACT_EMAIL}`}
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
-                    <l.icon className="h-4 w-4 shrink-0" />
-                    {l.label}
-                  </Link>
-                ))}
-                <a
-                  href={`mailto:${CONTACT_EMAIL}`}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Gavel className="h-4 w-4 shrink-0" />
-                  {zh ? "联系" : "Contact"}
-                </a>
-                <button
-                  type="button"
-                  onClick={() => {
-                    reopenCookieConsent();
-                    setMenuOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                >
-                  <Gavel className="h-4 w-4 shrink-0" />
-                  {zh ? "Cookie 设置" : "Cookie settings"}
-                </button>
-              </div>
-            )}
+                    <Gavel className="h-4 w-4 shrink-0" />
+                    {zh ? "联系" : "Contact"}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      reopenCookieConsent();
+                      setMenuOpen(false);
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
+                  >
+                    <Gavel className="h-4 w-4 shrink-0" />
+                    {zh ? "Cookie 设置" : "Cookie settings"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <span className="nav-glass-pill inline-flex rounded-full" data-tutorial="nav-account">
+              <AccountMenu />
+            </span>
           </div>
-
-          <span className="nav-glass-pill inline-flex rounded-full" data-tutorial="nav-account">
-            <AccountMenu />
-          </span>
         </div>
-      </div>
 
-      <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
-    </header>
+        <AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />
+      </header>
+    </>
   );
 }

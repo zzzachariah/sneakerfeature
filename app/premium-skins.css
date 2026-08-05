@@ -266,6 +266,44 @@ html[data-premium="champion"] .pui-cta {
   html[data-premium="obsidian"] .glass-nav { border-bottom-color: rgb(var(--pui-platinum) / 0.24); }
 }
 
+/* The nav veil (globals.css) is the band where scrolling content dissolves out
+   under the bar. Its ground already follows each skin (it is tinted with --bg),
+   but the DISSOLVE ITSELF is chrome, so each design language sets its own
+   pacing: how far the fade runs, how firmly it hides, and the accent that
+   bleeds out of the bar into it. Declared on the root, NOT on .nav-veil — the
+   accessibility overrides in globals.css declare on the element, and a direct
+   declaration always beats an inherited one, so Reduce Transparency / higher
+   contrast keep the last word on every skin.
+     editorial   long, quiet, champagne bleeding into the page like ink on paper
+     instrument  cyan→violet haze, as if the HUD were lighting the air below it
+     gallery     shortest and near-silent: a museum wall, no glow at all
+     arena       short and firm, gold-lit slab edge */
+html[data-premium="sapphire"] {
+  --nav-veil-fade: 64px;
+  --nav-veil-strength: 1.02;
+  --nav-veil-wash: linear-gradient(to bottom, rgb(var(--pui-gold) / 0.1), rgb(var(--pui-gold) / 0) 62%);
+}
+html[data-premium="aurora"] {
+  --nav-veil-fade: 58px;
+  --nav-veil-strength: 1;
+  --nav-veil-wash: linear-gradient(
+    to bottom,
+    rgb(var(--pui-glow) / 0.12),
+    rgb(var(--pui-glow-2) / 0.06) 46%,
+    rgb(var(--pui-glow) / 0) 76%
+  );
+}
+html[data-premium="obsidian"] {
+  --nav-veil-fade: 38px;
+  --nav-veil-strength: 0.98;
+  --nav-veil-wash: linear-gradient(to bottom, rgb(var(--pui-platinum) / 0.07), rgb(var(--pui-platinum) / 0) 55%);
+}
+html[data-premium="champion"] {
+  --nav-veil-fade: 44px;
+  --nav-veil-strength: 1.06;
+  --nav-veil-wash: linear-gradient(to bottom, rgb(var(--pui-gold) / 0.14), rgb(var(--pui-gold) / 0) 58%);
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    6 · AMBIENT — living background layers for the two "energetic" skins.
    The base washes come from globals.css (.app-ambient-bg[data-premium]); we add

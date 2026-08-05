@@ -272,7 +272,10 @@ export default function AdminSubmissionDetailPage() {
           Sticky offsets track the AdminMobileShell bar: 68px tall below md
           (44px hamburger + py-3), 64px at md–lg, gone at lg+ where only the
           workspace's 1.5rem top padding remains. */}
-      <div className="sticky z-20 [top:calc(var(--safe-top,0px)+68px)] md:[top:calc(var(--safe-top,0px)+64px)] lg:[top:1.5rem] xl:hidden">
+      {/* z-30 (not z-20) is the site-wide layer for chrome that pins beneath the
+          navbar: it puts this above the nav veil, which would otherwise wash the
+          switcher out while it is parked inside the veil's dissolve band. */}
+      <div className="sticky z-30 [top:calc(var(--safe-top,0px)+68px)] md:[top:calc(var(--safe-top,0px)+64px)] lg:[top:1.5rem] xl:hidden">
         <div className="glass-strong premium-border grid grid-cols-3 gap-1 rounded-2xl p-1">
           {PANES.map((p) => (
             <button

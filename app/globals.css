@@ -89,6 +89,17 @@
      Bottom mobile nav appears <md only and includes safe-area inset. */
   --top-nav-h: calc(64px + var(--safe-top));
   --mobile-nav-h: 0px;
+  /* Nav veil — the soft occlusion that lets scrolling content dissolve under
+     the top bar instead of colliding with it (see `.nav-veil` below).
+       fade      how far past the bar the dissolve runs
+       strength  multiplies every stop's alpha (per-skin / a11y tuning)
+       tint      the ground the content dissolves into — --bg, so every theme
+                 AND every Premium UI skin retunes it for free
+       blur      progressive-blur radius (Liquid Glass surfaces only) */
+  --nav-veil-fade: 52px;
+  --nav-veil-strength: 1;
+  --nav-veil-tint: var(--bg);
+  --nav-veil-blur: 10px;
 }
 
 /* Android (Capacitor 8) runs forced edge-to-edge, so without this the web top
@@ -503,6 +514,127 @@ a, button, [role="button"], label, input, select, textarea, summary {
     mask-composite: exclude;
     pointer-events: none;
     z-index: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   NAV VEIL — the soft occlusion under the top bar.
+
+   Scrolling content used to run straight into the header. On phones the bar is
+   deliberately transparent (only the pills carry material), so shoe names and
+   scores slid up BESIDE the nav controls with nothing between them; on desktop
+   the scrolled glass film simply ends in a hard 1px line. Either way the
+   chrome/content boundary was a collision rather than a transition, and the
+   overlap zone stopped being readable.
+
+   The veil is one click-through layer that seats the page ground behind the bar
+   and then lets it ease away below it, so content leaves the viewport by
+   DISSOLVING instead of sliding under an edge. Tinted with --nav-veil-tint
+   (= --bg), the token every theme and every Premium UI skin already retunes, so
+   it is automatically right on all of them; each skin then tunes its own
+   character — fade length, strength, optional accent bleed — in
+   premium-skins.css §5. It fades in with the same `scrolled` flag that raises
+   .glass-nav, so the top of a page keeps its airy transparent header.
+
+   Stacking: it is a SIBLING of <header>, not a child — the header's own z-40
+   stacking context would trap it — and sits at z-index 25: above page content,
+   below the z-30 chrome that intentionally pins beneath the nav (home's sticky
+   toolbar, the detail back-button row, the admin shell bar), which therefore
+   stays crisp instead of being washed out. Rendered by
+   components/layout/navbar.tsx, which owns the scroll flag. */
+.nav-veil {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 320ms var(--ease);
+  /* Phones: the header band itself is transparent, so the veil has to cover it
+     too — near-opaque behind the floating pills, then eased out below the bar.
+     The stops are spaced along an ease-out curve (not a straight alpha ramp)
+     because a linear fade to zero still shows a visible edge. */
+  height: calc(var(--top-nav-h) + var(--nav-veil-fade));
+  background-image:
+    var(--nav-veil-wash, none),
+    linear-gradient(
+      to bottom,
+      rgb(var(--nav-veil-tint) / calc(0.97 * var(--nav-veil-strength))) 0,
+      rgb(var(--nav-veil-tint) / calc(0.94 * var(--nav-veil-strength))) var(--top-nav-h),
+      rgb(var(--nav-veil-tint) / calc(0.74 * var(--nav-veil-strength))) calc(var(--top-nav-h) + var(--nav-veil-fade) * 0.22),
+      rgb(var(--nav-veil-tint) / calc(0.47 * var(--nav-veil-strength))) calc(var(--top-nav-h) + var(--nav-veil-fade) * 0.45),
+      rgb(var(--nav-veil-tint) / calc(0.22 * var(--nav-veil-strength))) calc(var(--top-nav-h) + var(--nav-veil-fade) * 0.68),
+      rgb(var(--nav-veil-tint) / calc(0.07 * var(--nav-veil-strength))) calc(var(--top-nav-h) + var(--nav-veil-fade) * 0.86),
+      rgb(var(--nav-veil-tint) / 0) 100%
+    );
+}
+.nav-veil[data-visible="true"] {
+  opacity: 1;
+}
+
+/* Desktop keeps the full-width .glass-nav slab, so the bar band already has its
+   own material — the veil only has to soften what happens BELOW it. Starting at
+   the bar's bottom edge also keeps the glass film's live backdrop intact. */
+@media (min-width: 768px) {
+  .nav-veil {
+    top: var(--top-nav-h);
+    height: var(--nav-veil-fade);
+    background-image:
+      var(--nav-veil-wash, none),
+      linear-gradient(
+        to bottom,
+        rgb(var(--nav-veil-tint) / calc(0.88 * var(--nav-veil-strength))) 0,
+        rgb(var(--nav-veil-tint) / calc(0.7 * var(--nav-veil-strength))) 24%,
+        rgb(var(--nav-veil-tint) / calc(0.46 * var(--nav-veil-strength))) 48%,
+        rgb(var(--nav-veil-tint) / calc(0.22 * var(--nav-veil-strength))) 70%,
+        rgb(var(--nav-veil-tint) / calc(0.07 * var(--nav-veil-strength))) 87%,
+        rgb(var(--nav-veil-tint) / 0) 100%
+      );
+  }
+}
+
+/* Liquid Glass surfaces (the iOS app — every other surface runs data-skin=
+   "clean", which is deliberately blur-free) get a progressive blur on top of the
+   tint: the band blurs hardest right under the bar and the blur itself fades out
+   with the mask, which is what makes the dissolve read as depth rather than as a
+   painted-on gradient. Kept on its own ::after so masking the blur can't also
+   clip the tint ramp above. */
+html:not([data-skin="clean"]) .nav-veil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  -webkit-backdrop-filter: blur(var(--nav-veil-blur));
+  backdrop-filter: blur(var(--nav-veil-blur));
+  -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 52%, rgb(0 0 0 / 0.45) 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0, #000 52%, rgb(0 0 0 / 0.45) 78%, transparent 100%);
+}
+
+/* In the iOS app the header is replaced by a real native Liquid Glass
+   UINavigationBar, which draws its own scroll-edge blur — a web veil would
+   double it. (The class only lands once configureNavBar resolves, so a missing
+   plugin keeps both the web header and this veil.) */
+html.native-topbar-active .nav-veil {
+  display: none;
+}
+
+/* Reduce Transparency wants the chrome to read as a solid edge: push the ramp
+   to full opacity under the bar and shorten it so the boundary is definite. */
+@media (prefers-reduced-transparency: reduce) {
+  .nav-veil {
+    --nav-veil-strength: 1.12;
+    --nav-veil-fade: 40px;
+  }
+  html:not([data-skin="clean"]) .nav-veil::after {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+/* Higher contrast → a shorter, firmer dissolve (less half-visible content). */
+@media (prefers-contrast: more) {
+  .nav-veil {
+    --nav-veil-strength: 1.1;
+    --nav-veil-fade: 36px;
   }
 }
 
