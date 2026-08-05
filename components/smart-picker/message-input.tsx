@@ -33,6 +33,17 @@ type Props = {
   prefillNonce?: number;
 };
 
+// Composer box height, in px, kept in sync with the Tailwind classes on the
+// textarea (`min-h-14 sm:min-h-10`, `py-4 sm:py-2`) — JS owns the auto-grow so
+// both have to agree on where a single line rests and where growth stops.
+// The phone gets 56px rather than 40px: on a narrow screen the model chip, the
+// ×N count and the send button eat most of the row, so at 40px the composer read
+// as a sliver and sat under the 44px native tap target.
+const COMPOSER_H = {
+  phone: { rest: 56, max: 160 },
+  wide: { rest: 40, max: 128 },
+};
+
 export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, model, onSelectModel, onSend, onCountChange, prefillText, prefillNonce = 0 }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
@@ -85,9 +96,12 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
   const growTextarea = () => {
     const el = textareaRef.current;
     if (!el) return;
+    // Phones get the taller box (see COMPOSER_H) — read the breakpoint at grow
+    // time so a rotation into landscape falls back to the compact desktop bar.
+    const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 640px)").matches;
+    const { rest, max } = wide ? COMPOSER_H.wide : COMPOSER_H.phone;
     el.style.height = "auto";
-    // Floor at 40px (h-10) so a single line matches the count + send button height.
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, 40), 128)}px`;
+    el.style.height = `${Math.min(Math.max(el.scrollHeight, rest), max)}px`;
   };
 
   const submit = () => {
@@ -144,9 +158,10 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
       )}
 
       <div className="flex items-end gap-3 px-4 pt-3 pb-0.5">
-        {/* Auto-growing textarea — resting height h-10 (2.5rem) with vertically
-            centered text so it sits on the same line and the same height as the
-            ×N count and the send button. 16px font prevents iOS auto-zoom on focus. */}
+        {/* Auto-growing textarea — rests at h-14 on phones, h-10 from sm up, with
+            the single line vertically centered by the padding so it sits on the
+            same line and the same height as the ×N count and the send button.
+            16px font prevents iOS auto-zoom on focus. */}
         <textarea
           ref={textareaRef}
           value={text}
@@ -154,21 +169,21 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
           onKeyDown={onKeyDown}
           rows={1}
           placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
-          style={{ fontSize: "16px", lineHeight: "1.5", minHeight: "2.5rem" }}
-          className="flex-1 resize-none bg-transparent py-2 outline-none placeholder:text-[rgb(var(--subtext)/0.45)]"
+          style={{ fontSize: "16px", lineHeight: "1.5" }}
+          className="min-h-[3.5rem] flex-1 resize-none bg-transparent py-4 outline-none placeholder:text-[rgb(var(--subtext)/0.45)] sm:min-h-[2.5rem] sm:py-2"
         />
 
-        {/* Model chip — an h-10 box (matching the count row and the send
-            button) with the h-8 pill centered inside, so all four controls
-            share one baseline while the pill stays visually light. */}
-        <div className="flex h-10 shrink-0 items-center">
+        {/* Model chip — a box as tall as the resting textarea (matching the count
+            row and the send button) with the h-8 pill centered inside, so all
+            four controls share one baseline while the pill stays visually light. */}
+        <div className="flex h-14 shrink-0 items-center sm:h-10">
           <ModelPicker tier={tier} model={model} onSelect={onSelectModel} />
         </div>
 
         {/* Count — sized to match the send button so they sit on the same
             line with the same visual height. 16px font prevents iOS zoom. */}
         <div
-          className={`flex h-10 shrink-0 items-center text-sm ${
+          className={`flex h-14 shrink-0 items-center text-sm sm:h-10 ${
             insufficient ? "text-[rgb(var(--error))]" : "soft-text"
           }`}
         >
@@ -191,27 +206,30 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
           <span>{translate("shoes")}</span>
         </div>
 
-        {/* Send button — h-10 matches the count row so both sit at the same
-            height on the same line, with a more prominent tappable target. */}
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!isReady}
-          aria-label={sending ? translate("AI is thinking…") : translate("Send")}
-          className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
-            sending
-              ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
-              : isReady
-                ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] shadow-[0_3px_10px_rgb(var(--glass-shadow)/0.18)] hover:scale-105 active:scale-95"
-                : "cursor-not-allowed bg-[rgb(var(--text)/0.1)] text-[rgb(var(--subtext))]"
-          }`}
-        >
-          {sending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
-          )}
-        </button>
+        {/* Send button — the h-10 circle rides in a box as tall as the resting
+            textarea and the count row, so all four controls sit centered on the
+            same line while the button keeps its own size. */}
+        <div className="flex h-14 shrink-0 items-center sm:h-10">
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!isReady}
+            aria-label={sending ? translate("AI is thinking…") : translate("Send")}
+            className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.2)] ${
+              sending
+                ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]"
+                : isReady
+                  ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] shadow-[0_3px_10px_rgb(var(--glass-shadow)/0.18)] hover:scale-105 active:scale-95"
+                  : "cursor-not-allowed bg-[rgb(var(--text)/0.1)] text-[rgb(var(--subtext))]"
+            }`}
+          >
+            {sending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
