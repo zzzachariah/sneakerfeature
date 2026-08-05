@@ -172,7 +172,83 @@ npx cap open android
 
 ---
 
-## 七、性能与缓存（点击反馈 / 预取 / 离线）
+## 七、会员开通（Stripe）在 App 里怎么走
+
+**为什么点「开通会员」会离开 WebView**：Stripe 的收银台在 `checkout.stripe.com`，而
+`capacitor.config.ts` 的 `server.url` 只允许 `snkrfeature.com`（没有配 `allowNavigation`）。
+Capacitor 的导航拦截发现目标不同域，就会取消 WebView 内的跳转、改交给外部浏览器。
+**这是 Capacitor 的既定行为，不是 bug** —— 也不该改成 `allowNavigation`：那会把支付页塞回
+WebView，Apple Pay / 支付宝 / 微信的跳转在里面反而更容易断。
+
+现在的流程（代码见 `lib/native/checkout.ts` + `components/native/capacitor-bridge.tsx`）：
+
+1. 点开通 → `openCheckout()` 判断在原生 App 里 → 用 `@capacitor/browser` 开**应用内浏览器**
+   （iOS 是 SFSafariViewController，安卓是 Custom Tabs）。App 还活着，收银台浮在上面，
+   用户点一下「完成」就回来了，不用去任务切换器。
+2. 同时在 `sessionStorage` 留一个 `sf:checkout-pending` 面包屑。
+3. 付款完成 → Stripe 跳 `success_url`（`/subscribe/complete?session_id=…&app=1`）。
+   `&app=1` 是 `/api/stripe/checkout` 根据 WebView 的 UA 后缀 `sneakerfeature-mobile` 打的标记。
+4. 用户关掉应用内浏览器（或点页面上的「返回 App」深链接）→ Bridge 收到
+   `browserFinished` / `appUrlOpen` / `appStateChange`，消费掉面包屑并 `reload()`，
+   底下那个 `/subscribe` 页重新服务端渲染，会员状态立刻变新。
+
+### 两个必须知道的坑
+
+- **`/subscribe/complete` 必须是 public path**（`middleware.ts` 里已加）。外部浏览器和
+  WebView 的 cookie 罐是分开的，那边一定是未登录的；一旦被鉴权拦截，用户刚付完钱看到的
+  就是登录页，而且页面里的**兜底发货**（`fulfillCheckoutSession`）根本不会执行。
+  发货本身不依赖登录态 —— 用的是 Stripe session metadata 里的 `userId`，且幂等。
+- **Universal Links 救不了这一跳**。Stripe 是服务端 302 重定向过去的，iOS 只对**用户真实点击**
+  的链接触发 universal link。所以完成页上放的是一个**要用户点一下**的自定义 scheme 按钮。
+
+### 原生工程需要注册 URL scheme（否则「返回 App」按钮点了没反应）
+
+scheme 定义在 `lib/native/deep-link.ts` 的 `APP_URL_SCHEME`（当前是 `sneakerfeature`）。
+`cap sync` **不会**自动写这个，得手动加一次：
+
+- **iOS — `ios/App/App/Info.plist`**：加 `CFBundleURLTypes`。Xcode 里也可以走
+  **App target → Info → URL Types → +**，Identifier 填 `com.sneakerfeature.app`，
+  URL Schemes 填 `sneakerfeature`。
+
+  ```xml
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>com.sneakerfeature.app</string>
+      <key>CFBundleURLSchemes</key>
+      <array><string>sneakerfeature</string></array>
+    </dict>
+  </array>
+  ```
+
+- **Android — `android/app/src/main/AndroidManifest.xml`**：在 `.MainActivity` 的
+  `<activity>` 里加一个 intent-filter。
+
+  ```xml
+  <intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="sneakerfeature" />
+  </intent-filter>
+  ```
+
+没注册也不会崩：应用内浏览器的「完成」按钮仍然能回到 App 并刷新，只是页面上那个
+「返回 App」按钮点了没反应。
+
+> 深链接解析（`pathFromDeepLink`）是攻击面 —— 任何 App / 网页 / 二维码都能塞一个 URL 进来，
+> 解析错就是把已登录的 WebView 导去别人的域。回归用 `npm run test:deep-link`。
+
+### 上线前必须确认
+
+**Stripe webhook 一定要配好**（`STRIPE_WEBHOOK_SECRET` + Dashboard 里指向
+`/api/stripe/webhook`）。完成页的兜底只在用户真的看到那个页面时才跑；用户如果付完直接
+杀掉浏览器，**只有 webhook 能保证发货**。
+
+---
+
+## 八、性能与缓存（点击反馈 / 预取 / 离线）
 
 针对「点球鞋要点好几次」+「App 整体慢半拍」，已做的（多为纯 Web，部署即生效）：
 

@@ -1051,6 +1051,9 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "yesterday": "昨天",
   "earlier": "更早",
   "new conversation": "新对话",
+  "new reply": "有新回复",
+  "other conversations are still generating — you can send here once one of them finishes.":
+    "其他对话还在生成中——等其中一个完成后就可以在这里发送了。",
   "download report": "下载报告",
   // ── Smart Picker: follow-up composer + credits ledger ──
   "answer here to keep going…": "在这里回答，继续聊…",

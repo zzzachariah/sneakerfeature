@@ -102,13 +102,21 @@ export async function POST(request: Request) {
 
     const metadata = { userId: profile.id, tier, duration };
     const origin = siteOrigin();
+    // Checkout runs in a browser outside the WebView, so the return page has no
+    // way to tell that the buyer came from the native app. Tag the success_url
+    // now, off the shell's User-Agent marker (capacitor.config.ts appends
+    // "sneakerfeature-mobile"), so /subscribe/complete can offer a tap-to-return
+    // deep link — the one thing that reliably reopens the app, since Stripe's
+    // redirect chain can't.
+    const fromNativeApp = (request.headers.get("user-agent") ?? "").includes("sneakerfeature-mobile");
+    const returnMarker = fromNativeApp ? "&app=1" : "";
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [{ price: priceId, quantity: 1 }],
       client_reference_id: profile.id,
       metadata,
       payment_intent_data: { metadata },
-      success_url: `${origin}/subscribe/complete?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/subscribe/complete?session_id={CHECKOUT_SESSION_ID}${returnMarker}`,
       cancel_url: `${origin}/subscribe`
     });
 
