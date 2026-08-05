@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Gift } from "lucide-react";
 import { confirmDialog } from "@/components/native/native-menu";
+import { adminPost } from "@/lib/admin/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -27,10 +28,11 @@ type GiftTier = "pro" | "max";
 
 // Bulk "gift a membership to every member" control (全站送会员).
 //
-// Deliberately two-step: Preview runs the same planner server-side with
-// apply:false and reports exactly who would be touched, and only then does the
-// Gift button unlock. Changing the tier or duration drops the preview, so the
-// button can never fire against numbers the admin didn't just read.
+// Still preview-first — nothing is written until the admin has seen the real
+// numbers — but the preview is no longer a separate button the operator has to
+// find: Gift runs the planner (apply:false), puts the counts in the confirm
+// dialog, and only writes once that is accepted. The Gift button is therefore
+// never inert; a dead primary CTA is indistinguishable from a broken one.
 export function GiftAllPanel() {
   const router = useRouter();
   const [tier, setTier] = useState<GiftTier>("pro");
@@ -51,45 +53,56 @@ export function GiftAllPanel() {
     setError("");
   }
 
-  async function run(apply: boolean) {
+  /** Run the planner. Returns the plan, or null once the error is on screen. */
+  async function run(apply: boolean): Promise<Plan | null> {
     setBusy(apply ? "apply" : "preview");
     setError("");
     if (apply) setMessage("");
     try {
-      const res = await fetch("/api/admin/users/subscription/gift-all", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier, duration, apply })
-      });
-      const json = await res.json();
-      if (!json?.ok) {
-        setError(json?.message ?? "Bulk gift failed.");
-        return;
+      const res = await adminPost<Plan>("/api/admin/users/subscription/gift-all", { tier, duration, apply });
+      if (!res.ok) {
+        setError(res.message);
+        return null;
       }
-      setPlan(json as Plan);
+      setPlan(res.data);
       if (apply) {
         setMessage(
-          `Done — ${json.granted + json.extended} member(s) now on ${TIERS[tier].name}` +
-            (json.permanent ? " (permanent)." : ` until ${new Date(json.expiresAt).toLocaleDateString()}.`)
+          `Done — ${res.data.granted + res.data.extended} member(s) now on ${TIERS[tier].name}` +
+            (res.data.permanent
+              ? " (permanent)."
+              : res.data.expiresAt
+                ? ` until ${new Date(res.data.expiresAt).toLocaleDateString()}.`
+                : ".")
         );
         router.refresh();
       }
-    } catch {
-      setError("Network error. Please retry.");
+      return res.data;
     } finally {
       setBusy(null);
     }
   }
 
+  // Preview → confirm → apply, from one click. Re-previews every time so the
+  // numbers in the dialog are the ones about to be written, even if the member
+  // table moved since the last look.
   async function confirmAndApply() {
-    if (!plan) return;
+    const fresh = await run(false);
+    if (!fresh) return;
+    const count = fresh.granted + fresh.extended;
+    if (count === 0) {
+      setError(
+        `Nothing to gift — all ${fresh.scanned} member(s) already hold ${TIERS[tier].name} or better ` +
+          `(${fresh.skippedHigherTier} on a higher tier, ${fresh.skippedPermanent} permanent).`
+      );
+      return;
+    }
     const ok = await confirmDialog({
       title: `Gift ${TIERS[tier].name} to everyone?`,
       message:
-        `${plan.granted} member(s) start a new ${durationLabel} term and ${plan.extended} active ${TIERS[tier].name} member(s) ` +
+        `${fresh.granted} member(s) start a new ${durationLabel} term and ${fresh.extended} active ${TIERS[tier].name} member(s) ` +
         `get ${durationLabel} added to their remaining time. This can't be undone in bulk — each membership would have to be ` +
         `cancelled one by one.`,
-      okLabel: `Gift to ${affected}`,
+      okLabel: `Gift to ${count}`,
       destructive: true
     });
     if (!ok) return;
@@ -106,7 +119,8 @@ export function GiftAllPanel() {
       </div>
       <p className="mt-1 text-xs soft-text">
         Active higher tiers are never downgraded, and members already on this tier get the time added on top of
-        what&apos;s left. Preview first — the gift is applied in one shot and isn&apos;t reversible in bulk.
+        what&apos;s left. Gift shows you the exact numbers and writes nothing until you confirm — but once applied it
+        isn&apos;t reversible in bulk. To gift only some members, tick them in the list below instead.
       </p>
 
       <div className="mt-3 grid gap-2 sm:grid-cols-[160px,160px,auto,auto]">
@@ -133,16 +147,17 @@ export function GiftAllPanel() {
             </option>
           ))}
         </Select>
-        <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => run(false)}>
+        <Button type="button" variant="secondary" disabled={busy !== null} onClick={() => void run(false)}>
           {busy === "preview" ? "Previewing…" : "Preview"}
         </Button>
-        <Button
-          type="button"
-          variant="primary"
-          disabled={busy !== null || !plan || plan.applied || affected === 0}
-          onClick={confirmAndApply}
-        >
-          {busy === "apply" ? "Gifting…" : plan ? `Gift ${TIERS[tier].name} to ${affected}` : "Preview first"}
+        <Button type="button" variant="primary" disabled={busy !== null} onClick={confirmAndApply}>
+          {busy === "apply"
+            ? "Gifting…"
+            : busy === "preview"
+              ? "Checking…"
+              : plan && !plan.applied
+                ? `Gift ${TIERS[tier].name} to ${affected}`
+                : `Gift ${TIERS[tier].name} to everyone`}
         </Button>
       </div>
 

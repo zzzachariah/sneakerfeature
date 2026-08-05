@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { NativeChrome, type NativeMenuItem, type NativeOptionItem } from "@/components/native/native-chrome";
+import { webConfirm } from "@/components/native/web-confirm";
 
 // True only inside the iOS app with the native-chrome plugin compiled in. Use
 // this to decide whether to swap a web dropdown / window.confirm for a native
@@ -45,8 +46,13 @@ export async function nativeConfirm(opts: {
 
 /**
  * Confirm a (usually destructive) action with the native glass alert inside the
- * iOS app, falling back to the web `confirm()` everywhere else. Lets call sites
- * use one async call instead of branching on the platform themselves.
+ * iOS app, falling back to the in-app web dialog everywhere else. Lets call
+ * sites use one async call instead of branching on the platform themselves.
+ *
+ * Deliberately NOT window.confirm: browsers suppress it in embedded WebViews,
+ * sandboxed frames and after the "block additional dialogs" prompt, and a
+ * suppressed confirm() returns false with nothing drawn — so every guarded
+ * action silently no-ops and the button looks dead. webConfirm always paints.
  */
 export async function confirmDialog(opts: {
   title?: string;
@@ -57,5 +63,5 @@ export async function confirmDialog(opts: {
 }): Promise<boolean> {
   if (nativeMenuAvailable()) return nativeConfirm(opts);
   if (typeof window === "undefined") return false;
-  return window.confirm(opts.title ? `${opts.title}\n\n${opts.message}` : opts.message);
+  return webConfirm(opts);
 }
