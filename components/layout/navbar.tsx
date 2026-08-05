@@ -105,16 +105,27 @@ export function Navbar() {
       data-app-header="true"
       data-no-translate="true"
     >
-      <div className="container-shell relative flex h-16 items-center">
-        <Link
-          href="/"
-          aria-label="sneakerfeature — home"
-          className="inline-flex shrink-0 items-center transition-opacity hover:opacity-80"
-        >
-          <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
-            <Image src="/logo.png" alt="sneakerfeature" width={28} height={28} priority className="nav-logo" />
+      <div className="container-shell relative flex h-16 items-center gap-2">
+        {/* Left cluster: logo + the membership chip. The chip used to sit at the
+            head of the RIGHT cluster, where it pushed that cluster wide enough
+            to run under the centered scroll indicator on phones. Sitting beside
+            the logo it balances the two icon buttons on the right and leaves the
+            middle free. */}
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link
+            href="/"
+            aria-label="sneakerfeature — home"
+            className="inline-flex shrink-0 items-center transition-opacity hover:opacity-80"
+          >
+            <span className="nav-glass-pill inline-flex items-center justify-center rounded-full p-1 md:p-0">
+              <Image src="/logo.png" alt="sneakerfeature" width={28} height={28} priority className="nav-logo" />
+            </span>
+          </Link>
+
+          <span data-tutorial="nav-upgrade">
+            <UpgradeNav />
           </span>
-        </Link>
+        </div>
 
         <nav
           className="pointer-events-auto hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
@@ -148,18 +159,17 @@ export function Navbar() {
           })}
         </nav>
 
-        {/* Mobile-only in-page scroll indicator — lives in the otherwise empty
-            center of the navbar on phones (continuous-scroll pages publish their
-            sections to it). */}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center md:hidden">
+        {/* Mobile-only in-page scroll indicator — takes the otherwise empty
+            middle of the navbar on phones (continuous-scroll pages publish their
+            sections to it). It is a real flex child rather than an absolutely
+            centered overlay, so it can only ever use the space the two clusters
+            leave behind: overlapping them is geometrically impossible, and a
+            long section title truncates instead. */}
+        <div className="pointer-events-none flex min-w-0 flex-1 items-center justify-center md:hidden">
           <NavScrollIndicator />
         </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0 md:gap-1">
-          <span className="mr-0.5 md:mr-1" data-tutorial="nav-upgrade">
-            <UpgradeNav />
-          </span>
-
           <Tooltip label={translate("Search")} className="hidden md:inline-flex">
             <Link
               href="/search/advanced"
