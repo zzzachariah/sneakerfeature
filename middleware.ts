@@ -11,6 +11,13 @@ function isPublicPath(pathname: string) {
     pathname === "/quick-picker" ||
     pathname === "/smart-picker" ||
     pathname === "/subscribe" ||
+    // Stripe's return page. It MUST stay public: checkout happens in an external
+    // browser (native app) or a fresh tab, neither of which carries our auth
+    // cookie, so gating it would bounce the buyer to /login right after they
+    // paid AND skip the page's fallback fulfillment. It grants nothing on its
+    // own — fulfillCheckoutSession reads the userId from the Stripe session's
+    // metadata and is idempotent, so an unauthenticated hit is safe.
+    pathname === "/subscribe/complete" ||
     pathname === "/favorites" ||
     pathname === "/closet" ||
     pathname === "/advisor" ||

@@ -1,7 +1,14 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Crown, CheckCircle2, Clock } from "lucide-react";
+import { Crown, CheckCircle2, Clock, Smartphone } from "lucide-react";
 import { fulfillCheckoutSession } from "@/lib/stripe/fulfill";
+import { APP_URL_SCHEME } from "@/lib/native/deep-link";
+
+// Tapping a link with the shell's custom scheme is the only reliable way back
+// into the app from here: Stripe lands the buyer in an external browser via a
+// server redirect, and iOS does not fire universal links for redirect chains —
+// only for real taps.
+const APP_RETURN_LINK = `${APP_URL_SCHEME}://subscribe`;
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +23,11 @@ export const metadata: Metadata = {
 export default async function SubscribeCompletePage({
   searchParams
 }: {
-  searchParams: Promise<{ session_id?: string }>;
+  searchParams: Promise<{ session_id?: string; app?: string }>;
 }) {
-  const { session_id } = await searchParams;
+  const { session_id, app } = await searchParams;
+  // Set by /api/stripe/checkout when the buyer started from the native shell.
+  const fromNativeApp = app === "1";
 
   let ok = false;
   let title = "无法确认支付";
@@ -58,21 +67,41 @@ export default async function SubscribeCompletePage({
       </div>
       <h1 className="mt-5 text-2xl font-bold tracking-tight">{title}</h1>
       <p className="mt-3 text-sm leading-relaxed soft-text">{detail}</p>
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Link
-          href="/subscribe"
-          className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold"
-          style={{ background: "rgb(var(--brand))", color: "rgb(var(--brand-contrast))" }}
-        >
-          <Crown className="h-4 w-4" /> 返回会员页
-        </Link>
-        <Link
-          href="/"
-          className="inline-flex items-center justify-center rounded-xl border border-[rgb(var(--text)/0.15)] px-5 py-3 text-sm font-medium transition hover:bg-[rgb(var(--text)/0.05)]"
-        >
-          回到首页
-        </Link>
-      </div>
+      {fromNativeApp ? (
+        // Opened in the system browser from the app. The web links below would
+        // be dead ends here — this browser has its own cookie jar and is signed
+        // out, so /subscribe would just bounce to the home page. Offer the one
+        // action that matters instead: get back into the app.
+        <>
+          <a
+            href={APP_RETURN_LINK}
+            className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold"
+            style={{ background: "rgb(var(--brand))", color: "rgb(var(--brand-contrast))" }}
+          >
+            <Smartphone className="h-4 w-4" /> 返回 App
+          </a>
+          <p className="mt-4 max-w-[34ch] text-xs leading-relaxed soft-text">
+            这个页面在系统浏览器里打开，所以显示为未登录 —— 这不影响开通，权益是记在你账号上的。
+            回到 App 后会员状态会自动刷新；也可以直接关掉这个页面。
+          </p>
+        </>
+      ) : (
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <Link
+            href="/subscribe"
+            className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-sm font-semibold"
+            style={{ background: "rgb(var(--brand))", color: "rgb(var(--brand-contrast))" }}
+          >
+            <Crown className="h-4 w-4" /> 返回会员页
+          </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center justify-center rounded-xl border border-[rgb(var(--text)/0.15)] px-5 py-3 text-sm font-medium transition hover:bg-[rgb(var(--text)/0.05)]"
+          >
+            回到首页
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,6 +20,7 @@ import { purchaseDecision } from "@/lib/subscription/resolve";
 import { SKINS, SKIN_ORDER, skinPalette, hexToRgbTriple, darkenHex, isMaxExclusiveSkin, type SkinId } from "@/lib/subscription/skins";
 import { Lock } from "lucide-react";
 import { MembershipCard } from "@/components/subscribe/membership-card";
+import { openCheckout } from "@/lib/native/checkout";
 
 // Preset "Signature" accents Max members can pick from (or use the color wheel).
 const SIGNATURE_PRESETS = ["#e0559c", "#29c2e6", "#7a5cff", "#d9b45a", "#ff6e40", "#38d39f", "#f0456b", "#12b886"];
@@ -284,8 +285,12 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
       if (!res.ok || !data?.url) {
         throw new Error(data?.message || t("创建支付会话失败，请重试。", "Couldn't start checkout. Please try again."));
       }
-      // Hand off to Stripe's hosted checkout page.
-      window.location.assign(data.url as string);
+      // Hand off to Stripe's hosted checkout page. Inside the native app this
+      // opens the in-app browser and THIS page stays mounted behind it, so the
+      // button has to stop saying "Redirecting…" — on web the navigation takes
+      // the page away and the pending state goes with it.
+      const handoff = await openCheckout(data.url as string);
+      if (handoff === "in-app-browser") setPending(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("出错了，请重试。", "Something went wrong. Please try again."));
       setPending(null);
