@@ -36,7 +36,7 @@ import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/li
 // side-effecting.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// A reasoning model (Fable / Opus) legitimately thinks for minutes, and this
+// A reasoning model (Opus) legitimately thinks for minutes, and this
 // route holds the function open for the whole SSE stream. Without this the
 // platform's short default duration killed the request mid-stream — the client
 // saw the connection drop after a perfectly good "thinking" phase and showed
@@ -127,8 +127,8 @@ export async function POST(request: Request) {
       ? (requestedModel as ModelId)
       : resolveModelChoice(tier, member.prefs);
   // Metered by the catalog's premium flag, not by "is this the tier's headline
-  // model" — Max's flagship is Opus 5, but a Max member may still pick Fable and
-  // that turn must come out of the allowance too.
+  // model" — so any premium model the member picks comes out of the allowance,
+  // not just the one their plan advertises.
   const premiumSelected = isAllowanceMetered(tier, model);
 
   type Billing = "credits" | "unlimited" | "allowance";
