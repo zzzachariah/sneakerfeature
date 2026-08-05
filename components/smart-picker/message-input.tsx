@@ -20,6 +20,12 @@ type Props = {
   model: ModelId | null;
   onSelectModel: (id: ModelId) => void;
   onSend: (message: string, count: number) => void;
+  /**
+   * Mirrors the effective ×N up to the parent. The follow-up composer sends
+   * straight into the same conversation and must bill at the same count the
+   * user picked here — without this it would silently fall back to a default.
+   */
+  onCountChange?: (count: number) => void;
   prefillText?: string;
   // Bumps on every suggestion tap. Keying the prefill effect on this (not on the
   // text) makes tapping the SAME suggestion twice re-fill the box — two taps
@@ -27,7 +33,7 @@ type Props = {
   prefillNonce?: number;
 };
 
-export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, model, onSelectModel, onSend, prefillText, prefillNonce = 0 }: Props) {
+export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, model, onSelectModel, onSend, onCountChange, prefillText, prefillNonce = 0 }: Props) {
   const { translate } = useLocale();
   const [text, setText] = useState("");
   // String state so the user can clear "1" and retype — enforce range only on blur.
@@ -52,6 +58,11 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
     const typed = parseInt(countStr);
     if (!Number.isNaN(typed) && typed > maxCount) setCountStr(String(maxCount));
   }, [maxCount, countStr]);
+
+  // Publish the effective count so the follow-up composer bills identically.
+  useEffect(() => {
+    onCountChange?.(count);
+  }, [count, onCountChange]);
 
   // Only the FREE tier is metered by ai_credits. A paid plan's base model is
   // unmetered server-side, so its credit balance is irrelevant here — gate on

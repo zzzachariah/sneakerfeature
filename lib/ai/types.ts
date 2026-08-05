@@ -95,6 +95,19 @@ export type AiChatMessage = {
   recommendations: RecommendationItem[] | null;
   credits_charged: number;
   created_at: string;
+  /**
+   * The AI's single "what I still need to know" question, kept out of `content`
+   * so the UI can render it as its own answerable composer instead of burying it
+   * in the last sentence of the reply. Persisted (migration 049), so reopening a
+   * conversation restores the box.
+   */
+  followUp?: string | null;
+  /**
+   * How this turn was billed, for the per-message cost chip. Only present on the
+   * turn the client just streamed; reloaded messages fall back to
+   * `credits_charged` alone.
+   */
+  billing?: "credits" | "allowance" | "unlimited";
   // Live-only timeline of what the AI said / did while streaming this turn.
   steps?: ChatStep[];
 };

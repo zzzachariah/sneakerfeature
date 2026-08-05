@@ -90,7 +90,23 @@ function ProseRow({ text, isLast }: { text: string; isLast: boolean }) {
   );
 }
 
-export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: boolean }) {
+/**
+ * @param zhInput Whether the user's request for THIS turn was Chinese. The step
+ *   rows are already written in that language (the server localizes them from
+ *   the machine-readable phase), so the panel's own chrome follows it too —
+ *   otherwise an English timeline sat under a Chinese "思考过程" heading for any
+ *   zh-UI user who typed in English. `undefined` falls back to the UI locale,
+ *   which is right for the pre-send placeholder that has no request yet.
+ */
+export function ThinkingPanel({
+  steps,
+  active,
+  zhInput
+}: {
+  steps: ChatStep[];
+  active: boolean;
+  zhInput?: boolean;
+}) {
   const { translate } = useLocale();
   const [open, setOpen] = useState(true);
   const wasActive = useRef(active);
@@ -101,6 +117,10 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
   }, [active]);
 
   const hasBody = steps.length > 0;
+  const thinkingLabel =
+    zhInput === undefined ? translate("AI is thinking…") : zhInput ? "AI 思考中…" : "AI is thinking…";
+  const doneLabel =
+    zhInput === undefined ? translate("Thought process") : zhInput ? "思考过程" : "Thought process";
 
   // While streaming, the header IS the live status line — "what is it doing
   // right now" — instead of a static "AI is thinking…". The most recent
@@ -126,7 +146,7 @@ export function ThinkingPanel({ steps, active }: { steps: ChatStep[]; active: bo
           className={`h-4 w-4 shrink-0 transition-opacity ${active ? "thinking-glow text-[rgb(var(--text))]" : "opacity-50"}`}
         />
         <span className={`text-[0.82rem] font-medium ${active ? "thinking-shimmer" : "soft-text"}`}>
-          {active ? currentPhase ?? translate("AI is thinking…") : translate("Thought process")}
+          {active ? currentPhase ?? thinkingLabel : doneLabel}
         </span>
         {active ? (
           <span className="ml-0.5 inline-flex items-end gap-[3px] pb-0.5">

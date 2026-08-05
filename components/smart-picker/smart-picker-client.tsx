@@ -499,6 +499,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                 const d = data as {
                   assistantMessageId?: string;
                   content?: string;
+                  followUp?: string;
                   createdAt?: string;
                   creditsCharged?: number;
                   balance?: number;
@@ -509,6 +510,11 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                   ...m,
                   id: d.assistantMessageId ?? m.id,
                   content: d.content ?? m.content,
+                  followUp: d.followUp?.trim() ? d.followUp : null,
+                  billing:
+                    d.billing === "credits" || d.billing === "allowance" || d.billing === "unlimited"
+                      ? d.billing
+                      : undefined,
                   credits_charged: d.creditsCharged ?? 0,
                   created_at: d.createdAt ?? m.created_at,
                   // The turn is over — check off any status still shown as running.

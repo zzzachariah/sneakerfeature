@@ -1,0 +1,511 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SMART PICKER — credits ledger, follow-up composer, per-turn cost chip
+   Loaded after premium-skins.css. Owns the STANDARD look for three surfaces,
+   then re-materializes each one per Premium UI skin:
+     • editorial  — a printed statement (paper rule, serif figures, small caps)
+     • instrument — a telemetry readout (glowing bars, technical labels, grid)
+     • gallery    — a gallery label (hairlines, wide tracking, near-no fill)
+     • arena      — a scoreboard (heavy condensed figures, gold, hard edges)
+   Text color (--text) is never overridden; grounds follow the theme so both
+   light and dark stay legible.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Credits & usage panel — standard skeleton ────────────────────────────── */
+.sp-usage { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Material note: the panel lives INSIDE a .glass-strong modal, whose backdrop is
+   already blurred. Nesting more backdrop-filters there buys almost nothing
+   visually and costs real frames in the iOS WebView, so these cards use the
+   app's blur-free glass tier (.glass-lite's recipe: translucent tint + a lit top
+   edge) and the hero adds the lensed rim ring for presence. The two surfaces
+   that sit on the PAGE rather than in a modal — the follow-up composer and the
+   cost chip — get genuine backdrop blur further down. */
+.sp-usage-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  background-color: rgb(var(--glass-tint-strong) / 0.82);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.4),
+    0 2px 12px rgb(var(--glass-shadow) / 0.08);
+  border-radius: 16px;
+}
+.dark .sp-usage-hero { background-color: rgb(var(--glass-tint) / 0.7); }
+
+/* Lensed edge on the headline card — same 1px gradient ring the rest of the
+   app's glass uses (.glass-rim), inlined so the class list stays on the panel's
+   own vocabulary and the per-skin overrides below can switch it off. */
+.sp-usage-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-rim) / 0.7) 0%,
+    rgb(var(--glass-rim) / 0.12) 30%,
+    transparent 52%,
+    rgb(var(--glass-rim-shade) / 0.12) 100%
+  );
+  -webkit-mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 1;
+}
+.sp-usage-hero > * { position: relative; z-index: 2; }
+.sp-usage-hero-v {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.sp-usage-hero-unit { font-size: 0.72rem; font-weight: 600; color: rgb(var(--subtext)); }
+.sp-usage-note { font-size: 0.7rem; color: rgb(var(--subtext)); }
+
+.sp-usage-k {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(var(--subtext));
+}
+
+/* Premium-model allowance meter */
+.sp-usage-allowance {
+  padding: 0.75rem 1rem;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  background-color: rgb(var(--glass-tint-strong) / 0.6);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.28);
+  border-radius: 14px;
+}
+.dark .sp-usage-allowance { background-color: rgb(var(--glass-tint) / 0.5); }
+.sp-usage-track {
+  position: relative;
+  display: block;
+  height: 0.4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(var(--text) / 0.1);
+}
+.sp-usage-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: rgb(var(--brand));
+  transition: width 600ms var(--ease);
+}
+
+/* Lifetime counters */
+/* auto-fit, not a viewport media query: the panel is a modal whose content box
+   is much narrower than the screen, so keying the column count off the viewport
+   packed four columns into ~365px on a large phone. This reflows on the
+   CONTAINER instead — four across on desktop, two on a phone, at any width. */
+.sp-usage-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6.25rem, 1fr));
+  gap: 0.75rem 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.45);
+  background-color: rgb(var(--glass-tint-strong) / 0.6);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.28);
+  border-radius: 14px;
+}
+.dark .sp-usage-stats { background-color: rgb(var(--glass-tint) / 0.5); }
+.sp-usage-stat { display: flex; min-width: 0; flex-direction: column; gap: 0.15rem; }
+.sp-usage-stat-v { font-size: 1.1rem; font-weight: 700; line-height: 1.1; }
+@media (max-width: 400px) {
+  .sp-usage-hero-v { font-size: 1.6rem; }
+}
+
+.sp-usage-section { display: flex; flex-direction: column; gap: 0.55rem; }
+.sp-usage-h {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(var(--subtext));
+}
+.sp-usage-empty { font-size: 0.8rem; color: rgb(var(--subtext)); }
+
+/* 14-day spend chart */
+.sp-usage-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.25rem;
+  height: 4.5rem;
+  padding: 0 0.15rem;
+}
+.sp-usage-col { display: flex; height: 100%; flex: 1 1 0; align-items: flex-end; min-width: 0; }
+.sp-usage-bar {
+  display: block;
+  width: 100%;
+  border-radius: 4px 4px 2px 2px;
+  background: rgb(var(--brand) / 0.75);
+  transition: height 500ms var(--ease);
+}
+.sp-usage-bar.is-zero { background: rgb(var(--text) / 0.12); }
+
+/* Per-conversation spend rows */
+.sp-usage-row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.6rem;
+  overflow: hidden;
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  background: rgb(var(--surface) / 0.5);
+  transition: background 180ms var(--ease);
+}
+.sp-usage-row:hover { background: rgb(var(--surface) / 0.85); }
+.sp-usage-rowfill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgb(var(--brand) / 0.14);
+  transition: width 600ms var(--ease);
+}
+.sp-usage-rowlabel {
+  position: relative;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+.sp-usage-rowmeta { position: relative; flex-shrink: 0; font-size: 0.75rem; font-weight: 600; }
+
+/* Raw ledger list */
+.sp-usage-ledger { display: flex; flex-direction: column; }
+.sp-usage-ledger > li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.15rem;
+  font-size: 0.78rem;
+  border-bottom: 1px solid rgb(var(--glass-stroke-soft) / 0.3);
+}
+.sp-usage-ledger > li:last-child { border-bottom: 0; }
+.sp-usage-in { color: rgb(var(--success)); }
+.sp-usage-out { color: rgb(var(--subtext)); }
+
+/* ── Per-turn cost chip ───────────────────────────────────────────────────── */
+/* Sits on the page under each answer — real glass, at the light blur tier since
+   several can be on screen at once in a long conversation. */
+.sp-cost {
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.5);
+  background-color: rgb(var(--glass-tint) / 0.55);
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-sm)) saturate(var(--glass-saturate));
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.35);
+  color: rgb(var(--subtext));
+}
+.sp-cost--button:hover { border-color: rgb(var(--text) / 0.3); color: rgb(var(--text)); }
+
+/* ── Follow-up composer ───────────────────────────────────────────────────── */
+/* The one surface in the conversation asking to be touched, so it gets the full
+   material: a brand-tinted glass slab, heavy frost, inner glow and the lensed
+   rim — the same recipe as .glass-refract, which is what the app's chrome uses.
+   At most one is ever mounted (only the newest answer carries a follow-up), so
+   the heavy blur is affordable even in the iOS WebView. */
+.sp-followup {
+  position: relative;
+  /* iOS Safari ignores border-radius when clipping a backdrop-filter; isolating
+     and clipping is the app's standard fix (.glass-clip). Safe here — nothing
+     inside overflows the box. */
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgb(var(--brand) / 0.35);
+  background-image: linear-gradient(135deg, rgb(var(--brand) / 0.1), transparent 62%);
+  background-color: rgb(var(--glass-tint) / 0.6);
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.1);
+  backdrop-filter: blur(var(--glass-blur-lg)) saturate(var(--glass-saturate)) brightness(1.1);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.6),
+    inset 0 0 22px rgb(var(--glass-rim) / 0.1),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.06),
+    0 14px 36px -14px rgb(var(--glass-shadow) / 0.3);
+}
+/* Lensed edge. Behind the content (z-index 0 + positioned children) so it never
+   sits over the input or the chips. */
+.sp-followup::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    rgb(var(--glass-rim) / 0.7) 0%,
+    rgb(var(--glass-rim) / 0.12) 30%,
+    transparent 52%,
+    rgb(var(--glass-rim-shade) / 0.12) 100%
+  );
+  -webkit-mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(rgb(0 0 0) 0 0) content-box,
+    linear-gradient(rgb(0 0 0) 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 0;
+}
+.sp-followup > * { position: relative; z-index: 1; }
+.sp-followup-icon { color: rgb(var(--brand)); }
+.sp-followup-chip {
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  background-color: rgb(var(--glass-tint) / 0.5);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.4);
+  color: rgb(var(--text) / 0.88);
+}
+.sp-followup-chip:hover:not(:disabled) {
+  border-color: rgb(var(--brand) / 0.6);
+  background-color: rgb(var(--glass-tint) / 0.72);
+  color: rgb(var(--text));
+}
+.sp-followup-chip:active:not(:disabled) { transform: scale(0.97); }
+/* Recessed well: the inverse lighting of the raised chips, so the field reads as
+   cut INTO the glass rather than sitting on it. */
+.sp-followup-field {
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  background-color: rgb(var(--glass-rim-shade) / 0.05);
+  box-shadow:
+    inset 0 1px 2px rgb(var(--glass-rim-shade) / 0.09),
+    inset 0 -1px 0 rgb(var(--glass-rim) / 0.35);
+}
+.sp-followup-field:focus-within {
+  border-color: rgb(var(--brand) / 0.65);
+  box-shadow:
+    inset 0 1px 2px rgb(var(--glass-rim-shade) / 0.09),
+    0 0 0 3px rgb(var(--brand) / 0.14);
+}
+.sp-followup-send { background: rgb(var(--text)); color: rgb(var(--bg)); }
+.sp-followup-send:not(:disabled):hover { transform: scale(1.06); }
+.sp-followup-send:not(:disabled):active { transform: scale(0.94); }
+
+/* Inside the iOS app the surrounding chrome is REAL UIKit Liquid Glass (see
+   components/native/native-top-bar.tsx + native-bottom-nav.tsx), so the in-page
+   glass is pushed a step brighter and glossier to sit in the same material
+   family instead of reading as a flat card between two glass bars. */
+html[data-native-platform="ios"] .sp-followup {
+  -webkit-backdrop-filter: blur(var(--glass-blur-xl)) saturate(200%) brightness(1.16);
+  backdrop-filter: blur(var(--glass-blur-xl)) saturate(200%) brightness(1.16);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.8),
+    inset 0 0 26px rgb(var(--glass-rim) / 0.16),
+    inset 0 -1px 0 rgb(var(--glass-rim-shade) / 0.07),
+    0 16px 40px -14px rgb(var(--glass-shadow) / 0.34);
+}
+html[data-native-platform="ios"] .sp-cost {
+  -webkit-backdrop-filter: blur(var(--glass-blur-md)) saturate(200%) brightness(1.12);
+  backdrop-filter: blur(var(--glass-blur-md)) saturate(200%) brightness(1.12);
+}
+
+/* ── Capability & accessibility fallbacks ─────────────────────────────────── */
+/* Mirrors the guards globals.css applies to every other glass surface: no
+   backdrop-filter support, or iOS "Reduce Transparency" on, means an opaque
+   surface rather than unreadable text over a busy page. */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .sp-followup, .sp-cost { background-color: rgb(var(--glass-tint-strong) / 0.98); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .sp-followup, .sp-cost {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: rgb(var(--glass-tint-strong) / 0.98);
+  }
+  .sp-usage-hero, .sp-usage-stats, .sp-usage-allowance {
+    background-color: rgb(var(--glass-tint-strong) / 0.98);
+  }
+  .sp-followup::before, .sp-usage-hero::before { display: none; }
+}
+@media (prefers-contrast: more) {
+  .sp-followup, .sp-cost, .sp-usage-hero, .sp-usage-stats, .sp-usage-allowance {
+    border-color: rgb(var(--glass-stroke) / 0.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sp-followup-chip:active:not(:disabled),
+  .sp-followup-send:not(:disabled):hover,
+  .sp-followup-send:not(:disabled):active { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EDITORIAL (sapphire) — a printed credit statement
+   Paper rules instead of cards, Didone figures, small-caps labels.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="sapphire"] .sp-usage-hero,
+html[data-premium="sapphire"] .sp-usage-stats,
+html[data-premium="sapphire"] .sp-usage-allowance {
+  border: 0;
+  border-top: 2px solid rgb(var(--text) / 0.85);
+  border-bottom: 1px solid rgb(var(--text) / 0.18);
+  border-radius: 0;
+  background: transparent;
+  /* Not 0: the Didone figures overhang their box, and a flush-left edge clipped
+     the leading digit of the balance. */
+  padding-inline: 0.15rem;
+}
+html[data-premium="sapphire"] .sp-usage-hero,
+html[data-premium="sapphire"] .sp-usage-stats,
+html[data-premium="sapphire"] .sp-usage-allowance { box-shadow: none; }
+html[data-premium="sapphire"] .sp-usage-hero::before { display: none; }
+html[data-premium="sapphire"] .sp-usage-hero-v,
+html[data-premium="sapphire"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+}
+html[data-premium="sapphire"] .sp-usage-hero-v { font-size: 2.4rem; }
+html[data-premium="sapphire"] .sp-usage-h { letter-spacing: 0.18em; }
+html[data-premium="sapphire"] .sp-usage-bar { border-radius: 1px; background: rgb(var(--pui-ed-ink)); }
+html[data-premium="sapphire"].dark .sp-usage-bar { background: rgb(var(--pui-gold)); }
+html[data-premium="sapphire"] .sp-usage-fill { border-radius: 1px; background: rgb(var(--pui-ed-ink)); }
+html[data-premium="sapphire"].dark .sp-usage-fill { background: rgb(var(--pui-gold)); }
+html[data-premium="sapphire"] .sp-usage-row { border-radius: 0; background: transparent; border-bottom: 1px solid rgb(var(--text) / 0.12); }
+html[data-premium="sapphire"] .sp-usage-rowfill { background: rgb(var(--text) / 0.07); }
+html[data-premium="sapphire"] .sp-followup-icon { color: rgb(var(--pui-accent-ink)); }
+html[data-premium="sapphire"] .sp-followup { border-radius: 2px; background: rgb(var(--pui-ed-paper) / 0.14); border-color: rgb(var(--text) / 0.28); }
+html[data-premium="sapphire"] .sp-followup-chip,
+html[data-premium="sapphire"] .sp-followup-field { border-radius: 2px; }
+html[data-premium="sapphire"] .sp-cost { border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INSTRUMENT (aurora) — telemetry readout
+   Glowing bars, technical grotesque figures, cyan rims.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="aurora"] .sp-usage-hero,
+html[data-premium="aurora"] .sp-usage-stats,
+html[data-premium="aurora"] .sp-usage-allowance {
+  border-color: rgb(var(--pui-glow) / 0.35);
+  border-radius: var(--pui-radius-card);
+  background: linear-gradient(160deg, rgb(var(--pui-glow) / 0.09), rgb(var(--surface) / 0.6));
+  box-shadow: inset 0 0 24px -12px rgb(var(--pui-glow) / 0.6);
+}
+html[data-premium="aurora"] .sp-usage-hero-v,
+html[data-premium="aurora"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  letter-spacing: var(--pui-display-tracking);
+}
+html[data-premium="aurora"] .sp-usage-k,
+html[data-premium="aurora"] .sp-usage-h { color: rgb(var(--pui-glow)); opacity: 0.85; }
+html[data-premium="aurora"] .sp-usage-bar {
+  border-radius: 3px;
+  background: linear-gradient(180deg, rgb(var(--pui-glow)), rgb(var(--pui-glow) / 0.35));
+  box-shadow: 0 0 12px -2px rgb(var(--pui-glow) / 0.55);
+}
+html[data-premium="aurora"] .sp-usage-fill {
+  background: linear-gradient(90deg, rgb(var(--pui-glow)), rgb(var(--pui-glow-2)));
+  box-shadow: 0 0 10px -2px rgb(var(--pui-glow) / 0.7);
+}
+html[data-premium="aurora"] .sp-usage-rowfill { background: rgb(var(--pui-glow) / 0.16); }
+html[data-premium="aurora"] .sp-followup {
+  border-color: rgb(var(--pui-glow) / 0.45);
+  background: linear-gradient(140deg, rgb(var(--pui-glow) / 0.1), rgb(var(--surface) / 0.6));
+  box-shadow: inset 0 0 20px -10px rgb(var(--pui-glow) / 0.7);
+}
+html[data-premium="aurora"] .sp-followup-icon { color: rgb(var(--pui-glow)); }
+html[data-premium="aurora"] .sp-followup-send { background: rgb(var(--pui-glow)); color: #04222b; }
+html[data-premium="aurora"] .sp-cost { border-color: rgb(var(--pui-glow) / 0.3); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GALLERY (obsidian) — a gallery label
+   Hairlines, wide tracking, almost no fill; the numbers do the work.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="obsidian"] .sp-usage-hero,
+html[data-premium="obsidian"] .sp-usage-stats,
+html[data-premium="obsidian"] .sp-usage-allowance {
+  border: 1px solid rgb(var(--pui-platinum) / 0.22);
+  border-radius: var(--pui-radius-card);
+  background: transparent;
+}
+html[data-premium="obsidian"] .sp-usage-hero,
+html[data-premium="obsidian"] .sp-usage-stats,
+html[data-premium="obsidian"] .sp-usage-allowance { box-shadow: none; }
+html[data-premium="obsidian"] .sp-usage-hero::before { display: none; }
+html[data-premium="obsidian"] .sp-usage-hero-v,
+html[data-premium="obsidian"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+}
+html[data-premium="obsidian"] .sp-usage-k,
+html[data-premium="obsidian"] .sp-usage-h { letter-spacing: 0.22em; font-weight: 500; }
+html[data-premium="obsidian"] .sp-usage-bar { border-radius: 0; background: rgb(var(--pui-platinum) / 0.75); }
+html[data-premium="obsidian"] .sp-usage-bar.is-zero { background: rgb(var(--pui-platinum) / 0.12); }
+html[data-premium="obsidian"] .sp-usage-fill { border-radius: 0; background: rgb(var(--pui-platinum)); }
+html[data-premium="obsidian"] .sp-usage-row { border-radius: 0; background: transparent; border-bottom: 1px solid rgb(var(--pui-platinum) / 0.15); }
+html[data-premium="obsidian"] .sp-usage-rowfill { background: rgb(var(--pui-platinum) / 0.1); }
+html[data-premium="obsidian"] .sp-followup {
+  border-radius: var(--pui-radius-card);
+  border-color: rgb(var(--pui-platinum) / 0.28);
+  background: rgb(var(--surface) / 0.4);
+}
+html[data-premium="obsidian"] .sp-followup-icon { color: rgb(var(--pui-platinum)); }
+html[data-premium="obsidian"] .sp-followup-chip,
+html[data-premium="obsidian"] .sp-followup-field { border-radius: var(--pui-radius-control); }
+html[data-premium="obsidian"] .sp-cost { border-radius: var(--pui-radius-control); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARENA (champion) — a scoreboard
+   Heavy condensed figures, gold fills, hard edges.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html[data-premium="champion"] .sp-usage-hero,
+html[data-premium="champion"] .sp-usage-stats,
+html[data-premium="champion"] .sp-usage-allowance {
+  border: 1px solid rgb(var(--pui-gold) / 0.4);
+  border-radius: var(--pui-radius-card);
+  background: linear-gradient(150deg, rgb(var(--pui-gold) / 0.12), rgb(var(--surface) / 0.6));
+}
+html[data-premium="champion"] .sp-usage-hero,
+html[data-premium="champion"] .sp-usage-stats,
+html[data-premium="champion"] .sp-usage-allowance { box-shadow: none; }
+html[data-premium="champion"] .sp-usage-hero::before { display: none; }
+html[data-premium="champion"] .sp-usage-hero-v,
+html[data-premium="champion"] .sp-usage-stat-v {
+  font-family: var(--pui-display);
+  font-weight: var(--pui-display-weight);
+  letter-spacing: var(--pui-display-tracking);
+  text-transform: uppercase;
+}
+html[data-premium="champion"] .sp-usage-hero-v { font-size: 2.6rem; }
+html[data-premium="champion"] .sp-usage-k,
+html[data-premium="champion"] .sp-usage-h { font-family: var(--pui-label, inherit); letter-spacing: 0.14em; }
+html[data-premium="champion"] .sp-usage-bar {
+  border-radius: 2px 2px 0 0;
+  background: linear-gradient(180deg, rgb(var(--pui-gold)), rgb(var(--pui-gold) / 0.45));
+}
+html[data-premium="champion"] .sp-usage-fill { background: rgb(var(--pui-gold)); }
+html[data-premium="champion"] .sp-usage-rowfill { background: rgb(var(--pui-gold) / 0.2); }
+html[data-premium="champion"] .sp-followup {
+  border-color: rgb(var(--pui-gold) / 0.5);
+  background: linear-gradient(140deg, rgb(var(--pui-gold) / 0.14), rgb(var(--surface) / 0.6));
+}
+html[data-premium="champion"] .sp-followup-icon { color: rgb(var(--pui-accent-ink)); }
+html[data-premium="champion"] .sp-followup-send { background: rgb(var(--pui-gold)); color: #1a1305; }
+html[data-premium="champion"] .sp-cost { border-color: rgb(var(--pui-gold) / 0.35); }
