@@ -1,0 +1,37 @@
+// Capacitor Android plugin module for live-widgets.
+// ⚠️ UNVERIFIED — written without an Android SDK/device, same caveat as
+// capacitor-foot-scan. Versions mirror the host app's; align them with
+// android/variables.gradle before building.
+ext {
+    liveWidgetsCompileSdk = project.hasProperty('compileSdkVersion') ? rootProject.ext.compileSdkVersion : 34
+    liveWidgetsMinSdk = project.hasProperty('minSdkVersion') ? rootProject.ext.minSdkVersion : 24
+}
+
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+android {
+    namespace "com.sneakerfeature.livewidgets"
+    compileSdk liveWidgetsCompileSdk
+    defaultConfig {
+        minSdk liveWidgetsMinSdk
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
+
+repositories {
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':capacitor-android')
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.core:core-ktx:1.13.1"
+}

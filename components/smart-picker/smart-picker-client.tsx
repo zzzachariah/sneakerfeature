@@ -7,6 +7,9 @@ import { MAX_CONCURRENT_TURNS, type AiChatMessage, type AiChatSummary, type Reco
 import type { CheckinStatus } from "@/lib/ai/checkin";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { isModelId, type ModelId, type Tier } from "@/lib/subscription/tiers";
+import { endPickerActivity, startPickerActivity } from "@/lib/native/live-widgets";
+import { readWidgetPrefs } from "@/lib/native/widget-prefs";
+import { randomId } from "@/lib/utils";
 
 const INITIAL_CHECKIN: CheckinStatus = { canClaim: false, nextClaimAt: null, dailyAmount: 3 };
 
@@ -139,6 +142,47 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     if (on) set.add(key);
     else set.delete(key);
     setStreamingKeys(Array.from(set));
+  }, []);
+
+  // --- Dynamic Island: "picking your shoes…" ---------------------------------
+  //
+  // A good answer takes a while, and the whole point of the picker is that you
+  // can go do something else. The Live Activity is what makes that safe: the
+  // progress leaves the app with you, and a tap brings you back.
+  //
+  // Driven off "is ANY turn streaming" rather than off markStreaming itself.
+  // markStreaming also fires when a turn's key is renamed from NEW_CHAT_KEY to
+  // its real chat id mid-stream, and hooking that directly would tear the
+  // activity down and build a new one in the middle of a single answer.
+  const pickerActivityRef = useRef<string | null>(null);
+  const lastPromptRef = useRef("");
+  const anyStreaming = streamingKeys.length > 0;
+
+  useEffect(() => {
+    if (anyStreaming) {
+      if (pickerActivityRef.current) return;
+      if (!readWidgetPrefs().pickerActivity) return;
+      const id = randomId("picker");
+      pickerActivityRef.current = id;
+      void startPickerActivity({ id, prompt: lastPromptRef.current, path: "/smart-picker" });
+      return;
+    }
+    const id = pickerActivityRef.current;
+    if (!id) return;
+    pickerActivityRef.current = null;
+    void endPickerActivity({ id, summary: zhUI ? "选鞋结果已就绪" : "Your picks are ready" });
+  }, [anyStreaming, zhUI]);
+
+  // Leaving the picker kills the streams that fed the activity, so the activity
+  // has to go with them — otherwise it sits in the Island claiming to be
+  // thinking until ActivityKit times it out hours later.
+  useEffect(() => {
+    return () => {
+      const id = pickerActivityRef.current;
+      if (!id) return;
+      pickerActivityRef.current = null;
+      void endPickerActivity({ id, summary: "", failed: true });
+    };
   }, []);
 
   const patchThread = useCallback((key: string, updater: (list: AiChatMessage[]) => AiChatMessage[]) => {
@@ -310,6 +354,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         created_at: new Date().toISOString()
       };
       appendTo(key, tempUser);
+      // What the Dynamic Island shows while this turn runs.
+      lastPromptRef.current = message;
       markStreaming(key, true);
 
       const controller = new AbortController();

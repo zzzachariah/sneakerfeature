@@ -1,0 +1,23 @@
+{
+  "name": "live-widgets",
+  "version": "0.0.1",
+  "description": "Home-screen widgets, Lock Screen ring and Dynamic Island / Live Activities for the sneakerfeature app. Android ships as a Capacitor plugin module (cap sync wires it); iOS ships as source added by hand to the app + a Widget Extension target — see README.md for why.",
+  "private": true,
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  },
+  "files": [
+    "android/",
+    "ios/"
+  ],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "widget",
+    "live-activity",
+    "native"
+  ],
+  "license": "MIT"
+}

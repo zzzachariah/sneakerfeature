@@ -96,18 +96,39 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12 }}
           p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
-      - name: Install provisioning profile
+      # Two profiles, because the app ships two signed bundles: the app itself
+      # and the SneakerfeatureWidgets extension (widgets + Live Activities).
+      # An embedded extension is signed separately, so exportArchive fails
+      # outright without a profile for its own bundle id.
+      #
+      # The widget secrets are optional: until the extension target exists in
+      # ios/, an empty IOS_WIDGET_PROVISIONING_PROFILE just means one profile
+      # gets installed and the export map has one entry — exactly the old
+      # behaviour. See live-widgets/README.md §7 for how to mint them.
+      - name: Install provisioning profiles
         env:
           PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          WIDGET_PROFILE_B64: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE }}
         run: |
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           echo "$PROFILE_B64" | base64 -d \
             > "$HOME/Library/MobileDevice/Provisioning Profiles/profile.mobileprovision"
+          if [ -n "$WIDGET_PROFILE_B64" ]; then
+            echo "$WIDGET_PROFILE_B64" | base64 -d \
+              > "$HOME/Library/MobileDevice/Provisioning Profiles/widgets.mobileprovision"
+          else
+            echo "::notice::No widget provisioning profile set — building without the widget extension."
+          fi
       - name: Archive & export IPA
         env:
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           PROFILE_NAME: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
+          WIDGET_PROFILE_NAME: ${{ secrets.IOS_WIDGET_PROVISIONING_PROFILE_NAME }}
         run: |
+          WIDGET_PROFILE_ENTRY=""
+          if [ -n "$WIDGET_PROFILE_NAME" ]; then
+            WIDGET_PROFILE_ENTRY="<key>com.sneakerfeature.app.SneakerfeatureWidgets</key><string>${WIDGET_PROFILE_NAME}</string>"
+          fi
           cat > exportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -117,6 +138,7 @@ jobs:
             <key>signingStyle</key><string>manual</string>
             <key>provisioningProfiles</key><dict>
               <key>com.sneakerfeature.app</key><string>${PROFILE_NAME}</string>
+              ${WIDGET_PROFILE_ENTRY}
             </dict>
           </dict></plist>
           PLIST

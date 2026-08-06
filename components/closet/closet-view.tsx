@@ -29,6 +29,7 @@ import { FREE_CLOSET_LIMIT, type ClosetItemRow } from "@/lib/closet/wear";
 import { ShelfCell, type ClosetShoe } from "@/components/closet/shelf-cell";
 import { AddShoeSheet, EditItemSheet, LogWearSheet } from "@/components/closet/closet-sheets";
 import { ClosetAnalytics } from "@/components/closet/closet-analytics";
+import { CourtSessionLauncher } from "@/components/closet/court-session-launcher";
 
 export type PickerShoe = {
   id: string;
@@ -176,6 +177,11 @@ export function ClosetView({
         </EmptyState>
       ) : (
         <>
+          {/* The court timer sits above the summary, not inside a menu: it's
+              the one action that lights up the Dynamic Island, so it gets the
+              first slab on the page. */}
+          <CourtSessionLauncher entries={entries} />
+
           {/* Wall summary strip */}
           <div className={`pui-closet-stats mb-6 ${variant === "standard" ? "glass-lite rounded-2xl" : ""}`}>
             <StatCell label={translate("In rotation")} value={String(active.length)} />
