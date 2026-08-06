@@ -105,6 +105,35 @@ npx cap open ios          # 打开 ios/App/App.xcworkspace
 
 ---
 
+## 三 b、iOS：让 Capacitor 认识这个插件（漏了整套静默失效）
+
+**加进 target 只是让它被编译，不等于被注册。**
+
+Capacitor 8 的 `CapacitorBridge.registerPlugins()` 只注册两类插件：它自己的内置插件，
+和 `capacitor.config.json` 里 `packageClassList` 列出的类 —— 而那个列表是
+`cap sync` 从 **npm 包**生成的。**写在 App target 里的插件，编译得好好的、链接得好好的，
+但永远不会被注册**，JS 每次调用都以 "not implemented" 被拒。
+
+而网页层把「调用失败」解读成「这台设备没有小组件」，于是把整套功能安静地关掉 ——
+**编译零错误、运行零报错、什么都不发生**。
+
+修法是 Capacitor 自己的钩子：
+
+1. **File → New → File from Template… → Swift File**，命名 `MainViewController`，
+   target 勾 **App**。把 `live-widgets/ios/App/MainViewController.swift` 的内容贴进去。
+
+2. **左侧 `App → App → Main`（storyboard）** → 画布上选中那个 view controller
+   → 右侧 **Identity Inspector（⌘⌥4）** → **Custom Class → Class** 从
+   `CAPBridgeViewController` 改成 **`MainViewController`**，Module 选 **App**（不是 Capacitor）。
+
+第 2 步漏了，第 1 步就白做 —— storyboard 还在实例化原来那个基类，你的 `capacitorDidLoad()`
+根本不会被调用。
+
+**验证**：跑起来后在 Xcode 控制台 Filter 里输 `LiveWidgets`，进一次账号页，
+应该看到 `⚡️  To Native -> LiveWidgets isAvailable`。一行都没有就说明这一节没生效。
+
+---
+
 ## 四、iOS：开 App Group（不开的话小组件永远是空的）
 
 小组件是**独立进程**，读不到 App 的 `UserDefaults`，更读不到 WebView 的 cookie。
@@ -161,8 +190,9 @@ npx cap open ios          # 打开 ios/App/App.xcworkspace
 
 1. 顶部 scheme 选 **App**（不是 SneakerfeatureWidgets）→ 选你的 iPhone → **▶ Run**
 2. 打开 App → 底部账号页 → 应该能看到新的 **「小组件与实时活动」** 设置区
-   - **看不到这一区** = 插件没注册成功。去 App target →
-     **Build Phases → Compile Sources**，确认 `LiveWidgetsPlugin.swift` 在列表里。
+   - **看不到这一区** = 插件没注册成功。先查第三 b 节（Main.storyboard 的 Custom Class
+     改成 `MainViewController` 了吗），再查 App target → **Build Phases → Compile
+     Sources** 里有没有 `LiveWidgetsPlugin.swift`。
 3. 进 **/closet** → 页面顶部现在有一块很大的玻璃面板「打球计时 / 开场」
 4. 点**开场** → 灵动岛立刻开始走秒；锁屏能看到整张卡；
    长按灵动岛展开有**暂停 / 结束**两个按钮
@@ -174,7 +204,7 @@ npx cap open ios          # 打开 ios/App/App.xcworkspace
 
 | 现象 | 原因 |
 |---|---|
-| 设置页看不到「小组件与实时活动」 | `LiveWidgetsPlugin.swift` 没加进 App target |
+| 设置页看不到「小组件与实时活动」 | 十有八九是第三 b 节没做（storyboard 的 Custom Class 还是 `CAPBridgeViewController`）。控制台 filter `LiveWidgets` 一行都没有就是它。其次才是 `LiveWidgetsPlugin.swift` 没加进 App target |
 | 小组件一直显示空状态 | App Group 没开，或两个 target 的 group id 不一致 |
 | 灵动岛不出现，但 App 内计时正常 | `Info.plist` 缺 `NSSupportsLiveActivities` |
 | 小组件里没有鞋图，文字都对 | 正常 —— 图片是 App 后台下载的，下次打开 App 就有了 |
@@ -255,7 +285,8 @@ live-widgets/
 │   │   ├── PickerActivityAttributes.swift
 │   │   └── PickerActivityController.swift
 │   ├── App/             → 只勾 App
-│   │   └── LiveWidgetsPlugin.swift       Capacitor 桥
+│   │   ├── LiveWidgetsPlugin.swift       Capacitor 桥
+│   │   └── MainViewController.swift      把插件注册进 bridge（见第三 b 节）
 │   └── Widgets/         → 只勾 SneakerfeatureWidgets
 │       ├── SneakerfeatureWidgetsBundle.swift   @main
 │       ├── WidgetSnapshotProvider.swift        TimelineProvider
