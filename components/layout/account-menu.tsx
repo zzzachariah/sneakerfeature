@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Heart, LogOut, LayoutDashboard, LogIn, Shield, ShoppingBag, Sparkles, UserCircle, UserPlus, Crown } from "lucide-react";
+import { Heart, LogOut, LayoutDashboard, LogIn, Plus, Shield, ShoppingBag, Sparkles, UserCircle, UserPlus, Crown } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -190,6 +190,19 @@ export function AccountMenu({ className }: { className?: string }) {
                 >
                   <Sparkles className="h-4 w-4" />
                   {translate("AI Advisor")}
+                </Link>
+
+                {/* Submit gave up its bottom-nav slot to the closet — this is
+                    now its only entry point on phones, so it can't be gated. */}
+                <Link
+                  href="/submit"
+                  prefetch={true}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
+                >
+                  <Plus className="h-4 w-4" />
+                  {translate("Submit a shoe")}
                 </Link>
 
                 {(SUBSCRIBE_LIVE || isAdmin) && (
