@@ -168,123 +168,423 @@ button.pui-cell-stage:focus-visible {
 .pui-cell--rail .pui-cell-stage { aspect-ratio: 5 / 4; }
 .pui-cell--rail .pui-cell-body { gap: 0.4rem; padding: 0.55rem 0.65rem 0.7rem; }
 
-/* ── The cabinet: doors on the closet wall ─────────────────────────────────
-   Every pair on /closet sits behind a pair of doors that swing open on tap.
-   Only cells marked `pui-cell--cabinet` get this, so the home rail (a link, not
-   a toggle) is untouched.
+/* ── The cabinet ───────────────────────────────────────────────────────────
+   Every pair on /closet lives in a compartment with two doors on it. Tap the
+   front, the phone taps back, the doors swing, the light comes on and the shoe
+   is standing there on its shelf.
 
-   The doors are real hinged panels, not a fade: `perspective` lives on the
-   stage and each door rotates about its OUTER edge, which is what makes it read
-   as a cabinet rather than a wipe. The angle stops at 84° on purpose — past
-   ~90° the free edge swings back around and pokes out the side of the cell,
-   where the stage's `overflow: hidden` would chop it in half.
+   The whole thing is built as a room rather than as an animation:
 
-   The shoe is hidden while the doors are shut and springs in behind them, so
-   the reveal has a beat to it. Under prefers-reduced-motion the whole thing
-   collapses to a short cross-fade: same states, no swing, no spring.
+     • THE ROOM — `perspective` on the stage, then a back wall with light
+       falling from above, ambient occlusion baked into the top and the two
+       side walls, and a shelf across the bottom with a lit front lip. That
+       stack is what gives a flat rectangle a floor, a ceiling and a depth.
+     • THE DOORS — hinged, not wiped. Each rotates about its OUTER edge, so
+       the seam parts in the middle and the panels foreshorten the way a real
+       door does. They stop at 78°: far enough to see the inside of the door
+       and read its thickness, not so far that the free edge swings back around
+       and gets chopped by the cell's `overflow: hidden` (which happens past
+       ~90°). The left door leads and the right follows 60ms behind — two doors
+       moving in perfect lockstep is the one thing that always looks synthetic.
+     • THE PAIR — fades up behind the doors with a contact shadow that SPREADS
+       as it lands, and a true mirror reflection on the shelf. The reflection
+       is geometrically exact rather than approximate: it is the same image, in
+       a box the same size as the shoe's, sitting directly under it and flipped
+       — so it mirrors about the shoe's own baseline no matter what shape the
+       source photo is.
+
+   Opening is choreographed (doors → light → pair → shadow, each a beat behind
+   the last). Closing is not: the shut state carries no delays at all, so a
+   second tap snaps rather than unwinding in slow motion.
+
+   Only `pui-cell--cabinet` cells get any of this — the home rail is a link,
+   not a toggle, and stays a plain card. Under prefers-reduced-motion the doors
+   cross-fade, nothing swings and nothing springs.
    ─────────────────────────────────────────────────────────────────────────── */
+
+/* The compartment: the stage stops centring one image and becomes a room with
+   a berth and a shelf in it. */
+.pui-cell--cabinet .pui-cell-stage {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  /* The carcass the doors are hung in. */
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.4), inset 0 0 18px -6px rgb(0 0 0 / 0.5);
+}
+
+/* Where the pair stands. Two things make the shoe actually stand rather than
+   hover: no bottom padding, so its box ends exactly on the shelf line, and
+   `object-position` pinning the artwork to the bottom of that box. Together
+   they also give the reflection below an exact mirror line without a single
+   magic number. */
+.pui-cell-berth {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.55rem 0;
+}
+
+/* Back wall. Three gradients: light falling from the top edge, both side walls
+   in shadow, and the floor darkening into the corner. */
+/* The pair stands on the shelf, so its artwork sits at the bottom of its box
+   rather than centred in it. */
+.pui-cell--cabinet .pui-cell-img img {
+  object-position: 50% 100%;
+}
+
+.pui-cell-room {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.26), transparent 26%),
+    linear-gradient(90deg, rgb(0 0 0 / 0.2), transparent 14%, transparent 86%, rgb(0 0 0 / 0.2)),
+    linear-gradient(0deg, rgb(0 0 0 / 0.16), transparent 30%);
+}
+
+/* The closet light. Warm, off-white, hung above the door line — it comes on as
+   the doors part and STAYS on, the way a wardrobe light does. A one-shot flash
+   reads as a camera, not as a cupboard. */
+.pui-cell-lightfall {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 88%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(
+    74% 84% at 50% -10%,
+    rgb(255 249 236 / 0.32),
+    rgb(255 249 236 / 0.09) 44%,
+    transparent 76%
+  );
+  transition: opacity 220ms var(--ease);
+}
+.pui-cell--cabinet.is-open .pui-cell-lightfall {
+  opacity: 1;
+  transition: opacity 460ms var(--ease) 190ms;
+}
+
+/* Contact shadow. It doesn't just fade in — it spreads from a tight line to a
+   full pool as the pair settles, which is the single detail that stops the shoe
+   from looking pasted onto the background. */
+.pui-cell-cast {
+  position: absolute;
+  left: 50%;
+  bottom: -1%;
+  width: 58%;
+  height: 10%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 0.6), rgb(0 0 0 / 0.22) 58%, transparent 76%);
+  opacity: 0;
+  transform: translateX(-50%) scaleX(0.5);
+  transition: opacity 180ms var(--ease), transform 180ms var(--ease);
+}
+.pui-cell--cabinet.is-open .pui-cell-cast {
+  opacity: 1;
+  transform: translateX(-50%) scaleX(1);
+  transition: opacity 300ms var(--ease) 250ms, transform 620ms cubic-bezier(0.22, 1, 0.36, 1) 230ms;
+}
+
+/* The shelf: a lit top surface, a dark underside, and a bright front lip where
+   it catches the room light. */
+.pui-cell-shelf {
+  position: relative;
+  z-index: 1;
+  flex: none;
+  height: 12%;
+  overflow: hidden;
+  /* Two edges stacked, one white one black, so the shelf reads on either
+     ground: on a dark wall the lit top edge does the work and the shadow under
+     it disappears; on a white one it's the other way round. Neither theme
+     needs its own rule. */
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 0.26) 0 1px,
+      rgb(0 0 0 / 0.11) 1px 2px,
+      rgb(255 255 255 / 0.05) 2px,
+      rgb(0 0 0 / 0.06) 46%,
+      rgb(0 0 0 / 0.2) 100%
+    ),
+    /* falling off into the corners */
+    linear-gradient(90deg, rgb(0 0 0 / 0.22), transparent 16%, transparent 84%, rgb(0 0 0 / 0.22));
+}
+/* Front lip: the bright edge you'd see on the near side of a real shelf, with
+   the underside going dark immediately below it. */
+.pui-cell-shelf::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.16) 0 1px, rgb(0 0 0 / 0.26) 1px, rgb(0 0 0 / 0.46));
+}
+
+/* The reflection.
+   Same image, same box size as the shoe, sitting directly beneath it — so a
+   plain scaleY(-1) mirrors it about its own baseline, whatever the photo's
+   aspect happens to be. `top: 100%` lands on the berth's bottom edge, which
+   (no bottom padding, see above) IS the shoe's bottom edge; the height matches
+   the shoe's box; `contain` matches the <img>'s object-contain exactly.
+   The mask reads bottom-to-top on purpose: after the flip, local-bottom is
+   what ends up against the mirror line. */
+.pui-cell-reflect {
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  top: 100%;
+  height: calc(100% - 0.5rem);
+  z-index: 2;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  /* Bottom-anchored to match the <img>'s object-position above: after the flip
+     that edge is the one against the mirror line. */
+  background-position: center bottom;
+  background-size: contain;
+  /* scaleY last, so the pair's own rise/settle composes ahead of the flip and
+     the reflection lands on exactly the same curve as the shoe above it. */
+  transform: translateY(9px) scale(0.93) scaleY(-1);
+  opacity: 0;
+  /* Read bottom-to-top: after the flip, local-bottom is what ends up against
+     the mirror line, so this is the end that stays. It dies off fast — a
+     reflection you notice is a reflection that's wrong. */
+  -webkit-mask-image: linear-gradient(0deg, rgb(0 0 0), transparent 26%);
+  mask-image: linear-gradient(0deg, rgb(0 0 0), transparent 26%);
+  transition: opacity 180ms var(--ease), transform 200ms var(--ease);
+}
+.pui-cell--cabinet.is-open .pui-cell-reflect {
+  opacity: 0.17;
+  transform: translateY(0) scale(1) scaleY(-1);
+  transition: opacity 340ms var(--ease) 280ms, transform 620ms cubic-bezier(0.22, 1, 0.36, 1) 190ms;
+}
+
+/* The pair itself. Rises the last few pixels onto the shelf rather than simply
+   appearing. */
+.pui-cell--cabinet .pui-cell-img {
+  opacity: 0;
+  transform: translateY(9px) scale(0.93);
+  transition: opacity 160ms var(--ease), transform 200ms var(--ease);
+}
+.pui-cell--cabinet.is-open .pui-cell-img {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  transition: opacity 260ms var(--ease) 210ms, transform 620ms cubic-bezier(0.22, 1, 0.36, 1) 190ms;
+}
+
+/* Retirement verdicts belong to the pair, so they arrive with it — and always
+   behind the doors. */
+.pui-cell--cabinet .pui-cell-stamp,
+.pui-cell--cabinet .pui-cell-flash {
+  z-index: 3;
+}
+.pui-cell--cabinet .pui-cell-stamp {
+  opacity: 0;
+  transition: opacity 160ms var(--ease);
+}
+.pui-cell--cabinet.is-open .pui-cell-stamp {
+  opacity: 1;
+  transition: opacity 260ms var(--ease) 240ms;
+}
+
+/* ── The doors ─────────────────────────────────────────────────────────────── */
 .pui-cell-doors {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   /* The stage <button> is the hit target; the doors are scenery. */
   pointer-events: none;
 }
 
 .pui-cell-door {
   position: absolute;
-  /* Bleed a hair past every edge so no sliver of stage shows around a shut
+  /* Bleed a hair past every edge so no sliver of the room shows around a shut
      door, and overlap at the seam so the two meet cleanly. */
   top: -1px;
   bottom: -1px;
   width: 50.6%;
-  /* Above the light spill, so the glow reads as coming from inside the
-     compartment rather than washing over the door fronts. */
   z-index: 2;
+  /* Every layer here is paired light-over-dark for the same reason the shelf is:
+     on a near-black door the white half carries the detail and the black half
+     vanishes, and on a white door they trade places. One material, two themes,
+     no duplicated rules. */
   background:
-    linear-gradient(180deg, rgb(var(--glass-rim) / 0.5), transparent 34%),
-    linear-gradient(180deg, rgb(var(--surface)), rgb(var(--bg-elev)));
-  box-shadow: inset 0 0 0 1px rgb(var(--glass-stroke-soft) / 0.55);
+    /* top edge catching the light */
+    linear-gradient(180deg, rgb(255 255 255 / 0.11), transparent 7%),
+    /* form: the panel falling into shade towards its foot */
+    linear-gradient(180deg, transparent 54%, rgb(0 0 0 / 0.04)),
+    /* Fine vertical grain, as a smooth ramp rather than hard 1px rules. The
+       door is rasterised once and then squeezed to a tenth of its width by the
+       rotation, and a hard-edged stripe aliases into a shimmer when that
+       happens; a gradient with no edge in it resamples cleanly all the way to
+       edge-on. */
+    repeating-linear-gradient(90deg, rgb(255 255 255 / 0.016) 0, transparent 3px, rgb(255 255 255 / 0.016) 6px),
+    repeating-linear-gradient(90deg, rgb(0 0 0 / 0.016) 0, transparent 3px, rgb(0 0 0 / 0.016) 6px),
+    /* the panel itself, lit from above and picking up bounce at the bottom */
+    linear-gradient(180deg, rgb(var(--bg-elev)) 0%, rgb(var(--surface)) 58%, rgb(var(--bg-elev)) 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.24),
+    inset 0 0 0 1px rgb(var(--glass-stroke-soft) / 0.5);
+  /* Written out rather than left at `none` so both keyframes are the same
+     transform function list — the compositor interpolates that on its own
+     thread instead of asking the main thread to synthesise an identity. Same
+     reason every animated property here is transform or opacity and nothing
+     else: no layout, no paint, no exceptions. */
+  transform: rotateY(0deg);
   backface-visibility: hidden;
-  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1), filter 560ms var(--ease);
+  -webkit-backface-visibility: hidden;
+  transition: transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The door going dark as it turns away from the room light. This is a plain
+   opacity fade on an overlay, NOT a filter on the door: filters re-rasterise on
+   some devices and this has to be perfectly smooth on a phone. */
+.pui-cell-doorshade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgb(0 0 0 / 0.36);
+  opacity: 0;
+  transition: opacity 620ms var(--ease);
 }
 .pui-cell-door--l {
   left: -1px;
   transform-origin: left center;
-  border-right: 1px solid rgb(var(--text) / 0.12);
 }
 .pui-cell-door--r {
   right: -1px;
   transform-origin: right center;
+  /* The left door casts onto the right one at the seam. Drawn as an inset on
+     the right door because it is painted last and would cover a real shadow. */
+  box-shadow:
+    inset 7px 0 11px -8px rgb(0 0 0 / 0.55),
+    inset 0 1px 0 rgb(var(--glass-rim) / 0.24),
+    inset 0 0 0 1px rgb(var(--glass-stroke-soft) / 0.5);
 }
-/* Recessed panel + a slim handle at the inner edge — the two details that make
-   a flat rectangle read as a door. */
+
+/* Inlay panel, bevelled. The two halves are inset hard on the OUTER edge and
+   barely at all on the seam, so shut they read as one continuous panel split
+   down the middle rather than as two separate rectangles. Light comes from the
+   top-left, so the recess is dark on that side and bright on the other. */
 .pui-cell-door::before {
   content: "";
   position: absolute;
-  inset: 11% 15%;
-  border-radius: 3px;
-  border: 1px solid rgb(var(--text) / 0.08);
-  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.4);
+  top: 9%;
+  bottom: 9%;
+  border-radius: 2px;
+  background: linear-gradient(154deg, rgb(255 255 255 / 0.035), transparent 48%);
+  box-shadow:
+    inset 1px 1px 0 rgb(0 0 0 / 0.3),
+    inset -1px -1px 0 rgb(255 255 255 / 0.09);
 }
+.pui-cell-door--l::before { left: 15%; right: 5%; }
+.pui-cell-door--r::before { left: 5%; right: 15%; }
+
+/* Handle. A vertical rod: the gradient runs ACROSS it, so the bright band down
+   the middle reads as a specular highlight on something round. */
 .pui-cell-door::after {
   content: "";
   position: absolute;
   top: 50%;
-  width: 3px;
-  height: 20%;
-  min-height: 13px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, rgb(var(--text) / 0.4), rgb(var(--text) / 0.18));
+  width: 4px;
+  height: 22%;
+  min-height: 15px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--text) / 0.14),
+    rgb(var(--text) / 0.5) 36%,
+    rgb(var(--text) / 0.82) 52%,
+    rgb(var(--text) / 0.28) 74%,
+    rgb(var(--text) / 0.1)
+  );
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
   transform: translateY(-50%);
 }
-.pui-cell-door--l::after { right: 5px; }
-.pui-cell-door--r::after { left: 5px; }
+.pui-cell-door--l::after { right: 6px; }
+.pui-cell-door--r::after { left: 6px; }
 
-.pui-cell--cabinet.is-open .pui-cell-door--l { transform: rotateY(-84deg); filter: brightness(0.82); }
-.pui-cell--cabinet.is-open .pui-cell-door--r { transform: rotateY(84deg); filter: brightness(0.82); }
+/* Open. 80° rather than flat: with the stage's 720px perspective that leaves a
+   few points of door face still turned toward you at each edge, which is what
+   gives the compartment its jambs. Past ~90° the free edge swings back around
+   and the cell's `overflow: hidden` would slice it in half. */
+.pui-cell--cabinet.is-open .pui-cell-door--l { transform: rotateY(-80deg); }
+.pui-cell--cabinet.is-open .pui-cell-door--r { transform: rotateY(80deg); }
+.pui-cell--cabinet.is-open .pui-cell-doorshade { opacity: 1; }
+/* The stagger. `transition-delay` is read off the state being moved TO, so the
+   base rule times the close and the .is-open rule times the open: the left door
+   leads on the way out, the right leads on the way back. They are never in
+   lockstep, which is the one thing that always reads as animation rather than
+   as furniture. */
+.pui-cell--cabinet .pui-cell-door--l,
+.pui-cell--cabinet .pui-cell-door--l .pui-cell-doorshade { transition-delay: 60ms; }
+.pui-cell--cabinet.is-open .pui-cell-door--l,
+.pui-cell--cabinet.is-open .pui-cell-door--l .pui-cell-doorshade { transition-delay: 0ms; }
+.pui-cell--cabinet.is-open .pui-cell-door--r,
+.pui-cell--cabinet.is-open .pui-cell-door--r .pui-cell-doorshade { transition-delay: 60ms; }
 
-/* Light spilling into the compartment as the doors part — one pass, then gone. */
-.pui-cell-glow {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  opacity: 0;
-  background: radial-gradient(58% 52% at 50% 38%, rgb(255 255 255 / 0.5), transparent 72%);
-}
-.pui-cell--cabinet.is-open .pui-cell-glow { animation: puiDoorLight 760ms var(--ease) 1; }
-@keyframes puiDoorLight {
-  0% { opacity: 0; }
-  32% { opacity: 0.5; }
-  100% { opacity: 0; }
-}
-
-/* The pair inside. Waits for the doors to be most of the way open, then settles. */
-.pui-cell--cabinet .pui-cell-img {
-  opacity: 0;
-  transform: translateY(7px) scale(0.94);
-  transition: opacity 240ms var(--ease) 170ms, transform 560ms cubic-bezier(0.22, 1, 0.36, 1) 150ms;
-}
-.pui-cell--cabinet.is-open .pui-cell-img {
-  opacity: 1;
-  transform: none;
+/* Promotion, on pointer-down and for as long as anything is moving (see the
+   `warm` state in shelf-cell.tsx). Permanently promoting every door on a wall
+   of twelve would hold layers the GPU has better uses for; promoting them in
+   the same frame as the transform change would be too late to help. */
+.pui-cell--cabinet.is-warm .pui-cell-door,
+.pui-cell--cabinet.is-warm .pui-cell-doorshade,
+.pui-cell--cabinet.is-warm .pui-cell-img,
+.pui-cell--cabinet.is-warm .pui-cell-reflect,
+.pui-cell--cabinet.is-warm .pui-cell-cast {
+  will-change: transform, opacity;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pui-cell-door {
+  .pui-cell-door,
+  .pui-cell--cabinet .pui-cell-door--l,
+  .pui-cell--cabinet.is-open .pui-cell-door--r,
+  .pui-cell--cabinet.is-open .pui-cell-door--l {
     transition: opacity 160ms linear;
+    transition-delay: 0ms;
   }
   .pui-cell--cabinet.is-open .pui-cell-door--l,
   .pui-cell--cabinet.is-open .pui-cell-door--r {
-    transform: none;
+    transform: rotateY(0deg);
     opacity: 0;
-    filter: none;
   }
-  .pui-cell--cabinet .pui-cell-img {
-    transform: none;
+  .pui-cell-doorshade,
+  .pui-cell--cabinet.is-open .pui-cell-doorshade {
+    opacity: 0;
+    transition: none;
+  }
+  .pui-cell--cabinet .pui-cell-img,
+  .pui-cell--cabinet.is-open .pui-cell-img {
+    transform: translateY(0) scale(1);
     transition: opacity 160ms linear;
   }
-  .pui-cell--cabinet.is-open .pui-cell-glow { animation: none; }
+  .pui-cell--cabinet .pui-cell-cast,
+  .pui-cell--cabinet.is-open .pui-cell-cast {
+    transform: translateX(-50%);
+    transition: opacity 160ms linear;
+  }
+  .pui-cell--cabinet .pui-cell-reflect,
+  .pui-cell--cabinet.is-open .pui-cell-reflect {
+    transform: scaleY(-1);
+    transition: opacity 160ms linear;
+  }
+  .pui-cell--cabinet .pui-cell-lightfall,
+  .pui-cell--cabinet.is-open .pui-cell-lightfall,
+  .pui-cell--cabinet .pui-cell-stamp,
+  .pui-cell--cabinet.is-open .pui-cell-stamp {
+    transition: opacity 160ms linear;
+  }
 }
 
 /* Per-skin door materials — the cabinet is made of whatever the room is made

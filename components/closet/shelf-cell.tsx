@@ -13,14 +13,18 @@
 //     and a broadcast stat bar. Retirement-due flashes a gold RETIRE tag.
 // The standard render keeps the site's plain card language, untouched.
 //
-// Whichever room it is, the pair sits behind a pair of hinged doors: tap the
-// stage, the phone taps back, the doors swing apart and the shoe settles into
-// the light. It's a closet — you open it. The parent owns which cells are open
-// (see closet-view.tsx) so "open everything" is one piece of state, not a
+// Whichever room it is, the pair lives in a compartment with two doors on it:
+// tap the front, the phone taps back, the doors swing, the light comes on and
+// the shoe is standing on its shelf with a reflection under it. It's a closet —
+// you open it. The furniture (back wall, light, shelf, contact shadow, mirror)
+// is CSS; see the cabinet block in app/closet-skins.css for how the room is
+// assembled and why the reflection lines up. The parent owns which cells are
+// open (see closet-view.tsx) so "open everything" is one piece of state, not a
 // broadcast to twelve cells.
 
 import Link from "next/link";
 import type { Route } from "next";
+import { useEffect, useRef, useState } from "react";
 import { Ellipsis, Timer } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { ShoeImage } from "@/components/shoe/shoe-image";
@@ -63,12 +67,43 @@ export function ShelfCell({
 }) {
   const { translate } = useLocale();
   const { item, shoe } = entry;
+
+  // Layer promotion, held only while something is actually moving.
+  //
+  // `will-change` set in the same frame as the transform it applies to is too
+  // late to do anything, and leaving it on twelve cells forever holds GPU
+  // memory for a wall that is usually still. Pointer-down is the moment in
+  // between: it fires a frame or two before the click, which is exactly the
+  // head start the compositor needs. The effect covers the other way in — the
+  // "open everything" button, which never touches this cell.
+  const [warm, setWarm] = useState(false);
+  const settled = useRef(false);
+  useEffect(() => {
+    if (!settled.current) {
+      settled.current = true;
+      return;
+    }
+    setWarm(true);
+  }, [open]);
+  useEffect(() => {
+    if (!warm) return;
+    // Longest chain is the doors' 620ms plus the reflection's 280ms delay.
+    const id = window.setTimeout(() => setWarm(false), 1100);
+    return () => window.clearTimeout(id);
+  }, [warm, open]);
+
   const ratio = wearRatio(Number(item.play_hours));
   const status = wearStatus(Number(item.play_hours));
   const nudge = shouldNudgeRetirement(item);
   const cps = costPerSession(item);
 
   const detailHref = shoe.slug ? (`/shoes/${shoe.slug}` as Route) : null;
+
+  // The reflection's source goes into a CSS `url("…")`, which React does not
+  // sanitise. Percent-encoding the two characters that could close the string
+  // early is enough — everything else is inert inside quotes, and unlike
+  // encodeURI this leaves an already-encoded URL alone.
+  const reflectSrc = shoe.image_url?.trim().replace(/["\\]/g, encodeURIComponent) || null;
 
   const img = (
     <ShoeImage
@@ -144,7 +179,7 @@ export function ShelfCell({
 
   return (
     <article
-      className={`pui-cell pui-cell--${variant} pui-cell--cabinet${open ? " is-open" : ""}${item.retired ? " is-retired" : ""}${nudge ? " is-due" : ""}`}
+      className={`pui-cell pui-cell--${variant} pui-cell--cabinet${open ? " is-open" : ""}${warm ? " is-warm" : ""}${item.retired ? " is-retired" : ""}${nudge ? " is-due" : ""}`}
     >
       {/* Per-variant furniture (pure decoration, CSS-drawn). */}
       {variant === "instrument" && (
@@ -156,17 +191,36 @@ export function ShelfCell({
       {variant === "arena" && <span className="pui-cell-plate num-display" aria-hidden>{String(index + 1).padStart(2, "0")}</span>}
       {variant === "gallery" && <span className="pui-cell-no" aria-hidden>{`No. ${String(index + 1).padStart(2, "0")}`}</span>}
 
-      {/* The compartment. The whole stage is the door handle — nothing else in
+      {/* The compartment. The whole front is the door handle — nothing else in
           here is interactive (the name below is the link to the shoe), so the
           tap can't be stolen from anything. */}
       <button
         type="button"
         className="pui-cell-stage"
         onClick={onToggle}
+        onPointerDown={() => setWarm(true)}
         aria-expanded={open}
         aria-label={`${translate(open ? "Close the door" : "Open the door")} — ${shoe.shoe_name}`}
       >
-        {img}
+        <span className="pui-cell-room" aria-hidden />
+        <span className="pui-cell-lightfall" aria-hidden />
+
+        <div className="pui-cell-berth">
+          {img}
+          <span className="pui-cell-cast" aria-hidden />
+          {/* A real mirror of the pair, not a hint of one — same image, same
+              box, flipped about the shelf line. Skipped outright when there's
+              no photo; a URL that 404s simply paints nothing. */}
+          {reflectSrc ? (
+            <span
+              className="pui-cell-reflect"
+              aria-hidden
+              style={{ backgroundImage: `url("${reflectSrc}")` }}
+            />
+          ) : null}
+        </div>
+        <span className="pui-cell-shelf" aria-hidden />
+
         {/* Retirement verdicts, per material: ink stamp / flash tag / captions */}
         {variant === "editorial" && (nudge || item.retired) ? (
           <span className={`pui-cell-stamp${item.retired ? " is-final" : ""}`}>
@@ -176,10 +230,14 @@ export function ShelfCell({
         {variant === "arena" && nudge ? (
           <span className="pui-cell-flash">{translate("Time to retire")}</span>
         ) : null}
+
         <span className="pui-cell-doors" aria-hidden>
-          <span className="pui-cell-glow" />
-          <span className="pui-cell-door pui-cell-door--l" />
-          <span className="pui-cell-door pui-cell-door--r" />
+          <span className="pui-cell-door pui-cell-door--l">
+            <span className="pui-cell-doorshade" />
+          </span>
+          <span className="pui-cell-door pui-cell-door--r">
+            <span className="pui-cell-doorshade" />
+          </span>
         </span>
       </button>
 
