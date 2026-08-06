@@ -793,6 +793,13 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "stop and log": "结束并记录",
   "logged": "已记录",
   "too short to log": "太短了,没有记录",
+  // ── Session receipt (打球结束后的回执) ──
+  "session logged": "本次记录",
+  "this session": "本次",
+  "recent runs": "最近几次",
+  "nothing logged for this pair yet.": "这双还没有任何记录。",
+  "cushion left": "中底余量",
+  "per run": "每场",
   // ── Widgets & Live Activities settings ──
   "widgets & live activities": "小组件与实时活动",
   "choose what sneakerfeature is allowed to show outside the app. anything you switch off stops being copied out of the app at all.":
