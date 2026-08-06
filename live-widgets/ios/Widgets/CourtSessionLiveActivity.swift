@@ -30,7 +30,9 @@ struct CourtSessionLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: CourtSessionAttributes.self) { context in
             CourtSessionLockScreenView(context: context)
-                .widgetURL(WidgetLinks.urlOrHome(for: "/closet"))
+                // Where they left off while the run is live; the receipt for
+                // that run once it has ended. Both come from the state.
+                .widgetURL(WidgetLinks.urlOrHome(for: context.state.linkPath ?? "/closet"))
                 .activitySystemActionForegroundColor(.primary)
         } dynamicIsland: { context in
             let copy = WidgetCopy(zh: context.attributes.isChinese)
@@ -79,19 +81,27 @@ struct CourtSessionLiveActivity: Widget {
                     .padding(.top, 2)
                 }
             } compactLeading: {
-                Image(systemName: "figure.basketball")
-                    .foregroundStyle(Color.sfBrand)
+                AppLogoMark(size: 18)
             } compactTrailing: {
-                // The compact region is a few dozen points wide and the system
-                // truncates rather than shrinks, so the clock gets an explicit
-                // width and monospaced digits to stop it jittering every second.
-                CourtClock(state: context.state, copy: copy, size: 13, weight: .semibold)
-                    .frame(width: 48)
+                // Label + clock. The compact region is roughly 80pt wide and the
+                // system truncates rather than shrinks, so: a deliberately short
+                // word (copy.courtShort, not copy.playing), a fixed width for the
+                // clock, and monospaced digits so it doesn't jitter every second.
+                HStack(spacing: 4) {
+                    Text(context.state.isRunning ? copy.courtShort : copy.pausedShort)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .layoutPriority(-1) // the clock wins any fight for width
+                    CourtClock(state: context.state, copy: copy, size: 13, weight: .semibold)
+                        .frame(width: 48)
+                }
             } minimal: {
-                Image(systemName: "figure.basketball")
-                    .foregroundStyle(Color.sfBrand)
+                // Only shown when another app is sharing the Island, so this is
+                // pure identity — the clock has nowhere to go.
+                AppLogoMark(size: 16)
             }
-            .widgetURL(WidgetLinks.urlOrHome(for: "/closet"))
+            .widgetURL(WidgetLinks.urlOrHome(for: context.state.linkPath ?? "/closet"))
             .keylineTint(Color.sfBrand)
         }
     }
@@ -115,6 +125,7 @@ struct CourtSessionLockScreenView: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
+                    AppLogoMark(size: 12)
                     if context.state.isRunning { LiveDot() }
                     Text(context.state.isRunning ? copy.playing : copy.paused)
                         .font(.system(size: 11, weight: .semibold))

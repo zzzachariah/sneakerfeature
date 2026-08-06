@@ -27,6 +27,12 @@ struct CourtSessionAttributes: ActivityAttributes {
         /// Lifetime totals for this rotation, shown under the clock.
         var totalHours: Double
         var totalSessions: Int
+        /// Where a tap goes. While the run is live this is the page the user was
+        /// last on — pushed once, when the app backgrounds, rather than on every
+        /// navigation, because ActivityKit throttles updates and "where I left
+        /// off" only settles when they leave. When the run ends it becomes the
+        /// receipt for that run.
+        var linkPath: String?
 
         var isRunning: Bool { runningSince != nil }
 

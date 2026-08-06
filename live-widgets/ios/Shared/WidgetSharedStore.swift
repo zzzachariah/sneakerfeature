@@ -170,6 +170,11 @@ struct StoredCourtSession: Codable, Hashable {
     var runningSince: Date?
     /// Seconds banked by legs that already ended.
     var accumulatedSeconds: Double
+    /// The in-app path the user was last on, so tapping the Island or the widget
+    /// resumes where they left off instead of dropping them on the closet.
+    /// Written when the app goes to the background — which is exactly the moment
+    /// "where I left off" stops changing.
+    var returnPath: String?
 
     var isRunning: Bool { runningSince != nil }
 

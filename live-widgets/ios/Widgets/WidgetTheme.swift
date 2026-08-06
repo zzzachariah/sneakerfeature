@@ -23,6 +23,39 @@ extension Color {
     )
 }
 
+/// The app's mark, for the Dynamic Island's compact region and as a quiet stamp
+/// on every widget.
+///
+/// Reads `AppLogo` out of the *extension's* asset catalogue — a widget extension
+/// is a separate bundle and cannot see the app's Assets.xcassets, so the image
+/// has to be added there too (live-widgets/README.md §3c). Until it is,
+/// UIImage(named:) returns nil and this falls back to an SF Symbol rather than
+/// drawing the empty box `Image("AppLogo")` would leave behind. That means the
+/// build is never blocked on an asset, and adding it later upgrades every
+/// surface at once.
+struct AppLogoMark: View {
+    var size: CGFloat = 16
+    /// Compact Dynamic Island regions render on near-black; a mark with its own
+    /// colours reads better there than a tinted one. Widgets are the opposite —
+    /// the logo is furniture, so it defers to the content.
+    var dimmed: Bool = false
+
+    var body: some View {
+        if let image = UIImage(named: "AppLogo") {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: size, height: size)
+                .opacity(dimmed ? 0.55 : 1)
+        } else {
+            Image(systemName: "figure.basketball")
+                .font(.system(size: size * 0.86, weight: .semibold))
+                .foregroundStyle(dimmed ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.sfBrand))
+                .frame(width: size, height: size)
+        }
+    }
+}
+
 /// A shoe picture from the shared cache, or its initials when there isn't one.
 ///
 /// The fallback matters more than it looks: images are downloaded lazily by the

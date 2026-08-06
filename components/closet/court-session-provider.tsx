@@ -35,6 +35,7 @@ import {
   pauseSession,
   resumeSession,
   sessionPlayedAt,
+  sessionReceiptPath,
   type CourtSession
 } from "@/lib/closet/court-session";
 import {
@@ -53,6 +54,15 @@ import {
 } from "@/lib/native/live-widgets";
 import { readWidgetPrefs } from "@/lib/native/widget-prefs";
 import { haptics } from "@/lib/native/haptics";
+
+/** The in-app path the user is on, as a deep-linkable "/path?query" string. */
+function currentPath(): string {
+  if (typeof window === "undefined") return "/closet";
+  const path = `${window.location.pathname}${window.location.search}`;
+  // Guard the same way pathFromDeepLink does on the way back in: anything that
+  // could resolve against another origin is not a path we'd follow.
+  return path.startsWith("/") && !path.startsWith("//") ? path : "/closet";
+}
 
 export type CourtSessionShoe = {
   shoeId: string;
@@ -151,7 +161,8 @@ export function CourtSessionProvider({ children }: { children: ReactNode }) {
           imageUrl: next.imageUrl,
           startedAt: next.startedAt,
           totalHours: shoe.totalHours ?? 0,
-          totalSessions: shoe.totalSessions ?? 0
+          totalSessions: shoe.totalSessions ?? 0,
+          returnPath: currentPath()
         });
       }
     },
@@ -189,7 +200,7 @@ export function CourtSessionProvider({ children }: { children: ReactNode }) {
     async (target: CourtSession, at: number): Promise<StopResult> => {
       const hours = loggableHours(target, at);
       commit(null);
-      await endCourtActivity(target.id, hours);
+      await endCourtActivity(target.id, hours, sessionReceiptPath(target.shoeId));
 
       if (hours <= 0) {
         haptics.selection();
@@ -228,7 +239,7 @@ export function CourtSessionProvider({ children }: { children: ReactNode }) {
     const current = sessionRef.current;
     if (!current) return;
     commit(null);
-    void endCourtActivity(current.id, 0);
+    void endCourtActivity(current.id, 0, sessionReceiptPath(current.shoeId));
     haptics.selection();
   }, [commit]);
 
@@ -308,6 +319,40 @@ export function CourtSessionProvider({ children }: { children: ReactNode }) {
 
     commit(current);
   }, [commit, finish]);
+
+  // Where a tap on the Island (or on the widget) should land while a run is
+  // going: the page they were last looking at.
+  //
+  // Pushed when the app leaves the foreground, not on every navigation. That's
+  // both cheap — ActivityKit throttles updates, and browsing shoes mid-session
+  // would burn the budget in minutes — and semantically exact: "where I left
+  // off" is only settled at the moment they leave.
+  useEffect(() => {
+    if (!session) return;
+    let cleanup: (() => void) | undefined;
+    void (async () => {
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        if (!Capacitor.isNativePlatform()) return;
+        const { App } = await import("@capacitor/app");
+        const handle = await App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) return;
+          const current = sessionRef.current;
+          if (!current) return;
+          void updateCourtActivity({
+            id: current.id,
+            runningSince: current.runningSince,
+            accumulatedMs: current.accumulatedMs,
+            returnPath: currentPath()
+          });
+        });
+        cleanup = () => handle.remove();
+      } catch {
+        /* not in the native shell */
+      }
+    })();
+    return () => cleanup?.();
+  }, [session]);
 
   // Restore on mount, then reconcile whenever the app comes back to the
   // foreground — that resume is the moment a widget-started run becomes visible.

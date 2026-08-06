@@ -48,6 +48,12 @@ struct WidgetCopy {
 
     // Court session Live Activity
     var playing: String { t("Playing", "打球中") }
+    /// For the Dynamic Island's compact region, which is about 80pt wide with a
+    /// clock already in it. Anything longer than this gets truncated mid-word by
+    /// the system rather than shrunk, so the short form is a separate string
+    /// instead of `playing` with a smaller font.
+    var courtShort: String { t("Court", "打球") }
+    var pausedShort: String { t("Held", "暂停") }
     var paused: String { t("Paused", "已暂停") }
     var courtTimer: String { t("Court timer", "打球计时") }
     var start: String { t("Start", "开场") }

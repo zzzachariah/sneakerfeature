@@ -134,6 +134,22 @@ Capacitor 8 的 `CapacitorBridge.registerPlugins()` 只注册两类插件：它�
 
 ---
 
+## 三 c、iOS：把 logo 放进扩展的图片库
+
+灵动岛的紧凑区、以及每个小组件的角上，都会画 App 的 logo。**小组件扩展是独立 bundle，
+看不到主 App 的 `Assets.xcassets`**，所以同一张图得在扩展那边再放一份。
+
+1. 左侧点开 **`SneakerfeatureWidgets → Assets`**
+2. 空白处右键 → **New Image Set**
+3. 把它重命名为 **`AppLogo`** ← 必须一字不差
+4. 把仓库里的 `assets/logo.png` 拖进 **1x / 2x / 3x** 任意一格（拖 1x 那格就行，
+   系统会自己缩放）
+
+没做这一步也不会编译失败 —— `AppLogoMark` 找不到图时会退回一个 SF Symbol，
+补上图之后所有位置一起变。
+
+---
+
 ## 四、iOS：开 App Group（不开的话小组件永远是空的）
 
 小组件是**独立进程**，读不到 App 的 `UserDefaults`，更读不到 WebView 的 cookie。

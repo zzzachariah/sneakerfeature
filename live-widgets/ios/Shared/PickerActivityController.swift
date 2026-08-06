@@ -52,6 +52,9 @@ enum PickerActivityController {
             )
             return true
         } catch {
+            // Same reasoning as CourtSessionController: non-fatal, but never
+            // silent. A picker turn still streams fine without the Island.
+            print("⚡️  [LiveWidgets] Picker Activity.request failed: \(error)")
             return false
         }
     }

@@ -55,8 +55,7 @@ struct PickerLiveActivity: Widget {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                Image(systemName: symbol(for: context.state.stage))
-                    .foregroundStyle(Color.sfBrand)
+                AppLogoMark(size: 18)
             } compactTrailing: {
                 Text(context.attributes.startedAt, style: .timer)
                     .font(.system(size: 13, weight: .semibold, design: .rounded))
@@ -64,8 +63,7 @@ struct PickerLiveActivity: Widget {
                     .frame(width: 44)
                     .multilineTextAlignment(.center)
             } minimal: {
-                Image(systemName: symbol(for: context.state.stage))
-                    .foregroundStyle(Color.sfBrand)
+                AppLogoMark(size: 16)
             }
             .widgetURL(WidgetLinks.urlOrHome(for: context.attributes.path))
             .keylineTint(Color.sfBrand)

@@ -12,9 +12,11 @@
 // Nothing renders when no run is going, so this costs a null on every page.
 
 import { useEffect, useState } from "react";
-import { Check, Pause, Play, Square } from "lucide-react";
+import Link from "next/link";
+import type { Route } from "next";
+import { ArrowRight, Check, Pause, Play, Square } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { formatElapsed } from "@/lib/closet/court-session";
+import { formatElapsed, sessionReceiptPath } from "@/lib/closet/court-session";
 import { useCourtSession, useElapsed } from "@/components/closet/court-session-provider";
 
 /** How long the "已记录 1.5h" confirmation stays up after a run ends. */
@@ -24,7 +26,7 @@ export function CourtSessionBar() {
   const { translate } = useLocale();
   const { session, running, busy, pause, resume, stop } = useCourtSession();
   const elapsed = useElapsed(session);
-  const [flash, setFlash] = useState<{ text: string; error: boolean } | null>(null);
+  const [flash, setFlash] = useState<{ text: string; error: boolean; receiptPath?: string } | null>(null);
 
   useEffect(() => {
     if (!flash) return;
@@ -39,7 +41,8 @@ export function CourtSessionBar() {
     if (result.status === "logged") {
       setFlash({
         text: `${translate("Logged")} ${Math.round(result.hours * 100) / 100}h`,
-        error: false
+        error: false,
+        receiptPath: sessionReceiptPath(result.shoeId)
       });
     } else if (result.status === "too-short") {
       setFlash({ text: translate("Too short to log"), error: false });
@@ -103,6 +106,16 @@ export function CourtSessionBar() {
         >
           {!flash.error ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
           <span className="truncate">{flash.text}</span>
+          {flash.receiptPath ? (
+            <Link
+              href={flash.receiptPath as Route}
+              onClick={() => setFlash(null)}
+              className="tap-44 -my-1 ml-1 inline-flex shrink-0 items-center gap-0.5 rounded-full px-2 py-1 font-semibold underline-offset-2 hover:underline"
+            >
+              {translate("View")}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          ) : null}
         </div>
       ) : null}
     </div>
