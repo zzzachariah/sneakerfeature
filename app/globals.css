@@ -715,17 +715,16 @@ html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
 }
 
 /* The running court-timer capsule (components/closet/court-session-bar.tsx)
-   stacks directly above whatever bottom bar is on screen, so it never covers a
-   tab. Three cases, in specificity order:
-     • phones, web nav present → clear the 60px capsule + its 5px inset
-     • phones, native UITabBar → that bar lives OUTSIDE the WebView, so the
-       WebView's own bottom edge is already above it; only the safe area applies
-     • md+ → no bottom capsule at all */
+   stacks above whatever bottom bar is on screen, so it never hides behind a tab.
+   One offset covers both phone cases, because both bars are shorter than it:
+     • web nav  → floating capsule, 60px tall, 5px above the safe area
+     • iOS app  → a real UITabBar (49pt + safe area). NOTE it is a SIBLING view
+       ON TOP of the web view (see NativeTabBarController.attach), not chrome
+       outside it — the web view runs full height underneath, so `bottom` here
+       is measured from the screen edge and has to clear the whole bar.
+   md+ has no bottom bar at all. */
 .court-bar {
   bottom: calc(var(--safe-bottom) + 75px);
-}
-html.native-tabbar-active .court-bar {
-  bottom: calc(var(--safe-bottom) + 14px);
 }
 @media (min-width: 768px) {
   .court-bar {
