@@ -161,7 +161,8 @@ public class LiveWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
             imageFile: call.getString("imageFile"),
             startedAt: startedAt,
             runningSince: startedAt,
-            accumulatedSeconds: 0
+            accumulatedSeconds: 0,
+            returnPath: call.getString("returnPath")
         )
 
         // Totals are for the card's "累计" line. The web app passes what it
@@ -198,6 +199,11 @@ public class LiveWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         session.runningSince = date(call.getDouble("runningSince"))
         session.accumulatedSeconds = max(0, (call.getDouble("accumulatedMs") ?? 0) / 1000)
+        // Absent means "unchanged" — a pause/resume update shouldn't wipe the
+        // page the user was last on.
+        if let returnPath = call.getString("returnPath"), returnPath.hasPrefix("/") {
+            session.returnPath = returnPath
+        }
 
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
@@ -213,10 +219,11 @@ public class LiveWidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func endCourtSession(_ call: CAPPluginCall) {
         let id = call.getString("id") ?? WidgetShared.loadSession()?.id ?? ""
         let loggedHours = call.getDouble("loggedHours") ?? 0
+        let resultPath = call.getString("resultPath")
 
         #if canImport(ActivityKit)
         if #available(iOS 16.2, *) {
-            CourtSessionController.end(sessionId: id, loggedHours: loggedHours)
+            CourtSessionController.end(sessionId: id, loggedHours: loggedHours, resultPath: resultPath)
             call.resolve()
             return
         }

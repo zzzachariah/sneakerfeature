@@ -67,7 +67,8 @@ enum CourtSessionController {
             runningSince: session.runningSince,
             accumulatedSeconds: session.accumulatedSeconds,
             totalHours: totalHours,
-            totalSessions: totalSessions
+            totalSessions: totalSessions,
+            linkPath: session.returnPath
         )
 
         do {
@@ -110,7 +111,8 @@ enum CourtSessionController {
             runningSince: session.runningSince,
             accumulatedSeconds: session.accumulatedSeconds,
             totalHours: totalHours ?? previous.totalHours,
-            totalSessions: totalSessions ?? previous.totalSessions
+            totalSessions: totalSessions ?? previous.totalSessions,
+            linkPath: session.returnPath ?? previous.linkPath
         )
         Task {
             await activity.update(ActivityContent(state: state, staleDate: nil))
@@ -119,7 +121,7 @@ enum CourtSessionController {
 
     /// Ends the run. `loggedHours` is only for the farewell card — the wear log
     /// itself is written by the web layer, which is the side with the session.
-    static func end(sessionId: String, loggedHours: Double) {
+    static func end(sessionId: String, loggedHours: Double, resultPath: String? = nil) {
         WidgetShared.saveSession(nil)
         guard let activity = activity(for: sessionId) else {
             reloadWidgets()
@@ -130,7 +132,11 @@ enum CourtSessionController {
             runningSince: nil,
             accumulatedSeconds: previous.elapsed(),
             totalHours: previous.totalHours + max(0, loggedHours),
-            totalSessions: previous.totalSessions + (loggedHours > 0 ? 1 : 0)
+            totalSessions: previous.totalSessions + (loggedHours > 0 ? 1 : 0),
+            // The farewell card stops being "resume where you were" and becomes
+            // "here's what that run did" — the receipt is the only thing worth
+            // tapping once the clock has stopped.
+            linkPath: resultPath ?? previous.linkPath
         )
         Task {
             // A few seconds of "结束 · 已记录 1.5h" on the Lock Screen is the

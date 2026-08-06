@@ -52,11 +52,15 @@ struct DailyShoeView: View {
 
     private func small(_ daily: WidgetDailyPanel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(copy.todaysPick)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-                .kerning(0.6)
+            HStack(spacing: 5) {
+                AppLogoMark(size: 12, dimmed: true)
+                Text(copy.todaysPick)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
+                    .kerning(0.6)
+                    .lineLimit(1)
+            }
 
             Spacer(minLength: 2)
 
@@ -82,11 +86,15 @@ struct DailyShoeView: View {
             ShoeThumb(file: daily.image.file, name: daily.title, size: 84)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(copy.todaysPick)
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .textCase(.uppercase)
-                    .kerning(0.6)
+                HStack(spacing: 5) {
+                    AppLogoMark(size: 12, dimmed: true)
+                    Text(copy.todaysPick)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .kerning(0.6)
+                        .lineLimit(1)
+                }
                 Text(daily.brand)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)

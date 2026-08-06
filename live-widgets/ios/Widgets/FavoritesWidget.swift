@@ -51,6 +51,7 @@ struct FavoritesView: View {
     private func filled(_ favorites: WidgetFavoritesPanel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 5) {
+                AppLogoMark(size: 12, dimmed: true)
                 Image(systemName: "heart.fill")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(Color.sfBrand)

@@ -64,11 +64,13 @@ interface LiveWidgetsPlugin {
     startedAt: number;
     totalHours: number;
     totalSessions: number;
+    returnPath: string;
   }): Promise<void>;
   updateCourtSession(options: {
     id: string;
     runningSince: number | null;
     accumulatedMs: number;
+    returnPath?: string;
   }): Promise<void>;
   endCourtSession(options: { id: string; loggedHours: number; resultPath: string }): Promise<void>;
   getCourtSession(): Promise<{ session: NativeCourtSession | null }>;
@@ -239,6 +241,8 @@ export async function startCourtActivity(input: {
   startedAt: number;
   totalHours: number;
   totalSessions: number;
+  /** Where a tap on the Island should land right now. */
+  returnPath: string;
 }): Promise<void> {
   const p = plugin();
   if (!p) return;
@@ -272,17 +276,23 @@ export async function startCourtActivity(input: {
       imageFile,
       startedAt: input.startedAt,
       totalHours: input.totalHours,
-      totalSessions: input.totalSessions
+      totalSessions: input.totalSessions,
+      returnPath: input.returnPath
     });
   } catch {
     /* the timer still runs in the app; only the Island is missing */
   }
 }
 
+/**
+ * Pushes the session's shape to native. `returnPath` is optional and omitting it
+ * means "unchanged" — a pause shouldn't forget the page the user was on.
+ */
 export async function updateCourtActivity(input: {
   id: string;
   runningSince: number | null;
   accumulatedMs: number;
+  returnPath?: string;
 }): Promise<void> {
   const p = plugin();
   if (!p) return;

@@ -40,7 +40,16 @@ struct ClosetMileageView: View {
 
     var body: some View {
         content
-            .widgetURL(WidgetLinks.urlOrHome(for: closet?.path ?? "/closet"))
+            .widgetURL(WidgetLinks.urlOrHome(for: tapPath))
+    }
+
+    /// Mid-run the widget is a way back into what you were doing, so it inherits
+    /// the session's return path. With no run going it's a link to the pair.
+    private var tapPath: String {
+        if let session = entry.session, let path = session.returnPath, path.hasPrefix("/") {
+            return path
+        }
+        return closet?.path ?? "/closet"
     }
 
     @ViewBuilder
@@ -69,7 +78,8 @@ struct ClosetMileageView: View {
 
     private func smallBody(_ closet: WidgetClosetPanel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 5) {
+                AppLogoMark(size: 13, dimmed: true)
                 Text(copy.thisWeek)
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.secondary)
