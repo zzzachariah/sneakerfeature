@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker labels. These are chrome the system draws, outside the
+     WebView, so they can't go through the app's own translation layer — hence a
+     values/ + values-zh/ pair rather than a lookup in locale-provider.tsx.
+     Prefixed sf_ so the merge into the host app can't collide with a name from
+     Capacitor or another plugin. -->
+<resources>
+    <string name="sf_widget_closet_label">Closet mileage</string>
+    <string name="sf_widget_closet_description">This week\'s court hours and the pair you\'re hooping in.</string>
+</resources>

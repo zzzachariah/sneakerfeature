@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified Chinese for the system widget picker. Selected by the DEVICE
+     language, not the app's — the launcher draws this text before our process
+     is even running, so it has no way to know what the user picked in-app. The
+     widget's own contents follow the app language, via the snapshot's locale. -->
+<resources>
+    <string name="sf_widget_closet_label">战靴里程</string>
+    <string name="sf_widget_closet_description">本周打球时长,以及你正在穿的那双。</string>
+</resources>

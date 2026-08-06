@@ -16,6 +16,7 @@ import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
 import { MembershipPanel } from "@/components/dashboard/membership-panel";
 import { PersonalizedPushToggle } from "@/components/preferences/personalized-push-toggle";
 import { HapticsToggle } from "@/components/preferences/haptics-toggle";
+import { WidgetsToggle } from "@/components/preferences/widgets-toggle";
 import { Stagger, StaggerItem } from "@/components/motion/stagger";
 import { SwipeRow } from "@/components/motion/swipe-row";
 
@@ -403,6 +404,10 @@ export function DashboardSlides(props: Props) {
 
                 {/* Haptics (native app only) */}
                 <HapticsToggle />
+
+                {/* Widgets / Dynamic Island (native app with the widget
+                    extension only — hides itself everywhere else) */}
+                <WidgetsToggle />
 
                 {/* Security */}
                 <section className="glass glass-rim glass-clip relative rounded-2xl p-5">

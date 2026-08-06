@@ -121,6 +121,7 @@ npx cap open android
 | `APPLE_TEAM_ID` | 你的 Apple 开发者 Team ID（10 位） |
 | `IOS_DIST_CERT_P12` / `IOS_DIST_CERT_PASSWORD` | iOS 发布证书（base64 的 .p12 + 密码） |
 | `IOS_PROVISIONING_PROFILE` / `IOS_PROVISIONING_PROFILE_NAME` | App Store 描述文件（base64）+ 它的名称 |
+| `IOS_WIDGET_PROVISIONING_PROFILE` / `IOS_WIDGET_PROVISIONING_PROFILE_NAME` | **小组件扩展**的描述文件（bundle id `com.sneakerfeature.app.SneakerfeatureWidgets`）。扩展是独立签名的 bundle，缺了它 `exportArchive` 会直接失败。留空则按「没有小组件」出包（见第九节） |
 | `ANDROID_KEYSTORE_BASE64` / `ANDROID_KEYSTORE_PASSWORD` / `ANDROID_KEY_ALIAS` / `ANDROID_KEY_PASSWORD` | 安卓签名（keystore base64 + 密码 + 别名 + 密钥密码） |
 
 > 生成 base64：`base64 -i sneakerfeature.keystore | pbcopy`（macOS，证书 .p12 同理）。
@@ -273,3 +274,56 @@ scheme 定义在 `lib/native/deep-link.ts` 的 `APP_URL_SCHEME`（当前是 `sne
 - **本地结构化球鞋库（SQLite）**：把相对静态的球鞋规格下到设备本地（`@capacitor-community/sqlite`
   或 IndexedDB），列表/详情本地秒出 + 离线 + 后台增量同步。收益最大、工程最大；当前 SW 的
   Cache Storage 已先覆盖了「本地 + 离线 + 重复访问快」的主要诉求。
+
+---
+
+## 九、灵动岛 / 锁屏实时活动 / 主屏小组件
+
+完整接入手册在 **[`live-widgets/README.md`](./live-widgets/README.md)** —— 那份是逐步操作，
+这里只放「必须先知道的四件事」。
+
+### 1. 这一层和网站层的红利是相反的
+
+第 8–10 行那个两层心智模型在这里**不成立**：小组件和实时活动是**纯原生 SwiftUI**，
+跑在独立的 Extension 进程里，**塞不进 WebView、渲染不了 HTML**。
+所以改小组件的样子 = 重新打包 + 重新过审。
+
+好在**数据**是走网页层的：`app/api/widgets/snapshot/route.ts` 返回的东西改了，
+部署完 App 下次启动就生效，不用重新打包。所以 Swift 里刻意只留了排版，没有业务判断。
+
+### 2. 顺带解决第 105 行那个隐患
+
+Guideline 4.2「套壳」被拒是 MOBILE.md 一直担心的事。Widget + Live Activity 恰好是
+最有说服力的反证 —— 它们在技术上不可能由网页壳实现。重交时值得在审核备注里点名。
+
+### 3. 必须手动做的三件事（`cap sync` 不会代劳）
+
+1. Xcode 里新建 **Widget Extension** target，名字必须是 `SneakerfeatureWidgets`
+2. 开 **App Group** `group.com.sneakerfeature.app`，**两个 target 都要勾**
+3. App 的 `Info.plist` 加 `NSSupportsLiveActivities` = `true`
+
+漏第 2 条 → 小组件永远空白；漏第 3 条 → 灵动岛永远不出现，且**没有任何报错**。
+
+`ios/Widgets/` 那批文件**不能**加进 App target（两个 `@main` 会编译失败），
+`ios/Shared/` 那批**必须**两个 target 都加（ActivityAttributes 和 App Intent 靠这个匹配）。
+每个源文件开头都写了自己该属于哪个 target。
+
+安卓那半边不用管：`live-widgets` 是本地 Capacitor 插件，`npx cap sync android` 自动接入。
+
+### 4. 用户可以自己关
+
+设置页（`/dashboard` 账号页）有一组开关，逐设备存 localStorage，默认全开：
+战靴里程 / 今日一鞋 / 收藏与对比 / 锁屏圆环 / 打球计时实时活动 / Smart Picker 进度，
+外加每周打球时长目标。
+
+关掉的项目**连数据都不再写进 App Group** —— 不是写进去再不显示。
+整个设置区在不支持的环境（网页、老版本壳）里自动隐藏，不会出现点了没用的开关。
+
+### 打球计时的入口在哪
+
+`/closet` 页面顶部一整块 Liquid Glass 面板，默认选中你打得最多的那双，一键开场；
+开始之后全局悬浮一条玻璃胶囊（`components/closet/court-session-bar.tsx`），
+在 App 任何页面都能暂停/结束，和灵动岛上的按钮是同一套动作。
+
+回归：`npm run test:widgets`（90 条纯逻辑断言：周边界、时长取整、12 小时封顶、
+设置裁剪、深链接往返）。

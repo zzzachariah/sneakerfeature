@@ -714,6 +714,25 @@ html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
   display: none !important;
 }
 
+/* The running court-timer capsule (components/closet/court-session-bar.tsx)
+   stacks directly above whatever bottom bar is on screen, so it never covers a
+   tab. Three cases, in specificity order:
+     • phones, web nav present → clear the 60px capsule + its 5px inset
+     • phones, native UITabBar → that bar lives OUTSIDE the WebView, so the
+       WebView's own bottom edge is already above it; only the safe area applies
+     • md+ → no bottom capsule at all */
+.court-bar {
+  bottom: calc(var(--safe-bottom) + 75px);
+}
+html.native-tabbar-active .court-bar {
+  bottom: calc(var(--safe-bottom) + 14px);
+}
+@media (min-width: 768px) {
+  .court-bar {
+    bottom: calc(var(--safe-bottom) + 16px);
+  }
+}
+
 /* Same for the top bar: in the iOS app the header becomes a native Liquid Glass
    UINavigationBar (see components/native/native-top-bar.tsx) — the reliable way
    to get glass on top in WKWebView. Hide the web header with visibility:hidden
