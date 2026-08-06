@@ -12,6 +12,12 @@
 //   • Arena — a locker stall: brushed metal, vent slits, a gold number plate
 //     and a broadcast stat bar. Retirement-due flashes a gold RETIRE tag.
 // The standard render keeps the site's plain card language, untouched.
+//
+// Whichever room it is, the pair sits behind a pair of hinged doors: tap the
+// stage, the phone taps back, the doors swing apart and the shoe settles into
+// the light. It's a closet — you open it. The parent owns which cells are open
+// (see closet-view.tsx) so "open everything" is one piece of state, not a
+// broadcast to twelve cells.
 
 import Link from "next/link";
 import type { Route } from "next";
@@ -41,12 +47,17 @@ export function ShelfCell({
   entry,
   index,
   variant,
+  open,
+  onToggle,
   onLogWear,
   onEdit
 }: {
   entry: { item: ClosetItemRow; shoe: ClosetShoe };
   index: number;
   variant: PremiumVariant;
+  /** Are this compartment's doors open? */
+  open: boolean;
+  onToggle: () => void;
   onLogWear: () => void;
   onEdit: () => void;
 }) {
@@ -65,7 +76,10 @@ export function ShelfCell({
       alt={`${shoe.brand} ${shoe.shoe_name}`}
       fallbackLabel={shoe.shoe_name}
       variant="closet"
-      stage={variant === "standard"}
+      // No inner stage. The compartment behind the doors IS the stage now that
+      // the image fills it — ShoeImage's own backdrop would draw a second,
+      // smaller framed box 8px inside the first one.
+      stage={false}
       className="pui-cell-img"
     />
   );
@@ -130,7 +144,7 @@ export function ShelfCell({
 
   return (
     <article
-      className={`pui-cell pui-cell--${variant}${item.retired ? " is-retired" : ""}${nudge ? " is-due" : ""}`}
+      className={`pui-cell pui-cell--${variant} pui-cell--cabinet${open ? " is-open" : ""}${item.retired ? " is-retired" : ""}${nudge ? " is-due" : ""}`}
     >
       {/* Per-variant furniture (pure decoration, CSS-drawn). */}
       {variant === "instrument" && (
@@ -142,7 +156,16 @@ export function ShelfCell({
       {variant === "arena" && <span className="pui-cell-plate num-display" aria-hidden>{String(index + 1).padStart(2, "0")}</span>}
       {variant === "gallery" && <span className="pui-cell-no" aria-hidden>{`No. ${String(index + 1).padStart(2, "0")}`}</span>}
 
-      <div className="pui-cell-stage">
+      {/* The compartment. The whole stage is the door handle — nothing else in
+          here is interactive (the name below is the link to the shoe), so the
+          tap can't be stolen from anything. */}
+      <button
+        type="button"
+        className="pui-cell-stage"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-label={`${translate(open ? "Close the door" : "Open the door")} — ${shoe.shoe_name}`}
+      >
         {img}
         {/* Retirement verdicts, per material: ink stamp / flash tag / captions */}
         {variant === "editorial" && (nudge || item.retired) ? (
@@ -153,7 +176,12 @@ export function ShelfCell({
         {variant === "arena" && nudge ? (
           <span className="pui-cell-flash">{translate("Time to retire")}</span>
         ) : null}
-      </div>
+        <span className="pui-cell-doors" aria-hidden>
+          <span className="pui-cell-glow" />
+          <span className="pui-cell-door pui-cell-door--l" />
+          <span className="pui-cell-door pui-cell-door--r" />
+        </span>
+      </button>
 
       <div className="pui-cell-body">
         {nameBlock}

@@ -779,6 +779,11 @@ const UI_TRANSLATIONS_ZH: Record<string, string> = {
   "full court, outdoor …": "全场、室外 …",
   "runs": "次",
   "run": "次",
+  // ── The cabinet doors on the closet wall ──
+  "open the door": "打开柜门",
+  "close the door": "关上柜门",
+  "open all": "全部打开",
+  "close all": "全部关上",
   // ── Court timer (Dynamic Island / Lock Screen live activity) ──
   "court timer": "打球计时",
   "start": "开场",

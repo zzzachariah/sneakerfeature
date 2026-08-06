@@ -65,9 +65,42 @@
   align-items: center;
   justify-content: center;
   padding: 0.5rem;
+  overflow: hidden;
+  /* Depth for the cabinet doors below — also makes the stage a stacking
+     context, so the doors, the shoe and the retirement badges layer against
+     each other and not against the rest of the page. */
+  perspective: 720px;
   background: radial-gradient(78% 68% at 50% 34%, rgb(var(--shoe-stage-hi, 252 252 254)), rgb(var(--shoe-stage-lo, 235 235 240)) 82%);
 }
-.pui-cell-img { width: 92%; }
+/* The shoe fills the stage and letterboxes inside it (object-contain). It used
+   to be a 92%-wide SQUARE dropped into a 4:3 box, so it stood ~23% taller than
+   the stage and the cell's `overflow: hidden` cut the toe and the heel off
+   every pair. Nothing is scaled past this box either — see VARIANT_SCALE.closet
+   in components/shoe/shoe-image.tsx. */
+.pui-cell-img {
+  width: 100%;
+  height: 100%;
+  align-self: stretch;
+}
+
+/* A stage that is also the door's hit target. Strips the UA button chrome
+   only — the layout above still owns the box. */
+button.pui-cell-stage {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button.pui-cell-stage:focus-visible {
+  outline: 2px solid rgb(var(--ring) / 0.6);
+  outline-offset: -3px;
+}
 .pui-cell-body { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.7rem 0.8rem 0.85rem; flex: 1; }
 .pui-cell-id { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
 .pui-cell-brand { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgb(var(--subtext)); }
@@ -134,6 +167,178 @@
 .pui-cell--rail { transition: transform var(--dur-base, 240ms) var(--ease); }
 .pui-cell--rail .pui-cell-stage { aspect-ratio: 5 / 4; }
 .pui-cell--rail .pui-cell-body { gap: 0.4rem; padding: 0.55rem 0.65rem 0.7rem; }
+
+/* ── The cabinet: doors on the closet wall ─────────────────────────────────
+   Every pair on /closet sits behind a pair of doors that swing open on tap.
+   Only cells marked `pui-cell--cabinet` get this, so the home rail (a link, not
+   a toggle) is untouched.
+
+   The doors are real hinged panels, not a fade: `perspective` lives on the
+   stage and each door rotates about its OUTER edge, which is what makes it read
+   as a cabinet rather than a wipe. The angle stops at 84° on purpose — past
+   ~90° the free edge swings back around and pokes out the side of the cell,
+   where the stage's `overflow: hidden` would chop it in half.
+
+   The shoe is hidden while the doors are shut and springs in behind them, so
+   the reveal has a beat to it. Under prefers-reduced-motion the whole thing
+   collapses to a short cross-fade: same states, no swing, no spring.
+   ─────────────────────────────────────────────────────────────────────────── */
+.pui-cell-doors {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  /* The stage <button> is the hit target; the doors are scenery. */
+  pointer-events: none;
+}
+
+.pui-cell-door {
+  position: absolute;
+  /* Bleed a hair past every edge so no sliver of stage shows around a shut
+     door, and overlap at the seam so the two meet cleanly. */
+  top: -1px;
+  bottom: -1px;
+  width: 50.6%;
+  /* Above the light spill, so the glow reads as coming from inside the
+     compartment rather than washing over the door fronts. */
+  z-index: 2;
+  background:
+    linear-gradient(180deg, rgb(var(--glass-rim) / 0.5), transparent 34%),
+    linear-gradient(180deg, rgb(var(--surface)), rgb(var(--bg-elev)));
+  box-shadow: inset 0 0 0 1px rgb(var(--glass-stroke-soft) / 0.55);
+  backface-visibility: hidden;
+  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1), filter 560ms var(--ease);
+}
+.pui-cell-door--l {
+  left: -1px;
+  transform-origin: left center;
+  border-right: 1px solid rgb(var(--text) / 0.12);
+}
+.pui-cell-door--r {
+  right: -1px;
+  transform-origin: right center;
+}
+/* Recessed panel + a slim handle at the inner edge — the two details that make
+   a flat rectangle read as a door. */
+.pui-cell-door::before {
+  content: "";
+  position: absolute;
+  inset: 11% 15%;
+  border-radius: 3px;
+  border: 1px solid rgb(var(--text) / 0.08);
+  box-shadow: inset 0 1px 0 rgb(var(--glass-rim) / 0.4);
+}
+.pui-cell-door::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 20%;
+  min-height: 13px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, rgb(var(--text) / 0.4), rgb(var(--text) / 0.18));
+  transform: translateY(-50%);
+}
+.pui-cell-door--l::after { right: 5px; }
+.pui-cell-door--r::after { left: 5px; }
+
+.pui-cell--cabinet.is-open .pui-cell-door--l { transform: rotateY(-84deg); filter: brightness(0.82); }
+.pui-cell--cabinet.is-open .pui-cell-door--r { transform: rotateY(84deg); filter: brightness(0.82); }
+
+/* Light spilling into the compartment as the doors part — one pass, then gone. */
+.pui-cell-glow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  opacity: 0;
+  background: radial-gradient(58% 52% at 50% 38%, rgb(255 255 255 / 0.5), transparent 72%);
+}
+.pui-cell--cabinet.is-open .pui-cell-glow { animation: puiDoorLight 760ms var(--ease) 1; }
+@keyframes puiDoorLight {
+  0% { opacity: 0; }
+  32% { opacity: 0.5; }
+  100% { opacity: 0; }
+}
+
+/* The pair inside. Waits for the doors to be most of the way open, then settles. */
+.pui-cell--cabinet .pui-cell-img {
+  opacity: 0;
+  transform: translateY(7px) scale(0.94);
+  transition: opacity 240ms var(--ease) 170ms, transform 560ms cubic-bezier(0.22, 1, 0.36, 1) 150ms;
+}
+.pui-cell--cabinet.is-open .pui-cell-img {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pui-cell-door {
+    transition: opacity 160ms linear;
+  }
+  .pui-cell--cabinet.is-open .pui-cell-door--l,
+  .pui-cell--cabinet.is-open .pui-cell-door--r {
+    transform: none;
+    opacity: 0;
+    filter: none;
+  }
+  .pui-cell--cabinet .pui-cell-img {
+    transform: none;
+    transition: opacity 160ms linear;
+  }
+  .pui-cell--cabinet.is-open .pui-cell-glow { animation: none; }
+}
+
+/* Per-skin door materials — the cabinet is made of whatever the room is made
+   of, so the standard panel above is only the fallback. */
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-door {
+  background:
+    repeating-linear-gradient(96deg, transparent, transparent 6px, rgb(var(--pui-accent-ink) / 0.045) 6px, rgb(var(--pui-accent-ink) / 0.045) 7px),
+    linear-gradient(180deg, rgb(var(--pui-ed-paper)), rgb(var(--pui-ed-paper) / 0.72));
+  box-shadow: inset 0 0 0 1px rgb(var(--pui-accent-ink) / 0.2);
+}
+html[data-premium="sapphire"] .pui-cell--editorial .pui-cell-door::after {
+  background: linear-gradient(180deg, rgb(var(--pui-accent-ink) / 0.65), rgb(var(--pui-accent-ink) / 0.35));
+}
+
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-door {
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 3px, rgb(var(--pui-glow) / 0.05) 3px, rgb(var(--pui-glow) / 0.05) 4px),
+    linear-gradient(180deg, rgb(var(--pui-glow) / 0.12), rgb(var(--bg-elev) / 0.92));
+  box-shadow: inset 0 0 0 1px rgb(var(--pui-glow) / 0.4), inset 0 0 22px -8px rgb(var(--pui-glow-2) / 0.5);
+}
+html[data-premium="aurora"] .pui-cell--instrument .pui-cell-door::after {
+  background: linear-gradient(180deg, rgb(var(--pui-glow)), rgb(var(--pui-glow) / 0.4));
+  box-shadow: 0 0 8px rgb(var(--pui-glow) / 0.7);
+}
+
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-door {
+  background: linear-gradient(180deg, rgb(var(--bg-elev)), rgb(var(--bg)));
+  box-shadow: inset 0 0 0 1px rgb(var(--pui-platinum) / 0.18);
+}
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-door::before {
+  border-color: rgb(var(--pui-platinum) / 0.14);
+  border-radius: 0;
+}
+html[data-premium="obsidian"] .pui-cell--gallery .pui-cell-door::after {
+  background: linear-gradient(180deg, rgb(var(--pui-platinum) / 0.75), rgb(var(--pui-platinum) / 0.3));
+}
+
+html[data-premium="champion"] .pui-cell--arena .pui-cell-door {
+  background:
+    repeating-linear-gradient(90deg, transparent, transparent 5px, rgb(255 255 255 / 0.02) 5px, rgb(255 255 255 / 0.02) 6px),
+    linear-gradient(180deg, rgb(var(--pui-gold) / 0.1), rgb(var(--surface)));
+  box-shadow: inset 0 0 0 1px rgb(var(--pui-gold) / 0.35);
+}
+/* Locker vents instead of a recessed panel. */
+html[data-premium="champion"] .pui-cell--arena .pui-cell-door::before {
+  inset: 14% 22%;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: repeating-linear-gradient(180deg, rgb(0 0 0 / 0.34), rgb(0 0 0 / 0.34) 2px, transparent 2px, transparent 7px);
+}
+html[data-premium="champion"] .pui-cell--arena .pui-cell-door::after {
+  background: linear-gradient(180deg, rgb(var(--pui-gold)), rgb(var(--pui-gold) / 0.45));
+}
 
 /* ── Wear meter — standard skeleton ────────────────────────────────────────── */
 .pui-meter { display: flex; align-items: center; gap: 0.5rem; }

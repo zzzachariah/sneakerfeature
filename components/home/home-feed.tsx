@@ -20,6 +20,7 @@ import { useAuthState } from "@/components/auth/auth-state-provider";
 import { FeedFab } from "@/components/home/feed-fab";
 import { useIsIosNative } from "@/lib/hooks/use-is-ios-native";
 import { haptics } from "@/lib/native/haptics";
+import { setNativeSurface } from "@/lib/native/chrome-overlay";
 import { useInView } from "@/components/motion/use-progress";
 import { Capacitor } from "@capacitor/core";
 import { NativeChrome } from "@/components/native/native-chrome";
@@ -159,7 +160,7 @@ export function HomeFeed({
     void (async () => {
       try {
         await NativeChrome.configureSearch({ placeholder: translate("Search shoes…") });
-        await NativeChrome.setSearchVisible({ visible: true });
+        setNativeSurface("search", true);
         const handle = await NativeChrome.addListener("searchChanged", ({ text, submit }) => {
           // Typing updates the draft; only the keyboard Search key (submit) runs
           // the filter — same "filter on submit" behavior as the web search box.
@@ -169,7 +170,7 @@ export function HomeFeed({
         removeListener = () => void handle.remove();
         if (cancelled) {
           removeListener();
-          void NativeChrome.setSearchVisible({ visible: false });
+          setNativeSurface("search", false);
           return;
         }
         setNativeSearchActive(true);
@@ -185,7 +186,7 @@ export function HomeFeed({
       // Runs on collapse (toolsOpen→false) AND on unmount, which is how the home
       // feed leaves the tree (browseOpen→false unmounts HomeFeed) — so the bar is
       // always torn down. Safe even if the plugin never resolved.
-      if (nativeSearchAvailable()) void NativeChrome.setSearchVisible({ visible: false });
+      if (nativeSearchAvailable()) setNativeSurface("search", false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapseEnabled, toolsOpen, translate]);
