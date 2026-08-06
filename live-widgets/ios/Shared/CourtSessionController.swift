@@ -80,11 +80,26 @@ enum CourtSessionController {
             reloadWidgets()
             return true
         } catch {
-            // Most often: the app wasn't foreground and this wasn't reached from
-            // a LiveActivityIntent, or the user hit the per-app activity cap.
-            // The timer in the app is unaffected — only the Island is missing.
+            // The timer in the app is unaffected — only the Island is missing —
+            // so this stays non-fatal. But it must not stay quiet: a swallowed
+            // throw here is indistinguishable from a working feature nobody
+            // looked at, and the three usual causes (no NSSupportsLiveActivities
+            // in the app's Info.plist, a request from the background that didn't
+            // come through a LiveActivityIntent, the per-app activity cap) are
+            // told apart by the error and the two values printed with it.
+            logStartFailure(error)
             return false
         }
+    }
+
+    /// One line with everything needed to tell the failure modes apart.
+    private static func logStartFailure(_ error: Error) {
+        let declared = Bundle.main.object(forInfoDictionaryKey: "NSSupportsLiveActivities") as? Bool
+        print("""
+        ⚡️  [LiveWidgets] Activity.request failed: \(error)
+        ⚡️  [LiveWidgets] areActivitiesEnabled=\(ActivityAuthorizationInfo().areActivitiesEnabled) \
+        NSSupportsLiveActivities=\(declared.map(String.init) ?? "MISSING from the app's Info.plist")
+        """)
     }
 
     static func update(session: StoredCourtSession, totalHours: Double? = nil, totalSessions: Int? = nil) {
