@@ -6,6 +6,7 @@ import { ChevronsUp, GitCompare, Heart, SlidersHorizontal, X } from "lucide-reac
 import { useLocale } from "@/components/i18n/locale-provider";
 import { NativeChrome } from "@/components/native/native-chrome";
 import { presentNativeMenu, nativeMenuAvailable } from "@/components/native/native-menu";
+import { setNativeSurface } from "@/lib/native/chrome-overlay";
 
 type Props = {
   visible: boolean;
@@ -114,7 +115,7 @@ export function FeedFab({
   // Drive native FAB visibility from the same `visible` prop the web dial uses.
   React.useEffect(() => {
     if (!nativeReady) return;
-    void NativeChrome.setFabVisible({ visible });
+    setNativeSurface("fab", visible);
   }, [nativeReady, visible]);
 
   // Hide the native FAB when this component unmounts (leaving the home feed) so
@@ -122,7 +123,7 @@ export function FeedFab({
   React.useEffect(() => {
     if (!nativeMenuAvailable()) return;
     return () => {
-      void NativeChrome.setFabVisible({ visible: false });
+      setNativeSurface("fab", false);
     };
   }, []);
 

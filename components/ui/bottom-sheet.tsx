@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { haptics } from "@/lib/native/haptics";
+import { useNativeChromeOverlay } from "@/lib/native/chrome-overlay";
 import { SPRING_SOFT } from "@/lib/motion/constants";
 
 // A draggable bottom sheet — the native-feeling counterpart to <Modal>. Slides up
@@ -32,6 +33,9 @@ export function BottomSheet({
   const reduce = useReducedMotion();
   const titleId = useId();
   useBodyScrollLock(open);
+  // The iOS shell's bars are UIKit views over the web view; a CSS backdrop can't
+  // blur them, so they step aside while the sheet is up (see chrome-overlay).
+  useNativeChromeOverlay(open);
 
   useEffect(() => {
     if (!open || !dismissible) return;
@@ -46,12 +50,14 @@ export function BottomSheet({
     <AnimatePresence>
       {open && (
         <motion.div
-          // Inset by the top navbar and mobile bottom nav so the sheet (and its
-          // dim backdrop) sit BETWEEN the chrome — never covering it. The top
-          // navbar (z-40) and mobile bottom nav (z-40) stay visible above the
-          // dim. The sheet itself is dragged from the bottom of this inset box.
-          className={`fixed left-0 right-0 ${zIndexClass} flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] backdrop-blur-[12px] sm:items-center`}
-          style={{ top: "var(--top-nav-h)", bottom: "var(--mobile-nav-h)" }}
+          // Full-bleed, like <Modal>. This used to be inset between --top-nav-h
+          // and --mobile-nav-h so the chrome stayed lit above the dim, which
+          // read as a bug on iOS: the strip below the (much shorter) native tab
+          // bar was left unblurred, so the sheet looked like it was floating in
+          // front of a half-frosted screen. The chrome is now dimmed with
+          // everything else — web bars under the backdrop, native bars hidden
+          // outright by useNativeChromeOverlay above.
+          className={`fixed inset-0 ${zIndexClass} flex items-end justify-center bg-[rgb(var(--glass-overlay)/0.45)] backdrop-blur-[12px] sm:items-center`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -68,9 +74,12 @@ export function BottomSheet({
             role="dialog"
             aria-modal
             aria-labelledby={title ? titleId : undefined}
-            // max-h-full so the sheet fills its inset container (already sized
-            // to sit between the navs) without spilling under them.
-            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full max-w-lg flex-col rounded-t-[28px] sm:max-h-[80dvh] sm:rounded-3xl"
+            // The backdrop is the whole screen now, so the sheet caps its own
+            // height instead of inheriting one: it stops a nav-bar's worth below
+            // the top edge, which keeps a band of blurred page visible above it
+            // (the "there's something behind this" cue) and keeps the grabber
+            // clear of the status bar.
+            className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-[calc(100dvh-var(--top-nav-h))] w-full max-w-lg flex-col rounded-t-[28px] sm:max-h-[80dvh] sm:rounded-3xl"
             style={{ paddingBottom: "max(0.75rem, var(--safe-bottom))" }}
             initial={{ y: reduce ? 0 : "100%" }}
             animate={{ y: 0 }}

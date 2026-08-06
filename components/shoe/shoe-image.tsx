@@ -28,9 +28,12 @@ const VARIANT_CLASS: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
   detail: "aspect-square w-full max-w-[30rem]",
   suggestion: "aspect-square w-16 min-w-16",
   compare: "aspect-square w-full max-w-[13rem]",
-  // Closet grid/rail cells: fill the host `.pui-cell-stage` (callers size the
-  // box via `pui-cell-img`), so no fixed clamp here.
-  closet: "aspect-square w-full"
+  // Closet grid/rail cells: fill whatever box the host gives us. It used to be
+  // `aspect-square w-full`, which forced a square into a 4:3 shelf stage — the
+  // square came out taller than the stage and the cell's `overflow: hidden`
+  // sliced the top and bottom off every shoe. The host sizes the box now
+  // (`.pui-cell-img`, or an explicit h-*/w-* from the caller).
+  closet: "h-full w-full"
 };
 
 const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
@@ -38,7 +41,10 @@ const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
   detail: 1.1,
   suggestion: 1.1,
   compare: 1.08,
-  closet: 1.02
+  // Exactly 1: the closet promises a whole shoe. Any overscan is cropped by the
+  // stage's `overflow: hidden`, and on a cut-out PNG whose subject already runs
+  // edge to edge that crop lands on the toe and the heel.
+  closet: 1
 };
 
 // Rendered size hints so the optimizer serves appropriately small variants —

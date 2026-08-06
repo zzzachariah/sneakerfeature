@@ -14,7 +14,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Archive, Plus, ShoppingBag } from "lucide-react";
+import { Archive, DoorClosed, DoorOpen, Plus, ShoppingBag } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePremiumVariant } from "@/components/premium/variants";
 import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
@@ -41,6 +41,11 @@ export type PickerShoe = {
 };
 
 export type ClosetEntry = { item: ClosetItemRow; shoe: ClosetShoe };
+
+// Whether the wall starts open or shut, remembered per device. Only the
+// "open/close everything" control writes it — tapping a single door is a look
+// inside one compartment, not a change of mind about the whole closet.
+const DOORS_KEY = "sf.closet.doors";
 
 const VARIANT_TITLE = {
   editorial: "The rotation",
@@ -91,6 +96,55 @@ export function ClosetView({
   const active = useMemo(() => entries.filter((e) => !e.item.retired), [entries]);
   const retired = useMemo(() => entries.filter((e) => e.item.retired), [entries]);
 
+  // Cabinet doors. One stored default for the whole wall plus per-shoe
+  // overrides, rather than a set of open ids: that way "open everything" is a
+  // single flip and doesn't have to be re-applied to pairs added afterwards.
+  const [doorsOpenByDefault, setDoorsOpenByDefault] = useState(false);
+  const [doorOverrides, setDoorOverrides] = useState<Record<string, boolean>>({});
+
+  // Read the stored preference after mount. The first paint is always "shut",
+  // so there's nothing for hydration to disagree about — and someone who chose
+  // "open everything" gets the doors swinging open as the page settles, which
+  // is a better entrance than finding them already open.
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(DOORS_KEY) === "open") setDoorsOpenByDefault(true);
+    } catch {
+      /* storage blocked (private mode) — the closet just starts shut. */
+    }
+  }, []);
+
+  const isDoorOpen = useCallback(
+    (shoeId: string) => doorOverrides[shoeId] ?? doorsOpenByDefault,
+    [doorOverrides, doorsOpenByDefault]
+  );
+
+  const toggleDoor = useCallback(
+    (shoeId: string) => {
+      // A door you can feel. gesture() is the medium tick, and unlike
+      // selection() it fires on Android too — this is the moment of the page.
+      haptics.gesture();
+      setDoorOverrides((prev) => ({ ...prev, [shoeId]: !(prev[shoeId] ?? doorsOpenByDefault) }));
+    },
+    [doorsOpenByDefault]
+  );
+
+  const setAllDoors = useCallback((next: boolean) => {
+    haptics.gesture();
+    setDoorOverrides({});
+    setDoorsOpenByDefault(next);
+    try {
+      window.localStorage.setItem(DOORS_KEY, next ? "open" : "shut");
+    } catch {
+      /* storage blocked — the choice just doesn't survive the session. */
+    }
+  }, []);
+
+  const anyDoorShut = useMemo(
+    () => entries.some((e) => !isDoorOpen(e.item.shoe_id)),
+    [entries, isDoorOpen]
+  );
+
   const totals = useMemo(() => {
     const hours = active.reduce((s, e) => s + Number(e.item.play_hours), 0);
     const sessions = active.reduce((s, e) => s + e.item.sessions, 0);
@@ -129,18 +183,32 @@ export function ClosetView({
 
   const addButton =
     signedIn && entries.length > 0 ? (
-      <button
-        type="button"
-        onClick={openAdd}
-        className={`tap-44 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[0.82rem] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)] ${
-          variant === "standard"
-            ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] hover:opacity-90"
-            : "pui-closet-add"
-        }`}
-      >
-        <Plus className="h-3.5 w-3.5" aria-hidden />
-        {translate("Add a pair")}
-      </button>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setAllDoors(anyDoorShut)}
+          className="tap-44 inline-flex items-center gap-1.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.6)] px-3.5 py-2 text-[0.82rem] font-medium soft-text transition hover:text-[rgb(var(--text))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)]"
+        >
+          {anyDoorShut ? (
+            <DoorOpen className="h-3.5 w-3.5" aria-hidden />
+          ) : (
+            <DoorClosed className="h-3.5 w-3.5" aria-hidden />
+          )}
+          {translate(anyDoorShut ? "Open all" : "Close all")}
+        </button>
+        <button
+          type="button"
+          onClick={openAdd}
+          className={`tap-44 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[0.82rem] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)] ${
+            variant === "standard"
+              ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))] hover:opacity-90"
+              : "pui-closet-add"
+          }`}
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          {translate("Add a pair")}
+        </button>
+      </div>
     ) : null;
 
   return (
@@ -237,6 +305,8 @@ export function ClosetView({
                   entry={entry}
                   index={i}
                   variant={variant}
+                  open={isDoorOpen(entry.item.shoe_id)}
+                  onToggle={() => toggleDoor(entry.item.shoe_id)}
                   onLogWear={() => {
                     haptics.selection();
                     setLogTarget(entry);
@@ -265,6 +335,8 @@ export function ClosetView({
                       entry={entry}
                       index={i}
                       variant={variant}
+                      open={isDoorOpen(entry.item.shoe_id)}
+                      onToggle={() => toggleDoor(entry.item.shoe_id)}
                       onLogWear={() => {
                         haptics.selection();
                         setLogTarget(entry);

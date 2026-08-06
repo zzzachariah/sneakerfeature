@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft } from "lucide-react";
 import { NativeChrome } from "@/components/native/native-chrome";
 import { nativeMenuAvailable } from "@/components/native/native-menu";
+import { setNativeSurface } from "@/lib/native/chrome-overlay";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 // Floating back control for the shoe-detail page (returns to the previous screen,
@@ -42,7 +43,10 @@ export function BackButton() {
         await NativeChrome.configureBack({ symbol: "chevron.left", label: translate("Back") });
         if (cancelled) return;
         setNativeReady(true);
-        await NativeChrome.setBackVisible({ visible: true });
+        // Via chrome-overlay, not the plugin directly: a sheet opened over the
+        // detail page hides this button, and only the module remembers that the
+        // page still wants it back afterwards.
+        setNativeSurface("back", true);
         const handle = await NativeChrome.addListener("backTap", () => goBackRef.current());
         remove = () => void handle.remove();
       } catch (err) {
@@ -54,7 +58,7 @@ export function BackButton() {
       remove?.();
       // Hide the native button when leaving the detail page so it never lingers
       // over other routes.
-      if (nativeMenuAvailable()) void NativeChrome.setBackVisible({ visible: false });
+      if (nativeMenuAvailable()) setNativeSurface("back", false);
     };
   }, [translate]);
 

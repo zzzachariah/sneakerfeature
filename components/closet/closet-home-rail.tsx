@@ -103,7 +103,9 @@ export function ClosetHomeRail({ shoes }: { shoes: Shoe[] }) {
                     alt={`${shoe.brand} ${shoe.shoe_name}`}
                     fallbackLabel={shoe.shoe_name}
                     variant="closet"
-                    stage={variant === "standard"}
+                    // Same as the wall (shelf-cell.tsx): the cell's own stage is
+                    // the backdrop, so a nested one would just be a box in a box.
+                    stage={false}
                     className="pui-cell-img"
                   />
                 </div>

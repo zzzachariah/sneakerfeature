@@ -4,6 +4,7 @@ import { useEffect, useId } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+import { useNativeChromeOverlay } from "@/lib/native/chrome-overlay";
 import { DUR, EASE } from "@/lib/motion/constants";
 
 export function Modal({
@@ -29,6 +30,9 @@ export function Modal({
   const titleId = useId();
   const reduce = useReducedMotion();
   useBodyScrollLock(open);
+  // Same reason as <BottomSheet>: the iOS shell's bars are UIKit views sitting
+  // on top of the web view, so this dim would otherwise stop at their edges.
+  useNativeChromeOverlay(open);
 
   useEffect(() => {
     if (!open || !dismissible) return;
