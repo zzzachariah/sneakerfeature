@@ -17,6 +17,13 @@
 //   npx tsx scripts/remove-backgrounds.mts --apply         # really upload + swap
 //   npx tsx scripts/remove-backgrounds.mts --apply --force # also redo ones already done
 //
+// Performance / resilience flags:
+//   --concurrency N    # parallel workers (default 2); raise it if your CPU + bandwidth allow
+//   --format webp|png  # upload format (default webp — 5-10x smaller than PNG, same render path)
+//
+// All Supabase Storage + DB calls are wrapped in retry-with-exponential-backoff,
+// so a single network blip ("fetch failed") no longer abandons that shoe.
+//
 // Prereqs:
 //   - rembg on PATH:   pip install "rembg[cli]" onnxruntime
 //                      (first run downloads the model to ~/.u2net — be patient)
@@ -71,6 +78,13 @@ const flag = (name: string) => {
 const SLUG = flag("--slug");
 const LIMIT = flag("--limit") ? Number(flag("--limit")) : undefined;
 const SIZE = flag("--size") ? Number(flag("--size")) : 1000;
+const CONCURRENCY = Math.max(1, Number(flag("--concurrency") || process.env.REMBG_CONCURRENCY || 2));
+const FORMAT = (flag("--format") || process.env.REMBG_OUTPUT_FORMAT || "webp").toLowerCase();
+if (FORMAT !== "png" && FORMAT !== "webp") {
+  throw new Error(`Unknown --format ${FORMAT}; use "webp" (default) or "png".`);
+}
+const OUTPUT_EXT = FORMAT;
+const OUTPUT_MIME = FORMAT === "webp" ? "image/webp" : "image/png";
 
 // Below these alpha-coverage bounds the cut-out is treated as a failure and is
 // NOT uploaded: < 2% means rembg ate the whole shoe, > 98.5% means it removed
@@ -116,21 +130,43 @@ type ApprovedImage = {
 };
 
 // --- helpers -----------------------------------------------------------------
+// Retry transient failures (Supabase Storage / DB calls go through fetch, which
+// can intermittently throw "fetch failed" on flaky networks). Exponential
+// backoff 1s → 2s → 4s → 8s; throws the last error if all attempts fail.
+async function retry<T>(fn: () => Promise<T>, label: string, max = 4): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= max; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt === max) break;
+      const delay = 1000 * Math.pow(2, attempt - 1);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.log(`  retry: ${label} attempt ${attempt}/${max} failed (${msg.slice(0, 120)}); waiting ${delay}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw lastErr;
+}
+
 async function fetchApprovedImages(): Promise<ApprovedImage[]> {
   const rows: ApprovedImage[] = [];
   const PAGE = 1000;
   for (let from = 0; ; from += PAGE) {
-    let query = sb
-      .from("shoe_images")
-      .select("id, shoe_id, storage_path, public_url, provider, created_by, shoes!inner(slug, brand, shoe_name)")
-      .eq("status", "approved")
-      .order("created_at", { ascending: true })
-      .range(from, from + PAGE - 1);
-    if (SLUG) query = query.eq("shoes.slug", SLUG);
+    const batch = await retry(async () => {
+      let query = sb
+        .from("shoe_images")
+        .select("id, shoe_id, storage_path, public_url, provider, created_by, shoes!inner(slug, brand, shoe_name)")
+        .eq("status", "approved")
+        .order("created_at", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (SLUG) query = query.eq("shoes.slug", SLUG);
 
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    const batch = (data ?? []) as unknown as ApprovedImage[];
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return (data ?? []) as unknown as ApprovedImage[];
+    }, `list approved ${from}-${from + PAGE - 1}`);
     rows.push(...batch);
     if (batch.length < PAGE) break;
   }
@@ -138,9 +174,11 @@ async function fetchApprovedImages(): Promise<ApprovedImage[]> {
 }
 
 async function downloadOriginal(storagePath: string): Promise<Buffer> {
-  const { data, error } = await sb.storage.from(BUCKET).download(storagePath);
-  if (error || !data) throw new Error(`download failed: ${error?.message ?? "no data"}`);
-  return Buffer.from(await data.arrayBuffer());
+  return retry(async () => {
+    const { data, error } = await sb.storage.from(BUCKET).download(storagePath);
+    if (error || !data) throw new Error(`download failed: ${error?.message ?? "no data"}`);
+    return Buffer.from(await data.arrayBuffer());
+  }, `download ${storagePath}`);
 }
 
 function runRembg(inputPath: string, outputPath: string) {
@@ -164,45 +202,57 @@ async function alphaCoverage(png: Buffer): Promise<number> {
 // never crop) and add an even transparent margin. No trim/extract step, so the
 // shoe is never clipped — sharp's trim() can mis-detect the content box (e.g.
 // when the shoe reaches the image edge) and slice a chunk off the shoe.
-async function finalizePng(rawPng: Buffer): Promise<Buffer> {
+// Encodes WebP (default, ~5-10x smaller than PNG on alpha cut-outs at near-lossless
+// quality, so uploads are much faster) or PNG when --format=png is passed.
+async function finalizeImage(rawPng: Buffer): Promise<Buffer> {
   const margin = Math.round(SIZE * 0.06);
   const inner = SIZE - margin * 2;
   const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-  return sharp(rawPng)
+  const pipe = sharp(rawPng)
     .ensureAlpha()
     .resize(inner, inner, { fit: "contain", background: transparent })
-    .extend({ top: margin, bottom: margin, left: margin, right: margin, background: transparent })
-    .png({ compressionLevel: 9 })
-    .toBuffer();
+    .extend({ top: margin, bottom: margin, left: margin, right: margin, background: transparent });
+  if (FORMAT === "webp") {
+    // alphaQuality 100 keeps the cut-out edges crisp; quality 92 is visually
+    // indistinguishable for product photos. effort 4 is a good speed/size balance.
+    return pipe.webp({ quality: 92, alphaQuality: 100, effort: 4 }).toBuffer();
+  }
+  return pipe.png({ compressionLevel: 9 }).toBuffer();
 }
 
-async function uploadAndSwap(row: ApprovedImage, png: Buffer) {
-  const path = `shoes/${row.shoe_id}/${Date.now()}-${randomUUID()}-nobg.png`;
-  const { error: uploadError } = await sb.storage.from(BUCKET).upload(path, png, { upsert: false, contentType: "image/png" });
-  if (uploadError) throw new Error(`upload failed: ${uploadError.message}`);
+async function uploadAndSwap(row: ApprovedImage, image: Buffer) {
+  const path = `shoes/${row.shoe_id}/${Date.now()}-${randomUUID()}-nobg.${OUTPUT_EXT}`;
+  await retry(async () => {
+    const { error } = await sb.storage.from(BUCKET).upload(path, image, { upsert: false, contentType: OUTPUT_MIME });
+    if (error) throw new Error(`upload failed: ${error.message}`);
+  }, `upload ${path}`);
 
   const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
   const nowIso = new Date().toISOString();
 
-  const { error: demoteError } = await sb
-    .from("shoe_images")
-    .update({ status: "rejected", rejected_at: nowIso, rejection_reason: "Superseded by background-removed version." })
-    .eq("shoe_id", row.shoe_id)
-    .eq("status", "approved");
-  if (demoteError) throw new Error(`demote failed: ${demoteError.message}`);
+  await retry(async () => {
+    const { error } = await sb
+      .from("shoe_images")
+      .update({ status: "rejected", rejected_at: nowIso, rejection_reason: "Superseded by background-removed version." })
+      .eq("shoe_id", row.shoe_id)
+      .eq("status", "approved");
+    if (error) throw new Error(`demote failed: ${error.message}`);
+  }, `demote shoe_id=${row.shoe_id}`);
 
-  const { error: insertError } = await sb.from("shoe_images").insert({
-    shoe_id: row.shoe_id,
-    storage_path: path,
-    public_url: publicUrl,
-    status: "approved",
-    provider: "rembg",
-    selection_reason: `Background removed locally via rembg (${MODEL})`,
-    source_image_url: row.public_url,
-    created_by: row.created_by ?? null,
-    approved_at: nowIso
-  });
-  if (insertError) throw new Error(`insert failed: ${insertError.message}`);
+  await retry(async () => {
+    const { error } = await sb.from("shoe_images").insert({
+      shoe_id: row.shoe_id,
+      storage_path: path,
+      public_url: publicUrl,
+      status: "approved",
+      provider: "rembg",
+      selection_reason: `Background removed locally via rembg (${MODEL})`,
+      source_image_url: row.public_url,
+      created_by: row.created_by ?? null,
+      approved_at: nowIso
+    });
+    if (error) throw new Error(`insert failed: ${error.message}`);
+  }, `insert shoe_id=${row.shoe_id}`);
 
   return publicUrl;
 }
@@ -213,8 +263,11 @@ function label(row: ApprovedImage) {
 }
 
 async function main() {
-  console.log(`Mode: ${APPLY ? "APPLY (will upload + swap)" : "DRY RUN (previews only, nothing uploaded)"}`);
-  console.log(`Bucket: ${BUCKET} | Model: ${MODEL} | Output: ${SIZE}px square${SLUG ? ` | slug=${SLUG}` : ""}\n`);
+  console.log(`Mode:    ${APPLY ? "APPLY (will upload + swap)" : "DRY RUN (previews only, nothing uploaded)"}`);
+  console.log(`Bucket:  ${BUCKET}`);
+  console.log(`Model:   ${MODEL}`);
+  console.log(`Output:  ${SIZE}px square ${FORMAT.toUpperCase()}`);
+  console.log(`Workers: ${CONCURRENCY}${SLUG ? ` | slug=${SLUG}` : ""}\n`);
 
   let all = await fetchApprovedImages();
   if (!FORCE) all = all.filter((row) => row.provider !== "rembg");
@@ -222,16 +275,25 @@ async function main() {
 
   if (!all.length) {
     console.log("Nothing to process (all approved images already background-removed, or no matches).");
+    rmSync(WORK, { recursive: true, force: true });
     return;
   }
 
   const stats = { processed: 0, uploaded: 0, failedRemoval: 0, errored: 0 };
+  const total = all.length;
 
-  for (const [i, row] of all.entries()) {
-    const tag = `[${i + 1}/${all.length}] ${label(row)}`;
+  // Single-threaded JS, so sharing one synchronous iterator across N async
+  // workers is safe — only one .next() runs at a time and each worker grabs
+  // the next item once it finishes the previous one. While worker A is busy
+  // on rembg (CPU), worker B's upload (I/O) can be in flight: the pipeline.
+  const iter = all.entries();
+
+  async function processItem(i: number, row: ApprovedImage) {
+    const tag = `[${i + 1}/${total}] ${label(row)}`;
     const ext = extname(row.storage_path) || ".jpg";
     const inputPath = join(IN_DIR, `${row.id}${ext}`);
     const outputPath = join(OUT_DIR, `${row.id}.png`);
+    const startedAt = Date.now();
 
     try {
       const original = await downloadOriginal(row.storage_path);
@@ -243,20 +305,23 @@ async function main() {
       if (coverage < MIN_COVERAGE || coverage > MAX_COVERAGE) {
         stats.failedRemoval += 1;
         console.log(`${tag} — SKIP (coverage ${(coverage * 100).toFixed(1)}% out of range, keeping original)`);
-        continue;
+        return;
       }
 
-      const finalPng = await finalizePng(cut);
+      const finalImage = await finalizeImage(cut);
       stats.processed += 1;
+      const sizeKb = (finalImage.byteLength / 1024).toFixed(0);
 
       if (APPLY) {
-        const url = await uploadAndSwap(row, finalPng);
+        const url = await uploadAndSwap(row, finalImage);
         stats.uploaded += 1;
-        console.log(`${tag} — OK (coverage ${(coverage * 100).toFixed(1)}%) → ${url}`);
+        const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+        console.log(`${tag} — OK ${elapsed}s ${sizeKb}KB → ${url}`);
       } else {
-        const previewPath = join(PREVIEW_DIR, `${row.shoes?.slug ?? row.shoe_id}.png`);
-        writeFileSync(previewPath, finalPng);
-        console.log(`${tag} — OK (coverage ${(coverage * 100).toFixed(1)}%) → preview ${previewPath}`);
+        const previewPath = join(PREVIEW_DIR, `${row.shoes?.slug ?? row.shoe_id}.${OUTPUT_EXT}`);
+        writeFileSync(previewPath, finalImage);
+        const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+        console.log(`${tag} — OK ${elapsed}s ${sizeKb}KB → preview ${previewPath}`);
       }
     } catch (error) {
       stats.errored += 1;
@@ -271,11 +336,22 @@ async function main() {
     }
   }
 
+  async function worker() {
+    while (true) {
+      const next = iter.next();
+      if (next.done) return;
+      const [i, row] = next.value;
+      await processItem(i, row);
+    }
+  }
+
+  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+
   console.log("\n--- Summary ---");
-  console.log(`Cut out OK:        ${stats.processed}`);
-  console.log(`Uploaded + swapped:${stats.uploaded}${APPLY ? "" : "  (dry run — nothing uploaded)"}`);
-  console.log(`Skipped (bad cut): ${stats.failedRemoval}`);
-  console.log(`Errored:           ${stats.errored}`);
+  console.log(`Cut out OK:         ${stats.processed}`);
+  console.log(`Uploaded + swapped: ${stats.uploaded}${APPLY ? "" : "  (dry run — nothing uploaded)"}`);
+  console.log(`Skipped (bad cut):  ${stats.failedRemoval}`);
+  console.log(`Errored:            ${stats.errored}`);
   if (!APPLY) console.log(`\nReview previews in ${PREVIEW_DIR}, then re-run with --apply to go live.`);
   else console.log(`\nDone. Trigger a redeploy (or wait for ISR) so the site picks up the new images.`);
 
