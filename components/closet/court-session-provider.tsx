@@ -35,6 +35,7 @@ import {
   pauseSession,
   resumeSession,
   sessionPlayedAt,
+  sessionReceiptPath,
   type CourtSession
 } from "@/lib/closet/court-session";
 import {
@@ -189,7 +190,7 @@ export function CourtSessionProvider({ children }: { children: ReactNode }) {
     async (target: CourtSession, at: number): Promise<StopResult> => {
       const hours = loggableHours(target, at);
       commit(null);
-      await endCourtActivity(target.id, hours);
+      await endCourtActivity(target.id, hours, sessionReceiptPath(target.shoeId));
 
       if (hours <= 0) {
         haptics.selection();
@@ -228,7 +229,7 @@ export function CourtSessionProvider({ children }: { children: ReactNode }) {
     const current = sessionRef.current;
     if (!current) return;
     commit(null);
-    void endCourtActivity(current.id, 0);
+    void endCourtActivity(current.id, 0, sessionReceiptPath(current.shoeId));
     haptics.selection();
   }, [commit]);
 

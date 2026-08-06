@@ -111,6 +111,20 @@ export function formatElapsed(ms: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+/**
+ * Where a finished run leads: the closet, with that pair's receipt open.
+ *
+ * Keyed by shoe rather than by wear-log id because the two places a run can end
+ * know different things. Ending in the app gets the log row back from the API;
+ * ending from the Dynamic Island happens in a background process that can't
+ * write to the database at all — the log is posted later, when the app next
+ * resumes. A shoe id is the only handle both sides have at the moment the
+ * activity ends, and "that pair's newest run" resolves to the same thing.
+ */
+export function sessionReceiptPath(shoeId: string): string {
+  return `/closet?session=${encodeURIComponent(shoeId)}`;
+}
+
 /** Local date (YYYY-MM-DD) a session belongs to, for the wear log's played_at. */
 export function sessionPlayedAt(session: CourtSession, now: number): string {
   // A run that starts at 22:30 and ends at 00:10 belongs to the day it started

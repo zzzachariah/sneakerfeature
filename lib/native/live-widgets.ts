@@ -70,7 +70,7 @@ interface LiveWidgetsPlugin {
     runningSince: number | null;
     accumulatedMs: number;
   }): Promise<void>;
-  endCourtSession(options: { id: string; loggedHours: number }): Promise<void>;
+  endCourtSession(options: { id: string; loggedHours: number; resultPath: string }): Promise<void>;
   getCourtSession(): Promise<{ session: NativeCourtSession | null }>;
   takePendingCourtIntents(): Promise<{ intents: PendingCourtIntent[] }>;
   startPickerActivity(options: { id: string; prompt: string; path: string }): Promise<void>;
@@ -293,11 +293,20 @@ export async function updateCourtActivity(input: {
   }
 }
 
-export async function endCourtActivity(id: string, loggedHours: number): Promise<void> {
+/**
+ * Ends the activity. `resultPath` is where the farewell card sends a tap — the
+ * receipt for the run that just finished, so the Island stays useful for the
+ * few seconds it lingers instead of dumping the user on the home screen.
+ */
+export async function endCourtActivity(
+  id: string,
+  loggedHours: number,
+  resultPath: string
+): Promise<void> {
   const p = plugin();
   if (!p) return;
   try {
-    await p.endCourtSession({ id, loggedHours });
+    await p.endCourtSession({ id, loggedHours, resultPath });
   } catch {
     /* best effort */
   }
