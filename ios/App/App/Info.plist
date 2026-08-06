@@ -24,6 +24,16 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>拍摄球鞋照片用于图片纠错/用于拍摄脚型，离线计算</string>
+	<key>NSMotionUsageDescription</key>
+	<string>用陀螺仪检测手机倾角，提示"水平 / 45° / 垂直"拍摄姿态。</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>保存球鞋图片到你的相册。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>从相册选择球鞋照片用于图片纠错</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -47,13 +57,5 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
-	<key>NSCameraUsageDescription</key>
-	<string>拍摄球鞋照片用于图片纠错/用于拍摄脚型，离线计算</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>从相册选择球鞋照片用于图片纠错</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>保存球鞋图片到你的相册。</string>
-	<key>NSMotionUsageDescription</key>
-	<string>用陀螺仪检测手机倾角，提示&quot;水平 / 45° / 垂直&quot;拍摄姿态。</string>
 </dict>
 </plist>

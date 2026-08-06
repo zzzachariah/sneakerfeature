@@ -24,3 +24,4 @@ android/app/release/
 *.keystore
 *.p12
 *.mobileprovision
+**/.swiftpm/

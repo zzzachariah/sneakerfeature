@@ -59,6 +59,8 @@
 		D245CEC630248D7200384835 /* SneakerfeatureWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SneakerfeatureWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D245CEC830248D7200384835 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		D245CECA30248D7200384835 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		D245CF15302493C700384835 /* SneakerfeatureWidgetsExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SneakerfeatureWidgetsExtension.entitlements; sourceTree = "<group>"; };
+		D245CF163024972A00384835 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		D2523CF02FDE8B2F00BA4228 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -66,14 +68,33 @@
 		D245CEDE30248D7300384835 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				App/LiveWidgetsPlugin.swift,
 				Info.plist,
+				MainViewController.swift,
 			);
 			target = D245CEC530248D7200384835 /* SneakerfeatureWidgetsExtension */;
+		};
+		D245CEFC3024920F00384835 /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				App/LiveWidgetsPlugin.swift,
+				MainViewController.swift,
+				Shared/CourtSessionAttributes.swift,
+				Shared/CourtSessionController.swift,
+				Shared/CourtSessionIntents.swift,
+				Shared/PickerActivityAttributes.swift,
+				Shared/PickerActivityController.swift,
+				Shared/WidgetCopy.swift,
+				Shared/WidgetLinks.swift,
+				Shared/WidgetSharedStore.swift,
+				Shared/WidgetSnapshot.swift,
+			);
+			target = 504EC3031FED79650016851F /* App */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		D245CECC30248D7200384835 /* SneakerfeatureWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (D245CEDE30248D7300384835 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = SneakerfeatureWidgets; sourceTree = "<group>"; };
+		D245CECC30248D7200384835 /* SneakerfeatureWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (D245CEFC3024920F00384835 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, D245CEDE30248D7300384835 /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = SneakerfeatureWidgets; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +121,7 @@
 		504EC2FB1FED79650016851F = {
 			isa = PBXGroup;
 			children = (
+				D245CF15302493C700384835 /* SneakerfeatureWidgetsExtension.entitlements */,
 				958DCC722DB07C7200EA8C5F /* debug.xcconfig */,
 				504EC3061FED79650016851F /* App */,
 				D245CECC30248D7200384835 /* SneakerfeatureWidgets */,
@@ -120,6 +142,7 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				D245CF163024972A00384835 /* App.entitlements */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -414,6 +437,7 @@
 			baseConfigurationReference = 958DCC722DB07C7200EA8C5F /* debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1.2;
 				DEVELOPMENT_TEAM = F9Z6U9LQSV;
@@ -442,6 +466,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1.2;
 				DEVELOPMENT_TEAM = F9Z6U9LQSV;
@@ -476,6 +501,7 @@
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_ENTITLEMENTS = SneakerfeatureWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F9Z6U9LQSV;
@@ -485,6 +511,7 @@
 				INFOPLIST_FILE = SneakerfeatureWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SneakerfeatureWidgets;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -519,6 +546,7 @@
 				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
 				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CODE_SIGN_ENTITLEMENTS = SneakerfeatureWidgetsExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = F9Z6U9LQSV;
@@ -528,6 +556,7 @@
 				INFOPLIST_FILE = SneakerfeatureWidgets/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = SneakerfeatureWidgets;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.2;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
