@@ -38,63 +38,72 @@ struct CourtSessionLiveActivity: Widget {
             let copy = WidgetCopy(zh: context.attributes.isChinese)
 
             return DynamicIsland {
+                // Three regions, one job each. Leading identifies the pair,
+                // trailing is the clock and nothing else, and the bottom row
+                // carries the state, the totals, and the two controls — which is
+                // the only region wide enough to give those controls a real
+                // tap target.
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 8) {
                         ShoeThumb(
                             file: context.attributes.imageFile,
                             name: context.attributes.shoeName,
-                            size: 38
+                            size: 34
                         )
-                        VStack(alignment: .leading, spacing: 1) {
+                        VStack(alignment: .leading, spacing: 0) {
                             Text(context.attributes.shoeBrand)
                                 .font(.system(size: 10))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                             Text(context.attributes.shoeName)
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.system(size: 14, weight: .semibold))
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                                .minimumScaleFactor(0.75)
                         }
                     }
-                    .padding(.leading, 2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 4)
                 }
 
                 DynamicIslandExpandedRegion(.trailing) {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        CourtClock(state: context.state, copy: copy, size: 22, weight: .bold)
-                        Text(context.state.isRunning ? copy.playing : copy.paused)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.trailing, 2)
+                    // The clock alone. The state word used to sit under it and
+                    // crowded the right edge for no information — it reads
+                    // better in the bottom row next to the totals.
+                    CourtClock(state: context.state, copy: copy, size: 24, weight: .bold)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 4)
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack(spacing: 8) {
-                        Text("\(copy.totalLabel) \(copy.hours(context.state.totalHours)) · \(context.state.totalSessions) \(copy.runs)")
+                    HStack(alignment: .center, spacing: 10) {
+                        Text("\(context.state.isRunning ? copy.playing : copy.paused) · \(copy.totalLabel) \(copy.hours(context.state.totalHours)) · \(context.state.totalSessions) \(copy.runs)")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
-                        Spacer(minLength: 4)
-                        CourtSessionControls(context: context, copy: copy, compact: true)
+                            .minimumScaleFactor(0.85)
+                        Spacer(minLength: 0)
+                        CourtSessionControls(context: context, copy: copy)
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 6)
+                    .padding(.horizontal, 4)
                 }
             } compactLeading: {
-                AppLogoMark(size: 18)
+                AppLogoMark(size: 16)
             } compactTrailing: {
-                // Label + clock. The compact region is roughly 80pt wide and the
-                // system truncates rather than shrinks, so: a deliberately short
-                // word (copy.courtShort, not copy.playing), a fixed width for the
-                // clock, and monospaced digits so it doesn't jitter every second.
-                HStack(spacing: 4) {
+                // The compact pill is the state everyone actually sees, so it
+                // stays as narrow as it can while still saying something. The
+                // clock's width is reserved rather than measured (the digits
+                // change every second and a fluid width would jitter), so it is
+                // sized for "59:59" — the longest string a run this short can
+                // produce — and not for the hours case, which shrinks to fit.
+                HStack(spacing: 3) {
                     Text(context.state.isRunning ? copy.courtShort : copy.pausedShort)
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .layoutPriority(-1) // the clock wins any fight for width
+                        .layoutPriority(-1)
                     CourtClock(state: context.state, copy: copy, size: 13, weight: .semibold)
-                        .frame(width: 48)
+                        .frame(width: 40)
                 }
             } minimal: {
                 // Only shown when another app is sharing the Island, so this is
@@ -145,7 +154,7 @@ struct CourtSessionLockScreenView: View {
 
             VStack(alignment: .trailing, spacing: 8) {
                 CourtClock(state: context.state, copy: copy, size: 26, weight: .bold)
-                CourtSessionControls(context: context, copy: copy, compact: false)
+                CourtSessionControls(context: context, copy: copy)
             }
         }
         .padding(16)
@@ -185,12 +194,17 @@ struct CourtClock: View {
 /// the app's process even when the app is not on screen — so ending a run from
 /// the Lock Screen genuinely ends it, rather than queueing something for later.
 /// On iOS 16 the buttons would do nothing, so they aren't drawn at all and the
-/// card's own tap target (into /closet) is the whole interaction.
+/// card's own tap target (into the closet) is the whole interaction.
+///
+/// Circles, not labelled pills. The first version used icon-only pills padded to
+/// roughly 26×20pt, which is well under the 44pt Apple asks for and was, in
+/// practice, un-tappable. Labels don't fit beside the totals in the Island's
+/// bottom row, so the shape carries the meaning instead and the target is sized
+/// properly: 38pt of visible circle inside a 44pt hit area.
 @available(iOS 16.2, *)
 struct CourtSessionControls: View {
     let context: ActivityViewContext<CourtSessionAttributes>
     let copy: WidgetCopy
-    let compact: Bool
 
     @ViewBuilder
     var body: some View {
@@ -198,16 +212,16 @@ struct CourtSessionControls: View {
         if #available(iOS 17.0, *) {
             HStack(spacing: 6) {
                 Button(intent: ToggleCourtSessionIntent(sessionId: context.attributes.sessionId)) {
-                    pill(
-                        context.state.isRunning ? copy.pause : copy.resume,
-                        symbol: context.state.isRunning ? "pause.fill" : "play.fill",
+                    control(
+                        context.state.isRunning ? "pause.fill" : "play.fill",
+                        label: context.state.isRunning ? copy.pause : copy.resume,
                         prominent: false
                     )
                 }
                 .buttonStyle(.plain)
 
                 Button(intent: EndCourtSessionIntent(sessionId: context.attributes.sessionId)) {
-                    pill(copy.end, symbol: "stop.fill", prominent: true)
+                    control("stop.fill", label: copy.end, prominent: true)
                 }
                 .buttonStyle(.plain)
             }
@@ -219,26 +233,19 @@ struct CourtSessionControls: View {
         #endif
     }
 
-    private func pill(_ title: String, symbol: String, prominent: Bool) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol).font(.system(size: compact ? 9 : 10, weight: .bold))
-            if !compact {
-                Text(title).font(.system(size: 11, weight: .semibold))
-            }
-        }
-        .padding(.horizontal, compact ? 9 : 11)
-        .padding(.vertical, compact ? 5 : 6)
-        .foregroundStyle(prominent ? Color(.systemBackground) : Color.primary)
-        .background {
-            if prominent {
-                Capsule().fill(Color.primary)
-            } else {
-                // Real Liquid Glass on iOS 26, the system material before it —
-                // either way the pill picks up what's behind the card instead of
-                // sitting on a flat grey.
-                Color.clear.sfGlassCapsule()
-            }
-        }
-        .clipShape(Capsule())
+    /// `.primary` rather than a literal white: the Dynamic Island always renders
+    /// dark, so it resolves to white there, while the Lock Screen card follows
+    /// the wallpaper's appearance and needs the opposite in light mode.
+    private func control(_ symbol: String, label: String, prominent: Bool) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 13, weight: .bold))
+            .foregroundStyle(prominent ? AnyShapeStyle(Color(.systemBackground)) : AnyShapeStyle(.primary))
+            .frame(width: 38, height: 38)
+            .background(Circle().fill(prominent ? AnyShapeStyle(.primary) : AnyShapeStyle(.quaternary)))
+            // The visible circle stays 38pt so the row doesn't grow, but the
+            // tappable region is the full 44pt.
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .accessibilityLabel(label)
     }
 }
