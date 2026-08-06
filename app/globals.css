@@ -714,6 +714,24 @@ html.native-tabbar-active nav[aria-label="Primary mobile navigation"] {
   display: none !important;
 }
 
+/* The running court-timer capsule (components/closet/court-session-bar.tsx)
+   stacks above whatever bottom bar is on screen, so it never hides behind a tab.
+   One offset covers both phone cases, because both bars are shorter than it:
+     • web nav  → floating capsule, 60px tall, 5px above the safe area
+     • iOS app  → a real UITabBar (49pt + safe area). NOTE it is a SIBLING view
+       ON TOP of the web view (see NativeTabBarController.attach), not chrome
+       outside it — the web view runs full height underneath, so `bottom` here
+       is measured from the screen edge and has to clear the whole bar.
+   md+ has no bottom bar at all. */
+.court-bar {
+  bottom: calc(var(--safe-bottom) + 75px);
+}
+@media (min-width: 768px) {
+  .court-bar {
+    bottom: calc(var(--safe-bottom) + 16px);
+  }
+}
+
 /* Same for the top bar: in the iOS app the header becomes a native Liquid Glass
    UINavigationBar (see components/native/native-top-bar.tsx) — the reliable way
    to get glass on top in WKWebView. Hide the web header with visibility:hidden

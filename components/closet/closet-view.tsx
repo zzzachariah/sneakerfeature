@@ -12,7 +12,8 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Archive, Plus, ShoppingBag } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePremiumVariant } from "@/components/premium/variants";
@@ -29,6 +30,8 @@ import { FREE_CLOSET_LIMIT, type ClosetItemRow } from "@/lib/closet/wear";
 import { ShelfCell, type ClosetShoe } from "@/components/closet/shelf-cell";
 import { AddShoeSheet, EditItemSheet, LogWearSheet } from "@/components/closet/closet-sheets";
 import { ClosetAnalytics } from "@/components/closet/closet-analytics";
+import { CourtSessionLauncher } from "@/components/closet/court-session-launcher";
+import { SessionReceiptSheet } from "@/components/closet/session-receipt-sheet";
 
 export type PickerShoe = {
   id: string;
@@ -63,6 +66,27 @@ export function ClosetView({
   const [addOpen, setAddOpen] = useState(false);
   const [logTarget, setLogTarget] = useState<ClosetEntry | null>(null);
   const [editTarget, setEditTarget] = useState<ClosetEntry | null>(null);
+
+  // The receipt for a finished run. Opened by ?session=<shoeId> — the one link
+  // the Dynamic Island's farewell card and the in-app "已记录" confirmation both
+  // point at, so there's a single way in from outside the page and from within.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const receiptShoeId = searchParams.get("session");
+  const [receiptTarget, setReceiptTarget] = useState<ClosetEntry | null>(null);
+
+  useEffect(() => {
+    if (!receiptShoeId) return;
+    const match = entries.find((e) => e.item.shoe_id === receiptShoeId) ?? null;
+    setReceiptTarget(match);
+  }, [receiptShoeId, entries]);
+
+  const closeReceipt = useCallback(() => {
+    setReceiptTarget(null);
+    // Drop the param so a back-navigation (or a second visit) doesn't reopen a
+    // receipt for a run the user already read.
+    if (receiptShoeId) router.replace("/closet");
+  }, [receiptShoeId, router]);
 
   const active = useMemo(() => entries.filter((e) => !e.item.retired), [entries]);
   const retired = useMemo(() => entries.filter((e) => e.item.retired), [entries]);
@@ -176,6 +200,11 @@ export function ClosetView({
         </EmptyState>
       ) : (
         <>
+          {/* The court timer sits above the summary, not inside a menu: it's
+              the one action that lights up the Dynamic Island, so it gets the
+              first slab on the page. */}
+          <CourtSessionLauncher entries={entries} />
+
           {/* Wall summary strip */}
           <div className={`pui-closet-stats mb-6 ${variant === "standard" ? "glass-lite rounded-2xl" : ""}`}>
             <StatCell label={translate("In rotation")} value={String(active.length)} />
@@ -268,6 +297,8 @@ export function ClosetView({
         onClose={() => setLogTarget(null)}
         onLogged={patchEntry}
       />
+      <SessionReceiptSheet entry={receiptTarget} onClose={closeReceipt} />
+
       <EditItemSheet
         entry={editTarget}
         onClose={() => setEditTarget(null)}

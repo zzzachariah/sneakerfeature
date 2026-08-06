@@ -3,19 +3,20 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Crown, GitCompare, Home, Plus, Shield, Sparkles, UserCircle } from "lucide-react";
+import { GitCompare, Home, Shield, ShoppingBag, Sparkles, UserCircle } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
-import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { haptics } from "@/lib/native/haptics";
 
 type Tab = {
-  href: "/" | "/compare" | "/smart-picker" | "/submit" | "/subscribe" | "/dashboard" | "/admin";
+  href: "/" | "/compare" | "/smart-picker" | "/closet" | "/dashboard" | "/admin";
   label: string;
   icon: typeof Home;
   match: (pathname: string) => boolean;
 };
 
+// Mirrors components/native/native-bottom-nav.tsx — keep the two lists in step.
+// Submit and Membership live in the account menu now; see that file for why.
 const TABS: Tab[] = [
   {
     href: "/",
@@ -38,10 +39,10 @@ const TABS: Tab[] = [
     match: (p) => p === "/smart-picker" || p.startsWith("/smart-picker/"),
   },
   {
-    href: "/submit",
-    label: "Submit",
-    icon: Plus,
-    match: (p) => p === "/submit" || p.startsWith("/submit/"),
+    href: "/closet",
+    label: "My closet",
+    icon: ShoppingBag,
+    match: (p) => p === "/closet" || p.startsWith("/closet/"),
   },
   {
     href: "/dashboard",
@@ -55,15 +56,6 @@ const TABS: Tab[] = [
       p === "/register",
   },
 ];
-
-// Gated like the AccountMenu's membership link: hidden until subscriptions go
-// live, but always visible to admins so they can test the checkout end-to-end.
-const MEMBER_TAB: Tab = {
-  href: "/subscribe",
-  label: "Member",
-  icon: Crown,
-  match: (p) => p === "/subscribe" || p.startsWith("/subscribe/"),
-};
 
 const ADMIN_TAB: Tab = {
   href: "/admin",
@@ -79,12 +71,10 @@ export function MobileBottomNav() {
   const reduce = useReducedMotion();
 
   const tabs = [...TABS];
-  // Membership sits just before Account, mirroring the account-menu ordering.
-  if (SUBSCRIBE_LIVE || isAdmin) tabs.splice(tabs.length - 1, 0, MEMBER_TAB);
   if (isAdmin) tabs.push(ADMIN_TAB);
   const activeIdx = tabs.findIndex((t) => t.match(pathname));
-  // Six-plus tabs (member and/or admin) only fit on narrow phones with a
-  // slightly tighter cell; five keep the roomier original width.
+  // The admin tab makes six, which only fits on a narrow phone with a tighter
+  // cell; the five everyone else sees keep the roomier width.
   const cell = tabs.length > 5 ? "h-[52px] w-[46px]" : "h-[52px] w-[52px]";
 
   return (

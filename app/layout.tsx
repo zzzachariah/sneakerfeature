@@ -19,6 +19,9 @@ const GeistMono = localFont({
 });
 import { Navbar } from "@/components/layout/navbar";
 import { CapacitorBridge } from "@/components/native/capacitor-bridge";
+import { WidgetSync } from "@/components/native/widget-sync";
+import { CourtSessionProvider } from "@/components/closet/court-session-provider";
+import { CourtSessionBar } from "@/components/closet/court-session-bar";
 import { ServiceWorkerRegister } from "@/components/native/service-worker-register";
 import { RouteProgress } from "@/components/layout/route-progress";
 import { PushRegistration } from "@/components/native/push-registration";
@@ -147,6 +150,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <RatingFocusProvider>
                 <PersonaProvider>
                   <TutorialProvider>
+                    {/* App-wide because a court session outlives the page it
+                        was started on — and because the Dynamic Island keeps
+                        counting whether or not /closet is still mounted. */}
+                    <CourtSessionProvider>
                     <NavScrollIndicatorProvider>
                       <div className="relative flex min-h-[100dvh] flex-col">
                         <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
@@ -159,9 +166,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                         <NativeBottomNav />
                       </div>
                     </NavScrollIndicatorProvider>
+                    <CourtSessionBar />
+                    </CourtSessionProvider>
                     <TutorialOverlay />
                     <TutorialLauncher />
                     <PushRegistration />
+                    <WidgetSync />
                     <WebPullToRefresh />
                   </TutorialProvider>
                 </PersonaProvider>

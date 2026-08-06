@@ -7,7 +7,6 @@ import { Capacitor } from "@capacitor/core";
 import { NativeChrome, type NativeTab } from "@/components/native/native-chrome";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
-import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { haptics } from "@/lib/native/haptics";
 
 // Drives the native iOS glass tab bar (see /native-chrome). On every other
@@ -22,11 +21,19 @@ type Tab = {
   match: (pathname: string) => boolean;
 };
 
+// Five tabs, because a tab bar is for the places you return to, not a menu of
+// everything the app can do. Submit and Membership moved to the account menu:
+// you post a shoe or buy a plan a handful of times ever, and both were costing
+// a permanent slot. The closet took one of them — it's where the court timer
+// lives, so it's now somewhere you open mid-session, one-handed.
 const TABS: Tab[] = [
   { key: "home", href: "/", label: "Home", symbol: "house", match: (p) => p === "/" || p.startsWith("/search") },
   { key: "compare", href: "/compare", label: "Compare", symbol: "square.on.square", match: (p) => p === "/compare" || p.startsWith("/compare/") },
   { key: "picker", href: "/smart-picker", label: "Picker", symbol: "sparkles", match: (p) => p === "/smart-picker" || p.startsWith("/smart-picker/") },
-  { key: "submit", href: "/submit", label: "Submit", symbol: "plus.app", match: (p) => p === "/submit" || p.startsWith("/submit/") },
+  // "bag" rather than one of the shoe symbols: those only exist in SF Symbols 6
+  // (iOS 18) and render as a blank box below it. Matches the bag the closet's
+  // own empty state already uses.
+  { key: "closet", href: "/closet", label: "My closet", symbol: "bag", match: (p) => p === "/closet" || p.startsWith("/closet/") },
   {
     key: "account",
     href: "/dashboard",
@@ -36,16 +43,6 @@ const TABS: Tab[] = [
       p === "/dashboard" || p.startsWith("/dashboard/") || p === "/login" || p === "/signup" || p === "/register"
   }
 ];
-
-// Gated like the AccountMenu's membership link: hidden until subscriptions go
-// live, but always visible to admins so they can test the checkout end-to-end.
-const MEMBER_TAB: Tab = {
-  key: "member",
-  href: "/subscribe",
-  label: "Member",
-  symbol: "crown",
-  match: (p) => p === "/subscribe" || p.startsWith("/subscribe/")
-};
 
 const ADMIN_TAB: Tab = {
   key: "admin",
@@ -57,8 +54,6 @@ const ADMIN_TAB: Tab = {
 
 function buildTabs(isAdmin: boolean): Tab[] {
   const tabs = [...TABS];
-  // Membership sits just before Account, mirroring the web MobileBottomNav.
-  if (SUBSCRIBE_LIVE || isAdmin) tabs.splice(tabs.length - 1, 0, MEMBER_TAB);
   if (isAdmin) tabs.push(ADMIN_TAB);
   return tabs;
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget metadata. updatePeriodMillis is 0 on purpose: the app pushes a
+     refresh (ClosetWidgetProvider.refresh) whenever anything actually changes —
+     a run logged, a settings switch, an app resume — so a polling interval
+     would only wake the device to redraw identical pixels. Android ignores any
+     period under 30 minutes anyway. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:initialLayout="@layout/widget_closet"
+    android:previewLayout="@layout/widget_closet"
+    android:description="@string/sf_widget_closet_description"
+    android:updatePeriodMillis="0" />
