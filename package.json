@@ -19,7 +19,8 @@
     "test:deep-link": "tsx scripts/test-deep-link.mts",
     "test:widgets": "tsx scripts/test-widget-snapshot.mts",
     "test:outreach-rules": "tsx scripts/test-outreach-rules.mts",
-    "test:outreach-rls": "tsx scripts/test-outreach-rls.mts"
+    "test:outreach-rls": "tsx scripts/test-outreach-rls.mts",
+    "test:account-permissions": "tsx scripts/test-account-permissions.mts"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.0",
@@ -60,6 +61,7 @@
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.0",
+    "@electric-sql/pglite": "0.5.8",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",

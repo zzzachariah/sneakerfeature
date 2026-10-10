@@ -2,6 +2,7 @@ node_modules/
 .next/
 out/
 *.tsbuildinfo
+supabase/.temp/
 .env
 .env.local
 .DS_Store
