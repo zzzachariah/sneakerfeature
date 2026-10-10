@@ -78,3 +78,8 @@ in through seven dependent package entries. These tools consume repository
 glob patterns at build/lint time, not HTTP request patterns. Do not expose
 them to user-supplied patterns. Track the upstream fix; do not suppress new
 advisories or use `npm audit fix --force` to silently migrate frameworks.
+
+Native manifests were synchronized with `cap sync`. The iOS pin was verified
+against the upstream 8.5.3 Git tag. Xcode package resolution could not complete
+in this environment because GitHub Git transport failed (HTTP/2 error, then
+connection timeout); native compilation/device behavior is not yet verified.
