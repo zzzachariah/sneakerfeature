@@ -23,13 +23,13 @@
     "test:account-permissions": "tsx scripts/test-account-permissions.mts"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.0",
+    "@capacitor/android": "8.5.3",
     "@capacitor/app": "^8.1.0",
     "@capacitor/browser": "^8.0.4",
     "@capacitor/camera": "^8.2.0",
-    "@capacitor/core": "^8.4.0",
+    "@capacitor/core": "8.5.3",
     "@capacitor/haptics": "^8.0.2",
-    "@capacitor/ios": "^8.4.0",
+    "@capacitor/ios": "8.5.3",
     "@capacitor/push-notifications": "^8.1.1",
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
@@ -50,7 +50,7 @@
     "lucide-react": "^0.468.0",
     "modern-screenshot": "^4.7.0",
     "native-chrome": "file:native-chrome",
-    "next": "^15.5.19",
+    "next": "15.5.27",
     "openai": "^4.80.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
@@ -60,18 +60,27 @@
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.4.0",
+    "@capacitor/cli": "8.5.3",
     "@electric-sql/pglite": "0.5.8",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^15.5.19",
-    "postcss": "^8.4.49",
-    "sharp": "^0.33.5",
+    "eslint-config-next": "15.5.27",
+    "postcss": "8.5.29",
+    "sharp": "0.35.5",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.3",
     "typescript": "^5.7.2"
+  },
+  "overrides": {
+    "sharp": "$sharp",
+    "postcss": "$postcss",
+    "tar": "7.5.22",
+    "postcss-selector-parser": "7.1.6",
+    "xcode": {
+      "uuid": "11.1.1"
+    }
   }
 }
