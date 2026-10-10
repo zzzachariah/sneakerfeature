@@ -9,6 +9,7 @@
 // All four read the SAME computed conclusion (verdict-compute.ts) so the numbers
 // stay honest. Standard users never reach this — they get CompareVerdict.
 
+import { hasCompletePerformance } from "@/components/shoe/performance-evidence-table";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { METRICS, scoreFor } from "@/components/compare/compare-metrics";
 import { computeVerdict, metricLabel } from "@/components/premium/compare/verdict-compute";
@@ -20,6 +21,7 @@ type Props = { variant: Exclude<PremiumVariant, "standard">; shoes: Shoe[] };
 export function PremiumVerdict({ variant, shoes }: Props) {
   const { translate, locale } = useLocale();
   const v = computeVerdict(shoes);
+  if (shoes.some(shoe => !hasCompletePerformance(shoe))) return <p className="p-4 text-sm soft-text">{translate("Not enough data for an overall verdict")}</p>;
   if (!v.ok) return null;
   const sep = locale === "zh" ? "、" : ", ";
   const winner = v.averages[0];

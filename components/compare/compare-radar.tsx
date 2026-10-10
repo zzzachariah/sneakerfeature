@@ -1,5 +1,6 @@
 "use client";
 
+import { hasCompletePerformance, ComparisonEvidenceTable } from "@/components/shoe/performance-evidence-table";
 import { useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -58,6 +59,8 @@ export function CompareRadar({ shoes, active }: Props) {
       .join(" ");
 
   const labelsVisible = progress > 0.88;
+
+  if (shoes.some(shoe => !hasCompletePerformance(shoe))) return <ComparisonEvidenceTable shoes={shoes} />;
 
   return (
     <div ref={ref}>

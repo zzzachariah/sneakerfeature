@@ -14,6 +14,7 @@
 // colors + dash styles, tap-the-legend multi-select highlighting, and the
 // draw-in that replays on scroll. Standard users keep CompareRadar.
 
+import { hasCompletePerformance, ComparisonEvidenceTable } from "@/components/shoe/performance-evidence-table";
 import { useState } from "react";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -99,6 +100,8 @@ export function PremiumCompareRadar({ variant, shoes, active }: Props) {
     arena: { fontSize: 9.5, fontFamily: "var(--pui-label, sans-serif)", fontWeight: 600, fill: "rgb(var(--text) / 0.85)", letterSpacing: "0.14em" },
   };
   const upcase = variant !== "editorial";
+
+  if (shoes.some(shoe => !hasCompletePerformance(shoe))) return <ComparisonEvidenceTable shoes={shoes} />;
 
   return (
     <div ref={ref} className={`pui-cradar pui-cradar--${variant}`}>

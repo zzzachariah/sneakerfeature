@@ -15,6 +15,8 @@
 // the standard chart. All colors resolve through skin tokens so every variant
 // keeps its contrast in both light and dark themes.
 
+import { PerformanceEvidenceTable } from "@/components/shoe/performance-evidence-table";
+import { hasPerformanceEvidence } from "@/lib/star-rating";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView, useProgress } from "@/components/motion/use-progress";
 import type { RadarAxis } from "@/components/detail/performance-radar";
@@ -64,6 +66,10 @@ export function PremiumRadar({ variant, axes }: { variant: Variant; axes: RadarA
   const progress = useProgress(inView);
   const { radius, labelRadius } = GEOMETRY[variant];
   const labelsVisible = progress > 0.82;
+
+  if (axes.some(axis => !hasPerformanceEvidence(axis.rawText))) {
+    return <PerformanceEvidenceTable axes={axes} />;
+  }
 
   const CHARTS: Record<Variant, () => React.ReactNode> = {
     editorial: () => <EditorialPlate axes={axes} radius={radius} progress={progress} />,

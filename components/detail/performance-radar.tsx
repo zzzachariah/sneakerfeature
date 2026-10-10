@@ -1,5 +1,7 @@
 "use client";
 
+import { PerformanceEvidenceTable } from "@/components/shoe/performance-evidence-table";
+import { hasPerformanceEvidence } from "@/lib/star-rating";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView, useProgress } from "@/components/motion/use-progress";
 import { scoreColor } from "@/lib/score-tone";
@@ -62,6 +64,10 @@ export function PerformanceRadar({ axes, active }: Props) {
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     })
     .join(" ");
+
+  if (axes.some(axis => !hasPerformanceEvidence(axis.rawText))) {
+    return <PerformanceEvidenceTable axes={axes} />;
+  }
 
   const rings = [0.25, 0.5, 0.75, 1];
   const labelsVisible = progress > 0.82;

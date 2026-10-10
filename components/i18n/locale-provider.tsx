@@ -34,6 +34,7 @@ function persistLocale(next: Locale) {
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "not enough data for an overall verdict": "资料不完整，暂不判断哪双鞋整体更好。",
   // ── Premium UI skins (Editorial / Instrument / Gallery / Arena) ──
   "the sneaker issue": "本期鞋刊",
   "cover story": "本期主打",

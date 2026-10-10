@@ -8,6 +8,7 @@
 // Same METRICS + scoreFor data as the standard CompareDiffRows. Kept legible on
 // mobile (labels ≥ 0.7rem, single-column rows, no clipped numerals).
 
+import { hasCompletePerformance, ComparisonEvidenceTable } from "@/components/shoe/performance-evidence-table";
 import { METRICS, identityColor, scoreFor, type MetricKey } from "@/components/compare/compare-metrics";
 import { scoreColor } from "@/lib/score-tone";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -29,6 +30,8 @@ export function PremiumDiff({ variant, shoes }: Props) {
   const { translate } = useLocale();
   if (shoes.length < 2) return null;
   const rows = METRICS.map((m) => ({ key: m.key, label: translate(m.label), ranked: rankFor(shoes, m.key) }));
+
+  if (shoes.some(shoe => !hasCompletePerformance(shoe))) return <ComparisonEvidenceTable shoes={shoes} />;
 
   if (variant === "editorial") {
     return (

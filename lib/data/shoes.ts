@@ -10,12 +10,12 @@ import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
 import {
   combineDimScores,
   DIM_KEYS,
-  dimScores,
-  equalWeightScore,
+  evidenceDimScores,
+  overallEvidenceScore,
   isValidFocus,
   percentileToStars,
   rankScoresToPercentiles,
-  weightedCombinedScore,
+  type EvidenceScores,
   type DimKey,
   type RatingFocus
 } from "@/lib/star-rating";
@@ -58,6 +58,7 @@ type DimRow = {
 type DimAggregate = {
   count: number;
   sums: Record<DimKey, number>;
+  dimCounts: Record<DimKey, number>;
 };
 
 type AggregateEntry = [string, DimAggregate];
@@ -195,9 +196,13 @@ async function loadShoesBase(): Promise<ShoesBase> {
 
   const aggregates = new Map<string, DimAggregate>();
   for (const r of (ratingsRes.data ?? []) as DimRow[]) {
-    const cur = aggregates.get(r.shoe_id) ?? { count: 0, sums: emptyDimRecord() };
+    const cur = aggregates.get(r.shoe_id) ?? { count: 0, sums: emptyDimRecord(), dimCounts: emptyDimRecord() };
     cur.count += 1;
-    for (const k of DIM_KEYS) cur.sums[k] += Number(r[k] ?? 0);
+    for (const k of DIM_KEYS) {
+      const value = r[k] == null ? null : Number(r[k]);
+      if (value == null || !Number.isFinite(value) || value < 0.5 || value > 5) continue;
+      cur.sums[k] += value; cur.dimCounts[k] += 1;
+    }
     aggregates.set(r.shoe_id, cur);
   }
 
@@ -207,7 +212,7 @@ async function loadShoesBase(): Promise<ShoesBase> {
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v4"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v5"], {
   tags: ["shoes"],
   // Auto-refresh at most once a minute so edits made directly in Supabase (which
   // don't call revalidateTag) still show up within ~60s instead of going stale.
@@ -269,37 +274,31 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
   const specStarsByIndex: (number | null)[] = rows.map(() => null);
 
   {
-    // Ratings are always computed now — not gated behind a Rating Focus. The
-    // per-dimension stars are focus-independent (community + spec per dim), and
-    // the overall / spec stars use the viewer's Rating Focus weighting when
-    // present, else an equal-weight baseline. This means anonymous / no-
-    // playstyle users still get a real rating everywhere (cards, detail,
-    // "Top rated" collections), with playstyle re-weighting it as an
-    // enhancement rather than a gate.
-    const scoreOf = (c: Record<DimKey, number>) =>
-      focus ? weightedCombinedScore(c, focus) : equalWeightScore(c);
+    // Rank only observed dimensions. Overall estimates require at least three
+    // dimensions, and equal scores share an average rank in the catalog.
+    const scoreOf = (c: EvidenceScores) => overallEvidenceScore(c, focus);
 
-    const combinedByShoe: Record<DimKey, number>[] = rows.map((row, i) => {
+    const combinedByShoe: EvidenceScores[] = rows.map((row, i) => {
       const agg = aggregates.get(row.id);
       const userDimAvg: Partial<Record<DimKey, number>> = {};
       if (agg && agg.count > 0) {
-        for (const k of DIM_KEYS) userDimAvg[k] = agg.sums[k] / agg.count;
+        for (const k of DIM_KEYS) if (agg.dimCounts[k]) userDimAvg[k] = agg.sums[k] / agg.dimCounts[k];
       }
-      return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0);
+      return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0, agg?.dimCounts);
     });
 
     const weighted = combinedByShoe.map(scoreOf);
     const finalPercentiles = rankScoresToPercentiles(weighted);
     finalPercentiles.forEach((p, i) => {
-      finalStarsByIndex[i] = percentileToStars(p);
+      finalStarsByIndex[i] = p == null ? null : percentileToStars(p);
     });
 
     // Spec-only stars (no user blending) for components that compare /
     // re-blend client-side.
-    const specOnly = specs.map((spec) => scoreOf(dimScores(spec)));
+    const specOnly = specs.map((spec) => scoreOf(evidenceDimScores(spec)));
     const specPercentiles = rankScoresToPercentiles(specOnly);
     specPercentiles.forEach((p, i) => {
-      specStarsByIndex[i] = percentileToStars(p);
+      specStarsByIndex[i] = p == null ? null : percentileToStars(p);
     });
 
     rows.forEach((_, i) => {
@@ -310,7 +309,7 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
       const dimPercentiles = rankScoresToPercentiles(dimScoresList);
       dimPercentiles.forEach((p, i) => {
         const target = dimStarsByIndex[i];
-        if (target) target[k] = percentileToStars(p);
+        if (target && p != null) target[k] = percentileToStars(p);
       });
     }
   }
@@ -360,7 +359,7 @@ const getPublicShoesAssembled = unstable_cache(
     const base = await getShoesBase();
     return assembleShoes(base, EMPTY_USER_CONTEXT);
   },
-  ["shoes-assembled-v1"],
+  ["shoes-assembled-v2"],
   { tags: ["shoes"], revalidate: 60 }
 );
 

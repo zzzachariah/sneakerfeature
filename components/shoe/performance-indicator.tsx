@@ -1,5 +1,6 @@
 "use client";
 
+import { hasPerformanceEvidence } from "@/lib/star-rating";
 import { getPerformanceLabel } from "@/lib/shoe-scoring";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -18,7 +19,8 @@ function getToneClass(tier: string) {
 }
 
 export function PerformanceIndicator({ label, score, tier, rawText }: PerformanceIndicatorProps) {
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
+  if (!hasPerformanceEvidence(rawText)) return <div className="flex justify-between gap-4 rounded-xl border border-[rgb(var(--muted)/0.4)] p-3 text-sm"><span>{translate(label)}</span><span className="soft-text">{locale === "zh" ? "资料不足" : "Not enough data"}</span></div>;
   const clampedScore = Math.max(0, Math.min(100, Math.round(score)));
   const resolvedTier = tier ?? getPerformanceLabel(clampedScore);
 
