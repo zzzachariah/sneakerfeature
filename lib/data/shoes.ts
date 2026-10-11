@@ -5,8 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { demoShoes } from "@/lib/data/demo-shoes";
+import { displayBrand, inspectSpecs, publicSpec, selectSpecVersion, type SpecVersion } from "@/lib/data/catalog-quality";
 import { getCurrentProfile } from "@/lib/data/auth";
-import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
+import { Shoe, ShoeImageRecord } from "@/lib/types";
 import {
   combineDimScores,
   DIM_KEYS,
@@ -20,7 +21,7 @@ import {
   type RatingFocus
 } from "@/lib/star-rating";
 
-type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
+type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: SpecVersion[] | null; shoe_images?: ShoeImageRecord[] | null };
 type ShoeStory = NonNullable<Shoe["story"]>;
 // Cached/assembled row: spec + approved image already resolved, the raw
 // shoe_specs / shoe_images arrays dropped. Those arrays (every historical
@@ -188,7 +189,9 @@ async function loadShoesBase(): Promise<ShoesBase> {
     const { shoe_specs, shoe_images, ...rest } = row;
     return {
       ...rest,
-      spec: shoe_specs?.[0] ?? {},
+      brand: displayBrand(rest.brand),
+      spec: publicSpec(shoe_specs),
+      dataQuality: { issues: inspectSpecs(shoe_specs), updatedAt: selectSpecVersion(shoe_specs).updated_at ?? null },
       image_url: resolveApprovedImage(shoe_images)?.public_url ?? null,
       story: storyByShoeId.get(row.id) ?? null
     };
@@ -212,7 +215,7 @@ async function loadShoesBase(): Promise<ShoesBase> {
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v5"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v6"], {
   tags: ["shoes"],
   // Auto-refresh at most once a minute so edits made directly in Supabase (which
   // don't call revalidateTag) still show up within ~60s instead of going stale.
@@ -359,7 +362,7 @@ const getPublicShoesAssembled = unstable_cache(
     const base = await getShoesBase();
     return assembleShoes(base, EMPTY_USER_CONTEXT);
   },
-  ["shoes-assembled-v2"],
+  ["shoes-assembled-v3"],
   { tags: ["shoes"], revalidate: 60 }
 );
 

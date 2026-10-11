@@ -275,7 +275,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
           higher up the For You face) */}
       {popular.length >= 3 ? (
         <motion.section {...sectionReveal} className="mt-8">
-          <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Popular this week")} />
+          <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Community favorites")} />
           <div className="mt-4 grid grid-cols-3 items-end gap-3">
             <PodiumItem shoe={popular[1]} rank={2} rankLabel={getRankLabel(2)} />
             <PodiumItem shoe={popular[0]} rank={1} rankLabel={getRankLabel(1)} />

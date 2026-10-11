@@ -31,6 +31,7 @@ function persistLocale(next: Locale) {
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "community favorites": "社区热门",
   "search shoes": "搜索球鞋",
   "search by shoe or brand": "输入鞋款或品牌",
   "your player profile": "你的球员档案",

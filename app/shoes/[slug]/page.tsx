@@ -14,6 +14,8 @@ import { FootReportCard } from "@/components/detail/foot-report-card";
 import { buildFootReport, type FootReport } from "@/lib/foot-scan/foot-report";
 import { AdminFitEditor } from "@/components/detail/admin-fit-editor";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
+import { createPublicClient } from "@/lib/supabase/public";
+import { DataProvenance } from "@/components/detail/data-provenance";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -78,6 +80,7 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
   ]);
 
   const related = allShoes.filter((s) => s.brand === shoe.brand && s.id !== shoe.id).slice(0, 3);
+  const sourceResult = await createPublicClient()?.from("sources").select("source_label,source_url,created_at").eq("shoe_id", shoe.id).order("id").limit(100);
 
   // Premium smart-sizing: gated by tier, personalized by the member's foot scan.
   // `adminFit` is the current per-shoe fit row, surfaced to admins for editing.
@@ -130,20 +133,8 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
     sku: shoe.id,
   };
 
-  // Only mark up an aggregateRating when real users have rated the shoe, and use
-  // the exact star value shown on the page (shoe.finalStars, 1–5) so the markup
-  // matches visible content — a Google requirement for review rich results.
-  const ratingCount = shoe.userRatingCount ?? 0;
-  const ratingValue = shoe.finalStars ?? 0;
-  if (ratingCount > 0 && ratingValue > 0) {
-    productSchema.aggregateRating = {
-      "@type": "AggregateRating",
-      ratingValue: Number(ratingValue.toFixed(1)),
-      bestRating: 5,
-      worstRating: 1,
-      ratingCount,
-    };
-  }
+  // Catalog-relative estimates are not an aggregate of customer review stars.
+  // Do not advertise them to search engines as aggregateRating.
 
   const breadcrumbSchema = {
     "@context": "https://schema.org",
@@ -174,6 +165,7 @@ export default async function ShoeDetailPage({ params }: { params: Promise<{ slu
           </>
         }
       />
+      <DataProvenance shoe={shoe} sources={sourceResult?.data ?? []} />
       <RecordView shoeId={shoe.id} isLoggedIn={isLoggedIn} />
     </>
   );

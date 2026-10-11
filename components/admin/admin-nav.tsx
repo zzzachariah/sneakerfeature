@@ -51,6 +51,7 @@ export const NAV_GROUPS: AdminNavGroup[] = [
   {
     label: "Content",
     items: [
+      { href: "/admin/data-quality" as Route, label: "Data quality", icon: ClipboardCheck, match: (p) => p.startsWith("/admin/data-quality") },
       {
         href: "/admin/review",
         label: "Submission review",
