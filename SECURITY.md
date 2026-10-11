@@ -80,6 +80,6 @@ them to user-supplied patterns. Track the upstream fix; do not suppress new
 advisories or use `npm audit fix --force` to silently migrate frameworks.
 
 Native manifests were synchronized with `cap sync`. The iOS pin was verified
-against the upstream 8.5.3 Git tag. Xcode package resolution could not complete
-in this environment because GitHub Git transport failed (HTTP/2 error, then
-connection timeout); native compilation/device behavior is not yet verified.
+against the upstream 8.5.3 Git tag. After connectivity recovered on 2026-10-11,
+Xcode package resolution and an unsigned iOS Simulator build both passed.
+Physical-device behavior, signing and store distribution remain separate release checks.

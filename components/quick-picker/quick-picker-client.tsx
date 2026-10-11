@@ -20,9 +20,8 @@ import {
   type SkillLevel,
   type Persona
 } from "@/lib/persona/types";
-import { hasPerformanceEvidence } from "@/lib/star-rating";
-import { computeMatchScore, getMatchReasons } from "@/lib/match/score";
-import { scoreFor, type MetricKey } from "@/components/compare/compare-metrics";
+import { quickPickerResults } from "@/lib/match/quick-picker";
+import { type MetricKey } from "@/components/compare/compare-metrics";
 import { ShoeCard } from "@/components/home/shoe-card";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -117,21 +116,8 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
     return { positions, skill_level: skill, flat_foot: flatFoot, height_cm: height, weight_kg: weight };
   }, [positions, skill, flatFoot, height, weight]);
 
-  const results = useMemo(() => {
-    if (step < STEP_COUNT || !personaInput) return [];
-    return shoes
-      .map((shoe) => {
-        const score = computeMatchScore(personaInput, shoe);
-        const reasons = getMatchReasons(personaInput, shoe);
-        // Blend the chosen priority dimension into the ranking (keep the match%
-        // as the headline number; just re-order toward what the player wants).
-        const rank = score == null ? null : priority && hasPerformanceEvidence(shoe.spec[priority]) ? Math.round(score * 0.6 + scoreFor(shoe, priority) * 0.4) : score;
-        return { shoe, score, reasons, rank };
-      })
-      .filter(r => r.score != null && (!priority || hasPerformanceEvidence(r.shoe.spec[priority])))
-      .sort((a, b) => (b.rank ?? -1) - (a.rank ?? -1) || a.shoe.id.localeCompare(b.shoe.id))
-      .slice(0, 12);
-  }, [step, personaInput, priority, shoes]);
+  const results = useMemo(() => step < STEP_COUNT ? [] : quickPickerResults(shoes, personaInput, priority), [step, personaInput, priority, shoes]);
+  const isPersonalized = results.some(result => result.score != null);
 
   useEffect(() => {
     if (step === STEP_COUNT && !completed.current) {
@@ -266,7 +252,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                     maxLabel={fmtH(HEIGHT_MAX)}
                   />
                   <BuildSlider
-                    label={translate("Weight")}
+                    label={translate("Body weight")}
                     value={weight}
                     display={fmtW(weight)}
                     min={WEIGHT_MIN}
@@ -334,7 +320,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
           <div>
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-lg font-semibold">{translate("Your top matches")}</h2>
+                <h2 className="text-lg font-semibold">{translate(isPersonalized ? "Your top matches" : "Your catalog shortlist")}</h2>
                 {priorityLabel ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-[rgb(var(--brand)/0.35)] bg-[rgb(var(--brand)/0.1)] px-2.5 py-1 text-[0.72rem] font-medium text-[rgb(var(--brand))]">
                     {translate("Ranked by")} {translate(priorityLabel)}
@@ -387,7 +373,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
             ) : null}
 
             {results.length === 0 && <p className="py-6 text-sm soft-text">{translate("Not enough evidence to recommend a pair yet")}</p>}
-            <p className="mb-4 text-xs soft-text">{translate("Match scores are catalog estimates, not fit probabilities")}</p>
+            <p className="mb-4 text-xs soft-text">{translate(isPersonalized ? "Match scores are catalog estimates, not fit probabilities" : "The catalog cannot support a personal match score yet. These candidates are sorted by recorded performance, so compare their evidence before choosing.")}</p>
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {results.map(({ shoe, score, rank, reasons }, i) => (
                 <ShoeCard
@@ -396,7 +382,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                   // Show the number the list is actually ordered by, so the
                   // percentages never look out of order: the priority-blended
                   // rank when a priority is chosen, otherwise the raw match%.
-                  matchScore={priority ? rank : score}
+                  matchScore={score == null ? null : priority ? rank : score}
                   footnote={reasons[0] ? translate(reasons[0]) : undefined}
                   showChips
                   index={i}

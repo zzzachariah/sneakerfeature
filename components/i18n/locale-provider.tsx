@@ -31,6 +31,13 @@ function persistLocale(next: Locale) {
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "your catalog shortlist": "球鞋候选清单",
+  "shortlisted by recorded performance; personal match unavailable": "按已记录性能筛选；个性化匹配资料不足",
+  "the catalog cannot support a personal match score yet. these candidates are sorted by recorded performance, so compare their evidence before choosing.": "鞋库现有资料尚不足以计算个性化匹配分。以下按已记录性能排列，选择前请继续对比各项依据。",
+
+  "height": "身高",
+  "body weight": "体重",
+  "weight": "重量",
   "thanks for the feedback.": "感谢反馈。",
   "were these recommendations useful?": "这些推荐对你有帮助吗？",
   "helpful": "有帮助",

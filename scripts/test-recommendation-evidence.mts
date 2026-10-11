@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { quickPickerResults } from "../lib/match/quick-picker.ts";
 import { keywordScore, hasAffirmedSignal } from "../lib/match/evidence.ts";
 import { computeMatchScore, computeDimensions, parseShoeWeightOz } from "../lib/match/score.ts";
 import { deriveDetail } from "../lib/ai/derive-proscons.ts";
@@ -38,3 +39,13 @@ assert.equal(positives.cons.length,0); // Do not turn the weakest good dimension
 assert.deepEqual(pickFallbackShoes({shoes:[complete],query:"a waterproof size 42 shoe under 100",persona,focus:null,count:3}),[]);
 assert.equal(pickFallbackShoes({shoes:[complete,missing],query:"Known Pair",persona,focus:null,count:3}).length,1);
 console.log("Recommendation evidence: negation, Chinese, unknown data, unsupported assumptions, honest pros/cons and conservative fallback passed.");
+
+// The live catalog has no measured shoe weights and almost no position categories.
+// Do not turn that into either fake personal percentages or an unusable empty picker.
+const sparseProfile = {...complete, category:null, weight:null};
+const shortlist = quickPickerResults([sparseProfile, missing], {...persona,flat_foot:false}, null);
+assert.equal(shortlist.length,1);
+assert.equal(shortlist[0].score,null);
+assert.match(shortlist[0].reasons[0],/personal match unavailable/);
+assert.deepEqual(quickPickerResults([missing],persona,null),[]);
+assert.deepEqual(quickPickerResults([{...sparseProfile,spec:{...sparseProfile.spec,traction:undefined}}],persona,"traction"),[]);
