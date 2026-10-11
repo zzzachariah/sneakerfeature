@@ -31,6 +31,12 @@ function persistLocale(next: Locale) {
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "thanks for the feedback.": "感谢反馈。",
+  "were these recommendations useful?": "这些推荐对你有帮助吗？",
+  "helpful": "有帮助",
+  "not a good match": "不太适合",
+  "need more evidence": "需要更多依据",
+
   "build your head-to-head": "开始球鞋对比",
   "answer 4 quick questions — no account needed.": "回答四个小问题，无需注册。",
   "shoe submission": "球鞋投稿",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -28,6 +28,8 @@ import { usePersona } from "@/components/preferences/persona-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePremiumVariant } from "@/components/premium/variants";
 import { PremiumMasthead } from "@/components/premium/page/premium-masthead";
+
+import { useProductEvent } from "@/components/analytics/use-product-event";
 
 const STEP_COUNT = 4; // position, skill, build, priority
 
@@ -74,12 +76,17 @@ function Chip({
 export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const { translate } = useLocale();
   const variant = usePremiumVariant();
+  const measure = useProductEvent();
+  const completed = useRef(false);
+  const [feedback, setFeedback] = useState(false);
   const { persona: savedPersona, savePersona, isLoggedIn } = usePersona();
   const [profileSaved, setProfileSaved] = useState(false);
   const reduce = useReducedMotion();
   const [step, setStep] = useState(0); // 0..3 = questions, 4 = results
   const [dir, setDir] = useState(1); // slide direction: +1 forward, -1 back
   const go = (next: number) => {
+    if (step === 0 && next === 1) measure({ name: "quick_picker_started" });
+    if (next < STEP_COUNT) { completed.current = false; setFeedback(false); }
     setDir(next >= step ? 1 : -1);
     setStep(next);
   };
@@ -125,6 +132,13 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
       .sort((a, b) => (b.rank ?? -1) - (a.rank ?? -1) || a.shoe.id.localeCompare(b.shoe.id))
       .slice(0, 12);
   }, [step, personaInput, priority, shoes]);
+
+  useEffect(() => {
+    if (step === STEP_COUNT && !completed.current) {
+      completed.current = true;
+      measure({ name: "quick_picker_completed", count: results.length });
+    }
+  }, [step, results.length, measure]);
 
   function applySavedProfile() {
     if (!savedPersona) return;
@@ -390,6 +404,14 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               ))}
             </ul>
 
+            <div className="mt-6 border-t border-[rgb(var(--muted)/0.5)] pt-4 text-sm">
+              <p role="status">{translate(feedback ? "Thanks for the feedback." : "Were these recommendations useful?")}</p>
+              {!feedback && <div className="mt-2 flex flex-wrap gap-2">
+                {([ ["helpful", "Helpful"], ["poor_match", "Not a good match"], ["missing_data", "Need more evidence"] ] as const).map(([outcome, label]) => (
+                  <button key={outcome} type="button" className="min-h-11 rounded-xl border border-[rgb(var(--muted)/0.6)] px-3" onClick={() => { measure({name:"recommendation_feedback",outcome}); setFeedback(true); }}>{translate(label)}</button>
+                ))}
+              </div>}
+            </div>
             <Link
               href={"/smart-picker" as Route}
               className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[rgb(var(--brand))] transition hover:opacity-80"

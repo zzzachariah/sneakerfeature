@@ -29,6 +29,8 @@ import { SignInValue } from "@/components/auth/sign-in-value";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { confirmDialog } from "@/components/native/native-menu";
 
+import { useProductEvent } from "@/components/analytics/use-product-event";
+
 const MAX_SHOES = 5;
 const MAX_CARD_SHOES = 4;
 const COMPARE_STORAGE_KEY = "sneaker:compare:ids";
@@ -46,6 +48,7 @@ function defaultSaveTitle(shoes: Shoe[]) {
 
 export function ComparePageClient({ selected, allShoes }: Props) {
   const { translate } = useLocale();
+  const measure = useProductEvent();
   const { signedIn, loaded: authLoaded } = useAuthState();
   const pathname = usePathname();
   const router = useRouter();
@@ -143,6 +146,7 @@ export function ComparePageClient({ selected, allShoes }: Props) {
       return;
     }
     setCompareIds([...localShoes, ...picked]);
+    if (localShoes.length < 2 && localShoes.length + picked.length >= 2) measure({ name: "comparison_created", count: localShoes.length + picked.length });
     setDialogOpen(false);
   };
 
