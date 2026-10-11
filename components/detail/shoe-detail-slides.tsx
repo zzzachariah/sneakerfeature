@@ -609,7 +609,7 @@ export function StorySection({
           </p>
           <div className="mt-4 rounded-2xl border border-[rgb(var(--muted)/0.45)] bg-[rgb(var(--surface)/0.6)] p-3 text-xs soft-text md:mt-5 md:p-4 md:text-sm">
             {translate(
-              "Source/evidence: Seed dataset + community validation pipeline. Admin review required before promotion to official records."
+              "Source not recorded. See data and sources for available evidence."
             )}
           </div>
         </>

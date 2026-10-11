@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId } from "react";
+import { useId, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
 import { useNativeChromeOverlay } from "@/lib/native/chrome-overlay";
 import { DUR, EASE } from "@/lib/motion/constants";
+import { useDialogAccessibility } from "@/lib/hooks/use-dialog-accessibility";
 
 export function Modal({
   open,
@@ -28,20 +29,14 @@ export function Modal({
 }) {
   const { translate } = useLocale();
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
   useBodyScrollLock(open);
   // Same reason as <BottomSheet>: the iOS shell's bars are UIKit views sitting
   // on top of the web view, so this dim would otherwise stop at their edges.
   useNativeChromeOverlay(open);
 
-  useEffect(() => {
-    if (!open || !dismissible) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, dismissible, onClose]);
+  useDialogAccessibility(dialogRef, open, onClose, dismissible);
 
   return (
     <AnimatePresence>
@@ -73,9 +68,12 @@ export function Modal({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <motion.div
+            ref={dialogRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
+            aria-label={title ? undefined : translate("Dialog")}
             className={`glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full ${maxWidthClass} flex-col rounded-3xl`}
             initial={{ y: reduce ? 0 : 16, opacity: 0, scale: reduce ? 1 : 0.985 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
@@ -83,8 +81,9 @@ export function Modal({
             transition={{ duration: reduce ? 0 : DUR.slow, ease: EASE }}
             onClick={(e) => e.stopPropagation()}
           >
+            {dismissible && <button type="button" onClick={onClose} aria-label={translate("Close")} className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full text-xl hover:bg-[rgb(var(--text)/0.08)]">×</button>}
             {title ? (
-              <h2 id={titleId} className="shrink-0 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] px-6 pt-6 pb-4 text-lg font-semibold tracking-[0.01em]">
+              <h2 id={titleId} className="shrink-0 border-b border-[rgb(var(--glass-stroke-soft)/0.4)] pl-6 pr-14 pt-6 pb-4 text-lg font-semibold tracking-[0.01em]">
                 {translate(title)}
               </h2>
             ) : null}

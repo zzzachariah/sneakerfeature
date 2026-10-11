@@ -162,7 +162,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
             variant={variant}
             kicker={translate("Quick Picker")}
             title={translate("Find your pair in 30 seconds")}
-            subtitle={translate("Answer 3 quick questions — no account needed.")}
+            subtitle={translate("Answer 4 quick questions — no account needed.")}
           />
         )}
 

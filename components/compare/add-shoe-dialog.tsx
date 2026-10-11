@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Search, X } from "lucide-react";
@@ -14,6 +14,8 @@ import { normalizeSearchText, rankShoeMatch } from "@/lib/search/shoe-search";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { DynamicTranslatedText } from "@/components/i18n/dynamic-translated-text";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
+
+import { useDialogAccessibility } from "@/lib/hooks/use-dialog-accessibility";
 
 const MAX_RESULTS = 20;
 
@@ -34,7 +36,10 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
   const [mounted, setMounted] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   useBodyScrollLock(open);
+  useDialogAccessibility(dialogRef, open && mounted, onClose);
 
   useEffect(() => {
     setMounted(true);
@@ -107,6 +112,9 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
           onClick={onClose}
         >
           <motion.div
+            ref={dialogRef}
+            tabIndex={-1}
+            aria-labelledby={titleId}
             role="dialog"
             aria-modal
             className="glass-strong glass-rim glass-clip liquid-interactive relative flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-3xl"
@@ -119,7 +127,7 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
             <div className="flex items-start justify-between gap-3 px-6 pt-6">
               <div>
                 <p className="t-eyebrow">{translate("Add to compare")}</p>
-                <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em]">{translate("Pick shoes")}</h2>
+                <h2 id={titleId} className="mt-1 text-xl font-semibold tracking-[-0.02em]">{translate("Pick shoes")}</h2>
                 <p className="mt-1 text-xs soft-text">
                   {translate("Select up to")} {remainingSlots} {remainingSlots === 1 ? translate("more shoe") : translate("more shoes")}.
                 </p>
@@ -142,7 +150,6 @@ export function AddShoeDialog({ open, onClose, shoes, selectedIds, remainingSlot
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={translate("Name, tags, tech…")}
                   className="pl-9"
-                  autoFocus
                 />
               </label>
               <Select value={brand} onChange={(e) => setBrand(e.target.value)}>

@@ -314,7 +314,6 @@ export function ComparePageClient({ selected, allShoes }: Props) {
                 onChange={(e) => setSaveTitle(e.target.value)}
                 maxLength={80}
                 placeholder={translate("e.g. Guards 2024")}
-                autoFocus
               />
             </div>
             <p className="text-xs soft-text">

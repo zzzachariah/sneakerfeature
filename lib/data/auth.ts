@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { isAuthCookieName } from "@/lib/auth-cookie";
 
 function isFrameworkError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
@@ -21,7 +22,7 @@ export const hasAuthCookie = cache(async function hasAuthCookie(): Promise<boole
   const cookieStore = await cookies();
   return cookieStore
     .getAll()
-    .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+    .some((c) => isAuthCookieName(c.name));
 });
 
 export const getCurrentUser = cache(async function getCurrentUser(): Promise<User | null> {

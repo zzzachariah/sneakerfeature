@@ -107,7 +107,7 @@ export default function DashboardPage() {
           commentsPromise,
           sb
             .from("user_submissions")
-            .select("id, status, created_at")
+            .select("id, status, created_at, updated_at, raw_payload")
             .eq("user_id", session.user.id)
             .order("created_at", { ascending: false })
             .limit(20),
@@ -212,7 +212,10 @@ export default function DashboardPage() {
         setComments(normalizedMyComments);
         setLikedComments(likedComments);
         setDislikedComments(dislikedComments);
-        setSubmissions((submissionsRes.data ?? []) as DashboardSubmission[]);
+        setSubmissions((submissionsRes.data ?? []).map((row) => ({
+          id: row.id, status: row.status, created_at: row.created_at, updated_at: row.updated_at,
+          shoe_name: typeof row.raw_payload?.shoe_name === "string" ? row.raw_payload.shoe_name : ""
+        })));
         const rawCompares = (compareRes.data ?? []) as Array<{
           id: string;
           title: string;

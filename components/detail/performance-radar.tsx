@@ -9,6 +9,7 @@ import { scoreColor } from "@/lib/score-tone";
 export type RadarAxis = {
   label: string;
   rawText: string | null | undefined;
+  evidenceText?: string | null;
   score: number;
   tier: string;
 };
@@ -65,7 +66,7 @@ export function PerformanceRadar({ axes, active }: Props) {
     })
     .join(" ");
 
-  if (axes.some(axis => !hasPerformanceEvidence(axis.rawText))) {
+  if (axes.some(axis => !hasPerformanceEvidence(axis.evidenceText ?? axis.rawText))) {
     return <PerformanceEvidenceTable axes={axes} />;
   }
 

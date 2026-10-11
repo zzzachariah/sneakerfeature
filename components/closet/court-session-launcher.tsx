@@ -116,7 +116,7 @@ export function CourtSessionLauncher({ entries }: { entries: ClosetEntry[] }) {
         </div>
 
         <p className="mt-3 text-[0.72rem] leading-relaxed soft-text">
-          {translate("Runs in the Dynamic Island and on your Lock Screen — the hours land in your closet when you stop.")}
+          {translate("Track court time here. On supported iPhones, the app also shows the timer on the Lock Screen and Dynamic Island.")}
         </p>
       </section>
 

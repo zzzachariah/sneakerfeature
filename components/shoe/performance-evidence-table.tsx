@@ -8,14 +8,14 @@ export function hasCompletePerformance(shoe: Shoe): boolean {
   return DIM_KEYS.every(k => hasPerformanceEvidence(shoe.spec?.[k]));
 }
 
-export function PerformanceEvidenceTable({ axes }: { axes: {label:string; rawText?:string|null; score:number}[] }) {
+export function PerformanceEvidenceTable({ axes }: { axes: {label:string; rawText?:string|null; evidenceText?:string|null; score:number}[] }) {
   const { translate, locale } = useLocale();
   return <div className="space-y-3 rounded-2xl border border-[rgb(var(--muted)/0.4)] p-4">
     <p className="text-sm soft-text">{locale === "zh" ? "资料尚不完整，缺失项目暂不评分。" : "Some evidence is missing. Unavailable dimensions are not scored."}</p>
     <dl className="grid gap-2 text-sm">
       {axes.map(axis => <div key={axis.label} className="flex justify-between gap-4">
         <dt>{translate(axis.label)}</dt>
-        <dd className="font-medium">{hasPerformanceEvidence(axis.rawText) ? `${Math.round(axis.score)} / 100` : (locale === "zh" ? "资料不足" : "Not enough data")}</dd>
+        <dd className="font-medium">{hasPerformanceEvidence(axis.evidenceText ?? axis.rawText) ? `${Math.round(axis.score)} / 100` : (locale === "zh" ? "资料不足" : "Not enough data")}</dd>
       </div>)}
     </dl>
   </div>;

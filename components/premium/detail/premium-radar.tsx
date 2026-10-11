@@ -67,7 +67,7 @@ export function PremiumRadar({ variant, axes }: { variant: Variant; axes: RadarA
   const { radius, labelRadius } = GEOMETRY[variant];
   const labelsVisible = progress > 0.82;
 
-  if (axes.some(axis => !hasPerformanceEvidence(axis.rawText))) {
+  if (axes.some(axis => !hasPerformanceEvidence(axis.evidenceText ?? axis.rawText))) {
     return <PerformanceEvidenceTable axes={axes} />;
   }
 
