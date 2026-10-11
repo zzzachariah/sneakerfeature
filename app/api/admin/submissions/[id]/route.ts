@@ -1,3 +1,4 @@
+import { withPublicProfileNames } from "@/lib/admin/public-profile-names";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/route-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,14 +12,14 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const submissionRes = await supabase
     .from("user_submissions")
-    .select("*, profiles!user_submissions_user_id_fkey(username)")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
 
   if (submissionRes.error) return NextResponse.json({ ok: false, message: submissionRes.error.message }, { status: 400 });
   if (!submissionRes.data) return NextResponse.json({ ok: false, message: "Submission not found." }, { status: 404 });
 
-  const submission = submissionRes.data;
+  const [submission] = await withPublicProfileNames(supabase, [submissionRes.data], "user_id");
 
   // profiles.email is no longer readable via the anon/authenticated key
   // (migration 038 restricts the column to service-role). Fetch the submitter's
@@ -50,7 +51,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     supabase.from("submission_admin_versions").select("*").eq("submission_id", id).maybeSingle(),
     supabase
       .from("admin_audit_logs")
-      .select("id, action, note, created_at, actor_admin_id, profiles!admin_audit_logs_actor_admin_id_fkey(username)")
+      .select("id, action, note, created_at, actor_admin_id")
       .eq("target_submission_id", id)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -75,6 +76,6 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
     },
     normalized: normalizedRes.error ? null : normalizedRes.data,
     draft: draftRes.error ? null : draftRes.data,
-    history: historyRes.error ? [] : historyRes.data ?? []
+    history: historyRes.error ? [] : await withPublicProfileNames(supabase, historyRes.data ?? [], "actor_admin_id")
   });
 }

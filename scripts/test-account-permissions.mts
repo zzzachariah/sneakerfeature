@@ -35,6 +35,10 @@ await db.exec(`
   );
   alter table subscription_allowances enable row level security;
 `);
+const preparation = await readFile(new URL('../db/migrations/20261011125026_prepare_public_profile_cards.sql', import.meta.url), 'utf8');
+await db.exec(preparation);
+await db.exec(preparation);
+assert.equal((await db.query('select count(*)::int as n from public_profile_cards')).rows[0].n, 2);
 const migration = await readFile(new URL('../db/migrations/20261010034930_harden_profile_and_allowance_permissions.sql', import.meta.url), 'utf8');
 await db.exec(migration);
 await db.exec(migration); // Safe migration replay.
