@@ -10,8 +10,9 @@ export function hasCompletePerformance(shoe: Shoe): boolean {
 
 export function PerformanceEvidenceTable({ axes }: { axes: {label:string; rawText?:string|null; evidenceText?:string|null; score:number}[] }) {
   const { translate, locale } = useLocale();
+  const incomplete = axes.some(axis => !hasPerformanceEvidence(axis.evidenceText ?? axis.rawText));
   return <div className="space-y-3 rounded-2xl border border-[rgb(var(--muted)/0.4)] p-4">
-    <p className="text-sm soft-text">{locale === "zh" ? "资料尚不完整，缺失项目暂不评分。" : "Some evidence is missing. Unavailable dimensions are not scored."}</p>
+    <p className="text-sm soft-text">{incomplete ? (locale === "zh" ? "资料尚不完整，缺失项目暂不评分。" : "Some evidence is missing. Unavailable dimensions are not scored.") : (locale === "zh" ? "以下为已记录性能的参考评分。" : "Reference scores from recorded performance evidence.")}</p>
     <dl className="grid gap-2 text-sm">
       {axes.map(axis => <div key={axis.label} className="flex justify-between gap-4">
         <dt>{translate(axis.label)}</dt>
