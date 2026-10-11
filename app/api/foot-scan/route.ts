@@ -1,42 +1,16 @@
 import { NextResponse } from "next/server";
+import { reserveAiRequest } from "@/lib/ai/reservations";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getFootScanContext } from "@/lib/foot-scan/access";
 import { analyzeFootScan } from "@/lib/foot-scan/analyze";
 import { buildFootProfile, listScans, saveFootProfile, saveScan } from "@/lib/foot-scan/store";
 
-// ---------------------------------------------------------------------------
-// Per-user rate limiting (in-memory sliding window)
-// Max 10 scans per hour per user.
-// ---------------------------------------------------------------------------
-const RATE_LIMIT_MAX = 10;
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
-// Minimum gap between consecutive scans for the same user (server-enforced).
-const MIN_SCAN_GAP_MS = 60 * 1000; // 1 minute
-
-// Map<userId, timestamps[]> — timestamps of requests within the current window.
-const scanTimestamps = new Map<string, number[]>();
-
-function checkRateLimit(userId: string): { allowed: boolean; retryAfterMs: number } {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (scanTimestamps.get(userId) ?? []).filter((t) => t > windowStart);
-
-  if (timestamps.length >= RATE_LIMIT_MAX) {
-    // Earliest timestamp in the window — user can retry once it falls out.
-    const retryAfterMs = (timestamps[0] ?? now) + RATE_LIMIT_WINDOW_MS - now;
-    return { allowed: false, retryAfterMs: Math.max(retryAfterMs, 0) };
-  }
-
-  timestamps.push(now);
-  scanTimestamps.set(userId, timestamps);
-  return { allowed: true, retryAfterMs: 0 };
-}
-
 // Node runtime (OpenAI SDK + Supabase admin); never cached — per-user and
 // side-effecting.
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 // A captured frame, downscaled client-side, sent as a JPEG/PNG data URL.
 const dataUrl = z
@@ -76,32 +50,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
   }
 
-  // --- Per-user in-memory rate limit (max 10 scans / hour) ---
-  const rl = checkRateLimit(ctx.userId);
-  if (!rl.allowed) {
-    const retryAfterSec = Math.ceil(rl.retryAfterMs / 1000);
-    console.warn("[foot-scan] rate limit exceeded", { userId: ctx.userId, retryAfterSec });
-    return NextResponse.json(
-      { ok: false, message: "Too many scans. Please wait before trying again." },
-      { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
-    );
-  }
-
-  // --- DB-level minimum gap between consecutive scans (1 minute) ---
-  const recentScans = await listScans(ctx.userId, 1).catch(() => []);
-  if (recentScans.length > 0) {
-    const lastScanAt = new Date(recentScans[0].created_at).getTime();
-    const msSinceLast = Date.now() - lastScanAt;
-    if (msSinceLast < MIN_SCAN_GAP_MS) {
-      const retryAfterSec = Math.ceil((MIN_SCAN_GAP_MS - msSinceLast) / 1000);
-      console.warn("[foot-scan] minimum gap not met", { userId: ctx.userId, msSinceLast, retryAfterSec });
-      return NextResponse.json(
-        { ok: false, message: "Please wait a moment before submitting another scan." },
-        { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
-      );
-    }
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -122,20 +70,6 @@ export async function POST(request: Request) {
   }
 
   const { primarySide, footLengthMm, locale, images, tilt } = parsed.data;
-  console.info("[foot-scan] request accepted", {
-    userId: ctx.userId,
-    primarySide,
-    footLengthMm,
-    locale: locale ?? null,
-    hasTopOther: Boolean(images.top_other),
-    imageBytes: {
-      top: images.top.length,
-      oblique: images.oblique.length,
-      side: images.side.length,
-      top_other: images.top_other?.length ?? 0
-    }
-  });
-
   // Recent scans (fetched BEFORE this one is saved) feed cross-session fusion:
   // the same foot is an unchanging quantity, so past width reads shrink variance.
   const prior = await listScans(ctx.userId, 5).catch(() => []);
@@ -146,6 +80,9 @@ export async function POST(request: Request) {
     widthConf: s.result.primary.confidence.width
   }));
 
+  const reservation = await reserveAiRequest(request, ctx.userId, "scan", "unlimited", 0);
+  if ("error" in reservation) return reservation.error;
+  try {
   const outcome = await analyzeFootScan({
     primarySide,
     footLengthMm,
@@ -162,7 +99,7 @@ export async function POST(request: Request) {
       error: outcome.error,
       detail: outcome.detail ?? null
     });
-    return NextResponse.json({ ok: false, message: outcome.error, detail: outcome.detail }, { status: 502 });
+    return NextResponse.json({ ok: false, message: "Scan could not be completed. Please try again." }, { status: 502 });
   }
 
   // Store derived results (never the photos) for history; non-fatal if it fails.
@@ -181,15 +118,10 @@ export async function POST(request: Request) {
     if (profileSaved) revalidatePath("/", "layout");
   }
 
-  console.info("[foot-scan] analysis ok", {
-    userId: ctx.userId,
-    durationMs: Date.now() - t0,
-    scanId,
-    profileSaved,
-    usable,
-    widthClass: outcome.result.primary.traits.width,
-    widthRatio: outcome.result.primary.measurements.width_ratio,
-    widthConf: outcome.result.primary.confidence.width
-  });
+  console.info("[foot-scan] completed", { durationMs: Date.now()-t0, profileSaved, usable });
+  await reservation.finish(0);
   return NextResponse.json({ ok: true, result: outcome.result, scanId, profileSaved });
+  } finally {
+    await reservation.refund();
+  }
 }

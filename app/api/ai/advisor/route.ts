@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reserveAiRequest } from "@/lib/ai/reservations";
 import { z } from "zod";
 import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,16 +10,12 @@ import {
   createPackyClientForModel,
   clientOptionsForModel,
   getPackyEnvReport,
-  describePackyEnvProblem,
-  describePackyTarget,
-  describePackyError
+  describePackyEnvProblem
 } from "@/lib/ai/packy-client";
 import { tierConfig } from "@/lib/subscription/tiers";
 import {
   getMemberContext,
-  getAllowanceBalance,
-  spendAllowance,
-  InsufficientAllowanceError
+  getAllowanceBalance
 } from "@/lib/subscription/entitlements";
 import { streamAdvice, type AdvisorTurn } from "@/lib/ai/advisor";
 import { startDeadline } from "@/lib/ai/budget";
@@ -37,20 +34,6 @@ export const maxDuration = 300;
 // on the trimmed monthly grant while the meter still moves. Admins run unmetered.
 const ADVISOR_MESSAGE_COST = 1;
 
-// In-memory sliding-window rate limit: 20 messages/min per user.
-const RATE_LIMIT_MAX = 20;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const rateLimitStore = new Map<string, number[]>();
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (rateLimitStore.get(userId) ?? []).filter((t) => t > windowStart);
-  if (timestamps.length >= RATE_LIMIT_MAX) return false;
-  timestamps.push(now);
-  rateLimitStore.set(userId, timestamps);
-  return true;
-}
-
 const schema = z.object({
   chatId: z.string().uuid(),
   message: z.string().trim().min(1, "Message is required.").max(2000)
@@ -62,10 +45,6 @@ export async function POST(request: Request) {
   const deadline = startDeadline();
   const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
-
-  if (!checkRateLimit(ctx.userId)) {
-    return NextResponse.json({ ok: false, message: "Too many requests." }, { status: 429 });
-  }
 
   let body: unknown;
   try {
@@ -136,6 +115,9 @@ export async function POST(request: Request) {
     content: r.content as string
   }));
 
+  const reservation = await reserveAiRequest(request, ctx.userId, "advisor", ctx.isAdmin ? "unlimited" : "allowance", ADVISOR_MESSAGE_COST);
+  if ("error" in reservation) return reservation.error;
+
   // Persist the user message before streaming.
   const { data: userMessage, error: userErr } = await admin
     .from("advisor_messages")
@@ -143,6 +125,7 @@ export async function POST(request: Request) {
     .select("id, created_at")
     .single();
   if (userErr || !userMessage) {
+    await reservation.refund();
     return NextResponse.json({ ok: false, message: "Failed to save message." }, { status: 500 });
   }
 
@@ -185,7 +168,7 @@ export async function POST(request: Request) {
           console.error("[ai/advisor] stream failed", { model, error });
           // The advisor always runs the premium model — report that one, not the
           // shared base model the old hardcoded target reported.
-          send("error", { message: `AI 调用失败：${describePackyError(error)}。请求目标 ${describePackyTarget(model)}。` });
+          send("error", { message: "AI 暂时无法完成请求，请稍后重试。" });
           return;
         }
 
@@ -193,34 +176,9 @@ export async function POST(request: Request) {
 
         const replyText = full.trim() || "抱歉，我这次没能给出建议，换个说法再问我一次？";
 
-        // Charge the allowance (admins unmetered). The reply is already produced,
-        // so a rare concurrent drain doesn't hard-fail — report best-effort.
-        let newBalance = preBalance;
-        const charged = ctx.isAdmin ? 0 : ADVISOR_MESSAGE_COST;
-        if (charged > 0) {
-          try {
-            newBalance = await spendAllowance(ctx.userId, charged, tier);
-          } catch (error) {
-            if (error instanceof InsufficientAllowanceError) newBalance = 0;
-            else console.error("[ai/advisor] allowance spend failed", error);
-          }
-        }
-
-        const { data: assistantRow, error: assistantErr } = await admin
-          .from("advisor_messages")
-          .insert({
-            chat_id: chatId,
-            user_id: ctx.userId,
-            role: "assistant",
-            content: replyText,
-            allowance_charged: charged
-          })
-          .select("id, created_at")
-          .single();
-        if (assistantErr || !assistantRow) {
-          send("error", { message: "Failed to save reply." });
-          return;
-        }
+        const charged = ctx.isAdmin || !full.trim() ? 0 : ADVISOR_MESSAGE_COST;
+        const assistantRow = await reservation.complete(chatId, replyText, charged);
+        const newBalance = assistantRow.balance;
 
         // Title the chat on the first turn from the user's opening message.
         const chatUpdate: Record<string, string> = { updated_at: new Date().toISOString() };
@@ -240,8 +198,9 @@ export async function POST(request: Request) {
         // Report what actually failed instead of an opaque "请求失败" that reads
         // exactly like a dropped connection (see the same fix in ai/chat).
         console.error("[ai/advisor] handler failed", { model, error });
-        send("error", { message: `请求失败：${describePackyError(error)}。请稍后重试。` });
+        send("error", { message: "请求未完成，请稍后重试。" });
       } finally {
+        await reservation.refund();
         clearInterval(heartbeat);
         if (!aborted) {
           try {

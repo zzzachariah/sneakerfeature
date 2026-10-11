@@ -134,7 +134,7 @@ export function AdvisorClient({ initialPrompt }: { initialPrompt?: string }) {
       try {
         const res = await fetch("/api/ai/advisor", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
           body: JSON.stringify({ chatId: activeChatId, message: text })
         });
 

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recoverAiRequests } from "@/lib/ai/reservations";
 
 // All credit writes go through the service-role client. RLS gives users
 // read-only access to their own rows; no client can mutate balances directly.
@@ -13,6 +14,7 @@ export class InsufficientCreditsError extends Error {
 }
 
 export async function getBalance(userId: string): Promise<number> {
+  await recoverAiRequests(userId);
   const admin = createAdminClient();
   if (!admin) return 0;
   const { data } = await admin.from("ai_credits").select("balance").eq("user_id", userId).maybeSingle();

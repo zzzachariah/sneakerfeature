@@ -157,7 +157,7 @@ export function FootScanClient() {
     try {
       const res = await fetch("/api/foot-scan", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
           primarySide: c.primarySide,
           footLengthMm: c.footLengthMm,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { reserveAiRequest } from "@/lib/ai/reservations";
 import { z } from "zod";
 import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,17 +11,13 @@ import {
   createPackyClientForModel,
   clientOptionsForModel,
   getPackyEnvReport,
-  describePackyEnvProblem,
-  describePackyTarget,
-  describePackyError
+  describePackyEnvProblem
 } from "@/lib/ai/packy-client";
 import { tierConfig, tierSupportsModel, isAllowanceMetered, type ModelId } from "@/lib/subscription/tiers";
 import { resolveModelChoice } from "@/lib/subscription/resolve";
 import {
   getMemberContext,
-  getAllowanceBalance,
-  spendAllowance,
-  InsufficientAllowanceError
+  getAllowanceBalance
 } from "@/lib/subscription/entitlements";
 import { buildDepthSuffix } from "@/lib/ai/tier-prompt";
 import { startDeadline } from "@/lib/ai/budget";
@@ -36,7 +33,7 @@ import { deriveDetail, detectReplyLang } from "@/lib/ai/derive-proscons";
 import { alreadyRecommendedTag, pick } from "@/lib/ai/lang";
 import { getAllBloggerReviews } from "@/lib/data/blogger-reviews";
 import { pickFallbackShoes } from "@/lib/ai/fallback";
-import { getBalance, deductCredits, InsufficientCreditsError } from "@/lib/ai/credits";
+import { getBalance } from "@/lib/ai/credits";
 import { MAX_RECOMMENDATIONS, type RecommendationRaw, type OnProgress } from "@/lib/ai/types";
 import { blendedRecommendationStars, isValidFocus, type RatingFocus } from "@/lib/star-rating";
 
@@ -52,25 +49,6 @@ export const dynamic = "force-dynamic";
 // keep it in sync with AI_ROUTE_MAX_DURATION, which sizes the internal deadline.
 export const maxDuration = 300;
 
-// ---------------------------------------------------------------------------
-// In-memory sliding-window rate limiter: max 30 requests per userId per minute.
-// Resets naturally as timestamps age out. This is a lightweight abuse guard that
-// fires before any DB I/O, separate from the credit system.
-// ---------------------------------------------------------------------------
-const RATE_LIMIT_MAX = 30;
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const rateLimitStore = new Map<string, number[]>();
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const windowStart = now - RATE_LIMIT_WINDOW_MS;
-  const timestamps = (rateLimitStore.get(userId) ?? []).filter((t) => t > windowStart);
-  if (timestamps.length >= RATE_LIMIT_MAX) return false;
-  timestamps.push(now);
-  rateLimitStore.set(userId, timestamps);
-  return true;
-}
-
 const schema = z.object({
   chatId: z.string().uuid(),
   message: z.string().trim().min(1, "Message is required.").max(2000),
@@ -81,9 +59,6 @@ const schema = z.object({
 });
 
 type HistoryRow = { role: "user" | "assistant"; content: string; recommendations: RecommendationRaw[] | null };
-/** The persisted assistant turn, as far as the SSE `done` frame cares. */
-type AssistantRow = { id: string; created_at: string; credits_charged: number };
-
 export async function POST(request: Request) {
   // Everything this request does — DB reads, model calls, persistence — has to
   // fit inside `maxDuration`. The deadline is set from the first line so the AI
@@ -92,11 +67,6 @@ export async function POST(request: Request) {
   const deadline = startDeadline();
   const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
-
-  // Rate limit: max 30 requests/minute per user, enforced before any DB I/O.
-  if (!checkRateLimit(ctx.userId)) {
-    return NextResponse.json({ ok: false, message: "Too many requests." }, { status: 429 });
-  }
 
   let body: unknown;
   try {
@@ -243,6 +213,9 @@ export async function POST(request: Request) {
   });
   const priorRecommendations: PriorRecommendations = { last: lastPriorNames, all: allPriorNames };
 
+  const reservation = await reserveAiRequest(request, ctx.userId, "chat", billing, effectiveCount);
+  if ("error" in reservation) return reservation.error;
+
   // Persist the user message (after capturing prior history).
   const { data: userMessage, error: userErr } = await admin
     .from("ai_messages")
@@ -250,6 +223,7 @@ export async function POST(request: Request) {
     .select("id, role, content, recommendations, credits_charged, created_at")
     .single();
   if (userErr || !userMessage) {
+    await reservation.refund();
     return NextResponse.json({ ok: false, message: "Failed to save message." }, { status: 500 });
   }
 
@@ -321,8 +295,8 @@ export async function POST(request: Request) {
           send("error", {
             message: pick(
               replyLang,
-              `AI 调用失败：${describePackyError(error)}。请求目标 ${describePackyTarget(model)}。`,
-              `The AI call failed: ${describePackyError(error)}. Target was ${describePackyTarget(model)}.`
+              "AI 暂时无法完成请求，请稍后重试。",
+              "AI could not complete this request. Please try again later."
             )
           });
           return;
@@ -407,45 +381,7 @@ export async function POST(request: Request) {
             : undefined
         });
 
-        // Charge according to the billing mode (see tier resolution above):
-        //   credits   → free tier spends ai_credits (as before)
-        //   allowance → paid tier on the premium model spends the monthly allowance
-        //   unlimited → admins & paid tier on the base model are never charged
-        // `chargedAmount` is what actually leaves an account (0 when unlimited);
-        // it's what gets recorded on the message ledger.
         const chargedAmount = billing === "unlimited" ? 0 : charge;
-        let newBalance = preBalance;
-        if (billing === "credits" && charge > 0) {
-          try {
-            newBalance = await deductCredits(ctx.userId, charge);
-          } catch (error) {
-            if (error instanceof InsufficientCreditsError) {
-              send("error", {
-                message: pick(
-                  replyLang,
-                  `积分不足（当前余额 ${error.balance}）。每日签到可领取免费积分。`,
-                  `Not enough credits (balance ${error.balance}). Claim free credits with the daily check-in.`
-                )
-              });
-              return;
-            }
-            console.error("[ai/chat] deduct failed", error);
-            send("error", { message: pick(replyLang, "扣费失败，请重试。", "Charging your credits failed — please try again.") });
-            return;
-          }
-        } else if (billing === "allowance" && charge > 0) {
-          try {
-            newBalance = await spendAllowance(ctx.userId, charge, tier);
-          } catch (error) {
-            // Pre-checked above, so this only trips on a rare concurrent drain.
-            // The answer is already produced — don't hard-fail; report best-effort.
-            if (error instanceof InsufficientAllowanceError) {
-              newBalance = 0;
-            } else {
-              console.error("[ai/chat] allowance spend failed", error);
-            }
-          }
-        }
 
         // User-facing reply text — no diagnostics. The deterministic fallback gets
         // a gentle note instead of the old "暂时没有找到匹配的鞋款" error. All of
@@ -479,45 +415,8 @@ export async function POST(request: Request) {
         // nothing grounded to follow up on) or when the model had nothing to ask.
         const followUp = fallbackUsed ? "" : (result.followUp ?? "").trim();
 
-        const assistantPayload = {
-          chat_id: chatId,
-          role: "assistant",
-          content: replyText,
-          recommendations: validRaw.length ? validRaw : null,
-          credits_charged: chargedAmount
-        };
-        const assistantCols = "id, role, content, recommendations, credits_charged, created_at";
-        // `follow_up` arrives with migration 049. Write it when the column is
-        // there and fall back to the legacy shape when it isn't, so shipping
-        // this code ahead of the migration costs the follow-up box — not the
-        // whole turn (same tolerant pattern as profiles.foot_profile above).
-        let assistantRow: AssistantRow | null = null;
-        if (followUp) {
-          const withFollowUp = await admin
-            .from("ai_messages")
-            .insert({ ...assistantPayload, follow_up: followUp })
-            .select(assistantCols)
-            .single();
-          if (!withFollowUp.error && withFollowUp.data) {
-            assistantRow = withFollowUp.data as unknown as AssistantRow;
-          } else {
-            console.warn("[ai/chat] follow_up column unavailable — persisting without it", {
-              message: withFollowUp.error?.message?.slice(0, 160)
-            });
-          }
-        }
-        if (!assistantRow) {
-          const { data, error: assistantErr } = await admin
-            .from("ai_messages")
-            .insert(assistantPayload)
-            .select(assistantCols)
-            .single();
-          if (assistantErr || !data) {
-            send("error", { message: pick(replyLang, "回复保存失败。", "Failed to save reply.") });
-            return;
-          }
-          assistantRow = data as unknown as AssistantRow;
-        }
+        const assistantRow = await reservation.complete(chatId, replyText, chargedAmount, validRaw.length ? validRaw : null, followUp || null);
+        const newBalance = assistantRow.balance;
 
         // Title the chat on the first turn — prefer the AI-summarized title, fall
         // back to a slice of the user message.
@@ -561,11 +460,12 @@ export async function POST(request: Request) {
         send("error", {
           message: pick(
             replyLang,
-            `请求失败：${describePackyError(error)}。请稍后重试。`,
-            `Request failed: ${describePackyError(error)}. Please try again.`
+            "请求未完成，请稍后重试。",
+            "The request could not be completed. Please try again."
           )
         });
       } finally {
+        await reservation.refund();
         clearInterval(heartbeat);
         if (!aborted) {
           try {
