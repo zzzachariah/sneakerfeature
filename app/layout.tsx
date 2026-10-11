@@ -46,7 +46,6 @@ import { PremiumSkinGuard } from "@/components/theme/premium-skin";
 import { MemberThemeApplier, MemberThemeInitScript } from "@/components/theme/member-theme";
 import { GlassFilterDefs } from "@/components/ui/glass-filter";
 import { LocaleProvider } from "@/components/i18n/locale-provider";
-import { LanguageFirstRun } from "@/components/i18n/language-first-run";
 import { AnnouncementModal } from "@/components/announce/announcement-modal";
 import { MembershipRenewalBanner } from "@/components/subscribe/renewal-banner";
 import { RatingFocusProvider } from "@/components/preferences/rating-focus-provider";
@@ -140,7 +139,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider initialLocale={initialLocale}>
           <PremiumSkinProvider initialSkin={initialSkin}>
           <PremiumTierProvider initialTier={initialTier ?? "free"}>
-          <LanguageFirstRun />
           <CookieConsentProvider>
             <AuthStateProvider>
               <MemberThemeApplier />

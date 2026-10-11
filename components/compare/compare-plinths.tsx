@@ -54,15 +54,15 @@ export function ComparePlinths({ shoes, onRemove, onAdd, canAdd, showRatingDetai
       {count === 2 ? (
         <>
           <ShoePlinth {...plinthProps(shoes[0], 0)} />
-          <div className="hidden flex-col items-center justify-center pt-24 opacity-50 md:flex">
+          <div className="hidden flex-col items-center justify-center pt-10 opacity-50 md:flex">
             <div
               className="w-px"
-              style={{ height: 90, background: "linear-gradient(to bottom, transparent, rgb(var(--muted)/0.55))" }}
+              style={{ height: 55, background: "linear-gradient(to bottom, transparent, rgb(var(--muted)/0.55))" }}
             />
             <span className="my-3 text-sm font-medium tracking-[0.12em] soft-text">/</span>
             <div
               className="w-px"
-              style={{ height: 90, background: "linear-gradient(to bottom, rgb(var(--muted)/0.55), transparent)" }}
+              style={{ height: 55, background: "linear-gradient(to bottom, rgb(var(--muted)/0.55), transparent)" }}
             />
           </div>
           <ShoePlinth {...plinthProps(shoes[1], 1)} />
@@ -109,7 +109,7 @@ function ShoePlinth({
         type="button"
         onClick={() => onRemove(shoe.id)}
         aria-label={translateLabel("Remove shoe from compare")}
-        className="absolute right-1 top-1 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.85)] soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))] md:h-7 md:w-7"
+        className="absolute right-1 top-1 z-10 inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.85)] soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))]"
       >
         <X className="h-4 w-4 md:h-3.5 md:w-3.5" />
       </button>
@@ -117,7 +117,7 @@ function ShoePlinth({
       <Link
         href={href}
         aria-label={`${shoe.shoe_name} — ${translateLabel("View details")}`}
-        className="relative mb-3 flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-3 py-4 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] transition-[border-color] duration-[320ms] hover:border-[rgb(var(--text)/0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)] sm:min-h-[160px] sm:mb-5 sm:px-4 sm:py-6 md:min-h-[240px] md:px-10 md:py-14"
+        className="relative mb-3 flex min-h-[120px] items-center justify-center overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.28)] bg-[rgb(var(--surface))] px-3 py-4 shadow-[0_40px_80px_rgb(var(--shadow)/0.45)] transition-[border-color] duration-[320ms] hover:border-[rgb(var(--text)/0.3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--ring)/0.35)] sm:min-h-[160px] sm:mb-5 sm:px-4 sm:py-6 md:h-[210px] md:px-6 md:py-4"
       >
         {/* Identity colour accent bar along the top edge, matching this shoe's
             radar line + verdict colour. */}
@@ -135,7 +135,7 @@ function ShoePlinth({
           alt={shoe.shoe_name}
           fallbackLabel={translateLabel("No image")}
           variant="compare"
-          className="relative w-full max-w-[18rem] transition-transform duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none"
+          className="relative w-full max-w-[10rem] transition-transform duration-[320ms] ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04] motion-reduce:transition-none"
         />
       </Link>
 
@@ -197,7 +197,7 @@ function AddShoeGhost({ onClick, label }: { onClick: () => void; label: string }
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.3)] px-6 py-10 soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))]"
+      className="group flex min-h-[210px] flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--bg-elev)/0.3)] px-6 py-10 soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))]"
     >
       <span className="flex h-12 w-12 items-center justify-center rounded-full border border-[rgb(var(--muted)/0.5)] bg-[rgb(var(--bg-elev)/0.6)] transition group-hover:border-[rgb(var(--text)/0.45)]">
         <Plus className="h-5 w-5" />
