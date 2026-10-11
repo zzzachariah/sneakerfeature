@@ -103,6 +103,7 @@ export default function LoginPage() {
   const { translate } = useLocale();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [verificationToken, setVerificationToken] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
@@ -230,11 +231,12 @@ export default function LoginPage() {
             label={translate("Password")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            type="password"
+            type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
           />
-          <div className="mt-2 flex justify-end">
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <button type="button" className="min-h-11 text-sm" aria-pressed={showPassword} onClick={() => setShowPassword(value => !value)}>{translate(showPassword ? "Hide password" : "Show password")}</button>
             <Link
               href="/forgot-password"
               className="text-xs text-[rgb(var(--subtext))] underline-offset-4 transition hover:text-[rgb(var(--text))] hover:underline"

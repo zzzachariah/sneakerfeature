@@ -61,6 +61,7 @@ export interface Shoe {
   weight?: string | null;
   image_url?: string | null;
   spec: ShoeSpec;
+  dataQuality?: { issues: import("@/lib/data/catalog-quality").QualityIssue[]; updatedAt: string | null };
   story?: {
     title?: string | null;
     content?: string | null;

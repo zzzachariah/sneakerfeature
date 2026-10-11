@@ -22,6 +22,7 @@
 // the boundaries remain explicit and tunable against a validation set.
 
 import OpenAI from "openai";
+import { callOptions, hasBudget, startDeadline, type Deadline } from "@/lib/ai/budget";
 import { describePackyError } from "@/lib/ai/packy-client";
 import {
   widthClassFromRatio,
@@ -75,17 +76,6 @@ function createFootScanClient(): OpenAI | null {
   const apiKey = process.env.FOOT_SCAN_API_KEY?.trim();
   if (!apiKey) return null;
   return new OpenAI({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
-}
-
-// Non-secret fingerprint of the key actually loaded by this deployment, so a
-// 403 vs the packyapi dashboard can be cross-checked ("is this the token I set
-// in Vercel?") without ever exposing the full secret.
-function footScanKeyFingerprint(): { fingerprint: string; length: number } | null {
-  const raw = process.env.FOOT_SCAN_API_KEY?.trim();
-  if (!raw) return null;
-  const head = raw.slice(0, 6);
-  const tail = raw.length > 10 ? raw.slice(-4) : "";
-  return { fingerprint: tail ? `${head}…${tail}` : head, length: raw.length };
 }
 
 function describeFootScanEnvProblem(): string {
@@ -253,7 +243,8 @@ async function runSample(
   temperature: number,
   model: string,
   hasOther: boolean,
-  index: number
+  index: number,
+  deadline: Deadline
 ): Promise<SampleResult> {
   // The relay does not lift an OpenAI `system` turn into Anthropic's system
   // field, so everything rides in a single user turn.
@@ -263,19 +254,20 @@ async function runSample(
     messages: [{ role: "user" as const, content }]
   };
 
+  if (!hasBudget(deadline)) return { ok: false, error: "Scan time budget exhausted" };
   const t0 = Date.now();
   let raw: string;
   try {
     let completion;
     try {
-      completion = await client.chat.completions.create({ ...base, temperature });
+      completion = await client.chat.completions.create({ ...base, temperature }, callOptions(deadline));
     } catch (e) {
       // Opus-tier models reject `temperature` on the native API; some relays
       // forward it. Retry once without it so a model upgrade can't break the
       // call — self-consistency then relies on the model's own default variance.
       if (e instanceof OpenAI.APIError && e.status === 400) {
         console.warn("[foot-scan] sample retrying without temperature", { index, model, status: e.status });
-        completion = await client.chat.completions.create(base);
+        completion = await client.chat.completions.create(base, callOptions(deadline));
       } else {
         throw e;
       }
@@ -351,6 +343,7 @@ async function runSample(
 // --- Public entry point ----------------------------------------------------
 
 export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutcome> {
+  const deadline = startDeadline();
   const client = createFootScanClient();
   if (!client) {
     const detail = describeFootScanEnvProblem();
@@ -399,7 +392,7 @@ export async function analyzeFootScan(input: AnalyzeInput): Promise<AnalyzeOutco
   const runBatch = (n: number, startIndex: number) =>
     Promise.all(
       Array.from({ length: n }, (_, i) =>
-        runSample(client, content, temperature, VISION_MODEL, hasOther, startIndex + i)
+        runSample(client, content, temperature, VISION_MODEL, hasOther, startIndex + i, deadline)
       )
     );
 

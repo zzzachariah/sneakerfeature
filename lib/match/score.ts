@@ -1,3 +1,4 @@
+import { keywordScore, hasAffirmedSignal } from "@/lib/match/evidence";
 import type { InjuryKey, Persona, Position } from "@/lib/persona/types";
 import type { Shoe } from "@/lib/types";
 
@@ -32,26 +33,11 @@ type DimensionKey = "position" | "weight" | "flatFoot" | "skill" | "height" | "p
 
 export function parseShoeWeightOz(raw: string | null | undefined): number | null {
   if (!raw) return null;
-  const m = /([\d.]+)\s*oz/i.exec(raw);
-  if (m) return parseFloat(m[1]);
-  const g = /([\d.]+)\s*g\b/i.exec(raw);
-  if (g) return parseFloat(g[1]) / 28.3495;
+  const m = /(?<![-\d.])([\d.]+)\s*oz/i.exec(raw);
+  if (m) { const value = Number(m[1]); return Number.isFinite(value) && value > 0 && value < 40 ? value : null; }
+  const g = /(?<![-\d.])([\d.]+)\s*g\b/i.exec(raw);
+  if (g) { const value = Number(g[1]) / 28.3495; return Number.isFinite(value) && value > 0 && value < 40 ? value : null; }
   return null;
-}
-
-const STRONG = ["excellent", "elite", "outstanding", "very high"];
-const GOOD = ["good", "great", "high", "strong"];
-const MEDIUM = ["decent", "moderate", "balanced", "solid", "adequate"];
-const WEAK = ["low", "poor", "minimal", "thin", "weak"];
-
-function keywordScore(text: string | null | undefined): number | null {
-  if (!text) return null;
-  const t = text.toLowerCase();
-  if (STRONG.some((k) => t.includes(k))) return 1.0;
-  if (GOOD.some((k) => t.includes(k))) return 0.80;
-  if (MEDIUM.some((k) => t.includes(k))) return 0.50;
-  if (WEAK.some((k) => t.includes(k))) return 0.15;
-  return 0.40;
 }
 
 function positionDimension(shoe: Shoe, positions: Position[]): DimResult {
@@ -59,7 +45,7 @@ function positionDimension(shoe: Shoe, positions: Position[]): DimResult {
   const cat = shoe.category.toLowerCase();
   const matchAny = (set: Position[]) => positions.some((p) => set.includes(p));
 
-  if (cat.includes("all") || cat.includes("hybrid") || cat.includes("versatile")) {
+  if (/\b(?:all[- ]?(?:around|round|court)|hybrid|versatile)\b/.test(cat) || /全能|全位置/.test(cat)) {
     return { score: 0.92, applicable: true };
   }
   if (cat.includes("guard")) {
@@ -104,8 +90,8 @@ function flatFootDimension(shoe: Shoe, flatFoot: boolean): DimResult {
   return { score: avg, applicable: true };
 }
 
-const FORGIVING = ["soft", "plush", "stable", "forgiving", "smooth", "easy"];
-const RESPONSIVE = ["responsive", "snappy", "low", "court feel", "quick", "explosive", "fast"];
+const FORGIVING = ["soft", "plush", "stable", "forgiving", "smooth", "easy", "柔软", "舒适", "平顺", "稳定"];
+const RESPONSIVE = ["responsive", "snappy", "low to the floor", "quick", "explosive", "fast", "灵敏", "敏捷", "贴地"];
 
 function skillDimension(shoe: Shoe, skill: Persona["skill_level"]): DimResult {
   const spec = shoe.spec ?? {};
@@ -121,9 +107,10 @@ function skillDimension(shoe: Shoe, skill: Persona["skill_level"]): DimResult {
     .toLowerCase();
   if (!text) return { score: 0, applicable: false };
 
-  const forgivingCount = FORGIVING.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
-  const responsiveCount = RESPONSIVE.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
+  const forgivingCount = FORGIVING.reduce((s, k) => (hasAffirmedSignal(text, [k]) ? s + 1 : s), 0);
+  const responsiveCount = RESPONSIVE.reduce((s, k) => (hasAffirmedSignal(text, [k]) ? s + 1 : s), 0);
 
+  if (!forgivingCount && !responsiveCount) return { score: 0, applicable: false };
   let score: number;
   if (skill === "beginner") {
     if (forgivingCount >= 2) score = 1.0;
@@ -148,31 +135,8 @@ function skillDimension(shoe: Shoe, skill: Persona["skill_level"]): DimResult {
   return { score, applicable: true };
 }
 
-function heightDimension(shoe: Shoe, heightCm: number): DimResult {
-  if (heightCm >= 175 && heightCm <= 195) return { score: 0, applicable: false };
-
-  const spec = shoe.spec ?? {};
-  const tags = (spec.tags ?? []).map((t) => t.toLowerCase());
-  const containment = keywordScore(spec.containment ?? null);
-  const support = keywordScore(spec.support ?? null);
-  const lowProfile = tags.some((t) => t.includes("low") || t.includes("speed") || t.includes("quick"));
-  const highTop = tags.some((t) => t.includes("high") || t.includes("support") || t.includes("ankle"));
-
-  if (heightCm > 195) {
-    const signals: number[] = [];
-    if (containment !== null) signals.push(containment);
-    if (support !== null) signals.push(support);
-    if (highTop) signals.push(0.92);
-    if (signals.length === 0) return { score: 0.20, applicable: true };
-    return { score: Math.max(...signals), applicable: true };
-  }
-
-  if (lowProfile) return { score: 0.95, applicable: true };
-  if (containment !== null) {
-    return { score: Math.max(0.20, 1 - containment * 0.7), applicable: true };
-  }
-  return { score: 0.30, applicable: true };
-}
+// Height alone is not evidence of shoe compatibility or ankle protection.
+function heightDimension(): DimResult { return { score: 0, applicable: false }; }
 
 // ── Protection (Pro deep questionnaire) ─────────────────────────────────────
 // Each flagged injury area reads its own protective signals off the spec text;
@@ -185,9 +149,10 @@ const CUSHION_HARSH = ["firm", "minimal", "thin", "dead", "low to the ground", "
 function cushionComfortScore(spec: Shoe["spec"]): number | null {
   const text = [spec.cushioning_feel, spec.bounce].filter(Boolean).join(" ").toLowerCase();
   if (!text) return null;
-  const protective = CUSHION_PROTECTIVE.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
-  const harsh = CUSHION_HARSH.reduce((s, k) => (text.includes(k) ? s + 1 : s), 0);
-  if (protective >= 2) return 1.0;
+  const protective = CUSHION_PROTECTIVE.reduce((s, k) => (hasAffirmedSignal(text, [k]) ? s + 1 : s), 0);
+  const harsh = CUSHION_HARSH.reduce((s, k) => (hasAffirmedSignal(text, [k]) ? s + 1 : s), 0);
+  if (!protective && !harsh) return null;
+  if (protective >= 2) return harsh ? 0.55 : 1.0;
   if (protective === 1) return harsh > 0 ? 0.55 : 0.80;
   if (harsh >= 2) return 0.10;
   if (harsh === 1) return 0.30;
@@ -196,16 +161,12 @@ function cushionComfortScore(spec: Shoe["spec"]): number | null {
 
 function injuryScore(shoe: Shoe, injury: InjuryKey): number | null {
   const spec = shoe.spec ?? {};
-  const tags = (spec.tags ?? []).map((t) => t.toLowerCase());
 
   if (injury === "ankle") {
     const signals: number[] = [];
     for (const c of [spec.support, spec.containment, spec.stability]) {
       const s = keywordScore(c);
       if (s !== null) signals.push(s);
-    }
-    if (tags.some((t) => t.includes("high") || t.includes("ankle") || t.includes("strap"))) {
-      signals.push(0.92);
     }
     if (signals.length < 2) return null;
     return signals.reduce((a, b) => a + b, 0) / signals.length;
@@ -216,12 +177,7 @@ function injuryScore(shoe: Shoe, injury: InjuryKey): number | null {
   }
 
   if (injury === "achilles") {
-    // Heel forgiveness: the cushion read, nudged up when a named heel setup
-    // exists at all (a real heel unit beats a bare foam wedge for the tendon).
-    const comfort = cushionComfortScore(spec);
-    if (comfort === null) return null;
-    const hasHeelTech = Boolean(spec.heel_midsole_tech?.trim());
-    return Math.min(1, comfort + (hasHeelTech ? 0.10 : 0));
+    return cushionComfortScore(spec);
   }
 
   // plantar — arch support + torsional rigidity carry the fascia.
@@ -251,7 +207,7 @@ export function computeDimensions(persona: Persona, shoe: Shoe): Record<Dimensio
     weight: weightDimension(shoe, persona.weight_kg),
     flatFoot: flatFootDimension(shoe, persona.flat_foot),
     skill: skillDimension(shoe, persona.skill_level),
-    height: heightDimension(shoe, persona.height_cm),
+    height: heightDimension(),
     protection: protectionDimension(shoe, persona.injuries)
   };
 }
@@ -261,7 +217,7 @@ function transformRaw(raw: number): number {
   return Math.max(30, Math.min(99, Math.round(30 + clamped * 69)));
 }
 
-export function computeMatchScore(persona: Persona, shoe: Shoe): number {
+export function computeMatchScore(persona: Persona, shoe: Shoe): number | null {
   const dims = computeDimensions(persona, shoe);
   let weighted = 0;
   let denom = 0;
@@ -272,8 +228,8 @@ export function computeMatchScore(persona: Persona, shoe: Shoe): number {
       denom += BASE_WEIGHTS[key];
     }
   });
-  const raw = denom > 0 ? weighted / denom : 0.5;
-  return transformRaw(raw);
+  if (Object.values(dims).filter(d => d.applicable).length < 2 || denom === 0) return null;
+  return transformRaw(weighted / denom);
 }
 
 const REASON_THRESHOLD = 0.65;
@@ -281,6 +237,7 @@ const REASON_THRESHOLD = 0.65;
 export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
   const dims = computeDimensions(persona, shoe);
   const reasons: string[] = [];
+  if (computeMatchScore(persona, shoe) == null) return ["Not enough evidence for a personal match score"];
 
   if (dims.position.applicable && dims.position.score >= REASON_THRESHOLD) {
     const cat = (shoe.category ?? "").toLowerCase();
@@ -293,7 +250,7 @@ export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
   }
 
   if (dims.flatFoot.applicable && dims.flatFoot.score >= REASON_THRESHOLD) {
-    reasons.push("Stable for flat-footed players");
+    reasons.push("Catalog notes indicate support and stability");
   }
 
   if (dims.skill.applicable && dims.skill.score >= REASON_THRESHOLD) {
@@ -306,55 +263,18 @@ export function getMatchReasons(persona: Persona, shoe: Shoe): string[] {
 
   if (dims.weight.applicable && dims.weight.score >= REASON_THRESHOLD) {
     if (persona.weight_kg < 70) reasons.push("Lightweight for your build");
-    else if (persona.weight_kg >= 85) reasons.push("Supportive for heavier players");
-  }
-
-  if (dims.height.applicable && dims.height.score >= REASON_THRESHOLD) {
-    if (persona.height_cm < 175) reasons.push("Low-profile for shorter players");
-    else if (persona.height_cm > 195) reasons.push("Containment for taller players");
+    else if (persona.weight_kg >= 85) reasons.push("Shoe weight near the profile estimate");
   }
 
   if (dims.protection.applicable && dims.protection.score >= REASON_THRESHOLD) {
-    const injuries = persona.injuries ?? [];
-    if (injuries.includes("ankle")) reasons.push("Locked-in support for your ankle history");
-    else if (injuries.includes("knee")) reasons.push("Impact protection for your knees");
-    else if (injuries.includes("achilles")) reasons.push("Forgiving heel for your Achilles");
-    else if (injuries.includes("plantar")) reasons.push("Arch support for your plantar fascia");
+    reasons.push("Support or cushioning notes align with your stated priorities");
   }
+  reasons.push("Heuristic estimate from catalog notes, not a fit guarantee");
 
   return reasons.slice(0, 4);
 }
 
-export const SPREAD_MAX_STEPS = 6;
-
-// Spreads the integer match scores so tied shoes get a descending gradient
-// instead of a flat block (e.g. dozens of 89s). `ranked` MUST already be in
-// display order (objective score desc, then the caller's tiebreakers); only
-// `score` is read here, to find the boundaries of each tied cluster. Each
-// cluster is fanned out over up to SPREAD_MAX_STEPS tiers, so the per-tier
-// shoe count scales with cluster size, and the result stays monotonically
-// non-increasing across clusters. Returns id -> display score.
+/** Preserve genuine ties. Display order must never change a match score. */
 export function spreadTiedScores(ranked: { id: string; score: number }[]): Map<string, number> {
-  const out = new Map<string, number>();
-  let ceiling = 100;
-  let i = 0;
-  while (i < ranked.length) {
-    const base = ranked[i].score;
-    let j = i;
-    while (j < ranked.length && ranked[j].score === base) j++;
-    const size = j - i;
-
-    const clusterTop = Math.min(base, ceiling - 1);
-    const steps = Math.min(SPREAD_MAX_STEPS, size);
-    const perStep = Math.ceil(size / steps);
-
-    for (let k = 0; k < size; k++) {
-      const tier = Math.floor(k / perStep);
-      const display = Math.max(30, Math.min(99, clusterTop - tier));
-      out.set(ranked[i + k].id, display);
-    }
-    ceiling = out.get(ranked[j - 1].id)!;
-    i = j;
-  }
-  return out;
+  return new Map(ranked.map(({id,score}) => [id,score]));
 }

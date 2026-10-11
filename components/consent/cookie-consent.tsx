@@ -163,8 +163,8 @@ export function CookieBanner() {
  * the visitor has accepted cookies.
  */
 export function VercelAnalyticsGate() {
-  const { consent } = useCookieConsent();
-  if (consent !== "accepted") return null;
+  const { consent, ready, blocked } = useCookieConsent();
+  if (!ready || blocked || consent !== "accepted") return null;
   return (
     <>
       <Analytics />

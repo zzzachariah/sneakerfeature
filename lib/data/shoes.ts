@@ -1,26 +1,27 @@
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { createPublicClient } from "@/lib/supabase/public";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { demoShoes } from "@/lib/data/demo-shoes";
+import { readAllRows } from "@/lib/data/paginate";
+import { displayBrand, inspectSpecs, publicSpec, selectSpecVersion, type SpecVersion } from "@/lib/data/catalog-quality";
 import { getCurrentProfile } from "@/lib/data/auth";
-import { Shoe, ShoeImageRecord, ShoeSpec } from "@/lib/types";
+import { Shoe, ShoeImageRecord } from "@/lib/types";
 import {
   combineDimScores,
   DIM_KEYS,
-  dimScores,
-  equalWeightScore,
+  evidenceDimScores,
+  overallEvidenceScore,
   isValidFocus,
   percentileToStars,
   rankScoresToPercentiles,
-  weightedCombinedScore,
+  type EvidenceScores,
   type DimKey,
   type RatingFocus
 } from "@/lib/star-rating";
 
-type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: ShoeSpec[] | null; shoe_images?: ShoeImageRecord[] | null };
+type CatalogImage = Pick<ShoeImageRecord, "id" | "status" | "public_url" | "approved_at" | "created_at">;
+type ShoeRow = Omit<Shoe, "spec" | "story"> & { shoe_specs: SpecVersion[] | null; shoe_images?: CatalogImage[] | null };
 type ShoeStory = NonNullable<Shoe["story"]>;
 // Cached/assembled row: spec + approved image already resolved, the raw
 // shoe_specs / shoe_images arrays dropped. Those arrays (every historical
@@ -58,6 +59,7 @@ type DimRow = {
 type DimAggregate = {
   count: number;
   sums: Record<DimKey, number>;
+  dimCounts: Record<DimKey, number>;
 };
 
 type AggregateEntry = [string, DimAggregate];
@@ -78,7 +80,7 @@ function emptyDimRecord(): Record<DimKey, number> {
   };
 }
 
-function resolveApprovedImage(images?: ShoeImageRecord[] | null) {
+function resolveApprovedImage(images?: CatalogImage[] | null) {
   if (!images?.length) return null;
   return [...images]
     .filter((image) => image.status === "approved")
@@ -94,15 +96,6 @@ function normalizeStory(row: ShoeStoryRow): ShoeStory {
     source_label: row.source_label ?? null,
     source_url: row.source_url ?? null
   };
-}
-
-// Use select("*") instead of naming columns: a deployed shoe_stories table
-// that is missing the optional source_label/source_url columns would make a
-// column-named select fail the whole query (so title/content never load and
-// the detail page falls back to "No editorial story yet"). Ordering is done
-// in JS so the query has no dependency on a created_at column either.
-async function fetchStoryRows(client: SupabaseClient) {
-  return client.from("shoe_stories").select("*");
 }
 
 function buildStoryMap(rows: ShoeStoryRow[]): Map<string, ShoeStory> {
@@ -124,8 +117,7 @@ function buildStoryMap(rows: ShoeStoryRow[]): Map<string, ShoeStory> {
 // (→ demo shoes) to every visitor for up to `revalidate` seconds after a single
 // transient Supabase blip. Throwing leaves the cache empty, so the very next
 // request retries Supabase instead of being stuck on the 3 demo shoes. Callers
-// (getShoes / getPublicShoes) catch this and fall back to demo for that one
-// request only.
+// propagate the failure to the retry boundary. Demo data requires explicit development opt-in.
 class CatalogUnavailableError extends Error {
   constructor(reason: string) {
     super(`catalog unavailable: ${reason}`);
@@ -137,69 +129,38 @@ async function loadShoesBase(): Promise<ShoesBase> {
   const supabase = createPublicClient();
   if (!supabase) {
     console.warn(
-      "[getShoesBase] Supabase public client unavailable — falling back to demo shoes. " +
+      "[getShoesBase] Supabase public client unavailable. " +
         "Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in the deployment environment."
     );
     throw new CatalogUnavailableError("public client unavailable");
   }
 
-  const [shoesRes, ratingsRes, storiesRes] = await Promise.all([
-    supabase
-      .from("shoes")
-      .select("*, shoe_specs(*), shoe_images(*)")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("shoe_ratings")
-      .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit"),
-    fetchStoryRows(supabase)
+  const [catalogRows, ratingRows] = await Promise.all([
+    readAllRows<ShoeRow>((from, to) => supabase.from("shoes")
+      .select("id,slug,brand,shoe_name,model_line,version_name,release_year,category,player,price,weight,shoe_specs(*),shoe_images(id,status,public_url,approved_at,created_at)")
+      .eq("shoe_images.status", "approved")
+      .order("created_at", {ascending:false}).order("id")
+      .order("approved_at", {referencedTable:"shoe_images",ascending:false})
+      .limit(1,{referencedTable:"shoe_images"}).range(from,to)),
+    readAllRows<{shoe_id:string;rating_count:number;sums:Record<DimKey,number>;dim_counts:Record<DimKey,number>}>((from,to) =>
+      supabase.rpc("catalog_rating_summary").order("shoe_id").range(from,to))
   ]);
 
-  if (shoesRes.error) {
-    console.error("[getShoesBase] supabase error", shoesRes.error);
-    throw new CatalogUnavailableError("shoes query error");
-  }
-  if (!shoesRes.data?.length) throw new CatalogUnavailableError("empty catalog");
-
-  let storyRows = (storiesRes.data ?? null) as ShoeStoryRow[] | null;
-  if (storiesRes.error) {
-    console.error("[getShoesBase] shoe_stories fetch failed", storiesRes.error);
-  }
-
-  // shoe_stories is public data, but the anon read can come back empty when a
-  // restrictive RLS policy hides the table. Retry server-side with the
-  // service-role client before giving up so manually inserted stories surface.
-  if (!storyRows?.length) {
-    const adminClient = createAdminClient();
-    if (adminClient) {
-      const retry = await fetchStoryRows(adminClient);
-      if (retry.error) {
-        console.error("[getShoesBase] shoe_stories service-role retry failed", retry.error);
-      } else if (retry.data?.length) {
-        console.warn("[getShoesBase] shoe_stories empty via public client; used service-role fallback");
-        storyRows = retry.data as ShoeStoryRow[];
-      }
-    }
-  }
-
-  const storyByShoeId = buildStoryMap(storyRows ?? []);
-
-  const rows: ShoeQueryRow[] = (shoesRes.data as Array<ShoeRow & { id: string }>).map((row) => {
+  const rows: ShoeQueryRow[] = catalogRows.map((row) => {
     const { shoe_specs, shoe_images, ...rest } = row;
     return {
       ...rest,
-      spec: shoe_specs?.[0] ?? {},
+      brand: displayBrand(rest.brand),
+      spec: publicSpec(shoe_specs),
+      dataQuality: { issues: inspectSpecs(shoe_specs), updatedAt: selectSpecVersion(shoe_specs).updated_at ?? null },
       image_url: resolveApprovedImage(shoe_images)?.public_url ?? null,
-      story: storyByShoeId.get(row.id) ?? null
+      story: null
     };
   });
 
-  const aggregates = new Map<string, DimAggregate>();
-  for (const r of (ratingsRes.data ?? []) as DimRow[]) {
-    const cur = aggregates.get(r.shoe_id) ?? { count: 0, sums: emptyDimRecord() };
-    cur.count += 1;
-    for (const k of DIM_KEYS) cur.sums[k] += Number(r[k] ?? 0);
-    aggregates.set(r.shoe_id, cur);
-  }
+  const aggregates = new Map<string, DimAggregate>(ratingRows.map(row => [row.shoe_id, {
+    count: Number(row.rating_count), sums: row.sums, dimCounts: row.dim_counts
+  }]));
 
   return {
     rows,
@@ -207,7 +168,7 @@ async function loadShoesBase(): Promise<ShoesBase> {
   };
 }
 
-const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v4"], {
+const getShoesBase = unstable_cache(loadShoesBase, ["shoes-base-v7"], {
   tags: ["shoes"],
   // Auto-refresh at most once a minute so edits made directly in Supabase (which
   // don't call revalidateTag) still show up within ~60s instead of going stale.
@@ -230,10 +191,9 @@ async function loadUserContext(): Promise<UserContext> {
     const supabase = await createClient();
     if (!supabase) return EMPTY_USER_CONTEXT;
 
-    const { data: mineRows } = await supabase
-      .from("shoe_ratings")
-      .select("shoe_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
-      .eq("user_id", profile.id);
+    const mineRows = await readAllRows<DimRow>((from,to) => supabase.from("shoe_ratings")
+      .select("shoe_id,cushioning_feel,court_feel,bounce,stability,traction,fit")
+      .eq("user_id",profile.id).order("shoe_id").range(from,to));
 
     const myDimRatings = new Map<string, Record<DimKey, number>>();
     for (const r of (mineRows ?? []) as DimRow[]) {
@@ -269,37 +229,31 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
   const specStarsByIndex: (number | null)[] = rows.map(() => null);
 
   {
-    // Ratings are always computed now — not gated behind a Rating Focus. The
-    // per-dimension stars are focus-independent (community + spec per dim), and
-    // the overall / spec stars use the viewer's Rating Focus weighting when
-    // present, else an equal-weight baseline. This means anonymous / no-
-    // playstyle users still get a real rating everywhere (cards, detail,
-    // "Top rated" collections), with playstyle re-weighting it as an
-    // enhancement rather than a gate.
-    const scoreOf = (c: Record<DimKey, number>) =>
-      focus ? weightedCombinedScore(c, focus) : equalWeightScore(c);
+    // Rank only observed dimensions. Overall estimates require at least three
+    // dimensions, and equal scores share an average rank in the catalog.
+    const scoreOf = (c: EvidenceScores) => overallEvidenceScore(c, focus);
 
-    const combinedByShoe: Record<DimKey, number>[] = rows.map((row, i) => {
+    const combinedByShoe: EvidenceScores[] = rows.map((row, i) => {
       const agg = aggregates.get(row.id);
       const userDimAvg: Partial<Record<DimKey, number>> = {};
       if (agg && agg.count > 0) {
-        for (const k of DIM_KEYS) userDimAvg[k] = agg.sums[k] / agg.count;
+        for (const k of DIM_KEYS) if (agg.dimCounts[k]) userDimAvg[k] = agg.sums[k] / agg.dimCounts[k];
       }
-      return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0);
+      return combineDimScores(specs[i], userDimAvg, agg?.count ?? 0, agg?.dimCounts);
     });
 
     const weighted = combinedByShoe.map(scoreOf);
     const finalPercentiles = rankScoresToPercentiles(weighted);
     finalPercentiles.forEach((p, i) => {
-      finalStarsByIndex[i] = percentileToStars(p);
+      finalStarsByIndex[i] = p == null ? null : percentileToStars(p);
     });
 
     // Spec-only stars (no user blending) for components that compare /
     // re-blend client-side.
-    const specOnly = specs.map((spec) => scoreOf(dimScores(spec)));
+    const specOnly = specs.map((spec) => scoreOf(evidenceDimScores(spec)));
     const specPercentiles = rankScoresToPercentiles(specOnly);
     specPercentiles.forEach((p, i) => {
-      specStarsByIndex[i] = percentileToStars(p);
+      specStarsByIndex[i] = p == null ? null : percentileToStars(p);
     });
 
     rows.forEach((_, i) => {
@@ -310,7 +264,7 @@ function assembleShoes(base: ShoesBase, userCtx: UserContext): Shoe[] {
       const dimPercentiles = rankScoresToPercentiles(dimScoresList);
       dimPercentiles.forEach((p, i) => {
         const target = dimStarsByIndex[i];
-        if (target) target[k] = percentileToStars(p);
+        if (target && p != null) target[k] = percentileToStars(p);
       });
     }
   }
@@ -360,7 +314,7 @@ const getPublicShoesAssembled = unstable_cache(
     const base = await getShoesBase();
     return assembleShoes(base, EMPTY_USER_CONTEXT);
   },
-  ["shoes-assembled-v1"],
+  ["shoes-assembled-v4"],
   { tags: ["shoes"], revalidate: 60 }
 );
 
@@ -369,8 +323,10 @@ const getPublicShoesAssembled = unstable_cache(
 // we swallow into the demo fallback.
 function fallbackToDemo(context: string, error: unknown): Shoe[] {
   if (isFrameworkError(error)) throw error;
-  console.error(`[${context}] catalog unavailable — serving demo shoes for this request`, error);
-  return demoShoes;
+  console.error(`[${context}] catalog unavailable`, error);
+  if (process.env.NODE_ENV !== "production" && process.env.SNEAKER_DEMO_MODE === "1") return demoShoes;
+  throw error;
+
 }
 
 export const getShoes = cache(async function getShoes(): Promise<Shoe[]> {
@@ -399,12 +355,22 @@ export async function getPublicShoes(): Promise<Shoe[]> {
   }
 }
 
-export async function getShoeBySlug(slug: string): Promise<Shoe | null> {
+const getStoryForShoe = unstable_cache(async (id: string) => {
+  const db = createPublicClient();
+  if (!db) return null;
+  const {data,error} = await db.from("shoe_stories")
+    .select("shoe_id,title,content,title_zh,content_zh,source_label,source_url,created_at")
+    .eq("shoe_id", id).order("created_at", {ascending:false}).order("id").limit(1);
+  if (error) throw new CatalogUnavailableError("story query failed");
+  return buildStoryMap((data ?? []) as ShoeStoryRow[]).get(id) ?? null;
+}, ["shoe-story-v1"], {tags:["shoes"],revalidate:60});
+
+export const getShoeBySlug = cache(async (slug: string): Promise<Shoe | null> => {
+  // Keep catalog-wide ranks consistent; only story content is fetched on detail.
   const shoes = await getShoes();
-  // Resolve by slug first, then fall back to id so id-based links keep working
-  // for any shoe whose slug had to be repaired above.
-  return shoes.find((s) => s.slug === slug) ?? shoes.find((s) => s.id === slug) ?? null;
-}
+  const shoe = shoes.find(s => s.slug === slug) ?? shoes.find(s => s.id === slug);
+  return shoe ? {...shoe,story:await getStoryForShoe(shoe.id)} : null;
+});
 
 export async function getShoeImageState(shoeId: string, includePending: boolean): Promise<ShoeImageState> {
   const supabase = await createClient();

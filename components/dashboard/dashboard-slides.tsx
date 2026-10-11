@@ -32,6 +32,8 @@ export type DashboardComment = {
 };
 
 export type DashboardSubmission = {
+  shoe_name: string;
+  updated_at: string;
   id: string;
   status: string;
   created_at: string;
@@ -261,11 +263,18 @@ export function DashboardSlides(props: Props) {
                       key={item.id}
                       className="premium-hover-lift glass-lite rounded-2xl p-4 text-sm"
                     >
+                      <p className="mb-1 font-semibold">{item.shoe_name || translate("Shoe submission")}</p>
                       <p className="font-medium">
                         {translate("Status")}:{" "}
                         <span className="text-[rgb(var(--text)/0.8)]">{translate(item.status)}</span>
                       </p>
-                      <p className="mt-1 text-xs soft-text">{new Date(item.created_at).toLocaleString()}</p>
+                      <p className="mt-1 text-xs soft-text">{translate("Updated")}: {new Date(item.updated_at || item.created_at).toLocaleString()}</p>
+                      <p className="mt-2 text-xs soft-text">{translate(
+                        item.status === "published" ? "Your contribution is now in the catalog." :
+                        item.status === "rejected" ? "This submission was not accepted. You can submit a revision with clearer sources." :
+                        item.status === "unpublished" ? "This contribution is no longer published." :
+                        "Your submission is saved and awaiting editorial review."
+                      )}</p>
                     </div>
                   ))
                 )}

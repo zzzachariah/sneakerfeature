@@ -1,0 +1,67 @@
+import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { PGlite } from "@electric-sql/pglite";
+const db = new PGlite();
+const user = randomUUID(), other = randomUUID(), chat = randomUUID();
+await db.exec(`
+create role anon; create role authenticated; create role service_role bypassrls;
+create table profiles(id uuid primary key);
+create table ai_credits(user_id uuid primary key, balance int check(balance>=0), updated_at timestamptz);
+create table ai_credit_transactions(user_id uuid,delta int,reason text check(reason in ('grant','spend','recharge')),package_label text);
+create table subscription_allowances(user_id uuid primary key,balance int check(balance>=0),period_start timestamptz,updated_at timestamptz);
+create table ai_chats(id uuid primary key,user_id uuid);
+create table advisor_chats(id uuid primary key,user_id uuid);
+create table ai_messages(id uuid default gen_random_uuid(),chat_id uuid,role text,content text check(content<>'FAIL'),recommendations jsonb,credits_charged int,created_at timestamptz default now());
+create table advisor_messages(id uuid default gen_random_uuid(),chat_id uuid,user_id uuid,role text,content text,allowance_charged int,created_at timestamptz default now());
+insert into profiles values('${user}'),('${other}');
+insert into ai_credits values('${user}',10,now());
+insert into subscription_allowances values('${user}',10,now(),now());
+insert into ai_chats values('${chat}','${user}');
+grant usage on schema public to service_role,anon,authenticated;
+grant all on all tables in schema public to service_role;
+`);
+const sql = await readFile(new URL('../db/migrations/20261011123631_reserve_ai_requests.sql', import.meta.url), 'utf8');
+await db.exec(sql); await db.exec(sql);
+const query = async (sql:string, params:unknown[]=[]) => (await db.query(sql,params)).rows[0] as Record<string,unknown>;
+const reserve = (id:string,billing='credits',amount=3,scope='chat') => query('select reserve_ai_request($1,$2,$3,$4,$5) as balance',[id,user,scope,billing,amount]);
+const finish = (id:string,charge:number) => query('select finish_ai_request($1,$2,$3) as balance',[id,user,charge]);
+const complete = (id:string,charge:number,content='answer') => query('select complete_ai_request($1,$2,$3,$4,null,null,$5) as receipt',[id,user,chat,content,charge]);
+try {
+  for(const role of ['anon','authenticated']) {
+    await db.exec(`set role ${role}`);
+    await assert.rejects(reserve(randomUUID()), /permission denied/);
+    await assert.rejects(query('select * from ai_request_reservations'), /permission denied/);
+    await db.exec('reset role');
+  }
+  await db.exec('set role service_role');
+  await assert.rejects(reserve(randomUUID(),'credits',-1), /invalid_reservation/);
+  const first=randomUUID(), second=randomUUID();
+  const race=await Promise.allSettled([reserve(first),reserve(second)]);
+  assert.equal(race.filter(r=>r.status==='fulfilled').length,1,'Only one overlapping request may start');
+  const accepted=race[0].status==='fulfilled'?first:second;
+  assert.equal((await query('select balance from ai_credits')).balance,7,'Funds claimed before model work');
+  await assert.rejects(complete(accepted,2,'FAIL'), /check constraint/);
+  assert.equal((await query('select balance from ai_credits')).balance,7,'Failed reply persistence rolls back settlement');
+  const receipt=await complete(accepted,2);
+  assert.deepEqual(await complete(accepted,2),receipt,'Uncertain transport retry is idempotent');
+  assert.equal((await query('select count(*)::int as count from ai_messages')).count,1);
+  assert.equal((await query('select balance from ai_credits')).balance,8);
+  await assert.rejects(reserve(accepted), /duplicate_request/);
+  const failed=randomUUID(); await reserve(failed); await finish(failed,0); await finish(failed,0);
+  assert.equal((await query('select balance from ai_credits')).balance,8,'Failure refunds exactly once');
+  await assert.rejects(reserve(randomUUID(),'credits',10), /insufficient_credits/);
+  const stale=randomUUID(); await reserve(stale);
+  await db.exec(`update ai_request_reservations set expires_at=now()-interval '1 minute' where id='${stale}'`);
+  const next=randomUUID(); await reserve(next);
+  assert.equal((await query('select balance from ai_credits')).balance,5,'Abandoned request recovered before a new reservation');
+  await finish(next,0);
+  const allowance=randomUUID(); await reserve(allowance,'allowance');
+  await db.exec(`update subscription_allowances set period_start=now()+interval '1 day',balance=20`);
+  await finish(allowance,0);
+  assert.equal((await query('select balance from subscription_allowances')).balance,20,'Old allowance refunds cannot inflate the new period');
+  const scan=randomUUID(); await reserve(scan,'unlimited',0,'scan'); await finish(scan,0);
+  await assert.rejects(reserve(randomUUID(),'unlimited',0,'scan'), /rate_limited/);
+  await assert.rejects(query('select finish_ai_request($1,$2,0)',[accepted,other]),/reservation_not_found/);
+  console.log('AI reservation permissions, racing requests, atomic replies, refunds, stale recovery and scan limits passed.');
+} finally { await db.close(); }

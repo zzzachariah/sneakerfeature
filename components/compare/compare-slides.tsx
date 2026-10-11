@@ -55,7 +55,12 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
           onToggleRatingDetail={() => setShowRatingDetail((v) => !v)}
           translate={translate}
         />
-        <div className="mt-6 md:mt-10">
+        {shoes.length > 1 ? (
+          <div className="mt-6">
+            <CompareVerdict shoes={shoes} />
+          </div>
+        ) : null}
+        <div className="mt-6">
           <ComparePlinths
             shoes={shoes}
             onRemove={onRemove}
@@ -70,11 +75,6 @@ export function CompareSlides({ shoes, canAdd, canSave, canShare, onAdd, onSave,
           + diff rows that back it up. */}
       <section id="compare-profile" style={SECTION_OFFSET} className="container-shell py-8 md:py-12">
         <p className="t-eyebrow mb-6 text-center">{translate("Performance Profile")}</p>
-        {shoes.length > 1 ? (
-          <div className="mb-8 md:mb-10">
-            <CompareVerdict shoes={shoes} />
-          </div>
-        ) : null}
         <div className="grid items-start gap-10 lg:grid-cols-2 lg:gap-x-14 lg:gap-y-8">
           <div>
             <CompareRadar shoes={shoes} />

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { readAllRows } from "@/lib/data/paginate";
 import {
   BarChart3,
   Compass,
@@ -17,10 +18,6 @@ import { Card } from "@/components/ui/card";
 import { AdminPageHeader } from "@/components/admin/admin-page-header";
 
 export const dynamic = "force-dynamic";
-
-// Aggregation for "top shoes" is done in JS over a bounded fetch — fine at the
-// current scale and keeps the page free of any new DB objects / RPCs.
-const MAX_AGG_ROWS = 20000;
 
 function sinceISO(days: number): string {
   return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -48,7 +45,8 @@ export default async function AdminAnalyticsPage() {
     favRowsRes,
     personaCount,
     ratingFocusCount,
-    footScannedCount
+    footScannedCount,
+    aiRequests
   ] = await Promise.all([
     db.from("profiles").select("id", head),
     db.from("profiles").select("id", head).gte("created_at", sinceISO(7)),
@@ -58,12 +56,13 @@ export default async function AdminAnalyticsPage() {
     db.from("comments").select("id", head),
     db.from("shoe_ratings").select("id", head),
     db.from("favorites").select("shoe_id", head),
-    db.from("shoe_views").select("shoe_id, view_count").limit(MAX_AGG_ROWS),
-    db.from("favorites").select("shoe_id").limit(MAX_AGG_ROWS),
+    readAllRows((from, to) => db.from("shoe_views").select("shoe_id, view_count").order("id").range(from,to)).then(data => ({data})),
+    readAllRows((from, to) => db.from("favorites").select("shoe_id").order("user_id").order("shoe_id").range(from,to)).then(data => ({data})),
     // Personalization adoption: how many members have each profile piece set.
     db.from("profiles").select("id", head).not("persona", "is", null),
     db.from("profiles").select("id", head).not("rating_focus", "is", null),
-    db.from("profiles").select("id", head).not("foot_profile", "is", null)
+    db.from("profiles").select("id", head).not("foot_profile", "is", null),
+    readAllRows((from, to) => db.from("ai_request_reservations").select("status, charged, expires_at").gte("created_at", sinceISO(1)).order("id").range(from,to))
   ]);
 
   const viewRows = (viewRowsRes.data ?? []) as { shoe_id: string; view_count: number | null }[];
@@ -97,7 +96,6 @@ export default async function AdminAnalyticsPage() {
       count
     }));
 
-  const viewsSampled = viewRows.length >= MAX_AGG_ROWS;
   const stats: StatCard[] = [
     {
       label: "Members",
@@ -105,7 +103,7 @@ export default async function AdminAnalyticsPage() {
       icon: Users,
       sub: `+${users7d.count ?? 0} this week · +${users30d.count ?? 0} this month`
     },
-    { label: "Total views", value: totalViews, icon: Eye, sub: viewsSampled ? "sampled (recent)" : "all-time" },
+    { label: "Total views", value: totalViews, icon: Eye, sub: "all-time" },
     { label: "Favorites", value: favorites.count ?? 0, icon: Heart, sub: "saved shoes" },
     { label: "Ratings", value: ratings.count ?? 0, icon: Star, sub: "star ratings" },
     { label: "Comments", value: comments.count ?? 0, icon: MessageSquare, sub: "across all shoes" },
@@ -146,6 +144,16 @@ export default async function AdminAnalyticsPage() {
         })}
       </section>
 
+      <Card className="p-4">
+        <h2 className="font-semibold">AI request health · last 24 hours</h2>
+        <p className="mt-2 text-sm soft-text">
+          {aiRequests.length} requests · {aiRequests.filter(r => r.status === "settled").length} settled · {aiRequests.filter(r => r.status === "refunded").length} released without charge · {aiRequests.filter(r => r.status === "pending").length} pending
+        </p>
+        <p className="mt-1 text-sm soft-text">
+          {aiRequests.filter(r => r.status === "pending" && new Date(r.expires_at).getTime() < Date.now()).length} expired reservations awaiting recovery · {aiRequests.reduce((sum, r) => sum + (r.charged ?? 0), 0)} credits / allowance units charged
+        </p>
+        <p className="mt-2 text-xs soft-text">Released requests include cancellations, fallbacks and no-charge scans; this is not an error rate. Charges are account units, not provider spend. Expired holds are recovered on the next balance read or request.</p>
+      </Card>
       <PersonalizationAdoption
         totalMembers={users.count ?? 0}
         persona={personaCount.count ?? 0}

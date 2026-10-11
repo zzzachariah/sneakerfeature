@@ -98,7 +98,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
             </div>
 
             <div className="mt-1.5">
-              <StarRating value={rec.stars} size="sm" />
+              {rec.stars == null ? <span className="text-xs soft-text">{translate("Not enough rating data")}</span> : <StarRating value={rec.stars} size="sm" />}
             </div>
           </div>
         </div>
@@ -179,7 +179,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
                 <span className="text-[0.72rem] uppercase tracking-[0.12em] soft-text">
                   {translate("Recommendation")}
                 </span>
-                <StarRating value={rec.stars} size="sm" />
+                {rec.stars == null ? <span className="text-xs soft-text">{translate("Not enough rating data")}</span> : <StarRating value={rec.stars} size="sm" />}
               </div>
               <Link
                 href={href}

@@ -58,3 +58,28 @@ The following baseline protections are in place:
   (`.github/workflows/codeql.yml`).
 - Dependabot files weekly security/version updates
   (`.github/dependabot.yml`).
+
+## Dependency review (2026-10-10)
+
+Next.js 15.5.27, Capacitor 8.5.3 and sharp 0.35.5 include the available
+security fixes without a framework major-version migration. The lockfile
+overrides keep nested sharp, PostCSS, tar and selector-parser copies on patched
+versions. The xcode override uses uuid 11.1.1, which retains the CommonJS `v4`
+API used by the native project generator.
+
+Validation: production build, TypeScript, PNG resizing, WebP conversion through
+sharp, Capacitor's InputAsset pipeline, and xcode project parsing/UUID generation.
+`npm audit --omit=dev` reports zero vulnerabilities for this lockfile. Mobile
+binaries still need rebuilding and device testing before their next release.
+
+One unresolved **development-only** advisory remains: [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm).
+braces 3.0.3 has no patched release; Tailwind 3 and Next's lint tooling bring it
+in through seven dependent package entries. These tools consume repository
+glob patterns at build/lint time, not HTTP request patterns. Do not expose
+them to user-supplied patterns. Track the upstream fix; do not suppress new
+advisories or use `npm audit fix --force` to silently migrate frameworks.
+
+Native manifests were synchronized with `cap sync`. The iOS pin was verified
+against the upstream 8.5.3 Git tag. After connectivity recovered on 2026-10-11,
+Xcode package resolution and an unsigned iOS Simulator build both passed.
+Physical-device behavior, signing and store distribution remain separate release checks.

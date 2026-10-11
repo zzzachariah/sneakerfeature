@@ -69,7 +69,8 @@ export async function claimDailyCheckin(
     p_interval_ms: DAILY_CHECKIN_INTERVAL_MS
   });
 
-  if (error || newBalance == null) {
+  if (error) throw new Error("Check-in is temporarily unavailable");
+  if (newBalance == null) {
     const status = await getCheckinStatus(userId);
     return {
       ok: false,

@@ -1,0 +1,22 @@
+import assert from "node:assert/strict";
+import { displayBrand, inspectSpecs, publicSpec, safeSourceUrl, selectSpecVersion } from "../lib/data/catalog-quality";
+import { readAllRows } from "../lib/data/paginate";
+
+const older = { id: "a", updated_at: "2026-01-01", cushioning_feel: "soft", cushioning_feel_zh: "柔软" };
+const newer = { id: "b", updated_at: "2026-01-02", cushioning_feel: "firm" };
+assert.equal(selectSpecVersion([older, newer]).id, "b");
+assert.equal(selectSpecVersion([newer, older]).id, "b");
+assert.equal(publicSpec([older, newer]).cushioning_feel_zh, undefined, "Never attach stale translations to newer facts");
+assert.ok(inspectSpecs([older, newer]).includes("conflicting_versions"));
+const conflict = { upper_tech: "breathable mesh", con_summary: "poorly ventilated upper", pro_summary: "excellent value" };
+assert.equal(publicSpec([conflict]).con_summary, null);
+assert.equal(publicSpec([conflict]).upper_tech, null);
+assert.equal(conflict.con_summary, "poorly ventilated upper", "Preserve original evidence");
+assert.ok(!inspectSpecs([{upper_tech: "not breathable",con_summary:"poorly ventilated"}]).includes("ventilation_conflict"));
+assert.equal(displayBrand("361掳"), "361°");
+assert.equal(safeSourceUrl("javascript:alert(1)"), null);
+assert.equal(safeSourceUrl("https://example.com/source"), "https://example.com/source");
+const dataset = Array.from({length:1257}, (_, i) => i);
+assert.deepEqual(await readAllRows(async (a, b) => ({ data: dataset.slice(a, b + 1), error: null })), dataset);
+await assert.rejects(readAllRows(async () => ({data:null,error:{message:"offline"}})), /offline/);
+console.log("Catalog version, conflicts, provenance, and pagination checks passed.");

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { HelpCircle, X } from "lucide-react";
 import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useCookieConsent } from "@/components/consent/cookie-consent";
 
 /**
  * Opt-in entry point for the onboarding tour: a small pill that sits out of the
@@ -15,20 +16,22 @@ import { useLocale } from "@/components/i18n/locale-provider";
 export function TutorialLauncher() {
   const { active, launcherVisible, start, dismissLauncher } = useTutorial();
   const { translate } = useLocale();
+  const { ready, consent, blocked } = useCookieConsent();
+  const canOffer = ready && (blocked || consent !== null);
   const [shown, setShown] = useState(false);
 
   // Small delay so the pill fades in after the page has settled rather than
   // competing with the first paint.
   useEffect(() => {
-    if (!launcherVisible || active) {
+    if (!launcherVisible || active || !canOffer) {
       setShown(false);
       return;
     }
     const t = window.setTimeout(() => setShown(true), 900);
     return () => window.clearTimeout(t);
-  }, [launcherVisible, active]);
+  }, [launcherVisible, active, canOffer]);
 
-  if (!launcherVisible || active) return null;
+  if (!launcherVisible || active || !canOffer) return null;
 
   return (
     <div

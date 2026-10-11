@@ -3,6 +3,7 @@
 // admin grant flow. All writes go through the service-role client.
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recoverAiRequests } from "@/lib/ai/reservations";
 import { ALLOWANCE_PERIOD_SECONDS, DURATIONS, tierConfig, tierRank, type Duration, type Tier } from "@/lib/subscription/tiers";
 import {
   memberContextFromRow,
@@ -103,6 +104,7 @@ export function giftSourceFor(current: SubscriptionRow | null | undefined): Subs
 // --- Monthly premium allowance ---------------------------------------------
 
 export async function getAllowanceBalance(userId: string, tier: Tier): Promise<number> {
+  await recoverAiRequests(userId);
   const db = createAdminClient();
   if (!db) return 0;
   const grant = tierConfig(tier).capabilities.monthlyAllowance;

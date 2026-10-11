@@ -4,7 +4,8 @@ import {
   getCushioningFeelScore,
   getFitScore,
   getStabilityScore,
-  getTractionScore
+  getTractionScore,
+  hasScoringSignal
 } from "@/lib/shoe-scoring";
 import type { ShoeSpec } from "@/lib/types";
 
@@ -20,6 +21,8 @@ export const DIM_KEYS = [
   "fit"
 ] as const;
 export type DimKey = (typeof DIM_KEYS)[number];
+export type EvidenceScores = Record<DimKey, number | null>;
+export const COMMUNITY_PRIOR_COUNT = 5;
 
 export const DIM_LABELS: Record<DimKey, string> = {
   cushioning_feel: "Cushioning feel",
@@ -75,59 +78,62 @@ export function isValidFocus(value: unknown): value is RatingFocus {
   return set.size === 3;
 }
 
-export function weightedSpecScore(
-  spec: ShoeSpec | null | undefined,
-  focus: RatingFocus
-): number {
-  return weightedCombinedScore(dimScores(spec), focus);
+/** Only descriptions that actually exist can contribute to a rating. */
+export function hasPerformanceEvidence(text: string | null | undefined): boolean {
+  const value = text?.trim().toLowerCase();
+  return Boolean(value && hasScoringSignal(value) && !/^(?:n\/?a|none|null|unknown|tbd|not (?:available|tested|yet added)|暂无|未知|待补充|未测试|[-—–]+)[.!。]?$/i.test(value));
 }
 
-export function weightedCombinedScore(
-  combined: Record<DimKey, number>,
-  focus: RatingFocus
-): number {
-  const picked = new Set<DimKey>([focus.primary, focus.secondary, focus.tertiary]);
-  const others = DIM_KEYS.filter((k) => !picked.has(k));
-  const otherWeight = others.length > 0 ? FOCUS_WEIGHTS.others / others.length : 0;
-  return (
-    combined[focus.primary] * FOCUS_WEIGHTS.primary +
-    combined[focus.secondary] * FOCUS_WEIGHTS.secondary +
-    combined[focus.tertiary] * FOCUS_WEIGHTS.tertiary +
-    others.reduce((sum, k) => sum + combined[k] * otherWeight, 0)
-  );
+export function evidenceDimScores(spec: ShoeSpec | null | undefined): EvidenceScores {
+  const scores = dimScores(spec);
+  return Object.fromEntries(DIM_KEYS.map(k => [k, hasPerformanceEvidence(spec?.[k]) ? scores[k] : null])) as EvidenceScores;
 }
 
-/**
- * Neutral, focus-independent score: an equal-weight average of the six
- * dimensions. Used as the baseline when the viewer has no Rating Focus so a
- * shoe still gets a real overall rating (a Rating Focus then re-weights it).
- */
-export function equalWeightScore(combined: Record<DimKey, number>): number {
-  return DIM_KEYS.reduce((sum, k) => sum + combined[k], 0) / DIM_KEYS.length;
+export function weightedSpecScore(spec: ShoeSpec | null | undefined, focus: RatingFocus): number | null {
+  return overallEvidenceScore(evidenceDimScores(spec), focus);
 }
 
-/**
- * Blend spec-derived 0-100 dim scores with average user dim ratings (0.5-5
- * stars, scaled by ×20 to align with the 0-100 spec scale). When no users
- * have rated a shoe, fall back to spec-only.
- */
+export function weightedCombinedScore(combined: EvidenceScores, focus: RatingFocus): number | null {
+  const weights: Record<DimKey, number> = Object.fromEntries(DIM_KEYS.map(k => [k, FOCUS_WEIGHTS.others / 3])) as Record<DimKey, number>;
+  weights[focus.primary] = FOCUS_WEIGHTS.primary;
+  weights[focus.secondary] = FOCUS_WEIGHTS.secondary;
+  weights[focus.tertiary] = FOCUS_WEIGHTS.tertiary;
+  let total = 0, weight = 0;
+  for (const k of DIM_KEYS) {
+    const value = combined[k];
+    if (value == null || !Number.isFinite(value)) continue;
+    total += value * weights[k]; weight += weights[k];
+  }
+  return weight ? total / weight : null;
+}
+
+export function equalWeightScore(combined: EvidenceScores): number | null {
+  const values = DIM_KEYS.map(k => combined[k]).filter((v): v is number => v != null && Number.isFinite(v));
+  return values.length ? values.reduce((a,b) => a+b,0) / values.length : null;
+}
+
+/** Five prior observations keep a single review from owning half the score. */
 export function combineDimScores(
   spec: ShoeSpec | null | undefined,
   userDimAverages: Partial<Record<DimKey, number>> | null | undefined,
-  userRatingCount: number
-): Record<DimKey, number> {
-  const specScores = dimScores(spec);
-  if (!userDimAverages || userRatingCount < 1) return specScores;
-  const out = {} as Record<DimKey, number>;
+  userRatingCount: number,
+  userDimCounts?: Partial<Record<DimKey, number>>
+): EvidenceScores {
+  const out = evidenceDimScores(spec);
   for (const k of DIM_KEYS) {
-    const userAvgStars = userDimAverages[k];
-    if (userAvgStars === undefined || userAvgStars === null) {
-      out[k] = specScores[k];
-    } else {
-      out[k] = 0.5 * specScores[k] + 0.5 * userAvgStars * 20;
-    }
+    const avg = userDimAverages?.[k];
+    const n = userDimCounts?.[k] ?? userRatingCount;
+    if (avg == null || !Number.isFinite(avg) || avg < STAR_MIN || avg > STAR_MAX || n < 1) continue;
+    const prior = out[k];
+    out[k] = prior == null ? avg * 20 : (prior * COMMUNITY_PRIOR_COUNT + avg * 20 * n) / (COMMUNITY_PRIOR_COUNT + n);
   }
   return out;
+}
+
+/** Require at least half the dimensions before publishing an overall score. */
+export function overallEvidenceScore(scores: EvidenceScores, focus?: RatingFocus | null): number | null {
+  if (DIM_KEYS.filter(k => scores[k] != null).length < 3) return null;
+  return focus ? weightedCombinedScore(scores, focus) : equalWeightScore(scores);
 }
 
 export function percentileToStars(percentile: number): number {
@@ -142,15 +148,17 @@ export function percentileToStars(percentile: number): number {
   return 5.0;
 }
 
-export function rankScoresToPercentiles(scores: number[]): number[] {
-  const n = scores.length;
-  if (n === 0) return [];
-  if (n === 1) return [0.5];
-  const indexed = scores.map((s, i) => ({ s, i }));
-  indexed.sort((a, b) => a.s - b.s || a.i - b.i);
-  const out = new Array<number>(n);
-  for (let r = 0; r < indexed.length; r++) {
-    out[indexed[r].i] = r / (n - 1);
+/** Average ranks for ties; missing scores never enter the reference population. */
+export function rankScoresToPercentiles(scores: readonly (number | null)[]): (number | null)[] {
+  const indexed = scores.flatMap((s,i) => s != null && Number.isFinite(s) ? [{s,i}] : []);
+  indexed.sort((a,b) => a.s-b.s);
+  const out: (number | null)[] = scores.map(() => null);
+  for (let start=0; start<indexed.length;) {
+    let end=start+1;
+    while (end<indexed.length && indexed[end].s===indexed[start].s) end++;
+    const percentile = indexed.length===1 ? 0.5 : ((start+end-1)/2)/(indexed.length-1);
+    for (let j=start;j<end;j++) out[indexed[j].i]=percentile;
+    start=end;
   }
   return out;
 }
@@ -170,13 +178,9 @@ export function blendedRecommendationStars(
   aiStars: number,
   spec: ShoeSpec | null | undefined,
   focus: RatingFocus | null | undefined
-): number {
-  const score100 = focus
-    ? weightedSpecScore(spec, focus)
-    : (() => {
-        const d = dimScores(spec);
-        return DIM_KEYS.reduce((sum, k) => sum + d[k], 0) / DIM_KEYS.length;
-      })();
+): number | null {
+  const score100 = overallEvidenceScore(evidenceDimScores(spec), focus);
+  if (score100 == null) return null;
   const specStars = score100ToStars(score100);
   const ai = Math.max(1, Math.min(5, Number.isFinite(aiStars) ? aiStars : 3));
   return Math.max(1, Math.min(5, roundToHalf((ai + specStars) / 2)));
@@ -189,7 +193,7 @@ export function computeFinalStars(
 ): number {
   const count = userCount ?? 0;
   if (!userAvg || count < 1) return specStars;
-  const blended = 0.5 * specStars + 0.5 * userAvg;
+  const blended = (COMMUNITY_PRIOR_COUNT * specStars + count * userAvg) / (COMMUNITY_PRIOR_COUNT + count);
   return Math.max(STAR_MIN, Math.min(STAR_MAX, roundToHalf(blended)));
 }
 

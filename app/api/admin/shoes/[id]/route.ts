@@ -1,5 +1,7 @@
+import { withPublicProfileNames } from "@/lib/admin/public-profile-names";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/route-auth";
+import { selectSpecVersion } from "@/lib/data/catalog-quality";
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await requireAdminApi();
@@ -9,12 +11,12 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const [shoeRes, specRes, storyRes, sourceRes, historyRes] = await Promise.all([
     supabase.from("shoes").select("*").eq("id", id).maybeSingle(),
-    supabase.from("shoe_specs").select("*").eq("shoe_id", id).maybeSingle(),
+    supabase.from("shoe_specs").select("*").eq("shoe_id", id),
     supabase.from("shoe_stories").select("*").eq("shoe_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("sources").select("id, source_label, source_url, source_type, note").eq("shoe_id", id),
     supabase
       .from("admin_audit_logs")
-      .select("id, action, note, created_at, profiles!admin_audit_logs_actor_admin_id_fkey(username)")
+      .select("id, action, note, created_at, actor_admin_id")
       .eq("target_shoe_id", id)
       .order("created_at", { ascending: false })
       .limit(100)
@@ -25,9 +27,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   return NextResponse.json({
     ok: true,
     shoe: shoeRes.data,
-    spec: specRes.data,
+    spec: selectSpecVersion(specRes.data),
     story: storyRes.data,
     sources: sourceRes.data ?? [],
-    history: historyRes.data ?? []
+    history: await withPublicProfileNames(supabase, historyRes.data ?? [], "actor_admin_id")
   });
 }

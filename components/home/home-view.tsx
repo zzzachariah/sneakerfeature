@@ -6,7 +6,6 @@ import { ForYouView } from "@/components/personalize/for-you-view";
 import { HomeFeed } from "@/components/home/home-feed";
 import { HomeFeedHeader } from "@/components/home/home-feed-header";
 import { HomeCollections } from "@/components/home/home-collections";
-import { QuickPickerEntry } from "@/components/home/quick-picker-entry";
 import { ClosetHomeRail } from "@/components/closet/closet-home-rail";
 import { HomeModeProvider } from "@/components/home/home-mode-context";
 import { useNavScrollSections } from "@/components/layout/nav-scroll-indicator";
@@ -49,7 +48,6 @@ export function HomeView({ shoes, shoesCount, brandsCount, initialQuery, forYou,
         <section id="home-for-you" style={{ scrollMarginTop: "var(--top-nav-h)" }}>
           <ForYouView {...forYou} shoesCount={shoesCount} brandsCount={brandsCount} />
         </section>
-        <QuickPickerEntry />
       </>
     ),
     closet: (

@@ -1,5 +1,6 @@
 "use client";
 
+import { hasCompletePerformance, ComparisonEvidenceTable } from "@/components/shoe/performance-evidence-table";
 import { Shoe } from "@/lib/types";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useInView } from "@/components/motion/use-progress";
@@ -20,6 +21,8 @@ export function CompareDiffRows({ shoes, active }: Props) {
   if (!shoes.length) return null;
 
   const paired = shoes.length === 2;
+
+  if (shoes.some(shoe => !hasCompletePerformance(shoe))) return <ComparisonEvidenceTable shoes={shoes} />;
 
   return (
     <div ref={ref}>

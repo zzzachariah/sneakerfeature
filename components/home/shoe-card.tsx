@@ -12,6 +12,7 @@ import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-
 import { scoreColor } from "@/lib/score-tone";
 import { Reveal } from "@/components/motion/reveal";
 import { FavoriteButton } from "@/components/favorites/favorite-button";
+import { hasPerformanceEvidence } from "@/lib/star-rating";
 
 type Props = {
   shoe: Shoe;
@@ -64,7 +65,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
   // browsing stays clean. Computed for the few visible cards only.
   const chips = useMemo(() => {
     if (!showChips) return [];
-    return METRICS.map((m) => ({ key: m.key, score: scoreFor(shoe, m.key) }))
+    return METRICS.filter(m => hasPerformanceEvidence(shoe.spec[m.key])).map((m) => ({ key: m.key, score: scoreFor(shoe, m.key) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 2);
   }, [shoe, showChips]);
@@ -96,7 +97,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
           />
           {matchScore != null && (
             <span className="pop-in absolute bottom-2 left-2 inline-flex items-center gap-0.5 rounded-full bg-[rgb(var(--brand))] px-2 py-0.5 text-[0.7rem] font-bold text-[rgb(var(--brand-contrast))] shadow-[0_2px_8px_rgb(var(--shadow)/0.25)]">
-              <span className="num-display">{matchScore}%</span> {translate("match")}
+              <span title={translate("Match scores are catalog estimates, not fit probabilities")}><span className="num-display">{matchScore}/100</span> {translate("Estimated match")}</span>
             </span>
           )}
         </div>

@@ -12,7 +12,7 @@ export type WebReference = {
 
 export type RecommendationRaw = {
   shoe_id: string;
-  stars: number;
+  stars: number | null;
   reason: string;
   pros: string[];
   cons: string[];

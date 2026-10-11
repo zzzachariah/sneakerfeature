@@ -4,6 +4,7 @@
 // scoreboard) all render the SAME conclusion in their own form — without touching
 // the shared standard component. Mirrors compare-verdict.tsx exactly.
 
+import { hasPerformanceEvidence, DIM_KEYS } from "@/lib/star-rating";
 import type { Shoe } from "@/lib/types";
 import { METRICS, type MetricKey, scoreFor } from "@/components/compare/compare-metrics";
 
@@ -21,7 +22,7 @@ export type VerdictData = {
 
 export function computeVerdict(shoes: Shoe[]): VerdictData {
   const empty: VerdictData = { ok: false, averages: [], gap: 0, evenMatch: true, winnerIndex: 0, scenarios: [], mentionedMetrics: [] };
-  if (shoes.length < 2) return empty;
+  if (shoes.length < 2 || shoes.some(shoe => DIM_KEYS.some(k => !hasPerformanceEvidence(shoe.spec?.[k])))) return empty;
 
   const averages = shoes
     .map((shoe) => {

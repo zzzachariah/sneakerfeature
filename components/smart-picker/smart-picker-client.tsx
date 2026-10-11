@@ -414,7 +414,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
 
         const res = await fetch("/api/ai/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
           body: JSON.stringify({ chatId, message, count, ...(model ? { model } : {}) }),
           signal: controller.signal
         });

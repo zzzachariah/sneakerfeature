@@ -1,8 +1,6 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { SneakerLoader } from "@/components/ui/sneaker-loader";
-import { Modal } from "@/components/ui/modal";
 
 export type Locale = "en" | "zh";
 
@@ -13,7 +11,6 @@ const LOCALE_STORAGE_KEY = "locale";
 // Chinese on its first pass — an app-wide hydration mismatch (see LocaleProvider).
 const LOCALE_COOKIE_KEY = "locale";
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
-const SWITCH_OVERLAY_MS = 900;
 
 function isLocale(value: unknown): value is Locale {
   return value === "en" || value === "zh";
@@ -34,6 +31,66 @@ function persistLocale(next: Locale) {
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "your catalog shortlist": "球鞋候选清单",
+  "shortlisted by recorded performance; personal match unavailable": "按已记录性能筛选；个性化匹配资料不足",
+  "the catalog cannot support a personal match score yet. these candidates are sorted by recorded performance, so compare their evidence before choosing.": "鞋库现有资料尚不足以计算个性化匹配分。以下按已记录性能排列，选择前请继续对比各项依据。",
+
+  "height": "身高",
+  "body weight": "体重",
+  "weight": "重量",
+  "thanks for the feedback.": "感谢反馈。",
+  "were these recommendations useful?": "这些推荐对你有帮助吗？",
+  "helpful": "有帮助",
+  "not a good match": "不太适合",
+  "need more evidence": "需要更多依据",
+
+  "build your head-to-head": "开始球鞋对比",
+  "answer 4 quick questions — no account needed.": "回答四个小问题，无需注册。",
+  "shoe submission": "球鞋投稿",
+  "updated": "更新于",
+  "your contribution is now in the catalog.": "你的投稿已发布至鞋库。",
+  "this submission was not accepted. you can submit a revision with clearer sources.": "这次投稿未被采纳。你可以补充更清晰的来源后重新提交。",
+  "this contribution is no longer published.": "这条投稿已下架。",
+  "your submission is saved and awaiting editorial review.": "投稿已保存，正在等待编辑审核。",
+  "this page could not load.": "页面暂时无法加载。",
+  "please try again. if the problem continues, come back in a moment.": "请重试；如果问题持续，请稍后再来。",
+  "retrying…": "正在重试…",
+  "reload page": "重新加载页面",
+  "track court time here. on supported iphones, the app also shows the timer on the lock screen and dynamic island.": "在这里记录上场时间。使用兼容 iPhone 的 App 时，也可以在锁屏和灵动岛查看计时。",
+  "source not recorded. see data and sources for available evidence.": "尚未记录来源，请查看“资料与来源”了解现有证据。",
+  "overall pick": "综合参考",
+  "elite": "顶级",
+  "rated for your playstyle": "已按打法调整参考",
+  "personalize for your playstyle": "按你的打法调整参考",
+  "of": "/",
+  "showing": "显示",
+  "shoes saved": "双已收藏",
+  "shoe saved": "双已收藏",
+  "name, brand, player, tech…": "鞋名、品牌、球员、科技…",
+  "search by name, brand, player or tech, then narrow it down with structured filters. the quick search in the top bar is for fast name lookups.": "可按鞋名、品牌、球员或科技搜索，再用筛选条件缩小范围。顶部快捷搜索适合直接查找鞋款。",
+  "filter the database": "筛选球鞋资料库",
+  "sign in to write reviews, save compares, and keep your index synced across devices.": "登录后可以写点评、保存对比，并在不同设备间同步。",
+  "welcome back to sneakerfeature.": "欢迎回到 sneakerfeature。",
+  "dialog": "对话框",
+  "community favorites": "社区热门",
+  "search shoes": "搜索球鞋",
+  "search by shoe or brand": "输入鞋款或品牌",
+  "your player profile": "你的球员档案",
+  "basketball shoe intelligence": "篮球鞋资料库",
+  "every basketball shoe, compared in one place": "查球鞋、比性能，找到适合的一双",
+  "structured, comparable, unbiased": "技术资料、性能参考与社区评价",
+  "structured, comparable, unbiased sneaker data — explore, compare, and decide faster.": "查看球鞋技术资料、比较性能，再做选择。",
+  "not enough evidence for a personal match score": "个性化匹配资料不足",
+  "not enough evidence to recommend a pair yet": "现有资料不足以支持推荐，请调整偏好或稍后再试。",
+  "match scores are catalog estimates, not fit probabilities": "匹配分是根据鞋库资料计算的参考值，并非合脚概率。",
+  "estimated match": "匹配参考",
+  "not enough rating data": "评分资料不足",
+  "catalog notes indicate support and stability": "鞋库资料描述了支撑与稳定性",
+  "shoe weight near the profile estimate": "鞋重接近档案估算范围",
+  "support or cushioning notes align with your stated priorities": "支撑或缓震描述符合你表达的关注点",
+  "heuristic estimate from catalog notes, not a fit guarantee": "根据鞋库资料估算，不能保证合脚",
+
+  "not enough data for an overall verdict": "资料不完整，暂不判断哪双鞋整体更好。",
   // ── Premium UI skins (Editorial / Instrument / Gallery / Arena) ──
   "the sneaker issue": "本期鞋刊",
   "cover story": "本期主打",
@@ -1579,18 +1636,14 @@ export function LocaleProvider({
     } catch {
       /* storage blocked — nothing to reconcile */
     }
-    // Only act when a stored preference exists. When it doesn't, leave storage
-    // untouched so the first-run language picker (which keys off an absent
-    // "locale" entry) still appears for brand-new users.
-    if (isLocale(saved)) {
-      setLocale(saved); // no-op re-render when it already equals initialLocale
-      persistLocale(saved); // ensure the cookie mirrors the stored preference
-    }
+    const preferred = isLocale(saved) ? saved :
+      (document.cookie.split("; ").some(value => value.startsWith("locale=")) ? initialLocale :
+        (navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en"));
+    setLocale(preferred);
+    persistLocale(preferred);
   }, [initialLocale]);
 
-  const [pendingLocale, setPendingLocale] = useState<Locale | null>(null);
-  const [warningOpen, setWarningOpen] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
+  const isTranslating = false;
   const [translationCache, setTranslationCache] = useState<Record<string, string>>({});
 
   const translate = useCallback(
@@ -1665,39 +1718,10 @@ export function LocaleProvider({
     [locale, translationCache]
   );
 
-  const requestLocaleChange = useCallback(
-    (next: Locale) => {
-      if (next === locale) return;
-
-      if (next === "zh") {
-        setPendingLocale(next);
-        setWarningOpen(true);
-        return;
-      }
-
-      setWarningOpen(false);
-      setPendingLocale(null);
-      setIsTranslating(false);
-      setLocale("en");
-      persistLocale("en");
-    },
-    [locale]
-  );
-
-  const confirmWarning = useCallback(() => {
-    if (!pendingLocale) return;
-
-    setWarningOpen(false);
-    setPendingLocale(null);
-    setIsTranslating(true);
-
-    setLocale(pendingLocale);
-    persistLocale(pendingLocale);
-
-    window.setTimeout(() => {
-      setIsTranslating(false);
-    }, SWITCH_OVERLAY_MS);
-  }, [pendingLocale]);
+  const requestLocaleChange = useCallback((next: Locale) => {
+    setLocale(next);
+    persistLocale(next);
+  }, []);
 
   const getRankLabel = useCallback(
     (rank: number) => {
@@ -1724,31 +1748,6 @@ export function LocaleProvider({
     <LocaleContext.Provider value={contextValue}>
       {children}
 
-      <Modal
-        open={warningOpen}
-        onClose={() => undefined}
-        title=""
-        dismissible={false}
-        zIndexClass="z-[80]"
-      >
-        <div className="space-y-4">
-          <p className="text-sm">
-            {translate("Machine translation may contain some inaccuracies. Thank you for your understanding. Loading may also take a little time.")}
-          </p>
-          <button
-            type="button"
-            onClick={confirmWarning}
-            className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-[rgb(var(--accent)/0.55)] bg-[rgb(var(--accent)/0.12)] text-sm font-medium text-[rgb(var(--text))] transition hover:bg-[rgb(var(--accent)/0.18)]"
-          >
-            {translate("Continue")}
-          </button>
-        </div>
-      </Modal>
-      {isTranslating ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[rgb(var(--bg)/0.78)] backdrop-blur-sm" aria-live="polite" aria-busy="true">
-          <SneakerLoader label={translate("Translating...")} />
-        </div>
-      ) : null}
     </LocaleContext.Provider>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale } from "@/components/i18n/locale-provider";
 
 // Top-level error boundary. In the Capacitor shell the WebView reloads the live
 // site when the app resumes from the background; a transient fetch failure during
@@ -15,6 +16,7 @@ export default function Error({
   reset: () => void;
 }) {
   const [retrying, setRetrying] = useState(false);
+  const { translate } = useLocale();
 
   // `online` only fires on an offline→online transition, so this can't loop.
   useEffect(() => {
@@ -28,11 +30,11 @@ export default function Error({
 
   return (
     <main className="container-shell flex min-h-[60vh] flex-col items-center justify-center gap-4 py-10 text-center">
-      <div className="text-4xl">😵‍💫</div>
+      
       <div>
-        <h1 className="text-lg font-semibold">出错了，请重试</h1>
+        <h1 className="text-lg font-semibold">{translate("This page could not load.")}</h1>
         <p className="mx-auto mt-1 max-w-sm text-sm text-[rgb(var(--text)/0.6)]">
-          Something went wrong. 如果你刚从其他 App 切回来，多半是临时网络抖动，重试一下通常就好。
+          {translate("Please try again. If the problem continues, come back in a moment.")}
         </p>
       </div>
       <div className="flex gap-3">
@@ -43,13 +45,13 @@ export default function Error({
           }}
           className="inline-flex h-11 items-center justify-center rounded-xl bg-[rgb(var(--text))] px-5 text-sm font-semibold text-[rgb(var(--bg))] transition hover:opacity-90"
         >
-          {retrying ? "重试中…" : "重试"}
+          {translate(retrying ? "Retrying…" : "Retry")}
         </button>
         <button
           onClick={() => window.location.reload()}
           className="inline-flex h-11 items-center justify-center rounded-xl border border-[rgb(var(--text)/0.15)] px-5 text-sm font-medium transition hover:bg-[rgb(var(--text)/0.06)]"
         >
-          重新加载
+          {translate("Reload page")}
         </button>
       </div>
     </main>

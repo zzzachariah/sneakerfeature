@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePremiumVariant } from "@/components/premium/variants";
-import { SignInValue } from "@/components/auth/sign-in-value";
+import { QuickPickerEntry } from "@/components/home/quick-picker-entry";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { PersonaAvatar } from "@/components/home/persona-avatar";
 import { haptics } from "@/lib/native/haptics";
@@ -129,7 +129,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
       : null;
 
   return (
-    <div className="container-shell py-8 sm:py-12">
+    <div className="container-shell py-6 sm:py-8">
       <div className="mx-auto w-full max-w-3xl">
       {/* 1. Header. Signed-in users get their personalized daily greeting; a
           first-time / anonymous visitor gets a real product value proposition
@@ -185,29 +185,35 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
             squeezing it beside the greeting pushed it off-screen on phones). The
             frosted-glass card is a light glassmorphism touch. Also the site
             tour's anchor for the "this is your player profile" step. */}
-        <div className="glass mt-4 overflow-hidden rounded-2xl p-3" data-tutorial="home-avatar">
+        <QuickPickerEntry compact />
+        <form action="/#home-database" method="get" role="search" className="mt-3 flex gap-2">
+          <label htmlFor="home-shoe-search" className="sr-only">{translate("Search shoes")}</label>
+          <input id="home-shoe-search" name="q" type="search" required placeholder={translate("Search by shoe or brand")}
+            className="min-w-0 flex-1 rounded-xl border border-[rgb(var(--muted)/0.55)] bg-[rgb(var(--surface))] px-4 py-3 text-sm" />
+          <button type="submit" className="rounded-xl bg-[rgb(var(--text))] px-4 py-3 text-sm font-semibold text-[rgb(var(--bg))]">{translate("Search")}</button>
+        </form>
+        <details className="glass mt-4 overflow-hidden rounded-2xl p-3" data-tutorial="home-avatar">
+          <summary className="cursor-pointer py-2 text-sm font-medium">{translate("Your player profile")}</summary>
           <PersonaAvatar persona={persona} dimmed={!isLoggedIn || !persona} onClick={handleAvatarClick} size="sm" loggedIn={isLoggedIn} />
-        </div>
+        </details>
       </motion.header>
 
       {/* Signed-out / empty: start-browsing guide (popular still shows below) */}
       {!signedIn || (!hasDigest && recentShoes.length === 0) ? (
         <motion.section
           {...sectionReveal}
-          className="surface-card premium-border mt-6 flex flex-col items-center gap-3 rounded-2xl p-8 text-center"
+          className="mt-4 flex flex-wrap items-center gap-3 text-sm"
         >
-          <Sparkles className="h-7 w-7 text-[rgb(var(--accent))]" />
           <p className="max-w-sm text-sm soft-text">
             {signedIn
               ? translate("Browse a few shoes and your weekly picks will appear here.")
               : translate("Sign in and browse a few shoes to unlock personalized weekly picks.")}
           </p>
-          {!signedIn && <SignInValue className="w-full max-w-xs" />}
           <TapLink
-            href={signedIn ? "/" : "/login"}
+            href={signedIn ? "/quick-picker" : "/login"}
             className="inline-flex h-10 items-center gap-2 rounded-xl bg-[rgb(var(--text))] px-4 text-sm font-semibold text-[rgb(var(--bg))]"
           >
-            {signedIn ? translate("Browse shoes") : translate("Log in")} <ArrowRight className="h-4 w-4" />
+            {signedIn ? translate("Quick Picker") : translate("Log in")} <ArrowRight className="h-4 w-4" />
           </TapLink>
         </motion.section>
       ) : null}
@@ -269,7 +275,7 @@ export function ForYouView({ signedIn, username, personaPosition, digest, recent
           higher up the For You face) */}
       {popular.length >= 3 ? (
         <motion.section {...sectionReveal} className="mt-8">
-          <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Popular this week")} />
+          <SectionTitle icon={<Trophy className="h-4 w-4" />} text={translate("Community favorites")} />
           <div className="mt-4 grid grid-cols-3 items-end gap-3">
             <PodiumItem shoe={popular[1]} rank={2} rankLabel={getRankLabel(2)} />
             <PodiumItem shoe={popular[0]} rank={1} rankLabel={getRankLabel(1)} />

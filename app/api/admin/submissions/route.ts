@@ -1,3 +1,4 @@
+import { withPublicProfileNames } from "@/lib/admin/public-profile-names";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminApi } from "@/lib/admin/route-auth";
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     .from("user_submissions")
     // email is not consumed in this list view (only username is), and the anon
     // key can no longer read profiles.email (migration 038), so don't embed it.
-    .select("id, user_id, status, created_at, updated_at, raw_payload, profiles!user_submissions_user_id_fkey(username)")
+    .select("id, user_id, status, created_at, updated_at, raw_payload")
     .order("created_at", { ascending: false })
     .limit(200);
 
@@ -32,7 +33,8 @@ export async function GET(request: NextRequest) {
   const { data, error } = await query;
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
 
-  const filtered = (data ?? []).filter((row: any) => {
+  const namedRows = await withPublicProfileNames(supabase, data ?? [], "user_id");
+  const filtered = namedRows.filter((row: any) => {
     const payload = (row.raw_payload ?? {}) as Record<string, unknown>;
     const shoeName = String(payload.shoe_name ?? "");
     const rowBrand = String(payload.brand ?? "");

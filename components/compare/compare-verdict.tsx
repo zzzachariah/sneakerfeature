@@ -1,5 +1,6 @@
 "use client";
 
+import { hasCompletePerformance } from "@/components/shoe/performance-evidence-table";
 import Link from "next/link";
 import type { Route } from "next";
 import { ArrowUpRight } from "lucide-react";
@@ -34,6 +35,7 @@ export function CompareVerdict({ shoes, active }: Props) {
   const { ref, inView } = useInView<HTMLDivElement>();
   const triggered = active ?? inView;
 
+  if (shoes.some(shoe => !hasCompletePerformance(shoe))) return <p className="p-4 text-sm soft-text">{translate("Not enough data for an overall verdict")}</p>;
   if (!shoes.length) return null;
 
   if (shoes.length < 2) {

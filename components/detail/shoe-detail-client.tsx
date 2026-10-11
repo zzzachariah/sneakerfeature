@@ -87,36 +87,42 @@ export function ShoeDetailClient({
     {
       label: "Cushioning Feel",
       rawText: pickLocalized(locale, shoe.spec.cushioning_feel, shoe.spec.cushioning_feel_zh),
+      evidenceText: shoe.spec.cushioning_feel ?? "",
       score: cushioningFeelScore,
       tier: getPerformanceLabel(cushioningFeelScore)
     },
     {
       label: "Court Feel",
       rawText: pickLocalized(locale, shoe.spec.court_feel, shoe.spec.court_feel_zh),
+      evidenceText: shoe.spec.court_feel ?? "",
       score: courtFeelScore,
       tier: getPerformanceLabel(courtFeelScore)
     },
     {
       label: "Bounce",
       rawText: pickLocalized(locale, shoe.spec.bounce, shoe.spec.bounce_zh),
+      evidenceText: shoe.spec.bounce ?? "",
       score: bounceScore,
       tier: getPerformanceLabel(bounceScore)
     },
     {
       label: "Stability",
       rawText: pickLocalized(locale, shoe.spec.stability, shoe.spec.stability_zh),
+      evidenceText: shoe.spec.stability ?? "",
       score: stabilityScore,
       tier: getPerformanceLabel(stabilityScore)
     },
     {
       label: "Traction",
       rawText: pickLocalized(locale, shoe.spec.traction, shoe.spec.traction_zh),
+      evidenceText: shoe.spec.traction ?? "",
       score: tractionScore,
       tier: getPerformanceLabel(tractionScore)
     },
     {
       label: "Fit",
       rawText: pickLocalized(locale, shoe.spec.fit, shoe.spec.fit_zh),
+      evidenceText: shoe.spec.fit ?? "",
       score: fitScore,
       tier: getPerformanceLabel(fitScore)
     }

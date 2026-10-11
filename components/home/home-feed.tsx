@@ -13,7 +13,7 @@ import { rankShoeMatch } from "@/lib/search/shoe-search";
 import { ShoeCard } from "@/components/home/shoe-card";
 import { useLocalShoes } from "@/lib/local/use-local-shoes";
 import { usePersona } from "@/components/preferences/persona-provider";
-import { computeMatchScore, getMatchReasons, spreadTiedScores } from "@/lib/match/score";
+import { computeMatchScore, getMatchReasons } from "@/lib/match/score";
 import { useHomeMode } from "@/components/home/home-mode-context";
 import { useFavorites } from "@/components/favorites/favorites-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
@@ -197,26 +197,7 @@ export function HomeFeed({
       score: persona ? computeMatchScore(persona, shoe) : null,
       reasons: persona ? getMatchReasons(persona, shoe) : []
     }));
-    if (!persona) return base;
-
-    // Spread tied scores across the full catalog so the score shown for a shoe
-    // is stable regardless of the active brand/search filter.
-    const ranked = base
-      .filter((e): e is { shoe: Shoe; score: number; reasons: string[] } => e.score != null)
-      .sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        const av = a.shoe.finalStars ?? -1;
-        const bv = b.shoe.finalStars ?? -1;
-        if (bv !== av) return bv - av;
-        return a.shoe.shoe_name.localeCompare(b.shoe.shoe_name);
-      })
-      .map((e) => ({ id: e.shoe.id, score: e.score }));
-
-    const spread = spreadTiedScores(ranked);
-    return base.map((e) => ({
-      ...e,
-      score: e.score != null ? spread.get(e.shoe.id) ?? e.score : null
-    }));
+    return base;
   }, [shoes, persona]);
 
   const filtered = useMemo(() => {
@@ -475,7 +456,7 @@ export function HomeFeed({
           ) : (
             <>
               <ul ref={gridRef} className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {filtered.slice(0, visibleCount).map(({ shoe, score }, index) => (
+                {filtered.slice(0, visibleCount).map(({ shoe, score, reasons }, index) => (
                   <ShoeCard
                     key={shoe.id}
                     shoe={shoe}
@@ -490,6 +471,7 @@ export function HomeFeed({
                     revealRootMargin="120px 0px"
                     priority={index < 16}
                     matchScore={mode === "personalized" ? score : null}
+                    footnote={mode === "personalized" ? translate(reasons[0] ?? "Not enough evidence for a personal match score") : undefined}
                     showChips={mode === "personalized"}
                     compareEnabled={compareMode}
                     selected={selected.includes(shoe.id)}

@@ -38,7 +38,7 @@ export async function GET(request: Request) {
 
   const { data: comments, error } = await supabase
     .from("comments")
-    .select("id, content, created_at, user_id, profiles(username)")
+    .select("id, content, created_at, user_id")
     .eq("shoe_id", shoeId)
     .order("created_at", { ascending: false });
 
@@ -52,7 +52,6 @@ export async function GET(request: Request) {
     content: string;
     created_at: string;
     user_id: string;
-    profiles: { username: string }[] | { username: string } | null;
   };
 
   let typedComments = (comments ?? []) as CommentRow[];
@@ -70,6 +69,19 @@ export async function GET(request: Request) {
   }
 
   const commentIds = typedComments.map((c) => c.id);
+  const authorIds = [...new Set(typedComments.map((c) => c.user_id))];
+  const authors = new Map<string, string>();
+  if (authorIds.length) {
+    const { data, error: authorError } = await supabase
+      .from("public_profile_cards")
+      .select("id, username")
+      .in("id", authorIds);
+    if (authorError) {
+      console.error("[comments] public authors failed", authorError);
+      return NextResponse.json({ ok: false, message: "Could not load comments." }, { status: 503 });
+    }
+    for (const author of data ?? []) authors.set(author.id, author.username);
+  }
   const votesByComment = new Map<string, { likes: number; dislikes: number }>();
   const myVotes = new Map<string, "like" | "dislike">();
 
@@ -103,7 +115,7 @@ export async function GET(request: Request) {
       userId: comment.user_id,
       content: comment.content,
       createdAt: comment.created_at,
-      username: (Array.isArray(comment.profiles) ? comment.profiles[0]?.username : comment.profiles?.username) ?? "unknown",
+      username: authors.get(comment.user_id) ?? "unknown",
       likes: totals.likes,
       dislikes: totals.dislikes,
       myVote: myVotes.get(comment.id) ?? null
