@@ -27,7 +27,8 @@
     "test:ai-reservations": "tsx scripts/test-ai-reservations.mts",
     "test:rating-summary": "tsx scripts/test-rating-summary.mts",
     "test:product-boundaries": "tsx scripts/test-product-boundaries.mts",
-    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries"
+    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits",
+    "test:credits": "tsx scripts/test-credit-functions.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

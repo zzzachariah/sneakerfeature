@@ -7,7 +7,8 @@ export async function POST() {
   const ctx = await getSmartPickerContext();
   if (!ctx) return NextResponse.json({ ok: false, message: "Forbidden" }, { status: 403 });
 
-  const result = await claimDailyCheckin(ctx.userId);
+  const result = await claimDailyCheckin(ctx.userId).catch(() => null);
+  if (!result) return NextResponse.json({ ok: false, message: "签到暂时不可用，请稍后再试。 / Check-in is temporarily unavailable." }, { status: 503 });
   if (!result.ok) {
     const dailyAmount = await getDailyCheckinCredits();
     return NextResponse.json(
