@@ -37,7 +37,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429 });
   }
 
-  const shoes = await getPublicShoes();
+  let shoes;
+  try { shoes = await getPublicShoes(); }
+  catch { return NextResponse.json({error:"catalog_unavailable"},{status:503,headers:{"Cache-Control":"no-store"}}); }
   const version = createHash("sha1").update(JSON.stringify(shoes)).digest("hex").slice(0, 16);
   const etag = `"${version}"`;
 
@@ -47,6 +49,6 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json(
     { version, shoes },
-    { headers: { ETag: etag, "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
+    { headers: { ETag: etag, "Cache-Control": "private, max-age=0, must-revalidate" } }
   );
 }

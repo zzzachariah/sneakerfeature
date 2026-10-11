@@ -24,7 +24,8 @@
     "test:scoring": "tsx scripts/test-scoring.mts",
     "test:recommendations": "tsx scripts/test-recommendation-evidence.mts",
     "test:catalog": "tsx scripts/test-catalog-quality.mts",
-    "test:ai-reservations": "tsx scripts/test-ai-reservations.mts"
+    "test:ai-reservations": "tsx scripts/test-ai-reservations.mts",
+    "test:rating-summary": "tsx scripts/test-rating-summary.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

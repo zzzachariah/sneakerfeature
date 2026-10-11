@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { readAllRows } from "@/lib/data/paginate";
 import type { BloggerReview } from "@/lib/types";
 
 // Public projection — never selects transcript/status/error_detail.
@@ -48,35 +48,17 @@ function normalize(row: ReviewRow): BloggerReview {
   };
 }
 
-async function loadAll(): Promise<Record<string, BloggerReview[]>> {
+async function loadAll(shoeId?: string): Promise<Record<string, BloggerReview[]>> {
   const sb = createPublicClient();
   if (!sb) return {};
 
-  const primary = await sb
-    .from("blogger_reviews")
-    .select(PUBLIC_COLUMNS)
-    .eq("is_published", true)
-    .eq("status", "ready")
-    .order("created_at", { ascending: true });
-  if (primary.error) console.error("[blogger-reviews] public fetch failed", primary.error);
-
-  let rows = (primary.data ?? []) as ReviewRow[];
-
-  // RLS can hide rows from the anon client; retry with the service-role client
-  // before giving up (same rationale as the shoe_stories fallback in shoes.ts).
-  if (!rows.length) {
-    const admin = createAdminClient();
-    if (admin) {
-      const retry = await admin
-        .from("blogger_reviews")
-        .select(PUBLIC_COLUMNS)
-        .eq("is_published", true)
-        .eq("status", "ready")
-        .order("created_at", { ascending: true });
-      if (retry.error) console.error("[blogger-reviews] service-role retry failed", retry.error);
-      else rows = (retry.data ?? []) as ReviewRow[];
-    }
-  }
+  const rows = await readAllRows<ReviewRow>((from,to) => {
+    let query = sb.from("blogger_reviews").select(PUBLIC_COLUMNS)
+      .eq("is_published",true).eq("status","ready")
+      .order("created_at",{ascending:true}).order("id");
+    if (shoeId) query = query.eq("shoe_id",shoeId);
+    return query.range(from,to);
+  });
 
   const byShoe: Record<string, BloggerReview[]> = {};
   const counts: Record<string, { youtube: number; bilibili: number }> = {};
@@ -99,12 +81,12 @@ async function loadAll(): Promise<Record<string, BloggerReview[]>> {
 }
 
 // Returns a plain Record (not a Map) so unstable_cache can serialize it.
-export const getAllBloggerReviews = unstable_cache(loadAll, ["blogger-reviews-v1"], {
+export const getAllBloggerReviews = unstable_cache(loadAll, ["blogger-reviews-v2"], {
   tags: ["blogger_reviews", "shoes"],
   revalidate: 300
 });
 
-export async function getBloggerReviewsForShoe(shoeId: string): Promise<BloggerReview[]> {
-  const all = await getAllBloggerReviews();
-  return all[shoeId] ?? [];
-}
+export const getBloggerReviewsForShoe = unstable_cache(async (shoeId: string): Promise<BloggerReview[]> => {
+  const reviews = await loadAll(shoeId);
+  return reviews[shoeId] ?? [];
+}, ["blogger-review-detail-v1"], {tags:["blogger_reviews","shoes"],revalidate:300});
