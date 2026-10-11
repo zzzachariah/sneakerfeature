@@ -34,6 +34,16 @@ function persistLocale(next: Locale) {
 const isI18nDebugEnabled = process.env.NEXT_PUBLIC_I18N_DEBUG === "1";
 
 const UI_TRANSLATIONS_ZH: Record<string, string> = {
+  "not enough evidence for a personal match score": "个性化匹配资料不足",
+  "not enough evidence to recommend a pair yet": "现有资料不足以支持推荐，请调整偏好或稍后再试。",
+  "match scores are catalog estimates, not fit probabilities": "匹配分是根据鞋库资料计算的参考值，并非合脚概率。",
+  "estimated match": "匹配参考",
+  "not enough rating data": "评分资料不足",
+  "catalog notes indicate support and stability": "鞋库资料描述了支撑与稳定性",
+  "shoe weight near the profile estimate": "鞋重接近档案估算范围",
+  "support or cushioning notes align with your stated priorities": "支撑或缓震描述符合你表达的关注点",
+  "heuristic estimate from catalog notes, not a fit guarantee": "根据鞋库资料估算，不能保证合脚",
+
   "not enough data for an overall verdict": "资料不完整，暂不判断哪双鞋整体更好。",
   // ── Premium UI skins (Editorial / Instrument / Gallery / Arena) ──
   "the sneaker issue": "本期鞋刊",

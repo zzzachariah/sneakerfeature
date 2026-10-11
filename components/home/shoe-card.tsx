@@ -96,7 +96,7 @@ export function ShoeCard({ shoe, matchScore, showChips, compareEnabled, selected
           />
           {matchScore != null && (
             <span className="pop-in absolute bottom-2 left-2 inline-flex items-center gap-0.5 rounded-full bg-[rgb(var(--brand))] px-2 py-0.5 text-[0.7rem] font-bold text-[rgb(var(--brand-contrast))] shadow-[0_2px_8px_rgb(var(--shadow)/0.25)]">
-              <span className="num-display">{matchScore}%</span> {translate("match")}
+              <span title={translate("Match scores are catalog estimates, not fit probabilities")}><span className="num-display">{matchScore}/100</span> {translate("Estimated match")}</span>
             </span>
           )}
         </div>

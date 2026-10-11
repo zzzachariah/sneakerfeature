@@ -4,7 +4,8 @@ import {
   getCushioningFeelScore,
   getFitScore,
   getStabilityScore,
-  getTractionScore
+  getTractionScore,
+  hasScoringSignal
 } from "@/lib/shoe-scoring";
 import type { ShoeSpec } from "@/lib/types";
 
@@ -80,7 +81,7 @@ export function isValidFocus(value: unknown): value is RatingFocus {
 /** Only descriptions that actually exist can contribute to a rating. */
 export function hasPerformanceEvidence(text: string | null | undefined): boolean {
   const value = text?.trim().toLowerCase();
-  return Boolean(value && !/^(?:n\/?a|none|null|unknown|tbd|not (?:available|tested|yet added)|暂无|未知|待补充|未测试|[-—–]+)[.!。]?$/i.test(value));
+  return Boolean(value && hasScoringSignal(value) && !/^(?:n\/?a|none|null|unknown|tbd|not (?:available|tested|yet added)|暂无|未知|待补充|未测试|[-—–]+)[.!。]?$/i.test(value));
 }
 
 export function evidenceDimScores(spec: ShoeSpec | null | undefined): EvidenceScores {
@@ -88,10 +89,8 @@ export function evidenceDimScores(spec: ShoeSpec | null | undefined): EvidenceSc
   return Object.fromEntries(DIM_KEYS.map(k => [k, hasPerformanceEvidence(spec?.[k]) ? scores[k] : null])) as EvidenceScores;
 }
 
-export function weightedSpecScore(spec: ShoeSpec | null | undefined, focus: RatingFocus): number {
-  // Legacy numeric API for model enrichment; the evidence API below is used for
-  // displayed scores. Missing evidence must be checked before this value is used.
-  return weightedCombinedScore(dimScores(spec), focus) ?? 0;
+export function weightedSpecScore(spec: ShoeSpec | null | undefined, focus: RatingFocus): number | null {
+  return overallEvidenceScore(evidenceDimScores(spec), focus);
 }
 
 export function weightedCombinedScore(combined: EvidenceScores, focus: RatingFocus): number | null {
@@ -179,13 +178,9 @@ export function blendedRecommendationStars(
   aiStars: number,
   spec: ShoeSpec | null | undefined,
   focus: RatingFocus | null | undefined
-): number {
-  const score100 = focus
-    ? weightedSpecScore(spec, focus)
-    : (() => {
-        const d = dimScores(spec);
-        return DIM_KEYS.reduce((sum, k) => sum + d[k], 0) / DIM_KEYS.length;
-      })();
+): number | null {
+  const score100 = overallEvidenceScore(evidenceDimScores(spec), focus);
+  if (score100 == null) return null;
   const specStars = score100ToStars(score100);
   const ai = Math.max(1, Math.min(5, Number.isFinite(aiStars) ? aiStars : 3));
   return Math.max(1, Math.min(5, roundToHalf((ai + specStars) / 2)));

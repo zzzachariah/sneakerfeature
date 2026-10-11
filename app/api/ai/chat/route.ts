@@ -354,33 +354,16 @@ export async function POST(request: Request) {
             ...(refsTrustworthy && rec.references && rec.references.length > 0 ? { references: rec.references } : {})
           });
         }
-        matched.sort((a, b) => b.stars - a.stars);
+        matched.sort((a, b) => (b.stars ?? -1) - (a.stars ?? -1));
         // Hard-cap at the tier-effective count so a misbehaving model can never
         // bill for more than allowed.
         let validRaw: RecommendationRaw[] = matched.slice(0, effectiveCount);
 
-        // GUARANTEE: never return empty. When the AI produced nothing matchable
-        // (e.g. the relay never honored tools), deterministically pick the top-N
-        // most suitable shoes straight from the catalog so the user always gets
-        // cards. Only a truly empty catalog yields zero.
+        // Keep verified partial results; never pad the answer with unrelated shoes.
         const fallbackUsed = validRaw.length === 0;
-        if (fallbackUsed) {
-          validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count: effectiveCount });
-        } else if (validRaw.length < effectiveCount) {
-          // PARTIAL result (e.g. a truncated payload salvaged 3 of 5) → top up
-          // to the promised count with deterministic picks, excluding shoes the
-          // AI already chose. AI picks stay first; top-ups follow.
-          const have = new Set(validRaw.map((r) => r.shoe_id));
-          const extras = pickFallbackShoes({ shoes, query: message, persona, focus, count: effectiveCount + have.size })
-            .filter((r) => !have.has(r.shoe_id))
-            .slice(0, effectiveCount - validRaw.length);
-          validRaw = [...validRaw, ...extras];
-        }
+        if (fallbackUsed) validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count: effectiveCount });
 
-        // Guarantee every card carries a reason + 3 pros + 3 cons. The AI's own
-        // points come first; gaps (and the deterministic fallback's blanks) are
-        // filled from real blogger-review points and the shoe's spec profile, so
-        // the reason/pros/cons can never come back empty again.
+        // Fill only evidence-backed details. Short lists are more honest than filler.
         validRaw = validRaw.map((raw) => {
           const shoe = byId.get(raw.shoe_id);
           if (!shoe) return raw;
@@ -394,7 +377,7 @@ export async function POST(request: Request) {
           return { ...raw, reason: detail.reason, pros: detail.pros, cons: detail.cons };
         });
 
-        const charge = validRaw.length;
+        const charge = fallbackUsed ? 0 : validRaw.length;
 
         // Diagnostics → server logs only (no longer shown to users). Captures the
         // old 🔧 诊断 info so operators can still debug zero-match / prose cases.
@@ -469,10 +452,10 @@ export async function POST(request: Request) {
         // these app-authored strings follow the user's input language (replyLang),
         // so the answer matches whatever language the user typed in.
         let replyText: string;
-        if (fallbackUsed && charge > 0) {
+        if (fallbackUsed && validRaw.length > 0) {
           replyText = zhReply
-            ? "根据你的描述，这几双可能比较合适（综合场上定位、脚型与性能匹配挑选）："
-            : "Based on what you described, these could be a good fit (picked by on-court position, foot shape and performance match):";
+            ? "AI 推荐暂时未完成。以下仅是根据鞋库文字找到的备选，尚未核实是否满足你的全部条件："
+            : "AI recommendations could not be completed. These are text-matched catalog alternatives; your full requirements have not been verified:";
         } else {
           const noResult = zhReply
             ? "暂时没有找到匹配的鞋款，换个描述再试试？"
@@ -482,7 +465,7 @@ export async function POST(request: Request) {
           // reply reads as a few short blocks in the bubble instead of one
           // unbroken wall — and so a reloaded conversation looks identical to
           // the one that was just streamed.
-          replyText = formatReplyParagraphs(result.reply) || (charge > 0 ? gotResult : noResult);
+          replyText = fallbackUsed ? noResult : formatReplyParagraphs(result.reply) || (validRaw.length > 0 ? gotResult : noResult);
         }
         if (usingDemo) {
           const demoNote = zhReply

@@ -1,5 +1,6 @@
 "use client";
 
+import { hasPerformanceEvidence } from "@/lib/star-rating";
 import { CardFrame } from "@/components/card/card-frame";
 import { getLineStyle } from "@/components/compare/compare-metrics";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -16,7 +17,8 @@ const RADAR_CY = RADAR_SIZE / 2;
 const RADAR_R = 132;
 const RADAR_RINGS = [0.2, 0.4, 0.6, 0.8, 1];
 
-function StarRow({ value, size = 18 }: { value: number; size?: number }) {
+function StarRow({ value, size = 18 }: { value: number | null; size?: number }) {
+  if (value == null) return <span>—</span>;
   return (
     <span style={{ display: "inline-flex", gap: 1 }}>
       {[0, 1, 2, 3, 4].map((i) => {
@@ -37,6 +39,7 @@ function ReportRadar({ recs }: { recs: RecommendationItem[] }) {
   const axes = recs[0]?.radar ?? [];
   const n = axes.length;
   if (n === 0) return null;
+  if (recs.some(rec => rec.radar.some(axis => !hasPerformanceEvidence(axis.rawText)))) return <p>{translate("Not enough data for an overall verdict")}</p>;
   const angles = axes.map((_, i) => ((-90 + i * (360 / n)) * Math.PI) / 180);
 
   const ringPoints = (ratio: number) =>
@@ -240,7 +243,7 @@ export function RecommendationReportCard({
                   </span>
                   <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <StarRow value={rec.stars} size={15} />
-                    <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars.toFixed(1)}</span>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars?.toFixed(1) ?? "—"}</span>
                   </span>
                 </div>
               );
@@ -304,7 +307,7 @@ export function RecommendationReportCard({
                   </span>
                   <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
                     <StarRow value={rec.stars} size={16} />
-                    <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars.toFixed(1)}</span>
+                    <span style={{ fontFamily: 'var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace', fontSize: 13, fontWeight: 700, color: "rgb(var(--subtext))" }}>{rec.stars?.toFixed(1) ?? "—"}</span>
                   </span>
                 </div>
                 {rec.reason ? (

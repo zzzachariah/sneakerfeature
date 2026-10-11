@@ -1,5 +1,5 @@
 import type { Shoe, BloggerReview } from "@/lib/types";
-import { dimScores, DIM_KEYS, type DimKey, type RatingFocus } from "@/lib/star-rating";
+import { evidenceDimScores, DIM_KEYS, type EvidenceScores, type DimKey, type RatingFocus } from "@/lib/star-rating";
 
 export type ReplyLang = "zh" | "en";
 
@@ -9,47 +9,6 @@ export type ReplyLang = "zh" | "en";
 export function detectReplyLang(text: string): ReplyLang {
   return /[㐀-鿿]/.test(text) ? "zh" : "en";
 }
-
-// Moderate, honest phrasings keyed by dimension. STRONG is applied to a shoe's
-// highest-scoring dimensions, WEAK (relative wording) to its lowest — so the
-// lines stay truthful even when used only to round a card out to 3 items.
-const STRONG: Record<ReplyLang, Record<DimKey, string>> = {
-  zh: {
-    cushioning_feel: "缓震脚感不错",
-    court_feel: "场地感清晰",
-    bounce: "回弹到位",
-    stability: "稳定性扎实",
-    traction: "抓地力不错",
-    fit: "包裹贴合到位"
-  },
-  en: {
-    cushioning_feel: "Cushioning feels good",
-    court_feel: "Clear court feel",
-    bounce: "Good bounce",
-    stability: "Solid stability",
-    traction: "Good traction",
-    fit: "Snug, locked-in fit"
-  }
-};
-
-const WEAK: Record<ReplyLang, Record<DimKey, string>> = {
-  zh: {
-    cushioning_feel: "缓震相对一般",
-    court_feel: "场地感相对一般",
-    bounce: "回弹相对一般",
-    stability: "稳定性相对一般",
-    traction: "抓地相对一般",
-    fit: "包裹相对一般"
-  },
-  en: {
-    cushioning_feel: "Cushioning is comparatively average",
-    court_feel: "Court feel is comparatively average",
-    bounce: "Bounce is comparatively average",
-    stability: "Stability is comparatively average",
-    traction: "Traction is comparatively average",
-    fit: "Fit is comparatively average"
-  }
-};
 
 const DIM_SHORT: Record<ReplyLang, Record<DimKey, string>> = {
   zh: {
@@ -89,31 +48,18 @@ function pushUnique(out: string[], seen: Set<string>, items: readonly string[], 
   }
 }
 
-function buildReason(scores: Record<DimKey, number>, ranked: DimKey[], hasBlogger: boolean, lang: ReplyLang): string {
-  const top = ranked.filter((k) => scores[k] >= 55).slice(0, 2).map((k) => DIM_SHORT[lang][k]);
-  if (lang === "zh") {
-    const src = hasBlogger ? "综合数据库性能与博主点评" : "综合数据库性能";
-    return top.length
-      ? `${src}，这双在${top.join("、")}方面表现突出，整体均衡，值得考虑。`
-      : `${src}为你挑选，整体表现均衡，值得一试。`;
-  }
-  const src = hasBlogger ? "Going by its spec profile and blogger reviews" : "Going by its spec profile";
-  return top.length
-    ? `${src}, it stands out for ${top.join(" & ")}, with a balanced overall feel.`
-    : `${src}, it's a balanced all-round pick worth a look.`;
+function buildReason(scores: EvidenceScores, ranked: DimKey[], hasBlogger: boolean, lang: ReplyLang): string {
+  const top = ranked.filter(k => (scores[k] ?? 0) >= 80).slice(0,2).map(k => DIM_SHORT[lang][k]);
+  if (lang === "zh") return top.length
+    ? `现有资料描述的优势是${top.join("、")}。这是资料估算，实际体验和合脚程度仍需确认。`
+    : hasBlogger ? "可参考下面的博主体验；现有性能资料不足以给出明确结论。" : "性能资料不足，暂不能核实优缺点与适配程度。";
+  return top.length ? `Catalog notes suggest strengths in ${top.join(" and ")}. This is an estimate; fit and individual experience remain unverified.`
+    : hasBlogger ? "See the reviewer observations below; performance evidence is insufficient for a clear conclusion." : "Not enough performance evidence to verify strengths, weaknesses or suitability.";
 }
 
 export type DerivedDetail = { reason: string; pros: string[]; cons: string[] };
 
-/**
- * Guarantee a recommendation always carries a reason + 3 pros + 3 cons, drawing
- * on — in priority order — the model's own output, real blogger-review points,
- * and the shoe's database performance profile.
- *
- * Invents no specific tech or numbers: the spec-derived lines are score-ranked
- * strength/weakness phrasings only (STRONG for the shoe's top dimensions, WEAK —
- * relative wording — for its lowest), so they stay honest even as filler.
- */
+/** Use observed descriptions; never fabricate three pros/cons just to fill a card. */
 export function deriveDetail(opts: {
   shoe: Shoe;
   reviews: BloggerReview[];
@@ -133,11 +79,15 @@ export function deriveDetail(opts: {
     if (Array.isArray(cons)) bloggerCons.push(...cons);
   }
 
-  // Rank the six dimensions by spec score: top → pros, bottom → cons.
-  const scores = dimScores(shoe.spec);
-  const ranked = [...DIM_KEYS].sort((a, b) => scores[b] - scores[a]);
-  const specPros = ranked.map((k) => STRONG[lang][k]);
-  const specCons = [...ranked].reverse().map((k) => WEAK[lang][k]);
+  const scores = evidenceDimScores(shoe.spec);
+  const ranked = [...DIM_KEYS].filter(k => scores[k] != null).sort((a,b) => scores[b]! - scores[a]!);
+  const descriptor = (k: DimKey) => {
+    const zh = shoe.spec[`${k}_zh` as keyof typeof shoe.spec];
+    const value = lang === "zh" && typeof zh === "string" && zh.trim() ? zh : shoe.spec[k];
+    return `${DIM_SHORT[lang][k]}: ${value?.trim()}`;
+  };
+  const specPros = ranked.filter(k => scores[k]! >= 80).map(descriptor);
+  const specCons = ranked.filter(k => scores[k]! <= 45).reverse().map(descriptor);
 
   const pros: string[] = [];
   const prosSeen = new Set<string>();

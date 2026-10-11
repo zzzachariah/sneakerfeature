@@ -456,7 +456,7 @@ export function HomeFeed({
           ) : (
             <>
               <ul ref={gridRef} className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-                {filtered.slice(0, visibleCount).map(({ shoe, score }, index) => (
+                {filtered.slice(0, visibleCount).map(({ shoe, score, reasons }, index) => (
                   <ShoeCard
                     key={shoe.id}
                     shoe={shoe}
@@ -471,6 +471,7 @@ export function HomeFeed({
                     revealRootMargin="120px 0px"
                     priority={index < 16}
                     matchScore={mode === "personalized" ? score : null}
+                    footnote={mode === "personalized" ? translate(reasons[0] ?? "Not enough evidence for a personal match score") : undefined}
                     showChips={mode === "personalized"}
                     compareEnabled={compareMode}
                     selected={selected.includes(shoe.id)}

@@ -21,7 +21,8 @@
     "test:outreach-rules": "tsx scripts/test-outreach-rules.mts",
     "test:outreach-rls": "tsx scripts/test-outreach-rls.mts",
     "test:account-permissions": "tsx scripts/test-account-permissions.mts",
-    "test:scoring": "tsx scripts/test-scoring.mts"
+    "test:scoring": "tsx scripts/test-scoring.mts",
+    "test:recommendations": "tsx scripts/test-recommendation-evidence.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

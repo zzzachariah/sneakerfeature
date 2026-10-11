@@ -20,6 +20,7 @@ import {
   type SkillLevel,
   type Persona
 } from "@/lib/persona/types";
+import { hasPerformanceEvidence } from "@/lib/star-rating";
 import { computeMatchScore, getMatchReasons } from "@/lib/match/score";
 import { scoreFor, type MetricKey } from "@/components/compare/compare-metrics";
 import { ShoeCard } from "@/components/home/shoe-card";
@@ -117,10 +118,11 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
         const reasons = getMatchReasons(personaInput, shoe);
         // Blend the chosen priority dimension into the ranking (keep the match%
         // as the headline number; just re-order toward what the player wants).
-        const rank = priority ? Math.round(score * 0.6 + scoreFor(shoe, priority) * 0.4) : score;
+        const rank = score == null ? null : priority && hasPerformanceEvidence(shoe.spec[priority]) ? Math.round(score * 0.6 + scoreFor(shoe, priority) * 0.4) : score;
         return { shoe, score, reasons, rank };
       })
-      .sort((a, b) => b.rank - a.rank)
+      .filter(r => r.score != null && (!priority || hasPerformanceEvidence(r.shoe.spec[priority])))
+      .sort((a, b) => (b.rank ?? -1) - (a.rank ?? -1) || a.shoe.id.localeCompare(b.shoe.id))
       .slice(0, 12);
   }, [step, personaInput, priority, shoes]);
 
@@ -370,6 +372,8 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
               </div>
             ) : null}
 
+            {results.length === 0 && <p className="py-6 text-sm soft-text">{translate("Not enough evidence to recommend a pair yet")}</p>}
+            <p className="mb-4 text-xs soft-text">{translate("Match scores are catalog estimates, not fit probabilities")}</p>
             <ul className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
               {results.map(({ shoe, score, rank, reasons }, i) => (
                 <ShoeCard

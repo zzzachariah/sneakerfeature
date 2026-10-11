@@ -680,6 +680,7 @@ const DAMPENERS: Record<string, number> = {
 };
 
 const NEGATORS = new Set([
+  "isnt", "wasnt", "arent", "werent", "dont", "doesnt", "didnt", "wont",
   "not",
   "no",
   "isn't",
@@ -703,6 +704,14 @@ const NEGATORS = new Set([
 export function normalizeScoreText(value: string | null | undefined) {
   return (value ?? "")
     .toLowerCase()
+    .replace(/不稳定/g, " not stable ").replace(/不舒适/g, " uncomfortable ")
+    .replace(/不(?:太|够|是很|是)?好/g, " not good ")
+    .replace(/非常好|很好/g, " very good ").replace(/优秀|顶级/g, " excellent ")
+    .replace(/出色/g, " great ").replace(/良好/g, " good ")
+    .replace(/较差|很差/g, " poor ").replace(/一般|适中/g, " moderate ")
+    .replace(/柔软/g, " soft ").replace(/舒适/g, " comfortable ")
+    .replace(/稳定/g, " stable ").replace(/扎实/g, " solid ")
+    .replace(/灵敏|敏捷/g, " responsive ").replace(/贴地/g, " low to the floor ")
     .replace(DASH_VARIANTS_REGEX, "-")
     .replace(QUOTE_REGEX, "")
     .replace(/\s*([;,])\s*/g, "$1 ")
@@ -1064,4 +1073,18 @@ export function getPerformanceLabel(score: number): string {
   if (score <= 84) return "Very Good";
   if (score <= 94) return "Excellent";
   return "Elite";
+}
+
+// Non-empty technology names are not evidence of a dimension's performance.
+const KNOWN_PERFORMANCE_SIGNAL = new RegExp(`(?<![A-Za-z0-9])(?:${[...new Set([
+  ...Object.keys(STABILITY_EXACT), ...Object.keys(STABILITY_BASE),
+  ...Object.keys(TRACTION_EXACT), ...Object.keys(TRACTION_BASE),
+  ...Object.keys(FIT_EXACT), ...Object.keys(FIT_BASE),
+  ...Object.keys(CUSHIONING_FEEL_EXACT), ...Object.keys(CUSHIONING_FEEL_BASE),
+  ...Object.keys(COURT_FEEL_EXACT), ...Object.keys(COURT_FEEL_BASE),
+  ...Object.keys(BOUNCE_EXACT), ...Object.keys(BOUNCE_BASE),
+  ...Object.keys(UNIVERSAL_POSITIVE), ...Object.keys(UNIVERSAL_NEGATIVE)
+])].sort((a,b) => b.length-a.length).map(escapeRegex).join("|")})(?![A-Za-z0-9])`);
+export function hasScoringSignal(text: string): boolean {
+  return KNOWN_PERFORMANCE_SIGNAL.test(normalizeScoreText(text));
 }

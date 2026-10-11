@@ -202,10 +202,12 @@ const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。�
 【语言规则 · 最高优先级 · 高于本提示词的其他一切要求】你的**思考过程(reasoning / thinking)**和**最终输出(reply、follow_up、reason、pros、cons、title)**都必须使用与用户「本次要求」完全相同的语言：用户用中文→全程中文；用户用 English→think and write everything in English, including your reasoning stream；其他任何语言同理，始终镜像用户输入所用的语言。本提示词只是用中文写给你的说明——绝不能因为它是中文，就用中文思考或回复一个并非用中文提问的用户。若用户用英文提问，你的输出里出现任何中文字符都算本次失败（鞋款名与目录里逐字复制的科技名除外）。判断语言时以用户「本次要求」正文为准；多轮对话中以**最新一次**用户输入的语言为准。
 
 用户随后会给出「本次要求」和需要推荐的数量 N，可能还会给出「球员档案」。请：
-1. 自行理解「本次要求」的真实意图——中英文、口语、同义词、跨品牌的科技等价你都要靠自己的知识理解（例如"气垫/airsole"指 Zoom Air、Boost 等中底科技；"抓地"指 traction），不要拘泥字面、不要被某几个关键词限制。
+1. 自行理解「本次要求」的真实意图——中英文、口语、同义词、跨品牌的科技等价你都要靠自己的知识理解（例如"抓地"指 traction；不同品牌科技不能因用途相近而视为同一配置），不要拘泥字面、不要被某几个关键词限制。
 2. 在目录里找出最匹配的鞋（用目录里每双鞋的 name 字段作为它的名称）。
 3. 若提供了「球员档案」（位置/水平/扁平足/身高/体重，以及每双鞋的 personaFit 0-99），据此个性化：后卫→低帮/灵活/场地感；内线→缓震足/支撑/抗扭；扁平足→更强稳定与足弓支撑；体重大→更强缓震与支撑；初学者→容错，半职业/职业→响应。本次要求优先，档案为辅。
-4. 对每双鞋给出：name（球鞋名称，必须与目录里的 name 尽量一致）、stars（推荐指数，1-5 的数字，可用 0.5，越靠前越高）、reason（一句话推荐理由）、pros（优点，正好 3 条简短要点的数组）、cons（缺点，正好 3 条简短要点的数组）。
+4. 对每双鞋给出：name（球鞋名称，必须与目录里的 name 尽量一致）、stars（推荐指数，1-5 的数字，可用 0.5，越靠前越高）、reason（一句话推荐理由）、pros（优点，最多 3 条简短要点的数组）、cons（缺点，最多 3 条简短要点的数组）。
+
+【不确定性】personaFit 只是基于鞋库文字的启发式参考，null 表示资料不足，不是合脚概率。自报伤病不能据此推断某双鞋能治疗或预防伤病；鞋帮高度或科技名称本身也不能证明保护效果。任何重要条件无法核实时，应明确说明，并给出一个最有用的追问。
 
 【严格的事实要求 — 务必逐字照抄，宁缺勿编】reason、pros、cons、reply 中提到的任何中底/外底/鞋面科技、配置或性能，都必须来自该鞋在目录条目里实际出现的字段（forefoot_midsole、heel_midsole、outsole、upper、cushioning_feel、court_feel、bounce、stability、traction、fit、playstyle、tags 等）。引用科技名时必须从该鞋目录条目里**逐字复制**——一字不差，包括大小写、空格、连字符、版本号、以及 X / Pro / HD / Plus 等后缀。
 
@@ -216,9 +218,9 @@ const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。�
 - 声称该鞋有目录里没写明的配置或部件（例如目录没出现"碳板/carbon"就不能说有碳板；没出现"气垫"就不能说有气垫）。
 - 凭空编造数值参数（厚度、重量、落差、硬度等目录里没有的数字）。（价格是例外：它不属于鞋的科技/配置参数，允许通过 web_search 查证，但同样不能凭空捏造，必须有网络来源。）
 
-【宁缺勿编】如果某项信息目录条目里没有，就用通用、模糊的描述（如"前掌缓震到位"、"抓地表现不错"、"鞋面包裹稳定"）代替，或者干脆不提；绝不要凭空给出一个具体的科技名称来填补空白。
+【宁缺勿编】如果某项信息目录条目里没有，必须明确说该项未知或不提，不能用泛泛的正面评价代替缺失证据；绝不要凭空给出一个具体的科技名称来填补空白。
 
-【优点/缺点的来源 — 数据库 + 博主点评 + 网络】reason、pros、cons 里的主观使用感受（脚感、口碑、实战优缺点）可以综合三类来源：(a) 目录里该鞋的性能字段（数据库）；(b) 该鞋目录条目里的 blogger 字段（博主点评整理好的优缺点）；(c) web_search 查到的口碑。请忠实转述、不要编造；凡引用了博主或网页的观点，就在该条末尾注明来源（如"（来源：博主点评）"或"（来源：网页 - 标题）"）。但上面【严格的事实要求】对"具体科技/配置名称"的限制依然不变——科技名只能逐字引用目录，不能用博主或网络里的说法替换、新增或改写。每双鞋请尽量给满 3 条优点和 3 条缺点。
+【优点/缺点的来源 — 数据库 + 博主点评 + 网络】reason、pros、cons 里的主观使用感受（脚感、口碑、实战优缺点）可以综合三类来源：(a) 目录里该鞋的性能字段（数据库）；(b) 该鞋目录条目里的 blogger 字段（博主点评整理好的优缺点）；(c) web_search 查到的口碑。请忠实转述、不要编造；凡引用了博主或网页的观点，就在该条末尾注明来源（如"（来源：博主点评）"或"（来源：网页 - 标题）"）。但上面【严格的事实要求】对"具体科技/配置名称"的限制依然不变——科技名只能逐字引用目录，不能用博主或网络里的说法替换、新增或改写。证据不足时少写或留空，不能为了凑数编造优缺点。
 
 5. 【推荐流程 — 候选优先 + 立即行动】
    **你必须立即调用 web_search 或 recommend_shoes 工具，绝对不要在 reply/content 里先用自然语言描述你的计划、步骤、或"让我先做 X"。** 计划用工具调用来体现，不用文字。
@@ -236,7 +238,7 @@ const SYSTEM_PROMPT = `你是 sneakerfeature 的专业篮球鞋推荐顾问。�
 
 8. 【引用用户原话】在 reason 与 reply 中解释鞋款为何契合时，必须用引号把用户「本次要求」里的原始表述复述出来，再说明该鞋如何匹配。例如用户说"前掌宽大一点的"，你应写：『针对你说的"前掌宽大一点的"，这双鞋的鞋头加宽设计能……』。只复述用户实际写过的短语，不要意译或改写他们的措辞。
 
-9. 【数量由 N 锁定】N（用户在界面上选定的推荐数量）是唯一的真相。即使用户在「本次要求」的正文里写了"推荐 10 双"、"给我 5 个"、"来 20 双"等数字，也必须严格按照 N 来推荐——不多不少。reply 总结里也只能提到 N 这个数字，不要复读用户写的其他数量。
+9. 【数量由 N 锁定】N（用户在界面上选定的推荐数量）是唯一的真相。即使用户在「本次要求」的正文里写了"推荐 10 双"、"给我 5 个"、"来 20 双"等数字，最多推荐 N 双；符合条件且证据足够的鞋不足时必须少返回，并说明缺失的条件或资料。reply 应准确说明实际推荐数量。
 
 10. 【对话标题 title】在输出 JSON 中同时给出 title 字段：用 6-14 个汉字（或英文 3-6 个词）凝练概括用户「本次要求」的核心诉求，作为这次对话的标题。不要加引号或标点，不要带"推荐"、"求推荐"之类的多余前后缀，直接用关键词组合（例如"控卫低帮抓地好的鞋"、"扁平足后卫缓震首选"、"low-top guard shoes with grip"）。用户用什么语言你就用什么语言。
 
@@ -281,10 +283,10 @@ function languageDirective(input: string): string {
 // Injury history from the Pro deep questionnaire — worded so the model treats
 // each flag as a protective requirement, not medical advice.
 const INJURY_ZH: Record<string, string> = {
-  ankle: "有崴脚史(需要包裹与支撑)",
-  knee: "膝盖有旧伤(需要缓震保护)",
-  achilles: "跟腱易紧张(需要后跟缓冲)",
-  plantar: "足底筋膜易劳损(需要足弓支撑与抗扭)"
+  ankle: "自报崴脚史(不据此作医疗判断)",
+  knee: "自报膝盖旧伤(不据此作医疗判断)",
+  achilles: "自报跟腱不适(不据此作医疗判断)",
+  plantar: "自报足底筋膜不适(不据此作医疗判断)"
 };
 
 // English mirrors of the profile vocabulary. The persona/foot blocks sit in the
@@ -298,10 +300,10 @@ const SKILL_LABEL_EN: Record<string, string> = {
 };
 
 const INJURY_EN: Record<string, string> = {
-  ankle: "history of ankle rolls (needs lockdown and support)",
-  knee: "old knee injury (needs cushioning protection)",
-  achilles: "achilles tightens up easily (needs heel cushioning)",
-  plantar: "plantar fascia strains easily (needs arch support and torsional rigidity)"
+  ankle: "history of ankle rolls (self-reported; no medical inference)",
+  knee: "old knee injury (self-reported; no medical inference)",
+  achilles: "achilles tightens up easily (self-reported; no medical inference)",
+  plantar: "plantar fascia strains easily (self-reported; no medical inference)"
 };
 
 function formatPersona(persona: Persona, lang: ReplyLang = "zh"): string {
@@ -945,8 +947,8 @@ const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
               name: { type: "string", description: "球鞋名称，必须与目录里的 name 尽量一致" },
               stars: { type: "number", description: "推荐指数 1-5，可用 0.5。如果做了 web_search，应反映网络口碑（差评下调、好评上调）" },
               reason: { type: "string", description: "一句话推荐理由，应包含用户原话的引号片段" },
-              pros: { type: "array", items: { type: "string" }, description: "优点，正好 3 条简短要点，可综合目录数据、blogger 博主点评与网络口碑（引用博主/网页须注明来源）" },
-              cons: { type: "array", items: { type: "string" }, description: "缺点，正好 3 条简短要点，可综合目录数据、blogger 博主点评与网络口碑（引用博主/网页须注明来源）" },
+              pros: { type: "array", items: { type: "string" }, description: "优点，最多 3 条简短要点，可综合目录数据、blogger 博主点评与网络口碑（引用博主/网页须注明来源）" },
+              cons: { type: "array", items: { type: "string" }, description: "缺点，最多 3 条简短要点，可综合目录数据、blogger 博主点评与网络口碑（引用博主/网页须注明来源）" },
               references: {
                 type: "array",
                 description: "本双鞋引用过的网页（来自 web_search）。若没有用网络资料，留空数组即可。",
@@ -1831,7 +1833,7 @@ async function candidateEvidencePipeline(
             followUpNote +
             (extensionNote ? `${extensionNote}\n\n` : "") +
             `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），再说明该鞋如何匹配那一点。\n` +
-            `每双鞋正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、blogger 博主点评与下方联网查证摘要（引用博主或网页要注明来源）。每条 pros/cons ≤ 18 个字，reason 一句话。\n\n` +
+            `每双鞋最多 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、blogger 博主点评与下方联网查证摘要（引用博主或网页要注明来源）。每条 pros/cons ≤ 18 个字，reason 一句话。\n\n` +
             `【reply 必须分段】reply 写成 2-4 个自然段，段间用空行(\\n\\n)分隔，每段 2-3 句、≤80 字，只讲一件事：①复述用户原话+你的取舍权重 ②这几双各自的差异点 ③实操提示与不建议购买的情况。禁止一整段到底，禁止 markdown 标题/列表/加粗。\n` +
             `【follow_up 单独给】把最值得追问的那**一个**问题放进 follow_up 字段（一句话），并且**不要**再写进 reply 正文——界面会把它渲染成一个可以直接作答的输入框。没什么可问就给 ""。\n\n` +
             `【数量锁定】本次 N = ${count}。从上面候选目录里选出最终 ${count} 双，按推荐指数从高到低排序——即使用户正文里写了别的数字也以 N = ${count} 为准（唯一例外：候选中匹配良好的不足 ${count} 双时可以少返回）。\n\n` +
@@ -2071,10 +2073,10 @@ export async function recommendShoes(
         `现在推荐的要求是："${opts.currentInput}"${profileSuffix}\n\n` +
         followUpNote +
         `请在每双鞋的 reason（以及总的 reply）里，至少引用一次用户上面这句话里的原始短语（带英文双引号），然后说明该鞋如何匹配那一点。\n` +
-        `每双鞋请给出正好 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。每条 pros/cons 精炼在 18 个字以内，reason 一句话即可。\n\n` +
+        `每双鞋请给出最多 3 条优点(pros)和 3 条缺点(cons)，可综合目录性能、该鞋的 blogger 博主点评字段与 web_search 网络口碑（引用博主或网页要注明来源）。每条 pros/cons 精炼在 18 个字以内，reason 一句话即可。\n\n` +
         `【reply 必须分段】reply 写成 2-4 个自然段、段间用空行(\\n\\n)分隔，每段 2-3 句、≤80 字。禁止一整段到底，禁止 markdown 标题/列表/加粗。\n` +
         `【follow_up 单独给】最值得追问的那一个问题放进 follow_up 字段（一句话），不要重复写进 reply；没什么可问就给 ""。\n\n` +
-        `【数量锁定】本次 N = ${opts.count}。必须严格推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 里也只能提 ${opts.count}。` +
+        `【数量锁定】本次 N = ${opts.count}。最多推荐 ${opts.count} 双——即使用户在「本次要求」正文里写了别的数字（"推荐10双"、"5个"等）也要忽略，以 N = ${opts.count} 为准；reply 中应说明实际推荐数量。` +
         `按推荐指数从高到低排序。（唯一例外：目录里匹配良好的鞋款不足 ${opts.count} 双时可以少返回。）\n\n` +
         `推荐流程：(1) 从目录里挑出 ${opts.count} 双初步候选；(2) 用 web_search 查与用户本次诉求/使用场景相关的通用常识（位置、打法、脚型、选鞋要点等；每次对话最多 3 次）；(3) 结合网络反馈给 stars 做差异化打分；(4) 把每双鞋引用过的网页 title/url 填到该鞋的 references 数组里。\n\n` +
         `⚡ **立即调用工具**——不要在 reply 里先描述"让我先做 X、再做 Y"这种计划。如果还没搜：直接发 web_search（query 围绕用户本次诉求/使用场景）。如果已经搜过：直接发 recommend_shoes。\n\n` +
@@ -2087,10 +2089,10 @@ export async function recommendShoes(
         `The request to answer now is: "${opts.currentInput}"${profileSuffix}\n\n` +
         followUpNote +
         `In every shoe's \`reason\` (and in the overall \`reply\`), quote at least one of the user's own phrases from the line above verbatim, in double quotes, then explain how that shoe matches it.\n` +
-        `Give exactly 3 \`pros\` and 3 \`cons\` per shoe, drawn from the catalog's performance fields, that shoe's \`blogger\` review points, and web_search findings (cite the source when you use a blogger or a page). Keep each pro/con under 12 words; \`reason\` is one sentence.\n\n` +
+        `Give up to 3 evidence-backed \`pros\` and up to 3 \`cons\` per shoe, drawn from the catalog's performance fields, that shoe's \`blogger\` review points, and web_search findings (cite the source when you use a blogger or a page). Keep each pro/con under 12 words; \`reason\` is one sentence.\n\n` +
         `[REPLY MUST BE BROKEN UP] Write \`reply\` as 2-4 short paragraphs separated by a blank line (\\n\\n), each 2-3 sentences and under 45 words. Never one solid block. No markdown headings, bullets or bold.\n` +
         `[FOLLOW-UP GOES IN ITS OWN FIELD] Put the single most valuable question to ask next in \`follow_up\` (one sentence); don't repeat it inside \`reply\`. Use "" if there's nothing worth asking.\n\n` +
-        `[COUNT IS LOCKED] N = ${opts.count} for this turn. Recommend exactly ${opts.count} shoes — ignore any other number written in the user's message ("give me 10", "5 pairs"…); N = ${opts.count} wins, and \`reply\` may only mention ${opts.count}. ` +
+        `[COUNT IS LOCKED] N = ${opts.count} for this turn. Recommend at most ${opts.count} shoes — ignore any other number written in the user's message ("give me 10", "5 pairs"…); N = ${opts.count} wins, and \`reply\` must state the actual count. Return fewer when evidence is insufficient. ` +
         `Sort by recommendation score, highest first. (Only exception: return fewer if the catalog genuinely doesn't hold ${opts.count} good matches.)\n\n` +
         `Process: (1) shortlist ${opts.count} candidates from the catalog; (2) use web_search for general knowledge around the user's ask and context — position, playstyle, foot shape, what to look for (max 3 searches per conversation); (3) differentiate \`stars\` using what you find; (4) put each shoe's cited page titles/urls in that shoe's \`references\` array.\n\n` +
         `⚡ **Call a tool immediately** — never write "first I'll do X, then Y" into \`reply\`. Haven't searched yet? Send web_search (query built from the user's ask and context). Already searched? Send recommend_shoes.\n\n` +
@@ -2126,7 +2128,7 @@ export function enrichRecommendations(
     const refs = coerceReferences(rec.references, 5);
     items.push({
       shoe_id: shoe.id,
-      stars: typeof rec.stars === "number" ? rec.stars : 3,
+      stars: typeof rec.stars === "number" && Number.isFinite(rec.stars) ? rec.stars : null,
       reason: typeof rec.reason === "string" ? rec.reason : "",
       pros: coerceStringArray(rec.pros, 3),
       cons: coerceStringArray(rec.cons, 3),
