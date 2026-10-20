@@ -92,7 +92,7 @@ jobs:
           npx capacitor-assets generate --ios \
             --iconBackgroundColor '#0a0a0a' --splashBackgroundColor '#0a0a0a' || true
       - name: Import signing certificate
-        uses: apple-actions/import-codesign-certs@v3
+        uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12 }}
           p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
