@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
 import { readAllRows } from "@/lib/data/paginate";
 import { catalogueMaintenanceRunSchema, type CatalogueMaintenanceRun, type CatalogueUpdatesResult } from "@/lib/catalogue-updates";
@@ -17,7 +17,9 @@ function validateRows(rows: unknown[]): CatalogueUpdatesResult {
 }
 
 const readRuns = async (latestOnly: boolean): Promise<CatalogueUpdatesResult> => {
-  const client = createPublicClient();
+  // Public reports may be corrected after a run. Read fresh data for each request;
+  // React cache only deduplicates readers during the current server render.
+  const client = createPublicClient((input, init) => fetch(input, { ...init, cache: "no-store" }));
   if (!client) return { state: "unavailable", runs: [], omittedInvalidRuns: 0 };
   try {
     const query = () => client.from("catalogue_maintenance_runs").select(COLUMNS).eq("is_published", true)
@@ -35,5 +37,5 @@ const readRuns = async (latestOnly: boolean): Promise<CatalogueUpdatesResult> =>
   }
 };
 
-export const getCatalogueUpdates = unstable_cache(() => readRuns(false), ["catalogue-maintenance-runs-v1"], { revalidate: 60, tags: ["catalogue-updates"] });
-export const getLatestCatalogueUpdate = unstable_cache(() => readRuns(true), ["catalogue-maintenance-latest-v1"], { revalidate: 60, tags: ["catalogue-updates"] });
+export const getCatalogueUpdates = cache(() => readRuns(false));
+export const getLatestCatalogueUpdate = cache(() => readRuns(true));

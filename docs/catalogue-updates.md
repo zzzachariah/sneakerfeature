@@ -66,10 +66,11 @@ credentials; React renders report text as text, without HTML injection.
    sets `is_published` true. Normal content publication requires no website
    code change, announcement, user-session interaction or new deployment.
    No identity field should impersonate an administrator.
-5. Read the public row back through an anonymous client. After the at-most
-   60-second website cache refresh, independently inspect `/updates` and the
-   homepage entry. Confirm actual shoe names, counts, pending reasons and
-   source links. A successful HTTP status alone is insufficient. Check the
+5. Read the public row back through an anonymous client. On a new page request,
+   independently inspect `/updates` and the homepage entry. Both read published
+   reports without a persistent data cache, so corrections do not require a
+   deployment or a background cache refresh. Confirm actual shoe names, counts,
+   pending reasons and source links. A successful HTTP status alone is insufficient. Check the
    two locales and mobile layout when UI changes, and report the real extent
    of screenshot and interaction verification.
 
@@ -85,16 +86,18 @@ connectivity returns; do not invent a successful website posting.
 
 ## Implementation and checks
 
-- `lib/data/catalogue-updates.ts` reads the public table and validates every
-  row. Empty state is distinct from unavailable or malformed data. Infrastructure
-  errors and private payloads are never sent to the public interface.
+- `lib/data/catalogue-updates.ts` reads the public table with `cache: "no-store"`
+  and validates every row. React `cache()` deduplicates within a server render
+  only; it does not retain a report between page requests. Empty state is distinct
+  from unavailable or malformed data. Infrastructure errors and private payloads are never sent to the public interface.
 - `components/updates/updates-timeline.tsx` renders the full report. Long
   before/after comparisons and source notes use native keyboard-accessible
   disclosure controls. All five result categories remain visible.
 - `components/updates/latest-update-entry.tsx` receives only a small summary;
   the homepage does not serialize complete reports and evidence lists.
 - `npm run test:catalogue-updates` checks the data boundary, unsafe URLs, count
-  integrity, duplicate entries, unsuccessful runs and Beijing week grouping.
+  integrity, duplicate entries, unsuccessful runs, Beijing week grouping, and
+  next-read freshness after a report correction using the actual data readers.
   This test is also included in the existing website quality CI gate.
 - Continue running the normal lint, type checks and production build for code
   changes. Do not alter the existing weekly email digest cron to publish these
