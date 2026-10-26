@@ -1,8 +1,10 @@
 # Public catalogue maintenance records
 
-The public `/updates` page presents every published maintenance run as a weekly
-timeline. A compact entry on the homepage links to the latest run, across all
-five homepage skins. The page is also available from the desktop More menu,
+The public `/updates` archive presents a compact, clickable card for each
+published maintenance run, grouped by week. Cards link to `/updates/[runId]`;
+the archive does not serialize complete shoe lists or source evidence. The
+homepage explicitly says the basketball-shoe catalogue is updated weekly and
+links to this archive, across all five homepage skins. The page is also available from the desktop More menu,
 mobile menu and content-page footer. It does not use the announcement popup.
 
 ## Public data boundary
@@ -67,7 +69,7 @@ credentials; React renders report text as text, without HTML injection.
    code change, announcement, user-session interaction or new deployment.
    No identity field should impersonate an administrator.
 5. Read the public row back through an anonymous client. On a new page request,
-   independently inspect `/updates` and the homepage entry. Both read published
+   independently inspect `/updates`, `/updates/[runId]` and the homepage entry. All read published
    reports without a persistent data cache, so corrections do not require a
    deployment or a background cache refresh. Confirm actual shoe names, counts,
    pending reasons and source links. A successful HTTP status alone is insufficient. Check the
@@ -90,9 +92,15 @@ connectivity returns; do not invent a successful website posting.
   and validates every row. React `cache()` deduplicates within a server render
   only; it does not retain a report between page requests. Empty state is distinct
   from unavailable or malformed data. Infrastructure errors and private payloads are never sent to the public interface.
-- `components/updates/updates-timeline.tsx` renders the full report. Long
-  before/after comparisons and source notes use native keyboard-accessible
-  disclosure controls. All five result categories remain visible.
+- `components/updates/updates-timeline.tsx` renders the archive cards, with one
+  link per run, dates, status and concise counts. `update-detail.tsx` provides
+  the full report with category filters, search and progressive entry browsing.
+  Before/after comparisons and source notes use keyboard-accessible disclosure
+  controls. All five result categories and verification limits remain available.
+- Detail routes use a fresh, anonymous exact-ID query with the same public
+  filters and strict report validation. Missing or unpublished records return
+  the local not-found view; an unavailable source returns a retry state instead
+  of pretending the report does not exist. Published detail URLs are in the sitemap.
 - `components/updates/latest-update-entry.tsx` receives only a small summary;
   the homepage does not serialize complete reports and evidence lists.
 - `npm run test:catalogue-updates` checks the data boundary, unsafe URLs, count

@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { Route } from "next";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, CalendarDays } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import type { CatalogueRunSummary } from "@/lib/catalogue-updates";
 
@@ -10,27 +9,19 @@ export function LatestUpdateEntry({ latest }: { latest: CatalogueRunSummary | nu
   const { locale } = useLocale();
   const zh = locale === "zh";
   const counts = latest?.report.counts;
-  const status = latest ? { completed: zh ? "运行完成" : "Run completed", partial: zh ? "部分完成" : "Partially completed", failed: zh ? "本次未完成" : "Run unsuccessful" }[latest.status] : "";
   return (
     <section className="container-shell py-8 md:py-12" aria-labelledby="catalogue-updates-heading" data-no-translate="true">
-      <div className="flex flex-col gap-5 border-y border-[rgb(var(--glass-stroke-soft)/0.6)] py-6 sm:flex-row sm:items-center sm:justify-between md:py-8">
-        <div className="min-w-0 max-w-2xl">
-          <p className="t-eyebrow">{zh ? "资料持续维护" : "A living catalogue"}</p>
-          <h2 id="catalogue-updates-heading" className="mt-2 text-xl font-semibold tracking-[-0.02em] md:text-2xl">
-            {zh ? "每周资料更新" : "Weekly catalogue updates"}
-          </h2>
-          <p className="mt-2 text-sm leading-relaxed soft-text">
-            {latest && counts
-              ? zh
-                ? `${latest.scheduled_for} 批次 · ${status} · 新增 ${counts.added} · 修正 ${counts.updated} · 轮查 ${counts.recheckAttempted}（核实 ${counts.recheckVerified}） · 待核实 ${counts.pending}`
-                : `${latest.scheduled_for} run · ${status} · ${counts.added} added · ${counts.updated} updated · ${counts.recheckAttempted} rechecked (${counts.recheckVerified} verified) · ${counts.pending} pending`
-              : zh ? "查看新增鞋款、资料修正与仍在核实的问题。每次维护均保留完整记录。" : "New shoes, corrected details and open questions. A complete record of every maintenance run."}
-          </p>
+      <div className="relative overflow-hidden rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.7)] bg-[rgb(var(--bg-elev))] p-6 md:p-8">
+        <div className="absolute inset-y-0 left-0 w-1 bg-[rgb(var(--brand))]" aria-hidden="true" />
+        <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+          <div className="min-w-0 max-w-2xl">
+            <p className="flex items-center gap-2 text-xs font-medium soft-text"><CalendarDays className="h-4 w-4" aria-hidden="true" />{zh ? "每周日 · 资料维护" : "Every Sunday · Catalogue maintenance"}</p>
+            <h2 id="catalogue-updates-heading" className="mt-3 text-2xl font-semibold leading-tight tracking-[-0.035em] md:text-3xl">{zh ? "篮球鞋资料库，每周更新。" : "Your basketball shoe catalogue. Updated weekly."}</h2>
+            <p className="mt-3 text-sm leading-relaxed soft-text">{zh ? "持续收录新鞋，核对规格、实战表现与图片。每一次改动，都有记录可查。" : "New shoes, verified specs, performance research and checked images. Follow what changes with every update."}</p>
+          </div>
+          <Link href="/updates" className="inline-flex min-h-12 shrink-0 items-center justify-center gap-3 self-start rounded-xl bg-[rgb(var(--text))] px-5 text-sm font-semibold text-[rgb(var(--bg))] transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text))] focus-visible:ring-offset-4 focus-visible:ring-offset-[rgb(var(--bg-elev))] lg:self-center">{zh ? "查看更新记录" : "Explore updates"}<ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
         </div>
-        <Link href={(latest ? `/updates#run-${latest.id}` : "/updates") as Route}
-          className="inline-flex min-h-11 shrink-0 items-center gap-2 self-start rounded-lg px-1 text-sm font-medium underline-offset-4 transition hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--text)/0.35)] sm:self-center">
-          {zh ? "查看完整记录" : "Read the full record"}<ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        {latest && counts ? <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-[rgb(var(--glass-stroke-soft)/0.5)] pt-4 text-xs soft-text"><time dateTime={latest.scheduled_for}>{zh ? "最近维护 " : "Latest maintenance "}{latest.scheduled_for}</time><span>{zh ? `新增 ${counts.added} · 修正 ${counts.updated} · 待核实 ${counts.pending}` : `${counts.added} added · ${counts.updated} updated · ${counts.pending} pending`}</span></div> : null}
       </div>
     </section>
   );

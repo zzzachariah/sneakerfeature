@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getCatalogueUpdates } from "@/lib/data/catalogue-updates";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 import { UpdatesTimeline } from "@/components/updates/updates-timeline";
+import { summarizeMaintenanceRun } from "@/lib/catalogue-updates";
 
 export const dynamic = "force-dynamic";
 const title = "Catalogue updates | SneakerFeature";
@@ -13,5 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function UpdatesPage() {
-  return <UpdatesTimeline result={await getCatalogueUpdates()} />;
+  const result = await getCatalogueUpdates();
+  // The archive sends only card summaries; evidence belongs to the detail route.
+  return <UpdatesTimeline result={{ ...result, runs: result.runs.map(summarizeMaintenanceRun) }} />;
 }

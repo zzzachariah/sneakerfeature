@@ -105,8 +105,8 @@ export function beijingWeekStart(date: string): string {
   return time.toISOString().slice(0, 10);
 }
 
-export function groupMaintenanceRuns(runs: CatalogueMaintenanceRun[]) {
-  const groups = new Map<string, CatalogueMaintenanceRun[]>();
+export function groupMaintenanceRuns<T extends CatalogueRunSummary>(runs: T[]) {
+  const groups = new Map<string, T[]>();
   const seen = new Set<string>();
   const ordered = [...runs].sort((a, b) => b.scheduled_for.localeCompare(a.scheduled_for) || b.completed_at.localeCompare(a.completed_at) || a.id.localeCompare(b.id));
   for (const run of ordered) {
