@@ -1,9 +1,10 @@
 import type { MetadataRoute } from "next";
 import { getShoes } from "@/lib/data/shoes";
+import { getCatalogueUpdates } from "@/lib/data/catalogue-updates";
 import { SITE_URL } from "@/lib/seo";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const shoes = await getShoes();
+  const [shoes, updates] = await Promise.all([getShoes(), getCatalogueUpdates()]);
   const now = new Date();
 
   const staticPages: MetadataRoute.Sitemap = [
@@ -25,5 +26,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     lastModified: now,
   }));
 
-  return [...staticPages, ...shoePages];
+  const updatePages: MetadataRoute.Sitemap = updates.runs.map((run) => ({
+    url: `${SITE_URL}/updates/${run.id}`,
+    lastModified: new Date(run.completed_at),
+  }));
+  return [...staticPages, ...shoePages, ...updatePages];
 }

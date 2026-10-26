@@ -39,3 +39,34 @@ const readRuns = async (latestOnly: boolean): Promise<CatalogueUpdatesResult> =>
 
 export const getCatalogueUpdates = cache(() => readRuns(false));
 export const getLatestCatalogueUpdate = cache(() => readRuns(true));
+
+export type CatalogueMaintenanceRunResult =
+  | { state: "ready"; run: CatalogueMaintenanceRun }
+  | { state: "missing" }
+  | { state: "unavailable" };
+
+export const getCatalogueMaintenanceRun = cache(async (id: string): Promise<CatalogueMaintenanceRunResult> => {
+  const parsedId = catalogueMaintenanceRunSchema.shape.id.safeParse(id);
+  if (!parsedId.success) return { state: "missing" };
+
+  const normalizedId = parsedId.data.toLowerCase();
+  const client = createPublicClient((input, init) => fetch(input, { ...init, cache: "no-store" }));
+  if (!client) return { state: "unavailable" };
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await client.from("catalogue_maintenance_runs").select(COLUMNS)
+      .eq("id", normalizedId).eq("is_published", true).lte("completed_at", now)
+      .eq("report->>version", "1").maybeSingle();
+    if (error) return { state: "unavailable" };
+    if (!data) return { state: "missing" };
+
+    const parsed = catalogueMaintenanceRunSchema.safeParse(data);
+    if (!parsed.success || parsed.data.id.toLowerCase() !== normalizedId) return { state: "unavailable" };
+    // Retain the public completion boundary even if the upstream response is stale
+    // or does not honor the query filter. Never expose a future report by direct URL.
+    if (Date.parse(parsed.data.completed_at) > Date.parse(now)) return { state: "missing" };
+    return { state: "ready", run: parsed.data };
+  } catch {
+    return { state: "unavailable" };
+  }
+});

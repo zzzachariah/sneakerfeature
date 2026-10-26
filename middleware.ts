@@ -9,6 +9,7 @@ function isPublicPath(pathname: string) {
     pathname === "/download" ||
     pathname === "/announcements" ||
     pathname === "/updates" ||
+    pathname.startsWith("/updates/") ||
     pathname === "/quick-picker" ||
     pathname === "/smart-picker" ||
     pathname === "/subscribe" ||

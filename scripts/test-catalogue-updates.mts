@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { getCatalogueUpdates, getLatestCatalogueUpdate } from "../lib/data/catalogue-updates";
+import { getCatalogueMaintenanceRun, getCatalogueUpdates, getLatestCatalogueUpdate } from "../lib/data/catalogue-updates";
 import { beijingWeekStart, catalogueMaintenanceRunSchema, groupMaintenanceRuns, summarizeMaintenanceRun } from "../lib/catalogue-updates";
 
 const localized = (value: string) => ({ en: value, zh: value });
@@ -78,10 +78,14 @@ globalThis.fetch = async (input, init) => {
 try {
   const initialTimeline = await getCatalogueUpdates();
   const initialLatest = await getLatestCatalogueUpdate();
+  const initialDetail = await getCatalogueMaintenanceRun(fixture.id);
   assert.equal(initialTimeline.state, "ready");
   assert.equal(initialLatest.state, "ready");
   assert.equal(initialTimeline.runs[0].report.verification.visualScreenshot, false);
   assert.equal(summarizeMaintenanceRun(initialLatest.runs[0]).report.title.en, fixture.report.title.en);
+  assert.equal(initialDetail.state, "ready");
+  if (initialDetail.state !== "ready") throw new Error("Expected public detail");
+  assert.deepEqual(initialDetail.run, run);
 
   published = copy();
   published.completed_at = "2026-10-26T02:15:00Z";
@@ -90,24 +94,72 @@ try {
   published.report.verification.visualScreenshot = true;
   const correctedTimeline = await getCatalogueUpdates();
   const correctedLatest = await getLatestCatalogueUpdate();
+  const correctedDetail = await getCatalogueMaintenanceRun(fixture.id);
   assert.equal(correctedTimeline.runs[0].id, initialTimeline.runs[0].id);
   assert.equal(correctedTimeline.runs[0].completed_at, published.completed_at);
   assert.equal(correctedTimeline.runs[0].report.verification.visualScreenshot, true);
   assert.equal(correctedTimeline.runs[0].report.entries[0].summary.en, published.report.entries[0].summary.en);
   assert.equal(summarizeMaintenanceRun(correctedLatest.runs[0]).report.title.en, published.report.title.en);
   assert.equal(correctedLatest.runs[0].completed_at, published.completed_at);
-  assert.equal(requests.length, 4, "Each independent read must reach the published data provider");
+  assert.equal(correctedDetail.state, "ready");
+  if (correctedDetail.state !== "ready") throw new Error("Expected corrected public detail");
+  assert.equal(correctedDetail.run.completed_at, published.completed_at);
+  assert.equal(correctedDetail.run.report.entries[0].summary.en, published.report.entries[0].summary.en);
+  assert.equal(requests.length, 6, "Each independent read must reach the published data provider");
   for (const request of requests) {
     assert.equal(request.cache, "no-store");
     assert.equal(request.url.searchParams.get("is_published"), "eq.true");
     assert.equal(request.url.searchParams.get("report->>version"), "eq.1");
     assert.match(request.url.searchParams.get("completed_at") ?? "", /^lte\./);
+    assert.equal(request.url.searchParams.get("select"), "id,scheduled_for,completed_at,status,report");
   }
   assert.equal(requests.filter(({ url }) => url.searchParams.get("limit") === "1").length, 2);
+  assert.equal(requests.filter(({ url }) => url.searchParams.get("id") === `eq.${fixture.id}`).length, 2);
+
+  // A direct URL is not an authorization shortcut: hidden, future and nonexistent
+  // rows stay missing, and malformed IDs never issue a database request.
+  const beforeInvalid = requests.length;
+  for (const id of ["not-a-run", "../../admin", `${fixture.id},id.neq.0`]) {
+    assert.deepEqual(await getCatalogueMaintenanceRun(id), { state: "missing" });
+  }
+  assert.equal(requests.length, beforeInvalid);
+  const hidden = { ...copy(), id: "159c5082-23d2-4f18-a2cb-820adf965584", is_published: false };
+  const future = { ...copy(), id: "709bc5f4-003d-496d-82b9-fae8902bfb66", is_published: true, completed_at: "2999-01-01T00:00:00Z" };
+  const publicRow = { ...copy(), is_published: true };
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input instanceof Request ? input.url : String(input));
+    assert.equal(init?.cache, "no-store");
+    assert.equal(url.searchParams.get("is_published"), "eq.true");
+    assert.equal(url.searchParams.get("report->>version"), "eq.1");
+    const until = url.searchParams.get("completed_at")?.replace(/^lte\./, "");
+    assert(until);
+    const rows = [hidden, future, publicRow].filter((row) =>
+      `eq.${row.id}` === url.searchParams.get("id") && row.is_published && Date.parse(row.completed_at) <= Date.parse(until)
+    ).map(({ id, scheduled_for, completed_at, status, report }) => ({ id, scheduled_for, completed_at, status, report }));
+    return new Response(JSON.stringify(rows), { headers: { "content-type": "application/json" } });
+  };
+  for (const id of [hidden.id, future.id, "00000000-0000-0000-0000-000000000000"]) {
+    assert.deepEqual(await getCatalogueMaintenanceRun(id), { state: "missing" });
+  }
+  assert.equal((await getCatalogueMaintenanceRun(fixture.id.toUpperCase())).state, "ready");
+
+  // Inconsistent or malformed responses must not become a successful detail page.
+  const responseFor = (data: unknown) => async () => new Response(JSON.stringify(data), { headers: { "content-type": "application/json" } });
+  globalThis.fetch = responseFor([{ ...copy(), id: hidden.id }]);
+  assert.deepEqual(await getCatalogueMaintenanceRun(fixture.id), { state: "unavailable" });
+  globalThis.fetch = responseFor([{ ...copy(), actor_admin_id: "private" }]);
+  assert.deepEqual(await getCatalogueMaintenanceRun(fixture.id), { state: "unavailable" });
+  globalThis.fetch = responseFor([{ ...copy(), completed_at: future.completed_at }]);
+  assert.deepEqual(await getCatalogueMaintenanceRun(fixture.id), { state: "missing" });
+  globalThis.fetch = responseFor([copy(), copy()]);
+  assert.deepEqual(await getCatalogueMaintenanceRun(fixture.id), { state: "unavailable" });
 
   // Fetch errors still produce the unavailable state without infrastructure details.
   globalThis.fetch = async () => new Response(JSON.stringify({ message: "private test infrastructure details" }), { status: 503 });
   assert.deepEqual(await getCatalogueUpdates(), { state: "unavailable", runs: [], omittedInvalidRuns: 0 });
+  assert.deepEqual(await getCatalogueMaintenanceRun(fixture.id), { state: "unavailable" });
+  globalThis.fetch = async () => { throw new Error("private network error"); };
+  assert.deepEqual(await getCatalogueMaintenanceRun(fixture.id), { state: "unavailable" });
 } finally {
   globalThis.fetch = originalFetch;
   if (originalUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
