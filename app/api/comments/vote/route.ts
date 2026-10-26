@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { z } from "zod";
 
 const voteSchema = z.object({
-  commentId: z.string().uuid("Invalid comment identifier."),
+  commentId: z.guid("Invalid comment identifier."),
   voteType: z.enum(["like", "dislike"]),
 });
 

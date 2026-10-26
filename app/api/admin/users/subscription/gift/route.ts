@@ -21,7 +21,7 @@ const MAX_SELECTION = 500;
 
 const schema = z.object({
   userIds: z
-    .array(z.string().uuid())
+    .array(z.guid())
     .min(1, "Select at least one member.")
     .max(MAX_SELECTION, `Select at most ${MAX_SELECTION} members at a time.`),
   tier: z.enum(["pro", "max"]).default("pro"),

@@ -50,7 +50,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 const schema = z.object({
-  chatId: z.string().uuid(),
+  chatId: z.guid(),
   message: z.string().trim().min(1, "Message is required.").max(2000),
   count: z.number().int().min(1).max(MAX_RECOMMENDATIONS),
   // Model chosen in the picker for THIS request. Optional — absent (or not

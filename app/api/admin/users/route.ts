@@ -4,7 +4,7 @@ import { getAdminContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   role: z.enum(["user", "admin"])
 });
 

@@ -1,0 +1,10 @@
+{
+  "package": "@imgly/background-removal@1.7.0-snkrfeature.1",
+  "esbuild": "0.28.1",
+  "files": {
+    "dist/index.mjs.map": "045f5d8cfaa7cc49d33a0b22e07e4a7361b2dc75c9e9fd75291e59c22bc2b1a1",
+    "dist/index.mjs": "682972bb4393cba4c676fff32d6c44c17d1943ffe0a2e3fa396c5867e97b9a9e",
+    "dist/index.cjs.map": "16d5e17f4efa986a68f9433be50e50c29b11a38881f5f3be3cf1e14009e3f60a",
+    "dist/index.cjs": "b60133632fb04d368dd12e40d72d467f81963d27d6b43da4f4b529dbd1682d5e"
+  }
+}

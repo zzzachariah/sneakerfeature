@@ -4,8 +4,8 @@ import { getAdminContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const actionSchema = z.object({
-  reportId: z.string().uuid(),
-  commentId: z.string().uuid().optional(),
+  reportId: z.guid(),
+  commentId: z.guid().optional(),
   action: z.enum(["delete_comment", "dismiss"])
 });
 

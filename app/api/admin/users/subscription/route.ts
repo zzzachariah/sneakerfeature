@@ -7,7 +7,7 @@ import { setSubscription } from "@/lib/subscription/entitlements";
 // Payment is not wired yet (by design) — this is how the owner assigns Pro/Max
 // to test the whole system, and how comped memberships are handed out.
 const schema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   tier: z.enum(["free", "pro", "max"]),
   // Ignored when tier is "free".
   duration: z.enum(["monthly", "quarterly", "yearly", "permanent"]).default("monthly")

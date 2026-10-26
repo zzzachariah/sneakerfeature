@@ -1,0 +1,32 @@
+{
+  "name": "@imgly/background-removal",
+  "version": "1.7.0",
+  "tarball": "https://registry.npmjs.org/@imgly/background-removal/-/background-removal-1.7.0.tgz",
+  "integrity": "sha512-/1ZryrMYg2ckIvJKoTu5Np50JfYMVffDMlVmppw/BdbN3pBTN7e6stI5/7E/LVh9DDzz6J588s7sWqul3fy5wA==",
+  "sha1": "de210d26a545a09406b866f4f24c0479b154bb5c",
+  "sha256": "0e7b6813978296b23bb9c5fa3d86a8f8e618b88174e08d6c61f230b0e18d13e6",
+  "source_repository": "https://github.com/imgly/background-removal-js",
+  "source_main_reference": "12f56cc4f2a90d624e165a715748d22efc7a1d93",
+  "recovery": "Exact src files recovered from published 1.7.0 source maps. The main SHA is an independently inspected reference, not claimed as the npm release commit.",
+  "original_source_sha256": {
+    "src/MimeType.ts": "0dc1f47666b9127c9f96b5caaad66068b348a0b8ede6560ee58c282bad27edf1",
+    "src/api/v1.ts": "06491b6b9544fa406a5b38e6d3c2dda1e783eb0881d4aea2c73e79077a4e5c09",
+    "src/capabilities.js": "9b5c3152adee4ddbf81a1d0d8308879528c1c9e970374df99b977c1aa1f3d3fc",
+    "src/codecs.ts": "db4bf55d4983f7b86733a51c09415959232c4e5952eb0a8db5d19d3fe239ab59",
+    "src/index.ts": "c3d303aac7df762e0d3a1a54f0ffaccf63e68260b2ec90eb5353e4ef1089e49b",
+    "src/inference.ts": "7472d050bc7cb76ea664703d032ecb46bfa17395e72329504dd63b3c2fa97fd7",
+    "src/onnx.ts": "ce0a97cd137a0db6e4fe3f6859f863ce6b5093939fb5875684027cc91e89654d",
+    "src/resource.ts": "2fa1ffbf25f55d46770ffbaa94722f0c1f54dbfba5bb4415470ee6e36ccf6c9c",
+    "src/schema.ts": "5e2d3d584636da7b6c3782b4de8c1b0e7161d7e177da7f7d1422c20102276680",
+    "src/url.ts": "23264ef6a5fe289a431c53c72dee60c2a6c1e42a675a563277efcc7a528658bf",
+    "src/utils.ts": "c3d73b2b08ceea1d87b2b55b390445e151624d84afce151d0b99c4e57903ad8c"
+  },
+  "original_retained_files_sha256": {
+    "LICENSE.md": "5ffb8eaf206c79f334260d6373dc8deda5235901d14e0c34e9b77e4c82cecb87",
+    "README.md": "a04d367a2864a4c69d615ad59b7f86ada06cf2b83bf71f204c08d8582d407c7d",
+    "ThirdPartyLicenses.json": "eba4ac100517b843319664012fb7255c182862b99672aa0b7161ae421e804ade",
+    "CHANGELOG.md": "bf2e63142affeda3cbf1815a9013ce7841f15b2451590a70a5889becc399c73f",
+    "dist/resources.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a"
+  },
+  "retained_package_metadata_note": "package.upstream.json retains the published package fields; npm-internal underscore-prefixed publishing/cache metadata is removed because it includes an upstream publisher temporary filesystem path."
+}

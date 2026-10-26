@@ -140,7 +140,8 @@ export async function translateFieldsToZh(
       tools: [TOOL],
       tool_choice: { type: "function", function: { name: "submit_translations" } }
     });
-    const args = msg?.tool_calls?.[0]?.function?.arguments;
+    const firstCall = msg?.tool_calls?.[0];
+    const args = firstCall?.type === "function" ? firstCall.function.arguments : undefined;
     if (typeof args === "string") {
       const got = parseJson(args, wanted);
       if (Object.keys(got).length > 0) return got;

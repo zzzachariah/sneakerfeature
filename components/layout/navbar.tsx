@@ -301,7 +301,8 @@ export function Navbar() {
                     { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
                     { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
                     { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
-                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
+                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone },
+                    { href: "/updates" as const, label: zh ? "资料更新" : "Catalogue updates", icon: Megaphone }
                   ].map((l) => (
                     <Link
                       key={l.href}
@@ -477,7 +478,8 @@ export function Navbar() {
                     { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
                     { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
                     { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
-                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone }
+                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone },
+                    { href: "/updates" as const, label: zh ? "资料更新" : "Catalogue updates", icon: Megaphone }
                   ].map((l) => (
                     <Link
                       key={l.href}

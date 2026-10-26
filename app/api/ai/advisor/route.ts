@@ -35,7 +35,7 @@ export const maxDuration = 300;
 const ADVISOR_MESSAGE_COST = 1;
 
 const schema = z.object({
-  chatId: z.string().uuid(),
+  chatId: z.guid(),
   message: z.string().trim().min(1, "Message is required.").max(2000)
 });
 
