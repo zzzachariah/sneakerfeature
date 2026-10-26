@@ -7,8 +7,12 @@ const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }, "A real calendar date is required");
 const sourceUrl = z.string().url().max(3000).refine((value) => {
-  const parsed = new URL(value);
-  return ["http:", "https:"].includes(parsed.protocol) && !parsed.username && !parsed.password;
+  try {
+    const parsed = new URL(value);
+    return ["http:", "https:"].includes(parsed.protocol) && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
 }, "Only public HTTP(S) source URLs are allowed");
 
 export const catalogueUpdateEntrySchema = z.object({
@@ -73,7 +77,7 @@ export const catalogueUpdateReportSchema = z.object({
 });
 
 export const catalogueMaintenanceRunSchema = z.object({
-  id: z.string().uuid(),
+  id: z.guid(),
   scheduled_for: dateOnly,
   completed_at: z.string().datetime({ offset: true }),
   status: z.enum(["completed", "partial", "failed"]),

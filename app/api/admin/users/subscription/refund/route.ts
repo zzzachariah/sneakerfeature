@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 //     correct action for a gift the admin wants to take back.
 // Either way the member returns to free, which releases the tier-change lock.
 const schema = z.object({
-  userId: z.string().uuid(),
+  userId: z.guid(),
   mode: z.enum(["refund", "cancel"]).default("refund")
 });
 

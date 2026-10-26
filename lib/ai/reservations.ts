@@ -13,7 +13,7 @@ export async function recoverAiRequests(userId: string) {
 export async function reserveAiRequest(request: Request, userId: string, scope: "chat" | "advisor" | "scan", billing: "credits" | "allowance" | "unlimited", amount: number) {
   const db = createAdminClient();
   const supplied = request.headers.get("Idempotency-Key");
-  if (supplied && !z.string().uuid().safeParse(supplied).success) return { error: NextResponse.json({ok:false,message:"Invalid request identifier."},{status:400}) };
+  if (supplied && !z.guid().safeParse(supplied).success) return { error: NextResponse.json({ok:false,message:"Invalid request identifier."},{status:400}) };
   const id = supplied ?? randomUUID();
   const result = db ? await db.rpc("reserve_ai_request", {p_id:id,p_user_id:userId,p_scope:scope,p_billing:billing,p_amount:billing === "unlimited" ? 0 : amount}) : null;
   if (!result || result.error) {

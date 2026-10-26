@@ -4,7 +4,7 @@ import { getAdminContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
-  commentId: z.string().uuid(),
+  commentId: z.guid(),
   action: z.literal("delete")
 });
 

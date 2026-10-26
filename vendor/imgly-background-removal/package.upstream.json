@@ -1,0 +1,143 @@
+{
+  "bugs": {
+    "email": "support@img.ly"
+  },
+  "dist": {
+    "shasum": "de210d26a545a09406b866f4f24c0479b154bb5c",
+    "tarball": "https://registry.npmjs.org/@imgly/background-removal/-/background-removal-1.7.0.tgz",
+    "fileCount": 40,
+    "integrity": "sha512-/1ZryrMYg2ckIvJKoTu5Np50JfYMVffDMlVmppw/BdbN3pBTN7e6stI5/7E/LVh9DDzz6J588s7sWqul3fy5wA==",
+    "signatures": [
+      {
+        "sig": "MEUCIQD4ADA5vZO8fjrKW26rHJ3/C3Xml49d0sLT14+A6j3kVAIgZUX1waWUzVNz6EPy7bKw1SsXxbBQNMZ0EvlNB8mnNCg=",
+        "keyid": "SHA256:DhQ8wR5APBvFHLF/+Tc+AYvPOdTpcIDqOhxsBHRwC7U"
+      }
+    ],
+    "unpackedSize": 1113610
+  },
+  "main": "./dist/index.cjs",
+  "name": "@imgly/background-removal",
+  "types": "./dist/src/index.d.ts",
+  "author": {
+    "url": "https://img.ly",
+    "name": "IMG.LY GmbH",
+    "email": "support@img.ly"
+  },
+  "module": "./dist/index.mjs",
+  "source": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
+  "scripts": {
+    "test": "true",
+    "build": "pnpm run clean && pnpm run types && pnpm run resources && pnpm run changelog:generate && node scripts/build.mjs",
+    "clean": "npx rimraf dist",
+    "start": "pnpm run watch",
+    "types": " npx tsc --declaration --emitDeclarationOnly --declarationDir dist --declarationMap",
+    "watch": "pnpm run clean && pnpm run resources && pnpm run changelog:generate && node scripts/watch.mjs",
+    "pretty": "prettier --write './src/**/*.{ts,tsx}'",
+    "check:all": "pnpm run check:pretty",
+    "resources": "node ../../scripts/package-resources.mjs",
+    "check:pretty": "prettier --list-different './src/**/*.{ts,tsx}'",
+    "package:pack": "pnpm pack . --pack-destination ../../releases",
+    "publish:next": "pnpm publish --tag next --access public",
+    "publish:latest": "pnpm publish --tag latest --access public",
+    "changelog:create": "node ../../scripts/changelog/changelog-create.mjs",
+    "changelog:generate": "node ../../scripts/changelog/changelog-generate.mjs"
+  },
+  "homepage": "https://img.ly/showcases/cesdk/web/background-removal",
+  "keywords": [
+    "background-removal",
+    "client-side",
+    "data-privacy",
+    "image-segmentation",
+    "image-matting",
+    "onnx"
+  ],
+  "repository": {
+    "url": "git+https://github.com/imgly/background-removal-js.git",
+    "type": "git"
+  },
+  "description": "Background Removal in the Browser",
+  "directories": {},
+  "maintainers": [
+    {
+      "name": "danielhauschildt",
+      "email": "daniel.hauschildt@img.ly"
+    },
+    {
+      "name": "keiwando",
+      "email": "keiwan.donyagard@gmail.com"
+    },
+    {
+      "name": "schiewe",
+      "email": "alexander.schiewe+npm@img.ly"
+    },
+    {
+      "name": "sascha_",
+      "email": "sascha.schwabbauer@img.ly"
+    },
+    {
+      "name": "svendvd",
+      "email": "sven.naehler@img.ly"
+    },
+    {
+      "name": "leon_dud",
+      "email": "leon.dudlik@img.ly"
+    },
+    {
+      "name": "mirko314-imgly",
+      "email": "mirko.budszuhn@img.ly"
+    },
+    {
+      "name": "maerch",
+      "email": "marcin.skirzynski@gmail.com"
+    },
+    {
+      "name": "ravenszewczyk-imgly",
+      "email": "raven.szewczyk@img.ly"
+    },
+    {
+      "name": "elia-darwish",
+      "email": "darwish.elia@gmail.com"
+    },
+    {
+      "name": "maltebaumann",
+      "email": "malte.baumann@img.ly"
+    },
+    {
+      "name": "hiyeon",
+      "email": "hiyeon.kim@img.ly"
+    }
+  ],
+  "dependencies": {
+    "zod": "^3.23.8",
+    "ndarray": "~1.0.0",
+    "lodash-es": "^4.17.21"
+  },
+  "devDependencies": {
+    "glob": "~10.3.0",
+    "util": "~0.12.0",
+    "tslib": "~2.5.0",
+    "assert": "~2.0.0",
+    "esbuild": "~0.18.0",
+    "npm-dts": "~1.3.0",
+    "process": "~0.11.0",
+    "webpack": "~5.85.0",
+    "ts-loader": "~9.4.0",
+    "typescript": "~5.1.0",
+    "@types/node": "~20.3.0",
+    "webpack-cli": "~5.1.0",
+    "@types/ndarray": "~1.0.14",
+    "@types/lodash-es": "^4.17.12"
+  },
+  "peerDependencies": {
+    "onnxruntime-web": "1.21.0"
+  },
+  "version": "1.7.0"
+}

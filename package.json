@@ -27,10 +27,15 @@
     "test:ai-reservations": "tsx scripts/test-ai-reservations.mts",
     "test:rating-summary": "tsx scripts/test-rating-summary.mts",
     "test:product-boundaries": "tsx scripts/test-product-boundaries.mts",
-    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits && npm run test:catalogue-updates",
+    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits && npm run test:catalogue-updates && npm run test:dependencies && npm run test:validation-contracts",
     "test:credits": "tsx scripts/test-credit-functions.mts",
     "test:catalogue-updates": "tsx scripts/test-catalogue-updates.mts && tsx scripts/test-catalogue-updates-rls.mts",
-    "catalogue-updates:validate": "tsx scripts/validate-catalogue-update.mts"
+    "catalogue-updates:validate": "tsx scripts/validate-catalogue-update.mts",
+    "test:dependencies": "npm run vendor:imgly:check && tsx scripts/test-openai-sdk-compat.mts && tsx scripts/test-imgly-config.mts",
+    "vendor:imgly:build": "node vendor/imgly-background-removal/scripts/build.mjs",
+    "test:validation-contracts": "tsx scripts/test-validation-contracts.mts",
+    "test:imgly:browser": "node scripts/test-imgly-browser.mjs",
+    "vendor:imgly:check": "node vendor/imgly-background-removal/scripts/build.mjs --check"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",
@@ -44,7 +49,7 @@
     "@capacitor/share": "^8.0.1",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
-    "@imgly/background-removal": "^1.6.0",
+    "@imgly/background-removal": "file:vendor/imgly-background-removal",
     "@next/bundle-analyzer": "^16.2.9",
     "@stripe/react-stripe-js": "^6.8.0",
     "@stripe/stripe-js": "^9.10.0",
@@ -60,13 +65,13 @@
     "lucide-react": "^0.468.0",
     "modern-screenshot": "^4.7.0",
     "native-chrome": "file:native-chrome",
-    "next": "15.5.27",
-    "openai": "^4.80.1",
+    "next": "15.5.28",
+    "openai": "6.0.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "stripe": "^22.3.2",
     "tailwind-merge": "^2.6.0",
-    "zod": "^3.24.1"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -77,12 +82,14 @@
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
-    "eslint-config-next": "15.5.27",
+    "eslint-config-next": "15.5.28",
     "postcss": "8.5.29",
     "sharp": "0.35.5",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.22.3",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "esbuild": "0.28.1",
+    "playwright-core": "1.62.1"
   },
   "overrides": {
     "sharp": "$sharp",

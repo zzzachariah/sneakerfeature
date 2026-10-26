@@ -15,7 +15,7 @@ export async function GET() {
   return NextResponse.json({ ok: true, profile, history });
 }
 
-const schema = z.object({ scanId: z.string().uuid() });
+const schema = z.object({ scanId: z.guid() });
 
 // Keep a given scan as the user's foot profile (used by the AI Smart Picker).
 export async function POST(request: Request) {

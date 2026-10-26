@@ -550,9 +550,11 @@ function createReasoningEmitter(onProgress?: OnProgress) {
 // the model chose to end ("stop"/"tool_calls") from one the relay CUT OFF
 // ("length") — reasoning and answer share one max_tokens budget on this relay,
 // so a long think can truncate the recommend_shoes JSON mid-array.
+type FunctionToolCall = Extract<OpenAI.Chat.Completions.ChatCompletionMessageToolCall, { type: "function" }>;
+
 type StreamedMessage = {
   content: string | null;
-  tool_calls?: OpenAI.Chat.Completions.ChatCompletionMessageToolCall[];
+  tool_calls?: FunctionToolCall[];
   finishReason?: string | null;
 };
 
@@ -583,7 +585,7 @@ async function completeWithProgress(
     const c = await client.chat.completions.create(params, reqOpts);
     const msg = c.choices?.[0]?.message;
     return msg
-      ? { content: msg.content ?? null, tool_calls: msg.tool_calls, finishReason: c.choices?.[0]?.finish_reason ?? null }
+      ? { content: msg.content ?? null, tool_calls: msg.tool_calls?.filter((call): call is FunctionToolCall => call.type === "function"), finishReason: c.choices?.[0]?.finish_reason ?? null }
       : null;
   }
 
@@ -650,7 +652,7 @@ async function completeWithProgress(
       const c = await client.chat.completions.create(params, callOptions(deadline));
       const msg = c.choices?.[0]?.message;
       return msg
-        ? { content: msg.content ?? null, tool_calls: msg.tool_calls, finishReason: c.choices?.[0]?.finish_reason ?? null }
+        ? { content: msg.content ?? null, tool_calls: msg.tool_calls?.filter((call): call is FunctionToolCall => call.type === "function"), finishReason: c.choices?.[0]?.finish_reason ?? null }
         : null;
     }
     throw err;

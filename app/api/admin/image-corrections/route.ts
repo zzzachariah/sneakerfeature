@@ -5,7 +5,7 @@ import { requireAdminApi } from "@/lib/admin/route-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const schema = z.object({
-  id: z.string().uuid("Invalid correction id."),
+  id: z.guid("Invalid correction id."),
   action: z.enum(["approve", "reject"]),
   rejection_reason: z.string().max(500).optional()
 });

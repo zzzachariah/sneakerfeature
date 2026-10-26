@@ -2,6 +2,8 @@ import { z } from "zod";
 import { DIM_KEYS } from "@/lib/star-rating";
 import { POSITIONS, SKILL_LEVELS, INJURY_KEYS, HEIGHT_MIN, HEIGHT_MAX, WEIGHT_MIN, WEIGHT_MAX } from "@/lib/persona/types";
 
+// Keep the existing 8-4-4-4-12 hexadecimal identifier contract. Zod 4
+// uuid() additionally enforces RFC variant bits; guid() preserves valid stored IDs.
 export const authSchema = z.object({
   identifier: z.string().min(3, "Use at least 3 characters for username/email."),
   username: z.string().min(3).max(20).optional(),
@@ -11,27 +13,27 @@ export const authSchema = z.object({
 });
 
 export const commentSchema = z.object({
-  shoeId: z.string().uuid("Invalid shoe identifier."),
+  shoeId: z.guid("Invalid shoe identifier."),
   content: z.string().min(3).max(1000),
   verificationToken: z.string().min(1, "Please complete human verification.")
 });
 
 export const reportCommentSchema = z.object({
-  commentId: z.string().uuid("Invalid comment identifier."),
+  commentId: z.guid("Invalid comment identifier."),
   reason: z.enum(["spam", "harassment", "inappropriate", "other"])
 });
 
 export const deleteCommentSchema = z.object({
-  commentId: z.string().uuid("commentId must be a valid UUID")
+  commentId: z.guid("commentId must be a valid UUID")
 });
 
 export const blockUserSchema = z.object({
-  userId: z.string().uuid("Invalid user identifier."),
+  userId: z.guid("Invalid user identifier."),
   action: z.enum(["block", "unblock"])
 });
 
 export const recordViewSchema = z.object({
-  shoeId: z.string().uuid("Invalid shoe identifier.")
+  shoeId: z.guid("Invalid shoe identifier.")
 });
 
 export const pushTokenSchema = z.object({
@@ -41,11 +43,11 @@ export const pushTokenSchema = z.object({
 
 export const saveComparisonSchema = z.object({
   title: z.string().trim().min(1, "Title is required.").max(80, "Title must be 80 characters or fewer."),
-  shoeIds: z.array(z.string().uuid("Invalid shoe identifier.")).min(2, "Save at least 2 shoes.").max(5, "Save at most 5 shoes.")
+  shoeIds: z.array(z.guid("Invalid shoe identifier.")).min(2, "Save at least 2 shoes.").max(5, "Save at most 5 shoes.")
 });
 
 export const deleteComparisonSchema = z.object({
-  id: z.string().uuid("Invalid comparison identifier.")
+  id: z.guid("Invalid comparison identifier.")
 });
 
 const dimRatingValue = z
@@ -55,7 +57,7 @@ const dimRatingValue = z
   .refine((v) => Math.round(v * 2) === v * 2, "Rating must be in 0.5 increments.");
 
 export const ratingUpsertSchema = z.object({
-  shoeId: z.string().uuid("Invalid shoe identifier."),
+  shoeId: z.guid("Invalid shoe identifier."),
   cushioning_feel: dimRatingValue,
   court_feel: dimRatingValue,
   bounce: dimRatingValue,
@@ -65,7 +67,7 @@ export const ratingUpsertSchema = z.object({
 });
 
 export const ratingDeleteSchema = z.object({
-  shoeId: z.string().uuid("Invalid shoe identifier.")
+  shoeId: z.guid("Invalid shoe identifier.")
 });
 
 const dimEnum = z.enum(DIM_KEYS);
@@ -126,7 +128,7 @@ export const submissionSchema = z.object({
     .max(20000, "Notes are too long. Please keep them under 20,000 characters."),
   source_links: z.string().max(2000).optional(),
   submission_type: z.enum(["new_shoe", "correction"]).optional().default("new_shoe"),
-  target_shoe_id: z.string().uuid().optional(),
+  target_shoe_id: z.guid().optional(),
   original_snapshot: z.string().optional(),
   verificationToken: z.string().min(1, "Please complete human verification.")
 }).superRefine((data, ctx) => {
@@ -144,7 +146,7 @@ export const submissionSchema = z.object({
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date.");
 
 export const closetAddSchema = z.object({
-  shoeId: z.string().uuid(),
+  shoeId: z.guid(),
   sizeLabel: z.string().trim().max(20).optional(),
   purchasePrice: z.coerce.number().min(0).max(100000).nullable().optional(),
   purchasedAt: isoDate.nullable().optional()
@@ -152,7 +154,7 @@ export const closetAddSchema = z.object({
 
 // PATCH: only the provided fields change; explicit null clears a value.
 export const closetUpdateSchema = z.object({
-  shoeId: z.string().uuid(),
+  shoeId: z.guid(),
   sizeLabel: z.string().trim().max(20).nullable().optional(),
   purchasePrice: z.coerce.number().min(0).max(100000).nullable().optional(),
   purchasedAt: isoDate.nullable().optional(),
@@ -160,7 +162,7 @@ export const closetUpdateSchema = z.object({
 });
 
 export const closetWearSchema = z.object({
-  shoeId: z.string().uuid(),
+  shoeId: z.guid(),
   hours: z.coerce.number().gt(0, "Hours must be positive.").max(24, "One session can't exceed 24 hours."),
   note: z.string().trim().max(200).optional(),
   playedAt: isoDate.optional()

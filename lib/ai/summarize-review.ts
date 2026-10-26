@@ -207,7 +207,8 @@ export async function summarizeBloggerReview(
       tools: [SUMMARY_TOOL],
       tool_choice: { type: "function", function: { name: "submit_review_summary" } }
     });
-    const args = msg?.tool_calls?.[0]?.function?.arguments;
+    const firstCall = msg?.tool_calls?.[0];
+    const args = firstCall?.type === "function" ? firstCall.function.arguments : undefined;
     if (typeof args === "string") {
       const r = parseArgs(args);
       if (r) return r;

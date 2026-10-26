@@ -34,7 +34,7 @@ assert(!catalogueMaintenanceRunSchema.safeParse(privateReport).success);
 const privateEntry = copy();
 assert(!catalogueMaintenanceRunSchema.safeParse({ ...privateEntry, report: { ...privateEntry.report, entries: [{ ...privateEntry.report.entries[0], created_by: "private" }, privateEntry.report.entries[1]] } }).success);
 
-for (const url of ["javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "https://account:password@example.org/review"]) {
+for (const url of ["not a URL", "https://[invalid", "javascript:alert(1)", "data:text/html,<script>alert(1)</script>", "https://account:password@example.org/review"]) {
   const bad = copy(); bad.report.entries[0].sources[0].url = url;
   assert(!catalogueMaintenanceRunSchema.safeParse(bad).success, url);
 }

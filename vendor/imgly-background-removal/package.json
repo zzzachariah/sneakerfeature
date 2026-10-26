@@ -1,0 +1,34 @@
+{
+  "name": "@imgly/background-removal",
+  "version": "1.7.0-snkrfeature.1",
+  "description": "IMG.LY 1.7.0 with a scoped Zod 4 security compatibility patch",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "author": "IMG.LY GmbH",
+  "repository": "https://github.com/imgly/background-removal-js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist/", "src/", "scripts/", "LICENSE.md", "ThirdPartyLicenses.json",
+    "README.md", "CHANGELOG.md", "PATCH.md", "UPSTREAM.json", "package.upstream.json"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:check": "node scripts/build.mjs --check"
+  },
+  "dependencies": {
+    "lodash-es": "^4.17.21",
+    "ndarray": "~1.0.0",
+    "zod": "4.6.7"
+  },
+  "peerDependencies": {
+    "onnxruntime-web": "1.21.0"
+  }
+}
