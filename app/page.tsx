@@ -9,6 +9,9 @@ import { getCurrentProfile } from "@/lib/data/auth";
 import { getMemberContext } from "@/lib/subscription/entitlements";
 import type { Metadata } from "next";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE } from "@/lib/seo";
+import { getLatestCatalogueUpdate } from "@/lib/data/catalogue-updates";
+import { summarizeMaintenanceRun } from "@/lib/catalogue-updates";
+import { LatestUpdateEntry } from "@/components/updates/latest-update-entry";
 
 export const dynamic = "force-dynamic";
 
@@ -72,6 +75,13 @@ async function HomeContent({ searchParams }: { searchParams: Promise<{ q?: strin
   );
 }
 
+async function HomeCatalogueUpdate() {
+  const result = await getLatestCatalogueUpdate();
+  const latest = result.runs[0];
+  // Only a small summary crosses the client boundary; full evidence stays on /updates.
+  return <LatestUpdateEntry latest={latest ? summarizeMaintenanceRun(latest) : null} />;
+}
+
 export default function HomePage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   return (
     <main>
@@ -93,6 +103,9 @@ export default function HomePage({ searchParams }: { searchParams: Promise<{ q?:
       />
       <Suspense fallback={<PageLoader label="Loading" />}>
         <HomeContent searchParams={searchParams} />
+      </Suspense>
+      <Suspense fallback={null}>
+        <HomeCatalogueUpdate />
       </Suspense>
       <MembershipPromo />
     </main>

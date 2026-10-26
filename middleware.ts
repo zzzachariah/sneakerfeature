@@ -8,6 +8,7 @@ function isPublicPath(pathname: string) {
     pathname === "/compare" ||
     pathname === "/download" ||
     pathname === "/announcements" ||
+    pathname === "/updates" ||
     pathname === "/quick-picker" ||
     pathname === "/smart-picker" ||
     pathname === "/subscribe" ||

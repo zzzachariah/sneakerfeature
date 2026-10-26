@@ -19,6 +19,7 @@ const FOOTER_ROUTES = [
   "/terms",
   "/disclaimer",
   "/announcements",
+  "/updates",
   "/download",
   "/favorites",
   "/closet",
@@ -46,6 +47,7 @@ export function SiteFooter() {
     { href: "/compare" as Route, label: translate("Compare") },
     { href: "/smart-picker" as Route, label: translate("Smart Picker") },
     { href: "/search/advanced" as Route, label: translate("Advanced Search") },
+    { href: "/updates" as Route, label: zh ? "资料更新" : "Catalogue updates" },
   ];
   const legal: { href: Route; label: string }[] = [
     { href: "/terms" as Route, label: zh ? "服务条款" : "Terms of Use" },

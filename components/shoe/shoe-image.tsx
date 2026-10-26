@@ -37,10 +37,12 @@ const VARIANT_CLASS: Record<NonNullable<ShoeImageProps["variant"]>, string> = {
 };
 
 const VARIANT_SCALE: Record<NonNullable<ShoeImageProps["variant"]>, number> = {
-  thumbnail: 1.12,
-  detail: 1.1,
-  suggestion: 1.1,
-  compare: 1.08,
+  // Verified product photographs can already extend to their frame edges.
+  // Overscanning them cuts off real toes/heels even with object-contain.
+  thumbnail: 1,
+  detail: 1,
+  suggestion: 1,
+  compare: 1,
   // Exactly 1: the closet promises a whole shoe. Any overscan is cropped by the
   // stage's `overflow: hidden`, and on a cut-out PNG whose subject already runs
   // edge to edge that crop lands on the toe and the heel.
