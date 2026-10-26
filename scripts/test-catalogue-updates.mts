@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { getCatalogueUpdates, getLatestCatalogueUpdate } from "../lib/data/catalogue-updates";
 import { beijingWeekStart, catalogueMaintenanceRunSchema, groupMaintenanceRuns, summarizeMaintenanceRun } from "../lib/catalogue-updates";
 
 const localized = (value: string) => ({ en: value, zh: value });
@@ -57,4 +58,61 @@ const summary = summarizeMaintenanceRun(run);
 assert(!("entries" in summary.report));
 assert(!("verification" in summary.report));
 assert.deepEqual(summary.report.counts, run.report.counts);
-console.log("Catalogue updates: public-data boundaries, input safety, counts and Beijing week grouping passed.");
+// Exercise the real Supabase data readers through mocked HTTP, rather than checking
+// source text. Separate reads must see a correction without cache invalidation or a
+// new deployment; both the timeline and homepage reader must opt out of fetch cache.
+const originalFetch = globalThis.fetch;
+const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const originalKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const requests: { url: URL; cache: RequestCache | undefined }[] = [];
+let published = copy();
+process.env.NEXT_PUBLIC_SUPABASE_URL = "https://catalogue-freshness-test.supabase.co";
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "public-test-anon-key";
+globalThis.fetch = async (input, init) => {
+  const url = new URL(input instanceof Request ? input.url : String(input));
+  assert.equal(url.hostname, "catalogue-freshness-test.supabase.co");
+  assert.equal(url.pathname, "/rest/v1/catalogue_maintenance_runs");
+  requests.push({ url, cache: init?.cache });
+  return new Response(JSON.stringify([published]), { status: 200, headers: { "content-type": "application/json" } });
+};
+try {
+  const initialTimeline = await getCatalogueUpdates();
+  const initialLatest = await getLatestCatalogueUpdate();
+  assert.equal(initialTimeline.state, "ready");
+  assert.equal(initialLatest.state, "ready");
+  assert.equal(initialTimeline.runs[0].report.verification.visualScreenshot, false);
+  assert.equal(summarizeMaintenanceRun(initialLatest.runs[0]).report.title.en, fixture.report.title.en);
+
+  published = copy();
+  published.completed_at = "2026-10-26T02:15:00Z";
+  published.report.title = localized("Corrected published maintenance report");
+  published.report.entries[0].summary = localized("The corrected evidence is visible on the next read.");
+  published.report.verification.visualScreenshot = true;
+  const correctedTimeline = await getCatalogueUpdates();
+  const correctedLatest = await getLatestCatalogueUpdate();
+  assert.equal(correctedTimeline.runs[0].id, initialTimeline.runs[0].id);
+  assert.equal(correctedTimeline.runs[0].completed_at, published.completed_at);
+  assert.equal(correctedTimeline.runs[0].report.verification.visualScreenshot, true);
+  assert.equal(correctedTimeline.runs[0].report.entries[0].summary.en, published.report.entries[0].summary.en);
+  assert.equal(summarizeMaintenanceRun(correctedLatest.runs[0]).report.title.en, published.report.title.en);
+  assert.equal(correctedLatest.runs[0].completed_at, published.completed_at);
+  assert.equal(requests.length, 4, "Each independent read must reach the published data provider");
+  for (const request of requests) {
+    assert.equal(request.cache, "no-store");
+    assert.equal(request.url.searchParams.get("is_published"), "eq.true");
+    assert.equal(request.url.searchParams.get("report->>version"), "eq.1");
+    assert.match(request.url.searchParams.get("completed_at") ?? "", /^lte\./);
+  }
+  assert.equal(requests.filter(({ url }) => url.searchParams.get("limit") === "1").length, 2);
+
+  // Fetch errors still produce the unavailable state without infrastructure details.
+  globalThis.fetch = async () => new Response(JSON.stringify({ message: "private test infrastructure details" }), { status: 503 });
+  assert.deepEqual(await getCatalogueUpdates(), { state: "unavailable", runs: [], omittedInvalidRuns: 0 });
+} finally {
+  globalThis.fetch = originalFetch;
+  if (originalUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  else process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
+  if (originalKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalKey;
+}
+console.log("Catalogue updates: public-data boundaries, input safety, counts, Beijing weeks and next-read freshness passed.");
