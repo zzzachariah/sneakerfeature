@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { GitCompare, Home, Shield, ShoppingBag, Sparkles, UserCircle } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -68,7 +68,6 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const { isAdmin, signedIn } = useAuthState();
   const { translate } = useLocale();
-  const reduce = useReducedMotion();
 
   const tabs = [...TABS];
   if (isAdmin) tabs.push(ADMIN_TAB);
@@ -105,11 +104,13 @@ export function MobileBottomNav() {
               >
                 {/* A soft highlight pill slides between tabs (shared layoutId) to
                     mark the active screen — on top of the existing colour shift. */}
-                {active && !reduce ? (
+                {/* CSS preserves the SSR/hydration tree while immediately
+                    hiding the animated highlight for reduced-motion viewers. */}
+                {active ? (
                   <motion.span
                     layoutId="mobile-nav-active"
                     aria-hidden
-                    className="absolute inset-x-0.5 inset-y-1 -z-0 rounded-2xl bg-[rgb(var(--text)/0.08)]"
+                    className="absolute inset-x-0.5 inset-y-1 -z-0 rounded-2xl bg-[rgb(var(--text)/0.08)] motion-reduce:hidden"
                     transition={{ type: "spring", stiffness: 480, damping: 38 }}
                   />
                 ) : null}
