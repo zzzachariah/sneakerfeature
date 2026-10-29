@@ -106,6 +106,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   const [unseenChatIds, setUnseenChatIds] = useState<string[]>([]);
   const [balance, setBalance] = useState(0);
   const [creditsLoaded, setCreditsLoaded] = useState(false);
+  const [onboardingReady, setOnboardingReady] = useState(false);
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
   const [allowance, setAllowance] = useState<{ balance: number; grant: number } | null>(null);
   // Membership tier + the model the picker currently targets. Loaded with the
@@ -214,6 +215,9 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         }
         if (isModelId(creditsRes.model)) setModel(creditsRes.model);
       }
+      // A completed request is not necessarily a usable interface. Keep the
+      // first-use guide behind actual successful chat and allowance reads.
+      setOnboardingReady(Boolean(chatsRes?.ok && creditsRes?.ok));
       setCreditsLoaded(true);
     })();
   }, []);
@@ -658,6 +662,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         atTurnLimit={atTurnLimit}
         balance={balance}
         creditsLoaded={creditsLoaded}
+        onboardingReady={onboardingReady}
         unlimited={unlimited}
         checkin={checkin}
         allowance={allowance}

@@ -8,7 +8,6 @@ import { NativeChrome, type NativeNavButton, type NativeMenuNode } from "@/compo
 import { useLocale } from "@/components/i18n/locale-provider";
 import { usePersona } from "@/components/preferences/persona-provider";
 import { useAuthState } from "@/components/auth/auth-state-provider";
-import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { useCookieConsent } from "@/components/consent/cookie-consent";
 import { AboutModal } from "@/components/layout/about-modal";
 import { createClient } from "@/lib/supabase/client";
@@ -32,7 +31,7 @@ export function NativeTopBar() {
   const { locale, translate, requestLocaleChange } = useLocale();
   const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
   const { signedIn, isAdmin } = useAuthState();
-  const { start: startTutorial } = useTutorial();
+  const startTutorial = () => window.dispatchEvent(new CustomEvent("sf:tutorial-library"));
   const { reopen: reopenCookieConsent } = useCookieConsent();
   const [aboutOpen, setAboutOpen] = useState(false);
   const zh = locale === "zh";
@@ -90,7 +89,7 @@ export function NativeTopBar() {
     const moreMenu: NativeMenuNode[] = [
       { key: "nav:/search/advanced", label: translate("Advanced Search"), symbol: "magnifyingglass" },
       { key: "persona", label: translate("Player profile"), symbol: "person.fill" },
-      { key: "tutorial", label: translate("Site tour"), symbol: "questionmark.circle" },
+      { key: "tutorial", label: "Site Intro", symbol: "questionmark.circle" },
       { key: "about", label: translate("About"), symbol: "sparkles" },
       {
         key: "language",

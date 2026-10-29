@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { isValidPersona, type Persona } from "@/lib/persona/types";
+import { useOnboardingActivity } from "@/lib/onboarding/activity";
 
 const PersonaModal = dynamic(() => import('@/components/preferences/persona-modal').then(m => ({ default: m.PersonaModal })), { ssr: false, loading: () => null });
 
@@ -37,6 +38,7 @@ export function PersonaProvider({
   const router = useRouter();
   const pathname = usePathname();
   const { signedIn } = useAuthState();
+  const onboarding = useOnboardingActivity();
   const [persona, setPersona] = useState<Persona | null>(initialPersona);
   const [isLoggedIn, setIsLoggedIn] = useState(() => initialIsLoggedIn || signedIn);
   const [loaded, setLoaded] = useState(initialPersona !== null);
@@ -55,6 +57,7 @@ export function PersonaProvider({
     const supabase = createClient();
 
     const fetchPersona = () => {
+      setLoaded(false);
       fetch("/api/preferences/persona", { cache: "no-store" })
         .then((res) => res.json())
         .then((data) => {
@@ -67,11 +70,13 @@ export function PersonaProvider({
           if (!cancelled) setLoaded(true);
         });
     };
+    window.addEventListener("sf:persona-refresh", fetchPersona);
 
     if (!supabase) {
       fetchPersona();
       return () => {
         cancelled = true;
+        window.removeEventListener("sf:persona-refresh", fetchPersona);
       };
     }
 
@@ -101,6 +106,7 @@ export function PersonaProvider({
 
     return () => {
       cancelled = true;
+      window.removeEventListener("sf:persona-refresh", fetchPersona);
       listener.subscription.unsubscribe();
     };
   }, []);
@@ -121,6 +127,7 @@ export function PersonaProvider({
   }, []);
 
   useEffect(() => {
+    if (onboarding) return;
     if (!loaded) return;
     if (!isLoggedIn) return;
     if (persona) return;
@@ -129,7 +136,7 @@ export function PersonaProvider({
     forcePromptedRef.current = true;
     const t = window.setTimeout(() => setModalOpen(true), 600);
     return () => window.clearTimeout(t);
-  }, [loaded, isLoggedIn, persona, pathname]);
+  }, [loaded, isLoggedIn, persona, pathname, onboarding]);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
@@ -212,7 +219,7 @@ export function PersonaProvider({
   return (
     <PersonaContext.Provider value={value}>
       {children}
-      <PersonaModal open={modalOpen} onClose={closeModal} />
+      <PersonaModal open={modalOpen && !onboarding} onClose={closeModal} />
     </PersonaContext.Provider>
   );
 }

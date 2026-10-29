@@ -5,6 +5,7 @@ out/
 supabase/.temp/
 .env
 .env.local
+.env*.local
 .DS_Store
 
 # Local background-removal dry-run previews (scripts/remove-backgrounds.mts)

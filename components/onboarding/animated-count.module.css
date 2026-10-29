@@ -1,0 +1,5 @@
+.number { display:inline-flex; align-items:baseline; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.window { height:1.1em; line-height:1.1; width:.66em; overflow:hidden; display:inline-block; position:relative; vertical-align:bottom; }
+.track { display:flex; flex-direction:column; transition:transform 80ms cubic-bezier(.22,1,.36,1); }
+.track > span { display:block; height:1.1em; flex:0 0 1.1em; line-height:1.1em; text-align:center; }
+@media(prefers-reduced-motion:reduce) { .track { transition:none; } }

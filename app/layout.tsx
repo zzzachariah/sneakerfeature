@@ -53,8 +53,7 @@ import { PersonaProvider } from "@/components/preferences/persona-provider";
 import { AuthStateProvider } from "@/components/auth/auth-state-provider";
 import { FavoritesProvider } from "@/components/favorites/favorites-provider";
 import { TutorialProvider } from "@/components/tutorial/tutorial-provider";
-import { TutorialOverlay } from "@/components/tutorial/tutorial-overlay";
-import { TutorialLauncher } from "@/components/tutorial/tutorial-launcher";
+import { OnboardingProvider } from "@/components/onboarding/site-onboarding";
 import { DEFAULT_OG_IMAGE_URL, HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -148,12 +147,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <RatingFocusProvider>
                 <PersonaProvider>
                   <TutorialProvider>
+                    <OnboardingProvider>
                     {/* App-wide because a court session outlives the page it
                         was started on — and because the Dynamic Island keeps
                         counting whether or not /closet is still mounted. */}
                     <CourtSessionProvider>
                     <NavScrollIndicatorProvider>
-                      <div className="relative flex min-h-[100dvh] flex-col">
+                      <div id="sf-site-chrome" className="relative flex min-h-[100dvh] flex-col">
                         <div className="app-ambient-bg pointer-events-none fixed inset-0 -z-10" />
                         <Navbar />
                         <NativeTopBar />
@@ -166,11 +166,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                     </NavScrollIndicatorProvider>
                     <CourtSessionBar />
                     </CourtSessionProvider>
-                    <TutorialOverlay />
-                    <TutorialLauncher />
                     <PushRegistration />
                     <WidgetSync />
                     <WebPullToRefresh />
+                    </OnboardingProvider>
                   </TutorialProvider>
                 </PersonaProvider>
               </RatingFocusProvider>
