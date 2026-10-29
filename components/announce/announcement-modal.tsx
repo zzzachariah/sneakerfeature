@@ -6,6 +6,7 @@ import { AnimatePresence, motion, type PanInfo } from "framer-motion";
 import { ArrowUpRight, ChevronLeft, ChevronRight, Megaphone, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useLocale } from "@/components/i18n/locale-provider";
+import { useOnboardingActivity } from "@/lib/onboarding/activity";
 
 // Site-wide announcement popup. Content is published either from
 // /admin/announcements (writes to the `announcements` table) or — for
@@ -136,6 +137,7 @@ function getOrCreateClientId(): string {
 }
 
 export function AnnouncementModal() {
+  const onboarding = useOnboardingActivity();
   const { locale } = useLocale();
   const [items, setItems] = useState<Announcement[]>([]);
   const [active, setActive] = useState(0);
@@ -145,6 +147,7 @@ export function AnnouncementModal() {
   const viewedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    if (onboarding) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Stable signature of the last opened set so the poll loop doesn't
@@ -253,7 +256,7 @@ export function AnnouncementModal() {
       window.clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, []);
+  }, [onboarding]);
 
   const zh = locale === "zh";
 
@@ -309,7 +312,7 @@ export function AnnouncementModal() {
 
   return (
     <Modal
-      open={open}
+      open={open && !onboarding}
       onClose={onModalClose}
       title=""
       dismissible={modalDismissible}

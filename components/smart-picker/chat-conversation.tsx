@@ -19,6 +19,7 @@ import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import { ChatActivityDot } from "@/components/smart-picker/chat-activity-dot";
 import { AllowanceMeter } from "@/components/smart-picker/allowance-meter";
 import { SneakerLoader } from "@/components/ui/sneaker-loader";
+import { AiOnboarding } from "@/components/onboarding/ai-onboarding";
 import { isCjkInput } from "@/lib/i18n/detect-cjk";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
 import type { CheckinStatus } from "@/lib/ai/checkin";
@@ -33,6 +34,7 @@ type Props = {
   atTurnLimit: boolean;
   balance: number;
   creditsLoaded: boolean;
+  onboardingReady: boolean;
   unlimited: boolean;
   checkin: CheckinStatus;
   allowance: { balance: number; grant: number } | null;
@@ -61,6 +63,7 @@ export function ChatConversation({
   atTurnLimit,
   balance,
   creditsLoaded,
+  onboardingReady,
   unlimited,
   checkin,
   allowance,
@@ -84,6 +87,7 @@ export function ChatConversation({
   const [historyOpen, setHistoryOpen] = useState(false);
   const [questionnaireOpen, setQuestionnaireOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
+  const [aiGuideActive, setAiGuideActive] = useState(false);
   // The ×N the composer is currently set to. The follow-up box sends into the
   // same conversation, so it has to bill at the same count the user chose.
   const [count, setCount] = useState(1);
@@ -195,6 +199,12 @@ export function ChatConversation({
             />
           )}
         </div>
+        <AiOnboarding
+          ready={onboardingReady && creditsLoaded}
+          busy={loadingMessages || sending || streamingChatIds.length > 0 || historyOpen || questionnaireOpen || usageOpen || Boolean(report)}
+          autoBlocked={lastMessage?.id.startsWith("local-") ?? false}
+          onActiveChange={setAiGuideActive}
+        />
         {/* The balance pill opens the full ledger: what's left, what came in,
             what each conversation cost. The check-in badge stays a nested
             control (it stops propagation), so claiming doesn't open the panel. */}
@@ -248,7 +258,7 @@ export function ChatConversation({
                 {translate("Tell me your playstyle, position, and the feel you want — I'll recommend shoes from our database.")}
               </p>
               {/* Concrete starting points — tap to drop one into the composer. */}
-              <div className="mt-6 flex max-w-lg flex-wrap justify-center gap-2">
+              <div className="mt-6 flex max-w-lg flex-wrap justify-center gap-2" data-onboarding="ai-examples">
                 {suggestions.map((s) => (
                   <button
                     key={s}
@@ -269,6 +279,7 @@ export function ChatConversation({
                   request and drops it into the composer to review and send. */}
               <button
                 type="button"
+                data-onboarding="ai-questionnaire"
                 onClick={() => {
                   haptics.selection();
                   setQuestionnaireOpen(true);
@@ -281,7 +292,9 @@ export function ChatConversation({
 
               {/* Collapsible hint: a saved player profile skips height/weight and
                   richer detail yields better picks. Collapses to a small pill. */}
-              <ProfileTip />
+              <div aria-hidden={aiGuideActive || undefined} inert={aiGuideActive} style={{ visibility: aiGuideActive ? "hidden" : undefined }}>
+                <ProfileTip />
+              </div>
             </div>
           )}
 

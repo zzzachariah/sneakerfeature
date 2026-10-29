@@ -131,6 +131,7 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
 
   return (
     <div
+      data-onboarding="ai-composer"
       className="border-t border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--bg)/0.92)] backdrop-blur-[20px]"
       // env(safe-area-inset-bottom) covers the iOS home indicator — no black bar.
       style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
@@ -164,6 +165,7 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
             16px font prevents iOS auto-zoom on focus. */}
         <textarea
           ref={textareaRef}
+          data-onboarding="ai-input"
           value={text}
           onChange={(e) => { setText(e.target.value); growTextarea(); }}
           onKeyDown={onKeyDown}
@@ -212,6 +214,7 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
         <div className="flex h-14 shrink-0 items-center sm:h-10">
           <button
             type="button"
+            data-onboarding="ai-send"
             onClick={submit}
             disabled={!isReady}
             aria-label={sending ? translate("AI is thinking…") : translate("Send")}

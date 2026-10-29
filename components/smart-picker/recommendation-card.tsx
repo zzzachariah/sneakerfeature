@@ -53,6 +53,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
     <>
       {/* Compact card */}
       <div
+        data-onboarding="ai-result"
         className={`surface-card premium-border flex flex-col overflow-hidden rounded-2xl transition hover:shadow-[0_8px_24px_rgb(var(--glass-shadow)/0.14)] ${className ?? ""}`}
       >
         {/* Top row: image + info */}

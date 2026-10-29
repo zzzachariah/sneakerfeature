@@ -27,6 +27,7 @@ async function withTimeout<T>(promiseLike: PromiseLike<T>, ms = AUTH_TIMEOUT_MS)
 }
 
 export async function POST(request: Request) {
+  let accountCreated = false;
   try {
     devLog("request received");
     const body = await request.json();
@@ -40,7 +41,7 @@ export async function POST(request: Request) {
     if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
 
     const supabase = createAdminClient();
-    if (!supabase) return NextResponse.json({ ok: true, message: "Demo mode: account created." });
+    if (!supabase) return NextResponse.json({ ok: false, message: "Registration is temporarily unavailable. Please try again later." }, { status: 503 });
 
     const usernameTaken = await withTimeout<{ data: { id?: string } | null }>(supabase.from("profiles").select("id").eq("username", parsed.data.username).maybeSingle());
     if (usernameTaken.data) return NextResponse.json({ ok: false, message: "That username is already taken." }, { status: 409 });
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
     if (error || !data.user) {
       return NextResponse.json({ ok: false, message: error?.message ?? "Could not create account." }, { status: 400 });
     }
+    accountCreated = true;
 
     let profileError: { message: string } | null = null;
     for (let i = 0; i < 3; i++) {
@@ -68,13 +70,18 @@ export async function POST(request: Request) {
     }
 
     if (profileError) {
-      return NextResponse.json({ ok: false, message: `Account created but profile setup failed: ${profileError.message}` }, { status: 500 });
+      return NextResponse.json({ ok: false, accountCreated: true, message: "Your account was created, but profile setup could not finish. Sign in to continue setup." }, { status: 500 });
     }
 
-    devLog("response returned", { ok: true, user: parsed.data.email });
+    devLog("response returned", { ok: true });
     return NextResponse.json({ ok: true, message: "Registration successful. You can now sign in." });
   } catch (error) {
     devLog("route failed", error);
-    return NextResponse.json({ ok: false, message: "Signup request timed out or failed. Please try again." }, { status: 500 });
+    return NextResponse.json({
+      ok: false, accountCreated,
+      message: accountCreated
+        ? "Your account was created, but setup could not finish. Sign in to continue."
+        : "Signup request timed out or failed. Please try again."
+    }, { status: 500 });
   }
 }

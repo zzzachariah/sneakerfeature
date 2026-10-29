@@ -14,6 +14,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { isIosNativeApp } from "@/lib/native/native";
+import { useOnboardingActivity } from "@/lib/onboarding/activity";
 
 /**
  * Cookie / analytics consent.
@@ -102,13 +103,14 @@ export function useCookieConsent() {
 }
 
 export function CookieBanner() {
+  const onboarding = useOnboardingActivity();
   const { consent, ready, blocked, setConsent } = useCookieConsent();
   const { locale } = useLocale();
   const zh = locale === "zh";
 
   // Never prompt inside the iOS app (no tracking there). Otherwise only show
   // once we've read the stored choice and the visitor hasn't decided.
-  if (!ready || blocked || consent !== null) return null;
+  if (!ready || blocked || consent !== null || onboarding) return null;
 
   return (
     <div

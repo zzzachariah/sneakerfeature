@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { Check, Crown, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { PremiumSkinToggle, PremiumSkinOptions } from "@/components/theme/premium-skin";
-import { useTutorial } from "@/components/tutorial/tutorial-provider";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { UpgradeNav } from "@/components/layout/upgrade-nav";
 import { NavScrollIndicator } from "@/components/layout/nav-scroll-indicator";
@@ -41,13 +40,32 @@ export function Navbar() {
   const { reopen: reopenCookieConsent } = useCookieConsent();
   const { isLoggedIn: personaLoggedIn, openModal: openPersonaModal } = usePersona();
   const { isAdmin } = useAuthState();
-  const { start: startTutorial } = useTutorial();
+  const startTutorial = () => window.dispatchEvent(new CustomEvent("sf:tutorial-library"));
   const [aboutOpen, setAboutOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let autoOpened = false;
+    const reveal = () => {
+      autoOpened = true;
+      if (window.matchMedia("(min-width: 768px)").matches) setMoreOpen(true);
+      else setMenuOpen(true);
+    };
+    const userInteracted = () => { autoOpened = false; };
+    const hide = () => { if (autoOpened) { setMoreOpen(false); setMenuOpen(false); autoOpened = false; } };
+    window.addEventListener("sf:show-tutorial-entry", reveal);
+    window.addEventListener("sf:hide-tutorial-entry", hide);
+    window.addEventListener("pointerdown", userInteracted);
+    return () => {
+      window.removeEventListener("sf:show-tutorial-entry", reveal);
+      window.removeEventListener("sf:hide-tutorial-entry", hide);
+      window.removeEventListener("pointerdown", userInteracted);
+    };
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -242,6 +260,7 @@ export function Navbar() {
                   </Link>
                   <button
                     type="button"
+                    data-onboarding-replay
                     onClick={() => {
                       startTutorial();
                       setMoreOpen(false);
@@ -249,7 +268,7 @@ export function Navbar() {
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
                     <HelpCircle className="h-4 w-4 shrink-0" />
-                    {translate("Site tour")}
+                    Site Intro
                   </button>
                   <button
                     type="button"
@@ -405,6 +424,7 @@ export function Navbar() {
 
                   <button
                     type="button"
+                    data-onboarding-replay
                     onClick={() => {
                       startTutorial();
                       setMenuOpen(false);
@@ -412,7 +432,7 @@ export function Navbar() {
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
                   >
                     <HelpCircle className="h-4 w-4 shrink-0" />
-                    {translate("Site tour")}
+                    Site Intro
                   </button>
 
                   <button
