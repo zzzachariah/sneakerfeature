@@ -23,7 +23,8 @@
 
 import OpenAI from "openai";
 import { callOptions, hasBudget, startDeadline, type Deadline } from "@/lib/ai/budget";
-import { describePackyError } from "@/lib/ai/packy-client";
+import { describePackyError, normalizeBaseURL } from "@/lib/ai/packy-client";
+import { createPackyFetch } from "@/lib/ai/packy-fetch";
 import {
   widthClassFromRatio,
   widthMmFromRatio,
@@ -68,14 +69,17 @@ import {
 // when unset.
 const VISION_MODEL = process.env.FOOT_SCAN_MODEL?.trim() || "claude-haiku-4-5-20251001";
 
-// The OpenAI-compatible endpoint for packyapi. Hardcoded so the only thing the
-// deployment has to configure is FOOT_SCAN_API_KEY.
-const FOOT_SCAN_BASE_URL = "https://www.packyapi.com/v1";
+// Follow the shared API endpoint, with an optional scan-only override. The
+// console domain is no longer a supported model-call endpoint.
+const FOOT_SCAN_BASE_URL = normalizeBaseURL(
+  process.env.FOOT_SCAN_BASE_URL?.trim() || process.env.PACKYAPI_BASE_URL?.trim() ||
+  process.env.PACKY_API_BASE_URL?.trim() || "https://cf.api.fan/v1"
+);
 
 function createFootScanClient(): OpenAI | null {
   const apiKey = process.env.FOOT_SCAN_API_KEY?.trim();
   if (!apiKey) return null;
-  return new OpenAI({ apiKey, baseURL: FOOT_SCAN_BASE_URL });
+  return new OpenAI({ apiKey, baseURL: FOOT_SCAN_BASE_URL, timeout: 180_000, maxRetries: 1, fetch: createPackyFetch() });
 }
 
 function describeFootScanEnvProblem(): string {

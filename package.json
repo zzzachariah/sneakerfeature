@@ -31,7 +31,7 @@
     "test:credits": "tsx scripts/test-credit-functions.mts",
     "test:catalogue-updates": "tsx scripts/test-catalogue-updates.mts && tsx scripts/test-catalogue-updates-rls.mts",
     "catalogue-updates:validate": "tsx scripts/validate-catalogue-update.mts",
-    "test:dependencies": "npm run vendor:imgly:check && tsx scripts/test-openai-sdk-compat.mts && tsx scripts/test-imgly-config.mts",
+    "test:dependencies": "npm run vendor:imgly:check && tsx scripts/test-openai-sdk-compat.mts && tsx scripts/test-packy-protocol.mts && tsx scripts/test-imgly-config.mts",
     "vendor:imgly:build": "node vendor/imgly-background-removal/scripts/build.mjs",
     "test:validation-contracts": "tsx scripts/test-validation-contracts.mts",
     "test:imgly:browser": "node scripts/test-imgly-browser.mjs",
