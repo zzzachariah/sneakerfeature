@@ -17,6 +17,9 @@
 .logoCompact { width: 35px; height: 21px; flex-shrink: 0; overflow: hidden; }
 .logoCompact img { width: 54px; height: 54px; max-width: none; transform: translate(-8px, -16px); }
 :global(.dark) .logoHero img, :global(.dark) .logoCompact img { filter: invert(1); }
+@media (prefers-color-scheme: dark) {
+  :global(:root:not(.light)) .logoHero img, :global(:root:not(.light)) .logoCompact img { filter: invert(1); }
+}
 .eyebrow { display: flex; align-items: center; gap: 9px; margin: 0 0 18px; font: 500 11px/18px var(--font-geist-mono), monospace; letter-spacing: .13em; color: rgb(var(--subtext)); }
 .eyebrow::before { content: ""; display: inline-block; width: 24px; height: 1px; background: rgb(var(--brand)); }
 .heading { outline: none; margin: 0; font-size: clamp(42px, 4.2vw, 56px); line-height: 1.14; font-weight: 600; letter-spacing: -.05em; text-wrap: balance; }
