@@ -12,10 +12,10 @@ import { callOptions, hasBudget, startDeadline, type Deadline } from "@/lib/ai/b
 import { detectReplyLang, type ReplyLang } from "@/lib/ai/derive-proscons";
 import { catalogAck, languageDirective as langDirective } from "@/lib/ai/lang";
 import {
-  bochaWebSearch,
-  describeBochaError,
-  isBochaConfigured,
-  type BochaErrorKind,
+  webSearch,
+  describeWebSearchError,
+  isWebSearchConfigured,
+  type WebSearchErrorKind,
   type WebSearchResult
 } from "@/lib/ai/web-search";
 
@@ -29,16 +29,16 @@ const SEARCH_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6h — review chatter doesn't
 const SEARCH_CACHE_MAX = 300;
 const searchCache = new Map<string, { at: number; result: WebSearchResult }>();
 
-async function cachedBochaSearch(
+async function cachedWebSearch(
   query: string,
-  opts?: Parameters<typeof bochaWebSearch>[1]
+  opts?: Parameters<typeof webSearch>[1]
 ): Promise<WebSearchResult & { cached?: boolean }> {
   const key = query.trim();
   const hit = searchCache.get(key);
   if (hit && hit.result.ok && Date.now() - hit.at < SEARCH_CACHE_TTL_MS) {
     return { ...hit.result, cached: true };
   }
-  const result = await bochaWebSearch(key, opts);
+  const result = await webSearch(key, opts);
   if (result.ok) {
     if (searchCache.size >= SEARCH_CACHE_MAX) {
       const oldest = searchCache.keys().next().value;
@@ -107,7 +107,7 @@ function coerceReferences(value: unknown, max: number): WebReference[] {
 export type WebSearchStats = {
   attempts: number;
   succeeded: number;
-  failures: { kind: BochaErrorKind; detail: string; query: string }[];
+  failures: { kind: WebSearchErrorKind; detail: string; query: string }[];
 };
 
 // Why the tool loop exited without producing a usable RecommendResult.
@@ -1222,7 +1222,7 @@ async function tryToolLoopWithSearch(
         continue;
       }
       onProgress?.({ type: "search", query: q, state: "start" });
-      const sr = await cachedBochaSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
+      const sr = await cachedWebSearch(q, { count: MAX_SEARCH_RESULTS, timeoutMs: 8000 });
       stats.attempts += 1;
       if (sr.ok) {
         stats.succeeded += 1;
@@ -1233,7 +1233,7 @@ async function tryToolLoopWithSearch(
       }
       const payload = sr.ok
         ? { query: sr.query, results: sr.results }
-        : { query: sr.query, error: sr.error, message: describeBochaError(sr.error, sr.detail), results: [] };
+        : { query: sr.query, error: sr.error, message: describeWebSearchError(sr.error, sr.detail), results: [] };
       convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(payload) });
     }
     // Tool turn handled (search or spontaneous bad-args recommend_shoes).
@@ -1384,11 +1384,11 @@ async function getRecommendations(
   };
 
   // 0) Bocha web search configured → run the multi-turn tool loop FIRST. It's
-  //    the only path that calls bochaWebSearch, and iteration 0 forces a real
+  //    the only path that calls webSearch, and iteration 0 forces a real
   //    web_search. JSON mode (below) must NOT pre-empt it, or the model would
   //    answer from memory and fabricate `references`. On bail (no usable result)
   //    we fall through to JSON mode → prefill → plain, carrying loop diagnostics.
-  if (isBochaConfigured()) {
+  if (isWebSearchConfigured()) {
     try {
       const outcome = await tryToolLoopWithSearch(client, messages, base, currentInput, onProgress, isFollowUp, deadline);
       loopStats = outcome.stats;
@@ -1426,7 +1426,7 @@ async function getRecommendations(
   //    Only for the Bocha-not-configured case (the configured case already ran
   //    the loop above); identical to the legacy single-call behavior. Thinking
   //    models reject the forced choice — downgrade to "auto" once, like the loop.
-  if (!isBochaConfigured()) {
+  if (!isWebSearchConfigured()) {
     try {
       if (!hasBudget(deadline)) return outOfTime();
       const attempt = (tool_choice: OpenAI.Chat.Completions.ChatCompletionToolChoiceOption) =>
@@ -1760,16 +1760,16 @@ async function candidateEvidencePipeline(
     const generic = currentInput.trim().slice(0, 60);
     if (includeGeneric && history.length === 0 && generic) batch.unshift({ label: generic, query: generic });
     // Bounded concurrency: an unthrottled burst of 6-9 simultaneous calls trips
-    // Bocha's rate limit (observed HTTP 429). Three workers drain the queue,
+    // the search provider's rate limit (observed HTTP 429). Three workers drain the queue,
     // and a rate-limited query gets ONE retry after a short backoff.
     const queue = [...batch];
     const worker = async () => {
       for (let p = queue.shift(); p; p = queue.shift()) {
         onProgress?.({ type: "search", query: p.query, state: "start" });
-        let sr = await cachedBochaSearch(p.query, { count: 3, timeoutMs: 8000 });
+        let sr = await cachedWebSearch(p.query, { count: 3, timeoutMs: 8000 });
         if (!sr.ok && sr.error === "rate_limited") {
           await new Promise((r) => setTimeout(r, 1200));
-          sr = await cachedBochaSearch(p.query, { count: 3, timeoutMs: 8000 });
+          sr = await cachedWebSearch(p.query, { count: 3, timeoutMs: 8000 });
         }
         p.result = sr;
         stats.attempts += 1;
@@ -2026,7 +2026,7 @@ export async function recommendShoes(
   // Candidate-first pipeline is the default whenever web search is available;
   // the legacy multi-strategy path below is the fallback when it can't produce
   // a usable result (shortlist unparseable, relay hiccup, …).
-  if (isBochaConfigured()) {
+  if (isWebSearchConfigured()) {
     try {
       const viaCandidates = await candidateEvidencePipeline(client, opts, onProgress, deadline);
       if (viaCandidates) return viaCandidates;
