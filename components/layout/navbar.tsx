@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { Check, Crown, Download, Gavel, HelpCircle, Languages, Megaphone, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
+import { Check, Crown, Download, HelpCircle, Languages, Menu, MoreHorizontal, Search, Sparkles, User } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { PremiumSkinToggle, PremiumSkinOptions } from "@/components/theme/premium-skin";
 import { AccountMenu } from "@/components/layout/account-menu";
@@ -19,7 +19,8 @@ import { useAuthState } from "@/components/auth/auth-state-provider";
 import { NAV_ORDER } from "@/lib/nav-order";
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import { useCookieConsent } from "@/components/consent/cookie-consent";
-import { CONTACT_EMAIL } from "@/lib/legal/content";
+import { NavInfoSections } from "./nav-info-sections";
+import menuStyles from "./nav-info-sections.module.css";
 
 type NavHref = "/" | "/compare" | "/smart-picker" | "/submit" | "/dashboard" | "/admin" | "/search/advanced";
 
@@ -60,10 +61,12 @@ export function Navbar() {
     window.addEventListener("sf:show-tutorial-entry", reveal);
     window.addEventListener("sf:hide-tutorial-entry", hide);
     window.addEventListener("pointerdown", userInteracted);
+    window.addEventListener("keydown", userInteracted);
     return () => {
       window.removeEventListener("sf:show-tutorial-entry", reveal);
       window.removeEventListener("sf:hide-tutorial-entry", hide);
       window.removeEventListener("pointerdown", userInteracted);
+      window.removeEventListener("keydown", userInteracted);
     };
   }, []);
 
@@ -76,8 +79,17 @@ export function Navbar() {
   useEffect(() => {
     if (!moreOpen) return;
     const onClick = () => setMoreOpen(false);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setMoreOpen(false);
+      moreRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    };
     window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("click", onClick);
+      window.removeEventListener("keydown", onKeyDown);
+    };
   }, [moreOpen]);
 
   useEffect(() => {
@@ -87,7 +99,10 @@ export function Navbar() {
       setMenuOpen(false);
     };
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
+      if (e.key === "Escape") {
+        setMenuOpen(false);
+        menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      }
     };
     document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -216,8 +231,8 @@ export function Navbar() {
 
             {/* Secondary actions consolidated into a single "More" menu so the
                 desktop bar stays compact and the centered nav can't collide with
-                a wall of icons at narrow widths. The mobile hamburger below is
-                intentionally left unchanged. */}
+                a wall of icons at narrow widths. Both menus share the compact
+                secondary information groups. */}
             <div ref={moreRef} className="relative hidden md:block" onClick={(e) => e.stopPropagation()}>
               <Tooltip label={zh ? "更多" : "More"}>
                 <button
@@ -233,7 +248,7 @@ export function Navbar() {
                 </button>
               </Tooltip>
               {moreOpen && (
-                <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
+                <div className={`nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1 ${menuStyles.viewport}`}>
                   <button
                     type="button"
                     onClick={() => {
@@ -315,43 +330,7 @@ export function Navbar() {
                     {locale === "zh" ? <Check className="h-4 w-4" /> : null}
                   </button>
 
-                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
-                  {[
-                    { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
-                    { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
-                    { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
-                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone },
-                    { href: "/updates" as const, label: zh ? "资料更新" : "Catalogue updates", icon: Megaphone }
-                  ].map((l) => (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      onClick={() => setMoreOpen(false)}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                    >
-                      <l.icon className="h-4 w-4 shrink-0" />
-                      {l.label}
-                    </Link>
-                  ))}
-                  <a
-                    href={`mailto:${CONTACT_EMAIL}`}
-                    onClick={() => setMoreOpen(false)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  >
-                    <Gavel className="h-4 w-4 shrink-0" />
-                    {zh ? "联系" : "Contact"}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      reopenCookieConsent();
-                      setMoreOpen(false);
-                    }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  >
-                    <Gavel className="h-4 w-4 shrink-0" />
-                    {zh ? "Cookie 设置" : "Cookie settings"}
-                  </button>
+                  <NavInfoSections zh={zh} onNavigate={() => setMoreOpen(false)} onCookieSettings={reopenCookieConsent} />
                 </div>
               )}
             </div>
@@ -372,7 +351,7 @@ export function Navbar() {
                 <Menu className="h-[18px] w-[18px]" />
               </button>
               {menuOpen && (
-                <div className="nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1">
+                <div className={`nav-dropdown-panel nav-pop absolute right-0 top-[calc(100%+0.4rem)] z-50 w-[13rem] rounded-xl p-1 ${menuStyles.viewport}`}>
                   <Link
                     href="/download"
                     prefetch={true}
@@ -492,44 +471,7 @@ export function Navbar() {
 
                   {/* Theme still follows the system on mobile; the Premium UI skin above is separate. */}
 
-                  <div className="my-1 h-px bg-[rgb(var(--glass-stroke-soft)/0.5)]" />
-
-                  {[
-                    { href: "/terms" as const, label: zh ? "服务条款" : "Terms of Use", icon: Gavel },
-                    { href: "/privacy" as const, label: zh ? "隐私政策" : "Privacy Policy", icon: Gavel },
-                    { href: "/disclaimer" as const, label: zh ? "品牌免责声明" : "Brand Disclaimer", icon: Gavel },
-                    { href: "/announcements" as const, label: zh ? "公告" : "Announcements", icon: Megaphone },
-                    { href: "/updates" as const, label: zh ? "资料更新" : "Catalogue updates", icon: Megaphone }
-                  ].map((l) => (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      onClick={() => setMenuOpen(false)}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                    >
-                      <l.icon className="h-4 w-4 shrink-0" />
-                      {l.label}
-                    </Link>
-                  ))}
-                  <a
-                    href={`mailto:${CONTACT_EMAIL}`}
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  >
-                    <Gavel className="h-4 w-4 shrink-0" />
-                    {zh ? "联系" : "Contact"}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      reopenCookieConsent();
-                      setMenuOpen(false);
-                    }}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.06)]"
-                  >
-                    <Gavel className="h-4 w-4 shrink-0" />
-                    {zh ? "Cookie 设置" : "Cookie settings"}
-                  </button>
+                  <NavInfoSections zh={zh} onNavigate={() => setMenuOpen(false)} onCookieSettings={reopenCookieConsent} />
                 </div>
               )}
             </div>

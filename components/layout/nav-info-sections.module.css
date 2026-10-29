@@ -1,0 +1,78 @@
+.viewport {
+  max-height: calc(100vh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px) - 20px);
+  max-height: calc(100dvh - var(--top-nav-h, 64px) - var(--mobile-nav-h, 0px) - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scrollbar-width: thin;
+  scroll-padding-block: 8px;
+}
+
+.sections {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid rgb(var(--glass-stroke-soft) / .5);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: rgb(var(--subtext));
+  transition: background-color 160ms ease, color 160ms ease;
+}
+.trigger svg { flex-shrink: 0; }
+.trigger:hover, .group[data-open="true"] .trigger {
+  background: rgb(var(--text) / .045);
+  color: rgb(var(--text));
+}
+.chevron {
+  margin-left: auto;
+  transition: transform 280ms var(--ease);
+}
+.group[data-open="true"] .chevron { transform: rotate(180deg); }
+.disclosure {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms var(--ease);
+}
+.group[data-open="true"] .disclosure { grid-template-rows: 1fr; }
+.clip { min-height: 0; overflow: hidden; }
+.links {
+  margin: 3px 8px 7px 19px;
+  padding-left: 12px;
+  border-left: 1px solid rgb(var(--glass-stroke-soft) / .55);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 200ms ease, transform 280ms var(--ease);
+}
+.group[data-open="true"] .links { opacity: 1; transform: translateY(0); }
+.links a, .links button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px;
+  border-radius: 6px;
+  color: rgb(var(--subtext));
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.links a:hover, .links button:hover { color: rgb(var(--text)); background: rgb(var(--text) / .06); }
+.trigger:focus-visible, .links a:focus-visible, .links button:focus-visible {
+  outline: 2px solid rgb(var(--text) / .45);
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trigger, .chevron, .disclosure, .links, .links a, .links button { transition: none; }
+}
