@@ -55,7 +55,9 @@ Every threshold lives in [`config.ts`](./config.ts) (`FOOT_SCAN_CONFIG`) — wid
 bands, hallux/AHI bands, IMU tolerances, quality thresholds, sampling. Env vars:
 `FOOT_SCAN_API_KEY` (required), `FOOT_SCAN_MODEL` (defaults to
 `claude-haiku-4-5-20251001`), `FOOT_SCAN_SAMPLES`, `FOOT_SCAN_TEMPERATURE`. The
-packyapi base URL is hardcoded to `https://www.packyapi.com/v1`.
+PackyAPI base URL follows `PACKYAPI_BASE_URL` / `PACKY_API_BASE_URL`, defaulting
+to `https://cf.api.fan/v1`; `FOOT_SCAN_BASE_URL` can override it for scans.
+Claude models are sent through the native `/v1/messages` protocol.
 
 ### Where the default bands come from (and their limits)
 

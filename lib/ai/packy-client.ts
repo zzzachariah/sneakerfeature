@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { createPackyFetch } from "./packy-fetch";
 
 // Accept both naming conventions so deployments configured either way work:
 //   PACKYAPI_*  (PACKYAPI_API_KEY / PACKYAPI_BASE_URL)
@@ -61,13 +62,13 @@ export function createPackyClientForModel(model: string): OpenAI | null {
   return createPackyClient(clientOptionsForModel(model));
 }
 
-function normalizeBaseURL(raw: string): string {
+export function normalizeBaseURL(raw: string): string {
   let s = raw.trim().replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
   try {
     const url = new URL(s);
     // Bare host (no path) → target the OpenAI-compatible /v1 base, so a value
-    // like "https://www.packyapi.com" hits ".../v1/chat/completions". An
+    // like "https://cf.api.fan" hits ".../v1/chat/completions". An
     // explicit path (already /v1, or a custom gateway path) is left untouched.
     if (url.pathname === "" || url.pathname === "/") {
       url.pathname = "/v1";
@@ -211,5 +212,5 @@ export function createPackyClient(opts?: PackyClientOptions): OpenAI | null {
   // 3-minute per-request ceiling (reasoning models legitimately take 1-2 min on
   // a big catalog) and a single retry — the SDK default of 10 min × 2 retries
   // left users staring at a spinner for half an hour when the relay hung.
-  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1 });
+  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1, fetch: createPackyFetch() });
 }
