@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from "react";
 export function useNarrativeScroll(reduced: boolean) {
   const cancel = useRef<() => void>(() => {});
   useEffect(() => () => cancel.current(), []);
-  return useCallback((target: HTMLElement | null, toTop = false, delay = 0): Promise<boolean> => {
+  return useCallback((target: HTMLElement | null, align: boolean | "end" = false, delay = 0): Promise<boolean> => {
     cancel.current();
     if (!target || document.hidden) return Promise.resolve(false);
     const boundary = target.closest<HTMLElement>("[data-onboarding-content]") ?? target;
@@ -35,18 +35,19 @@ export function useNarrativeScroll(reduced: boolean) {
       document.addEventListener("visibilitychange", stop);
       timer = window.setTimeout(() => {
         let panel = target.closest<HTMLElement>("[data-onboarding-story-scroll]");
-        if (!panel || panel.scrollHeight <= panel.clientHeight + 2) panel = target.closest<HTMLElement>("[data-onboarding-content]");
+        if (!panel || !/auto|scroll/.test(getComputedStyle(panel).overflowY) || panel.scrollHeight <= panel.clientHeight + 2) panel = target.closest<HTMLElement>("[data-onboarding-content]");
         if (!panel) { finish(true); return; }
         const scroller = panel;
         const from = scroller.scrollTop;
-        const to = toTop ? 0 : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight,
+        const destination = () => align === true ? 0 : align === "end" ? Math.max(0, scroller.scrollHeight - scroller.clientHeight) : Math.max(0, Math.min(scroller.scrollHeight - scroller.clientHeight,
           from + target.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 12));
+        const to = destination();
         if (reduced || Math.abs(to - from) < 2) { scroller.scrollTop = to; finish(true); return; }
         const tick = (now: number) => {
           start ||= now;
           const t = Math.min(1, (now - start) / 1100);
           const eased = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-          scroller.scrollTop = from + (to - from) * eased;
+          scroller.scrollTop = from + ((align === "end" ? destination() : to) - from) * eased;
           if (t < 1) frame = requestAnimationFrame(tick);
           else finish(true);
         };

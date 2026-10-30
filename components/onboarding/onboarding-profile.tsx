@@ -13,7 +13,7 @@ import { onboardingRequest } from "./form-utils";
 import { ScrollHint, useFormScroll } from "./scroll-hint";
 import styles from "./onboarding-forms.module.css";
 
-export type OnboardingProfileProps = { onComplete: () => void; onBack?: () => void };
+export type OnboardingProfileProps = { onComplete: () => void; onBack?: () => void; initialPositions?: Position[]; initialPicks?: DimKey[] };
 type ProfileResponse = { ok: boolean; persona: Persona | null; message?: string };
 type FocusResponse = { ok: boolean; focus: RatingFocus | null };
 const SKILL_TEXT: Record<SkillLevel, [string, string, string, string]> = {
@@ -37,7 +37,7 @@ function samePersona(a: Persona | null, b: Persona): boolean {
 }
 
 /** A required, explicitly filled profile; ordinary profile editing remains separate. */
-export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps) {
+export function OnboardingProfile({ onComplete, onBack, initialPositions = [], initialPicks = [] }: OnboardingProfileProps) {
   const { locale } = useLocale();
   const zh = locale === "zh";
   const t = (cn: string, en: string) => zh ? cn : en;
@@ -129,7 +129,7 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
 
   useEffect(() => {
     // Drafts are held only in memory and never shared across signed-in accounts.
-    setPositions([]); setSkill(null); setHeight(""); setWeight(""); setFlatFoot(null); setPicks([]);
+    setPositions([...new Set(initialPositions)].filter(p => POSITIONS.includes(p)).slice(0,2)); setSkill(null); setHeight(""); setWeight(""); setFlatFoot(null); setPicks([...new Set(initialPicks)].filter(p => DIM_KEYS.includes(p)).slice(0,3));
     setStep(0); setErrors({}); setMessage(""); setPartial(false); setBaseConfirmed(false);
     completedRef.current = false;
     void loadSaved();

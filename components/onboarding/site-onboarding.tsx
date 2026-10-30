@@ -24,7 +24,9 @@ import { ScrollHint } from "./scroll-hint";
 import { TourOpening } from "./tour-opening";
 import { ArrivalWelcome } from "./arrival-welcome";
 import { useComparisonEntrance, type ComparisonPhase } from "./use-comparison-entrance";
-import { isValidPersona } from "@/lib/persona/types";
+import { isValidPersona, type Position } from "@/lib/persona/types";
+import type { DimKey } from "@/lib/star-rating";
+import { IntroTrail, IntroContinuation, rememberIntroShoes } from "./intro-continuation";
 import styles from "./site-onboarding.module.css";
 
 const SITE_KEY = "sf-onboarding-site-v2";
@@ -170,7 +172,7 @@ function OnboardingShell({ children, shellRef, label, phase, reduced, comparison
     inert={!present || comparisonPhase !== "rest"} aria-busy={comparisonPhase !== "rest" || undefined} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: !reduced && phase === "welcome" ? .99 : 1, transition: { duration: reduced ? .15 : phase === "welcome" ? 1 : .35, ease: EASE } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
     data-testid="site-onboarding" data-comparison-phase={comparisonPhase} data-phase={phase} data-exiting={!present || undefined}>
-    <LayoutGroup id="sf-onboarding">{children}</LayoutGroup>
+    {children}
   </motion.div>;
 }
 
@@ -201,6 +203,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [catalog, setCatalog] = useState<StoryCatalog | null>(null);
   const [step, setStep] = useState(0);
+  const [introPositions, setIntroPositions] = useState<Position[]>([]);
+  const [introPicks, setIntroPicks] = useState<DimKey[]>([]);
+  const [profileExit, setProfileExit] = useState(false);
+  const completeProfileExit = useCallback((completed: boolean) => { setProfileExit(false); setDirection(completed ? 1 : -1); setStep(completed ? 3 : 2); }, []);
   const [tourStarted, setTourStarted] = useState(false);
   const [introDemoRunKey, setIntroDemoRunKey] = useState(0);
   const [selectedShoes, setSelectedShoes] = useState<StoryShoe[]>([]);
@@ -280,7 +286,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     foregroundCheck.current = false;
     entryNeedsRetry.current = false;
     setPhase(onHome ? "checking" : "complete");
-    setReplay(false); setLibrary(false); setFlight(null); setHint(null); setTourStarted(false);
+    setProfileExit(false); setReplay(false); setLibrary(false); setFlight(null); setHint(null); setTourStarted(false);
   }, [onHome, pathname]);
   useLayoutEffect(() => {
     requestId.current += 1;
@@ -389,7 +395,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const openLibrary = () => setLibrary(true);
     const replayTour = (e: Event) => {
       if ((e as CustomEvent<{ kind: string }>).detail?.kind !== "site") return;
-      setLibrary(false); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true);
+      setProfileExit(false); setLibrary(false); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true);
     };
     window.addEventListener("sf:tutorial-library", openLibrary);
     window.addEventListener("sf:replay-tutorial", replayTour);
@@ -558,15 +564,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setStatus(null); setBusy(false); setAuthMounted(false); setProfileMounted(false); setPhase("auth"); setError("");
     router.refresh();
   }
-  function changeStep(next: number) { if (comparison.busy || flight || (next > 0 && selectedShoes.length < 2)) return; if (step === 0 && next === 1) { comparison.start(); return; } storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
-  function openReplay() { cancelComparison(); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
+  function changeStep(next: number) { if (comparison.busy || flight || profileExit || (next > 0 && selectedShoes.length < 2)) return; if (step === 2 && next === 3 && introPositions.length === 2 && introPicks.length === 3) { setProfileExit(true); return; } if (step === 0 && next === 1) { comparison.start(); return; } storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
+  function openReplay() { setProfileExit(false); cancelComparison(); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
+  useEffect(() => { rememberIntroShoes(selectedShoes); }, [selectedShoes]);
   function selectShoe(shoe: StoryShoe) { setSelectedShoes((current) => current.some((item) => item.slug === shoe.slug) ? current.filter((item) => item.slug !== shoe.slug) : current.length < 2 ? [...current, shoe] : current); }
   const titles = zh
-    ? [["找到更适合", "你打法的篮球鞋。"], ["你选的两双，", "差别在这里。"], ["你的打法，", "让推荐更贴近你。"], ["告诉 AI 你的需求，", "也可以自己挑。"]]
-    : [["A better pair.", "For your game."], ["See the details.", "Feel the difference."], ["Your game.", "Your starting point."], ["Talk it through.", "Find your next pair."]];
+    ? [["找到更适合", "你打法的篮球鞋。"], ["你选的两双，", "差别在这里。"], ["你的打法，", "让推荐更贴近你。"], ["你的选择，", "成为 AI 的选鞋依据。"]]
+    : [["A better pair.", "For your game."], ["See the details.", "Feel the difference."], ["Your game.", "Your starting point."], ["Your choices.", "A brief for your next pair."]];
   const descriptions = zh
-    ? ["浏览、比较、了解。把关于篮球鞋的信息，变成对你有用的选择。", "试着切换雷达图例、查看真实配置。你在这里看到的，就是网站对比页使用的资料。", "建立球员档案，让位置、身体条件与打法成为选鞋的参考。", "让 Smart Picker 帮你梳理需求，或者自由搜索、浏览和比较。选择的节奏，由你决定。"]
-    : ["Explore, compare and understand basketball shoes. Turn information into a choice that makes sense for you.", "Cushioning, traction and stability, together in one place. Get a clearer picture before you choose.", "Build your player profile. Let your position, measurements and playstyle inform your choices.", "Let Smart Picker help you think it through. Or search, explore and compare freely. You set the pace."];
+    ? ["浏览、比较、了解。把关于篮球鞋的信息，变成对你有用的选择。", "试着切换雷达图例、查看真实配置。你在这里看到的，就是网站对比页使用的资料。", "建立球员档案，让位置、身体条件与打法成为选鞋的参考。", "位置、偏好和你感兴趣的球鞋，组成一次真实请求。看它查了什么，再看为什么推荐。"]
+    : ["Explore, compare and understand basketball shoes. Turn information into a choice that makes sense for you.", "Cushioning, traction and stability, together in one place. Get a clearer picture before you choose.", "Build your player profile. Let your position, measurements and playstyle inform your choices.", "Your positions, priorities and selected shoes become a real request. See what it finds, then why it recommends each pair."];
 
   // One first reveal for the whole confirmed batch. The key deliberately stays
   // unchanged on later polls, so updates settle from the displayed digits.
@@ -594,7 +601,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         }}>
         {showingIntro && !tourStarted ? <TourOpening key="opening" zh={zh} shoes={metrics?.catalogCount ?? null} brands={metrics?.brandCount ?? null} loading={metricsConnection === "loading"} stale={metricsConnection === "offline"} onLanguageChange={requestLocaleChange} onStart={() => { setWallExpanded(true); setTourStarted(true); }}/> : showingIntro ? (
           <motion.div key="tour" className={styles.tourSequence} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 18, scale: .985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, transition: { duration: reduced ? .15 : .3 } }} transition={{ duration: reduced ? .15 : .7, ease: EASE }}>
-            <motion.div className={step === 0 ? styles.discoveryBody : `${styles.body} ${step === 1 ? styles.comparisonBody : ""}`} ref={storyRef} role={step ? "region" : undefined} tabIndex={step ? 0 : undefined} aria-label={step ? (zh ? "导览内容" : "Introduction content") : undefined} data-onboarding-content animate={{ opacity: flight ? 0 : 1 }} transition={{ duration: reduced ? .15 : .3 }}>
+            <motion.div className={step === 0 ? styles.discoveryBody : `${styles.body} ${step === 1 ? styles.comparisonBody : ""}`} ref={storyRef} role={step ? "region" : undefined} tabIndex={step ? 0 : undefined} aria-label={step ? (zh ? "导览内容" : "Introduction content") : undefined} data-onboarding-content data-profile-exit={profileExit} animate={{ opacity: flight ? 0 : 1 }} transition={{ duration: reduced ? .15 : .3 }}>
               {step === 0 ? <DiscoveryIntro catalog={catalog} selected={selectedShoes} onSelect={selectShoe} zh={zh} stats={catalogStats} expanded={wallExpanded} onExpand={() => setWallExpanded(true)}/> : <>
               <div ref={copyRef} className={styles.copy} role="region" tabIndex={0} aria-label={zh ? "功能介绍与入口" : "Feature introduction and navigation"}>
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -612,7 +619,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                         <p><strong>{zh ? "更多 / 菜单" : "More / Menu"}</strong><ArrowRight size={13}/>{zh ? "球员档案" : "Player profile"}</p>
                         <small>{zh ? "注册后会带你建立档案。以后想改位置、身体信息或打法，可以回到这里；评分偏好在选鞋页面的偏好入口调整。" : "We’ll build your profile after signup. Return here to update your position, build and playstyle; adjust rating priorities from the preferences control on shoe browsing pages."}</small>
                       </> : <>
-                        <p><strong>Smart Picker</strong><ArrowRight size={13}/>{zh ? "输入需求，或填写选鞋问卷" : "Describe your needs, or use the questionnaire"}</p>
+                        <p><strong>Smart Picker</strong><ArrowRight size={13}/>{zh ? "注册后，可输入新需求或填写问卷" : "After signup, describe new needs or use the questionnaire"}</p>
                         <small>{zh ? "电脑：顶部 Smart Picker · 手机：底部 Picker。进入后，标题旁的「使用指南」会进一步教你操作。" : "Desktop: Smart Picker in the top bar. Mobile: Picker in the bottom bar. The Guide beside its title explains the next steps."}</small>
                         <div className={styles.wayfindingLinks}><Link href="/smart-picker" target="_blank" rel="noopener noreferrer">{zh ? "查看 Smart Picker 入口" : "Open Smart Picker"}<ArrowRight size={12}/></Link></div>
                       </>}
@@ -621,27 +628,27 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 </AnimatePresence>
                 <ScrollHint targetRef={copyRef} zh={zh}/>
               </div>
-              <SiteStory comparisonPhase={comparison.phase} step={step} catalog={catalog} zh={zh} selectedShoes={selectedShoes} introDemoRunKey={introDemoRunKey} onChangeSelection={() => changeStep(0)}/><div className={styles.compactBodyHint}><ScrollHint targetRef={storyRef} zh={zh}/></div></>}
+              <SiteStory positions={introPositions} picks={introPicks} onPositions={setIntroPositions} onPicks={setIntroPicks} profileExit={profileExit} onProfileExit={completeProfileExit} comparisonPhase={comparison.phase} step={step} catalog={catalog} zh={zh} selectedShoes={selectedShoes} introDemoRunKey={introDemoRunKey} onChangeSelection={() => changeStep(0)}/><div className={styles.compactBodyHint}><ScrollHint targetRef={storyRef} zh={zh}/></div></>}
             </motion.div>
             <div className={styles.controls}>
-              <nav className={styles.steps} aria-label={zh ? "介绍步骤" : "Introduction steps"}>{[0, 1, 2, 3].map((n) => <button key={n} className={styles.stepDot} type="button" aria-current={step === n ? "step" : undefined} aria-label={(zh ? "第 " : "Step ") + (n + 1)} onClick={() => changeStep(n)} disabled={!!flight || (n > 0 && selectedShoes.length < 2)}/>)}</nav>
+              <nav className={styles.steps} aria-label={zh ? "介绍步骤" : "Introduction steps"}>{[0, 1, 2, 3].map((n) => <button key={n} className={styles.stepDot} type="button" aria-current={step === n ? "step" : undefined} aria-label={(zh ? "第 " : "Step ") + (n + 1)} onClick={() => changeStep(n)} disabled={profileExit || !!flight || (n > 0 && selectedShoes.length < 2)}/>)}</nav>
               <div className={styles.controlActions}>
-                {step > 0 ? <button className={styles.quietButton} type="button" onClick={() => changeStep(step - 1)} aria-label={zh ? "上一步" : "Previous step"}><ArrowLeft size={18}/></button> : null}
-                <motion.button whileTap={reduced ? undefined : { scale: .98 }} type="button" className={styles.primary} disabled={!!flight || (step === 0 && selectedShoes.length < 2)} onClick={() => step === 3 ? finishIntro("completed") : changeStep(step + 1)}>{step === 3 ? (replay ? (zh ? "完成介绍" : "Finish introduction") : (zh ? "创建账号，开始探索" : "Create your account")) : step === 0 ? (selectedShoes.length === 2 ? (zh ? "对比这两双" : "Compare these two") : (zh ? "先选两双球鞋" : "Choose two shoes")) : (zh ? "继续探索" : "Keep exploring")}<ArrowRight size={17}/></motion.button>
+                {step > 0 ? <button className={styles.quietButton} type="button" onClick={() => changeStep(step - 1)} disabled={profileExit} aria-label={zh ? "上一步" : "Previous step"}><ArrowLeft size={18}/></button> : null}
+                <motion.button whileTap={reduced ? undefined : { scale: .98 }} type="button" className={styles.primary} disabled={profileExit || !!flight || (step === 0 && selectedShoes.length < 2)} onClick={() => step === 3 ? finishIntro("completed") : changeStep(step + 1)}>{step === 3 ? (replay ? (zh ? "完成介绍" : "Finish introduction") : (zh ? "创建账号，开始探索" : "Create your account")) : step === 0 ? (selectedShoes.length === 2 ? (zh ? "对比这两双" : "Compare these two") : (zh ? "先选两双球鞋" : "Choose two shoes")) : (zh ? "继续探索" : "Keep exploring")}<ArrowRight size={17}/></motion.button>
               </div>
             </div>
           </motion.div>
         ) : null}
         </AnimatePresence> : null}
         <div hidden={showingIntro || phase !== "auth"} className={styles.formBody}>
-          <motion.div ref={authIntroRef} className={styles.formIntro} role="region" tabIndex={0} aria-label={zh ? "账号介绍" : "About your account"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={transition}><p className={styles.eyebrow}>YOUR GAME STARTS HERE</p><h1 className={styles.heading}>{zh ? "下一双，" : "Your next pair."}<br/><span className={styles.accent}>{zh ? "从你开始。" : "It starts with you."}</span></h1><p className={styles.description}>{zh ? "留下你的球员身份，把每一次探索变成更了解自己的过程。" : "Make room for your player profile, your discoveries and the choices ahead."}</p><div className={styles.formVisual}><span className={styles.formSeal}><ShieldCheck size={28}/></span><p><strong>{zh ? "属于你的选鞋旅程" : "A space for your game"}</strong>{zh ? "真实档案 · 自由浏览 · 持续探索" : "Your profile. Your discoveries. Your pace."}</p></div><ScrollHint targetRef={authIntroRef} zh={zh}/></motion.div>
+          <motion.div ref={authIntroRef} className={styles.formIntro} role="region" tabIndex={0} aria-label={zh ? "账号介绍" : "About your account"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={transition}><p className={styles.eyebrow}>YOUR GAME STARTS HERE</p><h1 className={styles.heading}>{zh ? "下一双，" : "Your next pair."}<br/><span className={styles.accent}>{zh ? "从你开始。" : "It starts with you."}</span></h1><p className={styles.description}>{zh ? "留下你的球员身份，把每一次探索变成更了解自己的过程。" : "Make room for your player profile, your discoveries and the choices ahead."}</p><div className={styles.formVisual}><span className={styles.formSeal}><ShieldCheck size={28}/></span><p><strong>{zh ? "属于你的选鞋旅程" : "A space for your game"}</strong>{zh ? "真实档案 · 自由浏览 · 持续探索" : "Your profile. Your discoveries. Your pace."}</p></div>{!showingIntro && phase === "auth" ? <IntroTrail shoes={selectedShoes} zh={zh} reduced={Boolean(reduced)}/> : null}<ScrollHint targetRef={authIntroRef} zh={zh}/></motion.div>
           <motion.div layoutId={!showingIntro && phase === "auth" ? "sf-feature-stage" : undefined} transition={transition} className={styles.formStage}>{authMounted ? <OnboardingAuth onAuthenticated={() => loadStatus({ foreground: true })}/> : null}</motion.div>
         </div>
         <div hidden={showingIntro || phase !== "profile"} className={styles.formBody}>
-          <motion.div ref={profileIntroRef} className={styles.formIntro} role="region" tabIndex={0} aria-label={zh ? "球员档案介绍" : "About your player profile"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={transition}><p className={styles.eyebrow}>GET TO KNOW YOUR GAME</p><h1 className={styles.heading}>{zh ? "让每一次选择，" : "A little about you."}<br/><span className={styles.accent}>{zh ? "更贴近你。" : "A better starting point."}</span></h1><p className={styles.description}>{zh ? "你在球场上的样子，是我们了解一双鞋是否适合你的起点。" : "How you move on court is the starting point for understanding what might work for you."}</p><div className={styles.formVisual}><span className={styles.formSeal}><Sparkles size={28}/></span><p><strong>{zh ? "你的资料，随时可修改" : "Your profile can evolve"}</strong>{zh ? "以后可以从菜单里的球员档案更新。" : "Update it anytime from Player profile in the menu."}</p></div><ScrollHint targetRef={profileIntroRef} zh={zh}/></motion.div>
-          <motion.div layoutId={!showingIntro && phase === "profile" ? "sf-player-card" : undefined} transition={transition} className={styles.formStage} data-onboarding-profile-card>{profileMounted ? <OnboardingProfile key={status?.userId || auth.userId || "pending"} onComplete={completeProfile}/> : null}</motion.div>
+          <motion.div ref={profileIntroRef} className={styles.formIntro} role="region" tabIndex={0} aria-label={zh ? "球员档案介绍" : "About your player profile"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={transition}><p className={styles.eyebrow}>GET TO KNOW YOUR GAME</p><h1 className={styles.heading}>{zh ? "让每一次选择，" : "A little about you."}<br/><span className={styles.accent}>{zh ? "更贴近你。" : "A better starting point."}</span></h1><p className={styles.description}>{zh ? "你在球场上的样子，是我们了解一双鞋是否适合你的起点。" : "How you move on court is the starting point for understanding what might work for you."}</p><div className={styles.formVisual}><span className={styles.formSeal}><Sparkles size={28}/></span><p><strong>{zh ? "你的资料，随时可修改" : "Your profile can evolve"}</strong>{zh ? "以后可以从菜单里的球员档案更新。" : "Update it anytime from Player profile in the menu."}</p></div>{!showingIntro && phase === "profile" ? <IntroTrail shoes={selectedShoes} zh={zh} reduced={Boolean(reduced)}/> : null}<ScrollHint targetRef={profileIntroRef} zh={zh}/></motion.div>
+          <motion.div layoutId={!showingIntro && phase === "profile" ? "sf-player-card" : undefined} transition={transition} className={styles.formStage} data-onboarding-profile-card>{profileMounted ? <OnboardingProfile initialPositions={introPositions} initialPicks={introPicks} key={status?.userId || auth.userId || "pending"} onComplete={completeProfile}/> : null}</motion.div>
         </div>
-        {!showingIntro && phase === "welcome" ? <ArrivalWelcome zh={zh} memberNumber={status?.memberNumber ?? null} username={status?.username || auth.username || null} pageviews={pageviews} stale={pageviewsStale} onEnter={() => void enterWebsite()} busy={busy} error={error}/> : null}
+        {!showingIntro && phase === "welcome" ? <ArrivalWelcome continuation={<IntroTrail shoes={selectedShoes} zh={zh} reduced={Boolean(reduced)}/>} zh={zh} memberNumber={status?.memberNumber ?? null} username={status?.username || auth.username || null} pageviews={pageviews} stale={pageviewsStale} onEnter={() => void enterWebsite()} busy={busy} error={error}/> : null}
         {!showingIntro && (phase === "boot" || phase === "error") ? <div ref={statusRef} className={styles.status}><BrandLogo shared={false}/><h1 ref={headingRef} tabIndex={-1} className={styles.heading}>{phase === "boot" ? (zh ? "准备好你的球场。" : "Making room for you.") : (zh ? "我们再试一次。" : "Let's try that again.")}</h1>{phase === "boot" ? <div className={styles.loadingMark}><span/></div> : <><p>{error}</p>{recovery ? <form onSubmit={recoverProfile} className={styles.recoveryForm}><p>{zh ? "你的账号已经创建。选择一个可用的用户名，即可继续。" : "Your account exists. Choose an available username to continue."}</p><label htmlFor="onboarding-recovery-name">{zh ? "用户名" : "Username"}</label><input id="onboarding-recovery-name" value={recoveryName} onChange={(e) => setRecoveryName(e.target.value)} minLength={3} maxLength={80} required autoComplete="username"/><button type="submit" className={styles.primary} disabled={busy}>{zh ? "恢复并继续" : "Continue setup"}</button></form> : null}<button className={styles.quietButton} type="button" onClick={() => { setPhase("boot"); void loadStatus({ foreground: true }); }}>{zh ? "重新连接" : "Reconnect"}</button></>}<ScrollHint targetRef={statusRef} zh={zh}/></div> : null}
         <footer className={styles.footer}>
           {consent.ready && !consent.blocked && consent.consent === null ? <div className={styles.consent}><span>{zh ? "允许匿名使用统计，帮助我们改善体验？" : "Allow analytics to help us improve your experience?"}</span><button type="button" onClick={() => consent.setConsent("rejected")}>{zh ? "拒绝" : "Decline"}</button><button type="button" onClick={() => consent.setConsent("accepted")}>{zh ? "接受" : "Accept"}</button></div> : <span>{zh ? "为你的打法，找到更多可能。" : "More possibilities for the way you play."}</span>}
@@ -650,10 +657,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     </OnboardingShell>
   ) : null;
 
-  return <>{children}{mounted ? createPortal(<>
+  return <>{children}{mounted ? createPortal(<LayoutGroup id="sf-onboarding">
+    <IntroContinuation enabled={!active && onHome && auth.signedIn && phase === "complete"} zh={zh} reduced={Boolean(reduced)}/>
     {showing || retainShell ? <AnimatePresence onExitComplete={() => { if (!showingRef.current) setRetainShell(false); }}>{shell}</AnimatePresence> : null}
     <AnimatePresence>{flight ? <motion.div key="flight" className={styles.flyingCard} style={{ left: flight.from.left, top: flight.from.top, width: flight.from.width, height: flight.from.height, transformOrigin: "top left" }} initial={{ opacity: .75, x: 0, y: 0, scaleX: 1, scaleY: 1 }} animate={{ opacity: [.9, .9, 0], x: flight.to.left - flight.from.left, y: flight.to.top - flight.from.top, scaleX: flight.to.width / flight.from.width, scaleY: flight.to.height / flight.from.height }} transition={{ duration: .95, ease: EASE, opacity: { duration: .95, times: [0, .55, 1], ease: EASE } }} onAnimationComplete={flight.after}><FlightPreview snapshot={flight.snapshot}/></motion.div> : null}</AnimatePresence>
     <AnimatePresence>{hint?.menu ? <motion.div key="replay-hint" className={styles.replayHint} role="status" style={{ top: Math.min(hint.rect.bottom + 12, window.innerHeight - 110), right: Math.max(18, window.innerWidth - hint.rect.right) }} initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .2 }}>{hint.menu ? (zh ? `以后从「${window.innerWidth >= 768 ? "更多" : "菜单"} → Site Intro」重看。` : `Replay anytime from ${window.innerWidth >= 768 ? "More" : "Menu"} → Site Intro.`) : (zh ? "想再看一次？随时从这里开始。" : "Want another look? Your introduction is always here.")}</motion.div> : null}</AnimatePresence>
     <AnimatePresence>{library ? <motion.div className={styles.libraryBackdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setLibrary(false)}><motion.div ref={libraryRef} className={styles.library} role="dialog" aria-modal="true" aria-label={zh ? "Site Intro 与功能指南" : "Site Intro & guides"} initial={reduced ? { opacity: 0 } : { opacity: 0, scale: .96, y: 14 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0 }} transition={transition} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Escape") setLibrary(false); }}><div className={styles.libraryHeader}><h2>{zh ? "随时，再认识一次。" : "A fresh look. Anytime."}</h2><button className={styles.quietButton} type="button" autoFocus onClick={() => setLibrary(false)} aria-label={zh ? "关闭" : "Close"}><X size={18}/></button></div><button className={styles.libraryChoice} type="button" onClick={() => { setLibrary(false); openReplay(); }}><GraduationCap size={22}/><span><strong>{zh ? "Site Intro · 网站介绍" : "Site Intro · Meet snkrfeature"}</strong><small>{zh ? "了解功能，找到自己的选鞋方式。" : "Explore the tools. Find your own way."}</small></span><ArrowRight size={17}/></button><button className={styles.libraryChoice} type="button" onClick={() => { setLibrary(false); if (pathname === "/smart-picker") event("sf:replay-tutorial", { kind: "ai" }); else { try { sessionStorage.setItem("sf-replay-ai-v2", "1"); } catch {} router.push("/smart-picker"); } }}><Sparkles size={22}/><span><strong>{zh ? "AI 选鞋指南" : "Smart Picker guide"}</strong><small>{zh ? "从认识 AI，到发出第一个需求。" : "From meeting your assistant to your first request."}</small></span><ArrowRight size={17}/></button><ScrollHint targetRef={libraryRef} zh={zh}/></motion.div></motion.div> : null}</AnimatePresence>
-  </>, document.body) : null}</>;
+  </LayoutGroup>, document.body) : null}</>;
 }

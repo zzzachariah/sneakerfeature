@@ -1,100 +1,114 @@
+/* eslint-disable @next/next/no-img-element -- Approved catalog cutouts retain their original aspect ratio. */
 "use client";
-
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowDown, ArrowUpRight, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ExternalLink, LoaderCircle, RotateCcw, Sparkles } from "lucide-react";
 import { EASE } from "@/lib/motion/constants";
+import { type DemoInput, type DemoStage, type DemoEvent } from "@/lib/onboarding/picker-demo-contract";
+import { ProfileSelections } from "./profile-selections";
+import { usePickerDemo } from "./use-picker-demo";
 import { useNarrativeScroll } from "./use-narrative-scroll";
-import styles from "./site-interactive-stories.module.css";
-import narrative from "./story-narrative.module.css";
+import type { StoryShoe } from "./site-stories";
+import styles from "./picker-narrative.module.css";
+const stages: DemoStage[]=["catalog","shortlist","research","writing"];
+const labels: Record<DemoStage,[string,string]>={catalog:["读取你的选择","Reading your choices"],shortlist:["筛选候选球鞋","Finding candidates"],research:["搜集实战资料","Gathering evidence"],writing:["整理两双推荐","Shaping your two picks"]};
+function failure(code:string|undefined,zh:boolean) {
+  const messages:Record<string,[string,string]>={
+    timeout:["这次模型响应超时，未能及时完成两双推荐。已查到的资料还在下面。","The model took too long to finish both recommendations. The evidence gathered so far is still here."],
+    incomplete:["AI 没有返回两双资料完整的球鞋，因此这次没有发布推荐。","The AI did not return two complete shoe recommendations, so this result was not published."],
+    provider_busy:["模型服务正在限流，这次请求未能完成。","The model provider is busy and could not finish this request."],
+    provider_unavailable:["模型服务暂时无法响应，这次没有生成推荐。","The model service could not respond. No recommendations were generated."],
+    demo_busy:["演示名额暂时已满。你可以先完成注册，稍后在 Smart Picker 继续。","The demo is at capacity. You can finish signing up and use Smart Picker later."],
+    network:["连接中断，正在核对服务器是否已经完成。无需重新提交。","The connection was interrupted. We’re checking whether the server finished; no need to submit again."],
+    unavailable:["这次 AI 请求未能完成。已有查询记录会保留，你仍可继续注册。","This AI request could not finish. Completed searches are retained, and you can continue signing up."]
+  };
+  return (messages[code||"unavailable"]||messages.unavailable)[zh?0:1];
+}
+function SourceList({events,zh}:{events:DemoEvent[];zh:boolean}) {
+  const queries=Array.from(new Map(events.filter(e=>e.query).map(e=>[e.query,e])).values());
+  return <div className={styles.queries}>{queries.map(event=><article key={event.query}>
+    <p><span className={styles.queryState}>{event.state==="start"?<LoaderCircle size={13} className={styles.spinner}/>:event.state==="ok"?<Check size={13}/>:"—"}</span>{event.query}</p>
+    {event.state==="ok"?<small>{event.resultCount} {zh?"条真实搜索结果":"search results"}{event.cached?(zh?" · 已有查询缓存":" · cached search"):""}</small>:event.state==="fail"?<small>{zh?"这次查询未完成，继续参考其他资料。":"This search failed; other evidence remains available."}</small>:null}
 
-type Beat = "input" | "request" | "answer" | "return" | "explained";
-export function PickerNarrative({ zh, reduced, children, facts, initialExplained, onExplained }: {
-  zh: boolean; reduced: boolean; children: ReactNode; initialExplained: boolean; onExplained: () => void;
-  facts: { name: string; traction: string; stability: string }[];
-}) {
-  const [beat, setBeat] = useState<Beat>(reduced || initialExplained ? "explained" : "input");
-  const [letters, setLetters] = useState(0);
-  const [automatic, setAutomatic] = useState(true);
-  const root = useRef<HTMLDivElement>(null);
-  const response = useRef<HTMLElement>(null);
-  const secondFact = useRef<HTMLElement>(null);
-  const scroll = useNarrativeScroll(reduced);
-  const example = zh ? "我经常打室外场，最关心抓地和稳定。请帮我了解这两双的取舍。" : "I play outdoors and care most about traction and stability. Help me understand these two picks.";
-  const explained = beat === "explained";
-  const finish = useCallback(() => { setAutomatic(false); setBeat("explained"); void scroll(root.current, true); }, [scroll]);
-
-  useEffect(() => { if (explained) onExplained(); }, [explained, onExplained]);
-  useEffect(() => {
-    if (reduced) { setBeat("explained"); return; }
-    if (!automatic || explained) return;
-    const interrupt = () => { setAutomatic(false); onExplained(); };
-    const panel = root.current?.closest("[data-onboarding-story-scroll]");
-    panel?.addEventListener("wheel", interrupt, { passive: true });
-    panel?.addEventListener("touchstart", interrupt, { passive: true });
-    document.addEventListener("visibilitychange", interrupt);
-    document.addEventListener("keydown", interrupt);
-    return () => {
-      panel?.removeEventListener("wheel", interrupt);
-      panel?.removeEventListener("touchstart", interrupt);
-      document.removeEventListener("visibilitychange", interrupt);
-      document.removeEventListener("keydown", interrupt);
-    };
-  }, [automatic, explained, reduced, onExplained]);
-  useEffect(() => {
-    if (beat !== "input" || !automatic) return;
-    const start = performance.now();
-    const timer = window.setInterval(() => {
-      const t = Math.min(1, Math.max(0, performance.now() - start - 650) / 2500);
-      setLetters(Math.ceil(example.length * t));
-      if (t === 1) { window.clearInterval(timer); setBeat("request"); }
-    }, 45);
-    return () => window.clearInterval(timer);
-  }, [beat, automatic, example.length]);
-  useEffect(() => {
-    if (!automatic || reduced) return;
-    let disposed = false;
-    let timer = 0;
-    if (beat === "request") timer = window.setTimeout(() => setBeat("answer"), 1600);
-    if (beat === "answer") timer = window.setTimeout(async () => {
-      const arrived = await scroll(response.current);
-      if (!disposed && arrived) timer = window.setTimeout(async () => {
-        const next = await scroll(secondFact.current);
-        if (!disposed && next) timer = window.setTimeout(() => setBeat("return"), 5500);
-      }, 5500);
-    }, 700);
-    if (beat === "return") {
-      void scroll(root.current, true).then(arrived => {
-        if (!disposed && arrived) timer = window.setTimeout(() => setBeat("explained"), 650);
-      });
-    }
-    return () => { disposed = true; window.clearTimeout(timer); };
-  }, [beat, automatic, reduced, scroll]);
-
-  return <div ref={root} className={narrative.picker} data-picker-narrative data-picker-beat={beat} data-explained={explained}>
-    <AnimatePresence mode="wait" initial={false}>
-      {explained ? <motion.div key="explained" className={narrative.pickerContents} initial={reduced ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? 0 : 1, ease: EASE }}>
-        <p className={narrative.explained}><Sparkles size={15}/>{zh ? "这就是 Smart Picker。现在，试着说出你的需求。" : "This is Smart Picker. Now make the request your own."}</p>
-        {children}
-      </motion.div> : <motion.div key="demo" className={narrative.pickerContents} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .75, ease: EASE }}>
-        <div className={narrative.demoHeader}><span>{zh ? "先看一个例子" : "Start with an example"}</span><button type="button" onClick={finish}>{zh ? "自己试试" : "Try it yourself"}<ArrowUpRight size={13}/></button></div>
-        <motion.div className={`${styles.composer} ${narrative.exampleComposer}`} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .95, ease: EASE }}>
-          <span className={narrative.demoLabel}>{zh ? "示例需求" : "Example request"}</span>
-          <p className={narrative.typed} aria-label={example}><span aria-hidden="true">{example.slice(0, beat === "input" ? letters : example.length)}</span><i aria-hidden="true"/></p>
-          <div className={styles.composerBottom}><span className={narrative.demoLabel}>{zh ? "演示 · 不会发送请求" : "Demo · No request is sent"}</span><motion.button type="button" className={styles.prepareButton} onClick={() => { setLetters(example.length); setBeat("answer"); setAutomatic(true); }} animate={{ scale: beat === "request" ? [1, 1.04, 1] : 1 }} transition={{ duration: 1.25, ease: EASE }}><ArrowDown size={14}/>{zh ? "预览需求" : "Preview request"}</motion.button></div>
-        </motion.div>
-        {(beat === "answer" || beat === "return") && <motion.section ref={response} className={narrative.demoResponse} data-picker-demo-response initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1, ease: EASE }}>
-          <span className={narrative.demoLabel}>{zh ? "球鞋资料示例 · 不是实时 AI 回答" : "Catalog example · Not a live AI response"}</span>
-          <h3>{zh ? "从你在意的抓地与稳定开始。" : "Start with traction and stability."}</h3>
-          {facts.map((fact, i) => <motion.article ref={i === 1 ? secondFact : undefined} key={fact.name} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.1, delay: .6 + i * .8, ease: EASE }}><h4>{fact.name}</h4><p><strong>{zh ? "抓地" : "Traction"}</strong>{fact.traction}</p><p><strong>{zh ? "稳定" : "Stability"}</strong>{fact.stability}</p></motion.article>)}
-          <p className={styles.evidenceNote}>{zh ? "以上来自这两双鞋的已有资料。正式提问后，Smart Picker 会结合你的需求与可用资料梳理取舍；缺少的依据也会明确说明。" : "These are the recorded facts for your picks. After a real request, Smart Picker helps explain the trade-offs using your needs and available evidence, including any gaps."}</p>
-        </motion.section>}
-        {!automatic && <button type="button" className={narrative.continueDemo} onClick={() => {
-          if (beat === "input") { setLetters(example.length); setBeat("request"); }
-          else if (beat === "answer" || beat === "return") { finish(); return; }
-          setAutomatic(true);
-        }}>{zh ? "继续演示" : "Continue the example"}<ArrowUpRight size={14}/></button>}
-      </motion.div>}
-    </AnimatePresence>
+  </article>)}</div>;
+}
+export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;reduced:boolean;input:DemoInput|null;shoes:StoryShoe[];onBack:()=>void}) {
+  const {snapshot,connection,posting,run}=usePickerDemo();
+  const [beat,setBeat]=useState(reduced?2:0);
+  const [history,setHistory]=useState<DemoStage|null>(null);
+  const [elapsed,setElapsed]=useState(0);
+  const [folded,setFolded]=useState(false),[resultReady,setResultReady]=useState(false);
+  const progressRef=useRef<HTMLElement>(null),resultRef=useRef<HTMLElement>(null),sourcesRef=useRef<HTMLElement>(null),failureRef=useRef<HTMLDivElement>(null);
+  const [showHistory,setShowHistory]=useState(false);
+  const scroll=useNarrativeScroll(reduced);
+  useEffect(()=>{
+    if(snapshot.status!=="complete"){setFolded(false);setResultReady(false);return;}
+    if(reduced){setFolded(true);setResultReady(true);return;}
+    let stopped=false;let timer:ReturnType<typeof setTimeout>;
+    void scroll(sourcesRef.current,false,100).then(()=>{
+      if(stopped)return;
+      setFolded(true);
+      timer=setTimeout(()=>{if(!stopped)setResultReady(true);},1250);
+    });
+    return()=>{stopped=true;clearTimeout(timer);};
+  },[snapshot.status,reduced,scroll]);
+  useEffect(()=>{if(reduced){setBeat(2);return;}const a=setTimeout(()=>setBeat(1),800),b=setTimeout(()=>setBeat(2),1700);return()=>{clearTimeout(a);clearTimeout(b);};},[reduced]);
+  useEffect(()=>{if(!snapshot.startedAt)return;if(snapshot.status!=="running"){setElapsed(Math.max(0,Math.floor((Date.parse(snapshot.finishedAt??snapshot.events.at(-1)?.at??snapshot.startedAt)-Date.parse(snapshot.startedAt))/1000)));return;}const update=()=>setElapsed(Math.max(0,Math.floor((Date.now()-Date.parse(snapshot.startedAt!))/1000)));update();const timer=setInterval(update,1000);return()=>clearInterval(timer);},[snapshot.status,snapshot.startedAt,snapshot.finishedAt,snapshot.events]);
+  useEffect(()=>{if(snapshot.status==="running")void scroll(progressRef.current,false,250);},[snapshot.status,scroll]);
+  useEffect(()=>{if(snapshot.status==="failed")void scroll(failureRef.current,false,350);},[snapshot.status,scroll]);
+  useEffect(()=>{if(resultReady)void scroll(resultRef.current,false,900);},[resultReady,scroll]);
+  const context=snapshot.input??input;
+  const interestShoes=snapshot.interests??shoes;
+  const prompt=context?(zh?"请根据这些选择，为我推荐两双篮球鞋，告诉我理由和需要权衡的地方。":"Find two basketball shoes for these choices, with the reasons and trade-offs."):"";
+  const latest=snapshot.events.at(-1)?.stage??"catalog",active=history??latest;
+  const observed=stages.filter(stage=>snapshot.events.some(e=>e.stage===stage));
+  const events=snapshot.events.filter(e=>e.stage===active);
+  const candidates=snapshot.events.findLast(e=>e.candidates?.length)?.candidates??[];
+  const allSources=Array.from(new Map(snapshot.events.flatMap(e=>e.sources??[]).map(s=>[s.url,s])).values());
+  const cited=new Set((snapshot.shoes??[]).flatMap(s=>s.references).map(s=>s.url));
+  const displayedSources=folded?allSources.filter(s=>cited.has(s.url)):allSources;
+  const sourceCount=new Set(snapshot.events.flatMap(e=>e.sources??[]).map(s=>s.url)).size;
+  const began=snapshot.status!=="idle"||posting;
+  const duration=reduced?0:.85;
+  return <div className={styles.picker} data-picker-narrative data-explained="true" data-demo-status={snapshot.status}>
+    <motion.div className={styles.introduction} initial={false} animate={{opacity:beat>=1?1:0,y:beat>=1?0:8}} transition={{duration}}><span><Sparkles size={16}/>Smart Picker</span><h3>{zh?"从你的打法，找到下一双。":"Your game becomes the brief."}</h3></motion.div>
+    <motion.section className={styles.request} layout transition={{duration,ease:EASE}} data-picker-request>
+      {context&&<ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part={began?"positions":"all"}/>}
+      <motion.div initial={false} animate={{opacity:beat>=1?1:0,height:beat>=1?"auto":0}} transition={{duration,ease:EASE}}>
+        <div className={styles.interests}><small>{zh?"从这两双开始了解你":"YOUR STARTING POINT"}</small><div>{interestShoes.map(s=><span key={s.slug}>
+          <motion.div layoutId={reduced?undefined:`sf-shoe-${s.slug}`} transition={{duration:1.15,ease:EASE}}>{s.image&&/* eslint-disable-next-line @next/next/no-img-element */<img src={s.image} alt=""/>}</motion.div>{s.name}</span>)}</div></div>
+        <p className={styles.prompt}>{prompt|| (zh?"先回到上一屏，选择两个位置和三个重点，就能用你的偏好做这次演示。":"Choose two positions and three priorities on the previous screen to try this with your game.")}</p>
+      </motion.div>
+      <motion.div initial={false} animate={{opacity:beat>=2?1:0}} transition={{duration}} inert={beat<2}>
+        {!began&&<button className={styles.primary} disabled={posting||connection==="loading"} type="button" onClick={()=>input?void run(input):onBack()}>{input?(zh?"用我的选择，推荐两双":"Find two for my game"):(zh?"回到球员档案":"Back to my profile")}<ArrowRight size={16}/></button>}
+        <small className={styles.disclosure}>{snapshot.status==="complete"?(zh?"你的两双，已经准备好":"Your picks are ready"):(zh?"仅使用这些选择与公开球鞋资料":"AI uses only these choices and public shoe information")}</small>
+      </motion.div>
+    </motion.section>
+    <motion.section layout ref={progressRef} className={styles.answer} data-picker-answer transition={{duration:reduced?0:1.15,ease:EASE}}>
+    {began&&!resultReady&&context&&<motion.div layout className={styles.answerPriorities} data-answer-priorities transition={{duration:reduced?0:1.15,ease:EASE}}><ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part="priorities"/></motion.div>}
+    {resultReady&&<button type="button" className={styles.historyToggle} onClick={()=>setShowHistory(v=>!v)} aria-expanded={showHistory}>{zh?"查看这次选鞋过程":"Revisit this search"}</button>}
+    {began&&<motion.section inert={resultReady&&!showHistory} aria-hidden={resultReady&&!showHistory} initial={false} animate={{height:resultReady&&!showHistory?0:"auto",opacity:resultReady&&!showHistory?0:1,paddingTop:resultReady&&!showHistory?0:22}} transition={{duration:reduced?0:.8,ease:EASE}} style={{overflow:resultReady&&!showHistory?"hidden":undefined}} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
+      <div className={styles.progressHeader}><span>{snapshot.status==="running"||posting?<><i/>{zh?"正在进行":"IN PROGRESS"}</>:snapshot.status==="complete"?<><Check size={13}/>{zh?"本次查询记录":"RESEARCH RECORD"}</>:<>{zh?"本次未完成":"NOT COMPLETED"}</>}</span><time>{elapsed}s</time></div>
+      <div className={styles.workbench}>
+        <nav aria-label={zh?"已发生的工作阶段":"Activity history"}>{observed.map((stage,i)=><button type="button" key={stage} aria-pressed={active===stage} onClick={()=>setHistory(stage)}><span>{String(i+1).padStart(2,"0")}</span>{labels[stage][zh?0:1]}{stage!==latest||snapshot.status==="complete"?<Check size={12}/>:null}</button>)}{history&&history!==latest&&<button type="button" onClick={()=>setHistory(null)}>{zh?"跟随实时进度":"Follow live"}<ArrowRight size={12}/></button>}</nav>
+        <div className={styles.stageWindow}><AnimatePresence initial={false} mode="wait"><motion.div key={active} className={styles.stage} initial={reduced?{opacity:0}:{opacity:0,x:35}} animate={{opacity:1,x:0}} exit={reduced?{opacity:0}:{opacity:0,x:-35}} transition={{duration:reduced?.1:.55,ease:EASE}}>
+          <span className={styles.stageLabel}>{labels[active][zh?0:1]}</span>
+          {active==="catalog"?<><strong className={styles.figure}>{events[0]?.catalogCount??"—"}</strong><p>{zh?"双已读取的目录球鞋。以你的位置和有序偏好作为筛选条件。":"catalog shoes loaded, with your positions and ordered priorities as context."}</p></>:active==="shortlist"?<>{candidates.length?<div className={styles.candidates}>{candidates.map(c=><span key={c.slug}><Check size={13}/>{c.name}</span>)}</div>:<p>{zh?"模型正在读取目录，选择值得进一步核对的球鞋。候选返回后会显示在这里。":"The model is reading the catalog. Its actual candidates will appear here when returned."}</p>}</>:active==="research"?<SourceList events={events} zh={zh}/>:<><div className={styles.evidenceCounts}><strong>{candidates.length}<small>{zh?"双候选":"candidates"}</small></strong><strong>{sourceCount}<small>{zh?"个找到的来源":"sources found"}</small></strong></div><p>{snapshot.status==="complete"?(zh?"推荐已根据这些资料生成，理由和取舍在下方。":"The recommendations are ready below, with fit and trade-offs based on this evidence."):snapshot.status==="failed"?null:(zh?"模型正在结合这些资料整理推荐、匹配理由和取舍。":"The model is using this evidence to prepare the recommendations, fit and trade-offs.")}</p>{!sourceCount&&<p>{zh?"没有可用的外部搜索结果；如能完成，将明确仅依据站内目录。":"No external results are available; any completed answer will be identified as catalog-based."}</p>}</>}
+        </motion.div></AnimatePresence></div>
+      </div>
+      <p className={styles.liveNote} role="status">{connection==="offline"?(zh?"连接暂时中断，正在恢复真实进度。已完成的资料不会清空。":"Connection interrupted. Reconnecting without clearing completed research."):snapshot.status==="running"&&elapsed>25?(zh?"这次仍在处理中。你可以继续注册，完成后在首页接着看。":"Still working. You can continue signing up and find the result on the homepage."):null}</p>
+    </motion.section>}
+    {(allSources.length>0 || snapshot.status==="complete")&&<motion.section ref={sourcesRef} layout className={styles.sources} data-source-fold={folded} transition={{duration:reduced?0:1,ease:EASE}} aria-label={zh?"资料来源":"Sources"}>
+      <span>{zh?"资料来源":"SOURCES"}</span><motion.div layout className={styles.sourceCards} transition={{duration:reduced?0:1,ease:EASE}}><AnimatePresence initial={false} mode="popLayout">{displayedSources.map(source=><motion.a layout key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" initial={reduced?false:{opacity:0,y:14,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:reduced?0:-10,scale:reduced?1:.96}} transition={{duration:reduced?.1:.75,ease:EASE}}><span>{new URL(source.url).hostname.replace(/^www\./,"")}</span><strong>{source.title}</strong><ExternalLink size={12}/></motion.a>)}</AnimatePresence></motion.div>
+      {folded&&!displayedSources.length&&<motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration}}><p>{zh?"本次推荐依据站内球鞋资料。":"These recommendations draw on the site’s shoe records."}</p><div className={styles.catalogSources}>{snapshot.shoes?.map(s=><a key={s.id} href={`/shoes/${s.slug}`} target="_blank" rel="noopener noreferrer">{s.name}<ExternalLink size={11}/></a>)}</div></motion.div>}
+    </motion.section>}
+    {snapshot.status==="failed"&&<div ref={failureRef} className={styles.failure} role="alert"><strong>{zh?"这次没能完成，原因是：":"This run could not finish:"}</strong><p>{failure(snapshot.error,zh)}</p>{snapshot.retryable&&input&&<button type="button" className={styles.secondary} disabled={posting} onClick={()=>void run(input)}><RotateCcw size={14}/>{zh?"重试这次演示":"Retry this demo"}</button>}<small>{zh?"也可以继续创建账号，进入网站自由浏览。":"You can also create your account and explore the site."}</small></div>}
+    {resultReady&&snapshot.status==="complete"&&snapshot.shoes?.length===2&&<section ref={resultRef} className={styles.results} data-picker-results>{context&&<motion.div layout className={styles.answerPriorities} data-answer-priorities transition={{duration:reduced?0:1.15,ease:EASE}}><ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part="priorities"/></motion.div>}<motion.div className={styles.resultHeading} initial={reduced?false:{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:reduced?0:.7,delay:reduced?0:.65,ease:EASE}}><span><Check size={14}/>{zh?"为你的打法找到两双":"TWO PICKS FOR YOUR GAME"}</span><h3>{zh?"推荐有理由，也有取舍。":"The fit. And the trade-offs."}</h3></motion.div>
+      {!sourceCount&&<p className={styles.liveNote}>{zh?"本次外部查询没有可用结果，推荐仅依据站内目录；未进行实物测试。":"External research was unavailable. These picks use the site catalog only, not hands-on testing."}</p>}
+      <div className={styles.resultGrid}>{snapshot.shoes.map((shoe,i)=><motion.article key={shoe.id} initial={reduced?false:{opacity:0,y:28}} animate={{opacity:1,y:0}} transition={{duration:reduced?0:1,delay:reduced?0:1.15+i*.25,ease:EASE}}>
+        <motion.div className={styles.resultImage} layoutId={reduced?undefined:`sf-intro-rec-${shoe.id}`}>{shoe.image&&/* eslint-disable-next-line @next/next/no-img-element */<img src={shoe.image} alt={shoe.name}/>}</motion.div><small>{shoe.brand}</small><h4>{shoe.name}</h4><h5>{zh?"为什么适合你":"Why it fits your game"}</h5><p>{shoe.reason}</p><h5>{zh?"适合之处":"What works"}</h5><ul>{shoe.pros.map((p,n)=><li key={n}>{p}</li>)}</ul><h5>{zh?"需要权衡":"The trade-offs"}</h5><ul>{shoe.cons.map((p,n)=><li key={n}>{p}</li>)}</ul><details><summary>{zh?"核对资料依据":"Check the evidence"} · {shoe.references.length}</summary>{shoe.references.length?shoe.references.map(ref=><a href={ref.url} key={ref.url} target="_blank" rel="noopener noreferrer">{ref.title}<ExternalLink size={11}/></a>):<p>{zh?"这双没有引用外部网页，请以站内目录和实际试穿为参考。":"No external page was cited for this shoe. Refer to the catalog and try-on fit."}</p>}</details>
+      </motion.article>)}</div><p className={styles.nextHint}><ArrowRight size={14}/>{zh?"下一步，带上这两双。":"Next, take these two with you."}</p>
+    </section>}
+    </motion.section>
   </div>;
 }

@@ -3,11 +3,14 @@
 import type { ComparisonPhase } from "./use-comparison-entrance";
 import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence, useIsPresent, useReducedMotion } from "framer-motion";
-import { ArrowUpRight, Check, ChevronDown, GitCompareArrows, Info, SlidersHorizontal, Sparkles, UserRound } from "lucide-react";
+import { ArrowUpRight, ChevronDown, GitCompareArrows, Info, SlidersHorizontal } from "lucide-react";
 import { CompareRadar } from "@/components/compare/compare-radar";
 import { ComparisonEvidenceTable, hasCompletePerformance } from "@/components/shoe/performance-evidence-table";
 import { ProfileNarrative } from "./profile-narrative";
 import { PickerNarrative } from "./picker-narrative";
+import { ProfileSelections } from "./profile-selections";
+import { useNarrativeScroll } from "./use-narrative-scroll";
+import pickerStyles from "./picker-narrative.module.css";
 import { useInView } from "@/components/motion/use-progress";
 import { pickLocalized } from "@/components/i18n/localized-field";
 import { DIM_KEYS, DIM_LABELS, type DimKey } from "@/lib/star-rating";
@@ -34,7 +37,6 @@ function introDemoSteps(scope: Element | null, runKey: number) {
   return steps;
 }
 const DIM_ZH: Record<DimKey, string> = { cushioning_feel: "缓震脚感", court_feel: "贴地感", bounce: "回弹", stability: "稳定性", traction: "抓地力", fit: "包裹贴合" };
-const POSITION_NAMES: Record<Position, [string, string]> = { PG: ["控球后卫", "Point guard"], SG: ["得分后卫", "Shooting guard"], SF: ["小前锋", "Small forward"], PF: ["大前锋", "Power forward"], C: ["中锋", "Center"] };
 const TECH_FIELDS = [
   { key: "forefoot_midsole_tech", zh: "前掌中底", en: "Forefoot midsole" },
   { key: "heel_midsole_tech", zh: "后掌中底", en: "Heel midsole" },
@@ -151,8 +153,10 @@ const StoryScene = forwardRef<HTMLDivElement, { children: ReactNode; reduced: bo
   return <motion.div ref={setRef} className={interactive.scene} data-onboarding-story-scroll role="region" aria-label={label} tabIndex={0} inert={!present} aria-hidden={!present} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .55, ease }}>{children}<ScrollHint targetRef={scrollRef} zh={zh}/></motion.div>;
 });
 
-export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, introDemoRunKey = 0, comparisonPhase = "rest" }: {
+export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, positions, picks, onPositions, onPicks, profileExit, onProfileExit, introDemoRunKey = 0, comparisonPhase = "rest" }: {
   step: number;
+  positions: Position[]; picks: DimKey[]; onPositions: (value: Position[]) => void; onPicks: (value: DimKey[]) => void;
+  profileExit: boolean; onProfileExit: (completed: boolean) => void;
   catalog: StoryCatalog | null;
   zh: boolean;
   selectedShoes?: StoryShoe[];
@@ -165,25 +169,27 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
   const [visible, setVisible] = useState(true);
   const [inView, setInView] = useState(false);
   const [dimension, setDimension] = useState<DimKey>("cushioning_feel");
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [picks, setPicks] = useState<DimKey[]>([]);
-  const [draft, setDraft] = useState("");
-  const [prepared, setPrepared] = useState(false);
-  const [questionnaire, setQuestionnaire] = useState(false);
-  const [court, setCourt] = useState("");
-  const [playstyle, setPlaystyle] = useState("");
-  const [priority, setPriority] = useState("");
+  const [handoff, setHandoff] = useState(false);
+  const scroll = useNarrativeScroll(reduced);
+  useEffect(() => {
+    if (!profileExit || step !== 2) { setHandoff(false); return; }
+    let stopped = false; let timer: ReturnType<typeof setTimeout>;
+    void scroll(stageRef.current?.querySelector<HTMLElement>("[data-profile-narrative]") ?? null, true).then(arrived => {
+      if (stopped) return;
+      if (!arrived) { onProfileExit(false); return; }
+      setHandoff(true);
+      timer = setTimeout(() => onProfileExit(true), reduced ? 0 : 1550);
+    });
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [profileExit, step, reduced, scroll, onProfileExit]);
   // A single finite preview, never a loop. User interaction ends it immediately.
   const demo = useRef({ elapsed: 0, manual: false, timers: [] as number[] });
   const shoes = (selectedShoes ?? []).filter(item => item.shoe?.id).slice(0, 2);
   const primary = shoes[0] ?? catalog?.shoes[0];
   const transition = { duration: reduced ? .15 : .55, ease };
-  const focus = picks[0] ?? "traction";
-  const positionText = positions.map(p => `${p} ${POSITION_NAMES[p][zh ? 0 : 1]}`).join(zh ? " / " : " / ");
   const havePair = shoes.length === 2;
   const completedDemoSteps = useCallback(() => introDemoSteps(stageRef.current?.closest('[data-testid="site-onboarding"]') ?? stageRef.current?.parentElement ?? null, introDemoRunKey), [introDemoRunKey]);
 
-  const rememberPickerDemo = useCallback(() => { completedDemoSteps().add(3); }, [completedDemoSteps]);
 
   const takeControl = useCallback(() => {
     const clock = step === 1 ? demo.current : null;
@@ -222,14 +228,8 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
     };
   }, [takeControl]);
 
-  const togglePosition = (position: Position) => setPositions(current => current.includes(position) ? current.filter(p => p !== position) : current.length < 2 ? [...current, position] : current);
-  const toggleFocus = (key: DimKey) => setPicks(current => current.includes(key) ? current.filter(p => p !== key) : current.length < 3 ? [...current, key] : current);
-  const fillDraft = (text: string) => { setDraft(text); setPrepared(false); };
-  const pairNames = shoes.map(shoe => shoe.name).join(zh ? " 和 " : " and ");
-  const examples = [
-    { label: zh ? "对比这两双" : "Compare my two picks", text: zh ? `请比较 ${pairNames} 的抓地、稳定和缓震，说明资料依据与不足。` : `Compare ${pairNames} for traction, stability and cushioning. Explain the evidence and any gaps.` },
-    { label: zh ? "从我的打法出发" : "Start with my game", text: zh ? `我${positions.length ? `打${positionText}` : "经常打篮球"}，最看重${picks.length ? picks.map(key => dimensionLabel(key, true)).join("、") : "抓地和稳定"}。请结合 ${pairNames} 的资料帮我理解取舍，资料不足时请说明。` : `I ${positions.length ? `play ${positionText}` : "play basketball regularly"} and care most about ${picks.length ? picks.map(key => dimensionLabel(key, false)).join(", ") : "traction and stability"}. Help me understand the trade-offs between ${pairNames}, and note any missing evidence.` }
-  ];
+  const togglePosition = (position: Position) => onPositions(positions.includes(position) ? positions.filter(p => p !== position) : positions.length < 2 ? [...positions, position] : positions);
+  const toggleFocus = (key: DimKey) => onPicks(picks.includes(key) ? picks.filter(p => p !== key) : picks.length < 3 ? [...picks, key] : picks);
 
   return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-story-step={step} data-comparison-phase={comparisonPhase} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
     {step === 0 ? <div className={styles.heroScene}>
@@ -252,24 +252,10 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
           <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "资料参考，并非本站实测；缺少依据的项目不会补分。" : "Reference information, not our own testing. Missing evidence is never filled with a score."}</p></div>
         </StoryScene>}
         {step === 2 && <StoryScene key="profile" reduced={reduced} zh={zh} label={zh ? "球员档案演示" : "Player profile preview"}>
-          <ProfileNarrative zh={zh} reduced={reduced} positions={positions} picks={picks} onPosition={togglePosition} onFocus={toggleFocus} label={key => dimensionLabel(key, zh)} pair={<SelectedPair shoes={shoes} zh={zh} reduced={reduced} compact shared={false}/>} comparison={key => <FieldComparison shoes={shoes} dimension={key} zh={zh} reduced={reduced}/>}/>
+          <AnimatePresence mode="popLayout" initial={false}>{handoff ? <motion.div key="handoff" className={pickerStyles.handoff} initial={{opacity:0}} animate={{opacity:1}} transition={{duration:reduced?0:.8}}><ProfileSelections positions={positions} picks={picks} zh={zh} reduced={reduced}/></motion.div> : <motion.div key="profile-fields" exit={{opacity:0}} transition={{duration:reduced?0:.8}}><ProfileNarrative zh={zh} reduced={reduced} positions={positions} picks={picks} onPosition={togglePosition} onFocus={toggleFocus} label={key => dimensionLabel(key, zh)} pair={<SelectedPair shoes={shoes} zh={zh} reduced={reduced} compact/>} comparison={key => <FieldComparison shoes={shoes} dimension={key} zh={zh} reduced={reduced}/>}/></motion.div>}</AnimatePresence>
         </StoryScene>}
         {step === 3 && <StoryScene key="picker" reduced={reduced} zh={zh} label={zh ? "AI 选鞋演示" : "Smart Picker preview"}>
-          <PickerNarrative zh={zh} reduced={reduced} initialExplained={completedDemoSteps().has(3)} onExplained={rememberPickerDemo} facts={shoes.map(shoe => ({ name: shoe.name, traction: specText(shoe, "traction", zh), stability: specText(shoe, "stability", zh) }))}>
-          <div className={interactive.pickerHeading}><span className={interactive.pickerIcon}><Sparkles size={21}/></span><div><h3>Smart Picker</h3><p>{zh ? "把需求说清楚，让选鞋有方向。" : "Put your needs into words."}</p></div><motion.div className={interactive.identityBadge} layoutId={reduced ? undefined : "sf-player-card"} transition={transition}><UserRound size={12}/><span>{positions.length ? positions.join(" / ") : (zh ? "你的打法" : "Your game")}</span></motion.div></div>
-          <div className={interactive.previewTag}>{zh ? "交互预览 · 注册后才能正式询问 AI" : "Interactive preview · Sign up to ask AI"}</div>
-
-          <div className={interactive.exampleChips}>{examples.map(example => <button key={example.label} type="button" onClick={() => fillDraft(example.text)}><Sparkles size={13}/>{example.label}</button>)}</div>
-          <div className={`${interactive.composer} ${interactive.teachingTarget}`} data-teaching-target="picker-input"><label htmlFor="onboarding-picker-draft">{zh ? "你的选鞋需求" : "Your shoe request"}</label><textarea id="onboarding-picker-draft" value={draft} onChange={event => fillDraft(event.target.value)} maxLength={3000} rows={4} placeholder={zh ? "例如：我经常打室外场，最关心抓地和稳定……" : "For example: I play outdoors and care most about traction and stability…"}/><div className={interactive.composerBottom}><button className={`${interactive.questionnaireToggle} ${interactive.teachingTarget}`} data-teaching-target="picker-questionnaire" type="button" aria-expanded={questionnaire} aria-controls="onboarding-questionnaire" onClick={() => setQuestionnaire(value => !value)}><SlidersHorizontal size={14}/>{zh ? "帮我组织需求" : "Help me describe it"}</button><button className={interactive.prepareButton} type="button" disabled={!draft.trim()} onClick={() => setPrepared(true)}>{prepared ? <Check size={16}/> : <ArrowUpRight size={16}/>}<span>{prepared ? (zh ? "已准备好" : "Ready") : (zh ? "预览需求" : "Preview request")}</span></button></div></div>
-          <AnimatePresence initial={false}>{questionnaire && <motion.div id="onboarding-questionnaire" className={interactive.questionnaire} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .55, ease }}><p>{zh ? "和正式问卷一样，只填写你愿意提供的信息。" : "As in the full questionnaire, share only what you want."}</p><div className={interactive.questionnaireFields}><label>{zh ? "主要场地" : "Main court"}<input value={court} onChange={e => setCourt(e.target.value)} placeholder={zh ? "室内木地板 / 室外水泥地" : "Indoor hardwood / outdoor concrete"}/></label><label>{zh ? "打法风格" : "Playstyle"}<input value={playstyle} onChange={e => setPlaystyle(e.target.value)} placeholder={zh ? "突破、投射、组织、内线" : "Slasher, shooter, playmaker, post"}/></label><label>{zh ? "最看重的性能" : "Your priorities"}<input value={priority} onChange={e => setPriority(e.target.value)} placeholder={picks.length ? picks.map(key => dimensionLabel(key, zh)).join(zh ? "、" : ", ") : (zh ? "抓地、缓震、稳定……" : "Traction, cushioning, stability…")}/></label></div><button type="button" className={interactive.textButton} disabled={!court.trim() && !playstyle.trim() && !priority.trim() && !positions.length && !picks.length} onClick={() => {
-            const lines = [positionText && `${zh ? "位置" : "Position"}: ${positionText}`, court.trim() && `${zh ? "场地" : "Court"}: ${court.trim()}`, playstyle.trim() && `${zh ? "打法" : "Playstyle"}: ${playstyle.trim()}`, (priority.trim() || picks.length) && `${zh ? "关注重点" : "Priorities"}: ${priority.trim() || picks.map(key => dimensionLabel(key, zh)).join(", ")}`].filter(Boolean);
-            fillDraft(`${zh ? "帮我了解适合自己的篮球鞋。" : "Help me understand basketball shoes for my game."}\n${lines.join("\n")}\n${zh ? "想了解的两双" : "The two shoes I want to explore"}: ${pairNames}`);
-            setQuestionnaire(false);
-          }}>{zh ? "整理到输入框" : "Add to the composer"}<ArrowUpRight size={14}/></button></motion.div>}</AnimatePresence>
-          <AnimatePresence initial={false}>{prepared && <motion.div role="status" className={interactive.preparedNote} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}><Check size={17}/><div><strong>{zh ? "需求已准备好，还没有发送。" : "Your request is ready. It has not been sent."}</strong><p>{zh ? "注册后前往 Smart Picker，正式询问后才会得到个性化回答。" : "After signing up, visit Smart Picker and send a request for a personalized response."}</p></div></motion.div>}</AnimatePresence>
-          <section className={`${interactive.sourcePreview} ${interactive.teachingTarget}`} data-teaching-target="picker-evidence"><div className={interactive.subheading}><strong>{zh ? "先看这两双的已有资料" : "Explore the documented details"}</strong><span>{zh ? "真实资料预览 · 非 AI 推荐结果" : "Catalog preview · Not an AI recommendation"}</span></div><SelectedPair shoes={shoes} zh={zh} reduced={reduced}/><div className={interactive.previewFacts}>{shoes.map(shoe => <p key={shoe.slug}><strong>{shoe.name}</strong><span>{dimensionLabel(focus, zh)}</span>{specText(shoe, focus, zh)}</p>)}</div></section>
-          <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "预览不会发送请求，不会消耗 AI 额度。这里的内容来自球鞋资料，不是 AI 为你生成的选鞋结论。" : "This preview sends no requests and uses no AI credits. These are catalog facts, not generated recommendations."}</p>
-          </PickerNarrative>
+          <PickerNarrative zh={zh} reduced={reduced} input={positions.length===2 && picks.length===3 ? {positions,priorities:picks,shoeIds:shoes.map(s=>s.shoe.id),lang:zh?"zh":"en"}:null} shoes={shoes} onBack={() => onProfileExit(false)}/>
         </StoryScene>}
       </AnimatePresence>
     </>}

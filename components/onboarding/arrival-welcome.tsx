@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, ArrowRight, ChevronDown, Loader2 } from "lucide-react";
 import type { OnboardingPageviews } from "@/lib/onboarding/server-contract";
@@ -18,6 +18,7 @@ export type ArrivalWelcomeProps = {
   onEnter: () => void;
   busy: boolean;
   error?: string;
+  continuation?: ReactNode;
 };
 
 function validCount(value: number | null | undefined): value is number {
@@ -33,7 +34,7 @@ function formattedDate(value: string | null | undefined, zh: boolean, range = fa
 }
 
 /** The final invitation after the account and required profile are confirmed. */
-export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, onEnter, busy, error }: ArrivalWelcomeProps) {
+export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, onEnter, busy, error, continuation }: ArrivalWelcomeProps) {
   const reduced = useReducedMotion();
   const id = useId();
   const [sourceOpen, setSourceOpen] = useState(false);
@@ -124,6 +125,7 @@ export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, o
           </div>
         </CountReveal>
 
+        {continuation}
         {error ? <div ref={feedback} className={styles.error} role="alert"><AlertCircle size={16} aria-hidden="true"/><span>{error}</span></div> : null}
       </div>
       <ScrollHint targetRef={scroll} zh={zh}/>

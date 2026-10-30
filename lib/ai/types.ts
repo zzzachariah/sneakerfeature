@@ -66,8 +66,8 @@ export type StatusPhase =
   | "finalizing";
 
 export type RecommendProgress =
-  | { type: "status"; phase: StatusPhase; message: string; round?: number }
-  | { type: "search"; query: string; state: "start" | "ok" | "fail"; resultCount?: number; kind?: string }
+  | { type: "status"; phase: StatusPhase; message: string; round?: number; candidates?: { name: string; slug: string }[] }
+  | { type: "search"; query: string; state: "start" | "ok" | "fail"; resultCount?: number; kind?: string; sources?: WebReference[]; cached?: boolean }
   | { type: "text"; delta: string };
 
 export type OnProgress = (event: RecommendProgress) => void;

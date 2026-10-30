@@ -396,3 +396,19 @@
   .body:has([data-picker-narrative][data-explained="false"]) .copy { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .shell, .body:has([data-picker-narrative]) { transition: none; } }
+
+.body[data-profile-exit="true"] .copy { opacity:0; transition:opacity .85s ease; }
+
+/* Keep the interactive story visible even on a short phone: a compact copy
+   window above it, or side by side in landscape, with one stable scroll owner. */
+@media (max-width:850px) and (max-height:600px) {
+  .body:has([data-story-step="2"], [data-story-step="3"]) { display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,88px) minmax(0,1fr); gap:12px; overflow:hidden; padding:6px 0 10px; }
+  .body:has([data-story-step="2"], [data-story-step="3"]) .copy { height:100%; max-height:100%; overflow-y:auto; margin:0; padding:12px 14px; }
+  .body:has([data-story-step="2"], [data-story-step="3"]) > [data-testid^="onboarding-scene-"] { height:100%;max-height:100%;min-height:0;container-type:size;overflow:hidden; }
+  .body:has([data-story-step="2"], [data-story-step="3"]) [data-onboarding-story-scroll] { flex:1;min-height:0;overflow-y:auto; }
+  .body:has([data-story-step="2"], [data-story-step="3"]) .compactBodyHint {display:none;}
+  .body:has([data-story-step="2"], [data-story-step="3"]) .heading {font-size:22px;}
+}
+@media (min-width:600px) and (max-width:850px) and (max-height:600px) {
+  .body:has([data-story-step="2"], [data-story-step="3"]) {grid-template-columns:minmax(0,.65fr) minmax(0,1.35fr);grid-template-rows:minmax(0,1fr);}
+}
