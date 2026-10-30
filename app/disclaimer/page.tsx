@@ -3,7 +3,7 @@ import { LegalPageLayout } from "@/components/legal/legal-page-layout";
 import { DISCLAIMER } from "@/lib/legal/content";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
-const title = "Brand & IP Disclaimer | Sneaker Feature";
+const title = "Brand & IP Disclaimer | snkrfeature";
 const description =
   "sneakerfeature is an independent project and is not affiliated with any brand. Trademarks and images belong to their respective owners.";
 

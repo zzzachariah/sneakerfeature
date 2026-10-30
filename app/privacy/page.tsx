@@ -3,7 +3,7 @@ import { LegalPageLayout } from "@/components/legal/legal-page-layout";
 import { PRIVACY } from "@/lib/legal/content";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
-const title = "Privacy Policy | Sneaker Feature";
+const title = "Privacy Policy | snkrfeature";
 const description = "How sneakerfeature collects, uses, and shares your information.";
 
 export const metadata: Metadata = {
