@@ -39,3 +39,31 @@ assert.match(demoSearchQuery(fixture('a',2015)),/Under Armour Curry 2 basketball
 assert.equal(demoSourceMatches('Curry 2',{title:'Curry - Wikipedia',snippet:'Indian cuisine',url:'https://en.wikipedia.org/wiki/Curry'}),false);
 assert.equal(demoSourceMatches('Curry 2',{title:'Curry 2 Performance Review',snippet:'Basketball shoe traction review',url:'https://example.com/curry-2-review'}),true);
 console.log('PASS demo recency, explicit legacy interests, brand-qualified queries and irrelevant-source rejection.');
+
+// The demo must consume complete native tool arguments, including quoted prose,
+// rather than treating the tool result as an absent/truncated text answer.
+const {recommendOnboardingShoes}=await import('../lib/ai/recommend.ts');
+const {HAIKU_MODEL}=await import('../lib/ai/packy-client.ts');
+const savedKeys={t:process.env.TAVILY_API_KEY,b:process.env.BOCHA_API_KEY};
+delete process.env.TAVILY_API_KEY;delete process.env.BOCHA_API_KEY;
+let completionCalls=0;
+const demoRecs=['Test Guard One','Test Guard Two'].map(name=>({name,reason:'For "traction", stability and fit: supported fixture evidence.',pros:['A documented strength'],cons:['A documented trade-off'],references:[]}));
+const mockClient={chat:{completions:{create:async(params:any)=>{
+ completionCalls++;
+ async function* chunks(){
+  if(completionCalls===1){yield {choices:[{delta:{content:JSON.stringify({candidates:demoRecs.map(r=>r.name),backups:[]})},finish_reason:'stop'}]};return;}
+  assert.equal(params.tool_choice.function.name,'recommend_shoes');
+  assert.equal(params.tools[0].function.parameters.properties.recommendations.maxItems,2);
+  const args=JSON.stringify({recommendations:demoRecs});
+  yield {choices:[{delta:{tool_calls:[{index:0,id:'demo_tool',function:{name:'recommend_shoes',arguments:args.slice(0,43)}}]}}]};
+  yield {choices:[{delta:{tool_calls:[{index:0,function:{arguments:args.slice(43)}}]},finish_reason:'tool_calls'}]};
+ }
+ return chunks();
+}}}};
+try{
+ const result=await recommendOnboardingShoes(mockClient as any,{shoes:demoRecs.map((r,i)=>({id:'fixture-'+i,shoe_name:r.name,slug:'fixture-'+i,brand:'Test',spec:{traction:'good',stability:'stable',fit:'snug'}})) as any,history:[],currentInput:'PG / SG, traction, stability and fit. Recommend two basketball shoes.',count:2,model:HAIKU_MODEL});
+ assert.deepEqual(result?.recommendations.map(r=>r.name),demoRecs.map(r=>r.name));
+ assert.equal(result?.recommendations[0].reason,demoRecs[0].reason);
+ assert.equal(completionCalls,2,'one shortlist and one structured final answer');
+}finally{if(savedKeys.t)process.env.TAVILY_API_KEY=savedKeys.t;if(savedKeys.b)process.env.BOCHA_API_KEY=savedKeys.b;}
+console.log('PASS native demo tool output, split argument stream, quoted reasons and two distinct results.');

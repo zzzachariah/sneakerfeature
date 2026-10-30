@@ -974,6 +974,27 @@ const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   }
 };
 
+const DEMO_RESULT_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "recommend_shoes",
+    description: "Deliver two evidence-backed catalog picks for the introductory demo.",
+    parameters: {
+      type: "object", additionalProperties: false,
+      properties: { recommendations: { type: "array", minItems: 2, maxItems: 2, items: {
+        type: "object", additionalProperties: false,
+        properties: {
+          name: { type: "string", description: "Exact catalog shoe name" },
+          reason: { type: "string", description: "Two or three sentences addressing the three ordered priorities, with evidence and uncertainty" },
+          pros: { type: "array", minItems: 1, maxItems: 3, items: { type: "string" } },
+          cons: { type: "array", minItems: 1, maxItems: 3, items: { type: "string" } },
+          references: { type: "array", items: { type: "object", properties: { title: { type: "string" }, url: { type: "string" } }, required: ["title", "url"], additionalProperties: false } }
+        }, required: ["name", "reason", "pros", "cons", "references"]
+      } } }, required: ["recommendations"]
+    }
+  }
+};
+
 const WEB_SEARCH_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: "function",
   function: {
@@ -1936,9 +1957,12 @@ async function candidateEvidencePipeline(
             ];
       let msg: StreamedMessage | null = null;
       try {
+        const structuredDemo = opts.onboardingDemo && base.model.startsWith("claude-");
         msg = await completeWithProgress(
           client,
-          { ...base, messages, response_format: { type: "json_object" } },
+          structuredDemo
+            ? { ...base, messages: [...messages, {role:"user",content:"Deliver the final answer through the recommend_shoes tool, following its schema. Do not put the answer in prose or a JSON text block."}], tools:[DEMO_RESULT_TOOL], tool_choice:{type:"function",function:{name:"recommend_shoes"}}, parallel_tool_calls:false }
+            : { ...base, messages, response_format: { type: "json_object" } },
           onProgress,
           deadline
         );
@@ -1946,9 +1970,10 @@ async function candidateEvidencePipeline(
         console.warn("[ai/chat] candidate commit failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
         break rounds;
       }
-      const out = typeof msg?.content === "string" ? msg.content : "";
+      const out = msg?.tool_calls?.find(call=>call.function.name==="recommend_shoes")?.function.arguments ?? (typeof msg?.content === "string" ? msg.content : "");
       const full = okIfRecsText(out);
       const parsed = full ?? salvageTruncatedRecs(out);
+      if (opts.onboardingDemo && !full) console.warn("[onboarding/demo] Invalid final structure", {model:base.model,finishReason:msg?.finishReason,chars:out.length,salvaged:parsed?.recommendations.length??0});
       if (!parsed?.recommendations.length) {
         if (msg?.finishReason === "length") continue; // truncated beyond salvage — retry briefer
         break rounds; // unparseable for some other reason — bail to the legacy loop
