@@ -1,5 +1,7 @@
+import { shuffleWallItems } from "./wall-motion";
 import { DIM_KEYS, hasPerformanceEvidence } from "@/lib/star-rating";
 import type { Shoe, ShoeSpec } from "@/lib/types";
+import type { WallPopularity } from "./server-wall-popularity";
 
 export type OnboardingCatalogShoe = {
   name: string; brand: string; image: string; slug: string; shoe: Shoe;
@@ -34,9 +36,8 @@ function quality(shoe: Shoe) {
   return (complete ? 0 : 2) + (cutout ? 0 : 1);
 }
 
-export function buildOnboardingCatalog(shoes: Shoe[], limit = 24) {
-  const sorted = shoes.filter((shoe) => Boolean(shoe.image_url?.trim()))
-    .sort((a, b) => quality(a) - quality(b) || a.slug.localeCompare(b.slug));
+function sampleByBrand(shoes: Shoe[], limit: number, random: () => number) {
+  const sorted = shuffleWallItems(shoes, random).sort((a, b) => quality(a) - quality(b));
   // All images above are already resolved to approved images by getPublicShoes.
   // Round-robin through brands so one large catalogue cannot fill the wall.
   const groups = new Map<string, Shoe[]>();
@@ -60,6 +61,26 @@ export function buildOnboardingCatalog(shoes: Shoe[], limit = 24) {
     }
     if (!added) break;
   }
+  return selected;
+}
+
+export function buildOnboardingCatalog(shoes: Shoe[], limit = 25, random: () => number = Math.random, popularity?: WallPopularity) {
+  const eligible = [...new Map(shoes.filter(shoe => shoe.image_url?.trim()).map(shoe => [shoe.id, shoe])).values()];
+  const count = Math.min(Math.max(0, Math.floor(limit)), eligible.length);
+  const popularTarget = Math.round(count * .8);
+  const viewsBySlug = popularity?.viewsBySlug ?? new Map<string, number>();
+  // Vercel's busiest 100 detail paths are a traffic-backed candidate report.
+  // Randomize equal counts; sample 20 from its 25 most-viewed eligible shoes.
+  // Shoes outside this pool are exploration picks, not invented zero-view data.
+  const ranked = shuffleWallItems(eligible.filter(shoe => (viewsBySlug.get(shoe.slug) ?? 0) > 0), random)
+    .sort((a, b) => (viewsBySlug.get(b.slug) ?? 0) - (viewsBySlug.get(a.slug) ?? 0));
+  // Keep enough distinct shoes outside the popular pool for small catalogues.
+  const poolSize = Math.min(ranked.length, count, eligible.length - (count - popularTarget));
+  const popularPool = ranked.slice(0, poolSize);
+  const popularIds = new Set(popularPool.map(shoe => shoe.id));
+  const popular = sampleByBrand(popularPool, popularTarget, random);
+  const discovery = sampleByBrand(eligible.filter(shoe => !popularIds.has(shoe.id)), count - popular.length, random);
+  const selected = shuffleWallItems([...popular, ...discovery], random);
   const candidates: OnboardingCatalogShoe[] = selected.map((source) => {
     const shoe: Shoe = {
       id: source.id, slug: source.slug, shoe_name: source.shoe_name,
@@ -69,5 +90,11 @@ export function buildOnboardingCatalog(shoes: Shoe[], limit = 24) {
     };
     return { name: shoe.shoe_name, brand: shoe.brand, image: source.image_url!, slug: shoe.slug, shoe };
   });
-  return { shoes: candidates, shoeCount: shoes.length, brandCount: new Set(shoes.map((shoe) => shoe.brand)).size };
+  return {
+    shoes: candidates, shoeCount: shoes.length, brandCount: new Set(shoes.map((shoe) => shoe.brand)).size,
+    selection: {
+      source: "vercel", status: popularity?.status ?? "unavailable", periodDays: 30,
+      asOf: popularity?.asOf ?? null, popularCount: popular.length, discoveryCount: discovery.length
+    }
+  };
 }

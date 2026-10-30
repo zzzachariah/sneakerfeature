@@ -3,11 +3,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from "framer-motion";
-import { Check, Plus, X } from "lucide-react";
+import { Check, MoveHorizontal, Plus, X } from "lucide-react";
 import { EASE } from "@/lib/motion/constants";
 import { BrandLogo, type StoryCatalog, type StoryShoe } from "./site-stories";
 import styles from "./discovery-intro.module.css";
 import { ScrollHint } from "./scroll-hint";
+import { ShoeWallRail } from "./shoe-wall-rail";
+import { shuffleWallItems } from "@/lib/onboarding/wall-motion";
 
 type ShoeTransfer = { shoe: StoryShoe; from: DOMRect; to: DOMRect; returning: boolean };
 
@@ -47,6 +49,8 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
   stats: ReactNode; zh: boolean; expanded: boolean; onExpand: () => void;
 }) {
   const reduced = useReducedMotion();
+  const [wallShoes, setWallShoes] = useState<StoryShoe[]>([]);
+  useEffect(() => { if (catalog) setWallShoes(shuffleWallItems(catalog.shoes)); }, [catalog]);
   const [heroReady, setHeroReady] = useState(false);
   const [hero, setHero] = useState<StoryShoe | null>(null);
   const [visible, setVisible] = useState(true);
@@ -85,7 +89,7 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
     const timer = window.setTimeout(() => expandRef.current(), Math.max(0, 1900 - elapsed.current));
     return () => { elapsed.current += performance.now() - start; window.clearTimeout(timer); };
   }, [expanded, hero, heroReady, visible, reduced]);
-  const remaining = (catalog?.shoes || []).filter((shoe) => shoe.slug !== hero?.slug);
+  const remaining = wallShoes.filter((shoe) => shoe.slug !== hero?.slug);
   useLayoutEffect(() => {
     if (!panel.current || !surface.current) return;
     const measure = () => {
@@ -184,8 +188,7 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
     <div className={styles.wallTexture} aria-hidden="true"/>
     <AnimatePresence initial={false}>
       {expanded && <motion.div ref={wall} key="wall" data-shoe-wall className={styles.wall} role="region" aria-label={zh ? "可选择的球鞋墙" : "Selectable shoe wall"} tabIndex={0} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduced ? .15 : .75, delay: reduced ? 0 : .12 }} data-motion-idle={reduced}>
-        {rows.map((row, ri) => <div className={styles.rail} key={ri}>
-          <div className={styles.track} style={{ animationDuration: `${Math.max(45, row.length * (tileWidth + (viewport.width <= 850 ? 12 : 18)) / (18 - ri * 1.5))}s` }}>
+        {rows.map((row, ri) => <ShoeWallRail key={ri} reduced={Boolean(reduced)} label={zh ? `第 ${ri + 1} 排球鞋，左右滑动或拖动浏览` : `Shoe row ${ri + 1}. Swipe, drag or use left and right arrows`} duration={Math.max(45, row.length * (tileWidth + (viewport.width <= 850 ? 12 : 18)) / (18 - ri * 1.5))}>
             {[0, 1].map((copy) => <div className={styles.group} key={copy} aria-hidden={copy ? true : undefined}>
               {row.map((shoe) => {
                 const index = selected.findIndex((item) => item.slug === shoe.slug);
@@ -210,8 +213,7 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
                 </motion.button>;
               })}
             </div>)}
-          </div>
-        </div>)}
+        </ShoeWallRail>)}
         <ScrollHint targetRef={wall} zh={zh}/>
       </motion.div>}
     </AnimatePresence>
@@ -236,7 +238,7 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
           <span className={styles.landingPlane} aria-hidden="true"/><span data-shoe-landing className={styles.emptyLanding} aria-hidden="true"><Plus size={19} strokeWidth={1}/></span><span className={styles.emptyLabel}>{zh ? "留给心动的一双" : "A place for your pair"}</span>
         </motion.div>}</AnimatePresence></div>;
       })}</div>
-      <span className={styles.selectionHelp} role="status">{selected.length === 2 ? (zh ? "选好了，看看这两双。想换鞋？先取消一双。" : "Ready to compare. Remove a pair to choose another.") : (zh ? "选中一双，它就会来到这里。" : "Choose a pair and bring it up here.")}</span>
+      <span className={styles.selectionHelp} role="status"><span className={styles.swipeHint}><MoveHorizontal size={13}/>{zh ? "左右滑动或拖动浏览" : "Swipe or drag to explore"}</span>{selected.length === 2 ? (zh ? "选好了，看看这两双。想换鞋？先取消一双。" : "Ready to compare. Remove a pair to choose another.") : (zh ? "选中一双，它就会来到这里。" : "Choose a pair and bring it up here.")}</span>
     </div> : null}
       <ScrollHint targetRef={panel} zh={zh}/>
     </motion.div>

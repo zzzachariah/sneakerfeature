@@ -178,7 +178,7 @@ try {
   assert.equal(onboardingPatchSchema.safeParse({ tour: "ai", status: "skipped" }).success, true);
   assert.equal(safeCount(0), 0); assert.equal(safeCount(-1), null);
   assert.equal(safePositiveInteger(0), null); assert.equal(safePositiveInteger(Number.MAX_SAFE_INTEGER+1), null);
-  const completeSpec = { cushioning_feel: "soft cushioning", court_feel: "low to the ground", bounce: "high bounce", stability: "wide base support", traction: "strong grip", fit: "snug fit" };
+  const completeSpec = { cushioning_feel: "soft and plush", court_feel: "good", bounce: "good", stability: "excellent", traction: "good", fit: "secure" };
   const sourceShoes: Shoe[] = Array.from({length:35}, (_, i) => ({
     id: `shoe-${i}`, slug: `shoe-${String(i).padStart(2,"0")}`, shoe_name: `Shoe ${i}`,
     brand: i < 26 ? "Nike" : i < 30 ? "Adidas" : "Li-Ning",
@@ -190,12 +190,12 @@ try {
   sourceShoes.push({id:"no-image",slug:"no-image",shoe_name:"No Image",brand:"Other",spec:{}});
   (sourceShoes[2].spec as unknown as Record<string, unknown>).shoe_id = "internal-shoe-id";
   const wall = buildOnboardingCatalog(sourceShoes);
-  assert.equal(wall.shoes.length, 24);
+  assert.equal(wall.shoes.length, 25);
   assert.equal(wall.shoeCount, 36, "wall illustration filter does not change catalogue total");
   assert.equal(wall.brandCount, 4);
-  assert.equal(new Set(wall.shoes.slice(0,3).map((s)=>s.brand)).size, 3, "round-robin prefers brand variety");
-  assert.equal(wall.shoes[0].image.includes("-nobg."), true);
-  assert.equal(new Set(wall.shoes.map((s)=>s.shoe.id)).size, 24);
+  assert.equal(new Set(wall.shoes.map((s)=>s.brand)).size, 3, "random order retains brand variety");
+  assert.equal(wall.shoes.some(s => s.slug === "shoe-00"), false, "complete performance facts take priority within each sampling pool");
+  assert.equal(new Set(wall.shoes.map((s)=>s.shoe.id)).size, 25);
   for (const item of wall.shoes) {
     assert.equal("price" in item.shoe, false);
     assert.equal("myDimRatings" in item.shoe, false);
@@ -203,7 +203,7 @@ try {
     assert.equal("shoe_id" in item.shoe.spec, false);
   }
   assert.equal(buildOnboardingCatalog(sourceShoes.slice(0,2)).shoes.length, 2, "small catalogue still returns both selectable shoes");
-  console.log("Onboarding PGlite checks passed: migration replay, service-only permissions/RLS, fresh public catalogue/Auth/counter aggregates, 24-shoe public payload, legacy/new boundaries, profile recovery, saved-persona completion, stable IDs, deletion non-reuse, 100 event uniqueness, retry dedup, rate limiting, origin/consent contracts. Real PostgreSQL multi-connection contention remains unverified.");
+  console.log("Onboarding PGlite checks passed: migration replay, service-only permissions/RLS, fresh public catalogue/Auth/counter aggregates, 25-shoe public payload, legacy/new boundaries, profile recovery, saved-persona completion, stable IDs, deletion non-reuse, 100 event uniqueness, retry dedup, rate limiting, origin/consent contracts. Real PostgreSQL multi-connection contention remains unverified.");
 } finally {
   await db.close();
 }
