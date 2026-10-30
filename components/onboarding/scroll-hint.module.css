@@ -1,0 +1,6 @@
+.hint { position: sticky; bottom: 0; z-index: 5; flex: 0 0 0; width: 100%; height: 0; min-height: 0; pointer-events: none; opacity: 0; transition: opacity .2s ease; }
+.hint[data-visible="true"] { opacity: 1; }
+.hint::before { content: ""; position: absolute; bottom: -1px; left: -1px; right: -1px; height: 48px; background: linear-gradient(to bottom, transparent, rgb(var(--bg-elev) / .94)); }
+.hint > span { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; border: 1px solid rgb(var(--text) / .1); border-radius: 99px; background: rgb(var(--bg-elev) / .96); color: rgb(var(--subtext)); font: 500 10px/16px var(--font-geist-sans), sans-serif; white-space: nowrap; box-shadow: 0 2px 8px rgb(var(--shadow) / .04); }
+.hint svg { color: rgb(var(--brand)); }
+@media (prefers-reduced-motion: reduce) { .hint { transition: none; } }

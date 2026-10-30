@@ -1,7 +1,8 @@
-.discovery { position: relative; width: 100%; min-height: min(640px, calc(100dvh - 210px)); border-radius: 30px; overflow: hidden; isolation: isolate; }
+.discovery { position: relative; width: 100%; height: 100%; min-height: 0; border-radius: 30px; overflow: hidden; isolation: isolate; container-type: size; }
 .wallTexture { position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 65% 35%, rgb(var(--bg-elev)), rgb(var(--bg))); }
-.heroPanel { position: relative; z-index: 3; width: 46%; }
-.heroCopy { min-height: 580px; padding: 38px 28px 26px 44px; display: flex; flex-direction: column; justify-content: center; }
+.heroPanel { position: relative; z-index: 3; width: 46%; height: 100%; min-height: 0; }
+.heroCopy { height: 100%; min-height: 0; padding: clamp(16px, 5cqh, 38px) 28px clamp(16px, 4cqh, 26px) 44px; display: flex; flex-direction: column; justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }
+.heroCopy > * { flex-shrink: 0; }
 .brandLine { display: flex; gap: 10px; align-items: center; }
 .brandLine > span { font: 10px/16px var(--font-geist-mono),monospace; letter-spacing: .09em; color: rgb(var(--subtext)); }
 .title { margin: 10px 0 0; color: rgb(var(--text)); font-size: clamp(38px, 4vw, 56px); line-height: 1.2; font-weight: 600; letter-spacing: -.04em; text-wrap: balance; }
@@ -13,10 +14,10 @@
 .heroShoe { position: absolute; left: 50%; right: 4%; top: 10%; height: 78%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 .heroShoe img { width: 100%; height: 78%; object-fit: contain; filter: drop-shadow(0 25px 22px rgb(var(--shadow) / .13)); }
 .heroShoe > span { font: 500 15px/22px var(--font-geist-mono),monospace; margin-top: 18px; text-align: center; }
-.expanded { min-height: calc(var(--intro-panel-bottom, 282px) + 510px); background: rgb(var(--surface)); border: 1px solid rgb(var(--text) / .06); }
+.expanded { background: rgb(var(--surface)); border: 1px solid rgb(var(--text) / .06); }
 /* One quiet white surface: compact editorial copy and two open display positions. */
-.topPanel { position: absolute; z-index: 3; top: 20px; left: 22px; right: 22px; display: grid; grid-template-columns: minmax(230px, 1fr) minmax(250px, 1.25fr); align-items: center; gap: 38px; padding: 28px 32px; border-radius: 24px; background: rgb(var(--bg-elev)); box-shadow: 0 16px 34px -24px rgb(var(--shadow) / .22), 0 1px 0 rgb(var(--text) / .035); }
-.plaque { min-width: 0; text-align: left; }
+.topPanel { position: absolute; z-index: 3; top: 14px; left: 18px; right: 18px; max-height: calc(100% - 126px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-rows: minmax(0, 1fr); align-items: center; gap: 28px; padding: 20px 26px; border-radius: 24px; background: rgb(var(--bg-elev)); box-shadow: 0 16px 34px -24px rgb(var(--shadow) / .22), 0 1px 0 rgb(var(--text) / .035); }
+.plaque { min-width: 0; min-height: 0; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; text-align: left; padding-right: 3px; }
 .plaque .title { font-size: 23px; line-height: 1.3; margin-top: 13px; letter-spacing: -.025em; }
 .plaque .description { font-size: 12px; margin-top: 9px; line-height: 1.75; }
 .plaqueStats { font-variant-numeric: tabular-nums; text-align: left; }
@@ -46,14 +47,14 @@
 .selectedShoe:hover .removeShoe, .selectedShoe:focus-visible .removeShoe { opacity: 1; background: rgb(var(--text) / .08); }
 .selectedShoe[data-returning="true"] .selectedName, .selectedShoe[data-returning="true"] .removeShoe { opacity: 0; transition: opacity .18s; }
 .selectionHelp { grid-column: 1 / -1; color: rgb(var(--subtext)); font-size: 10px; line-height: 1.7; margin-top: 3px; }
-.wall { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 12px; padding: var(--intro-panel-bottom, 282px) 0 12px; overflow: hidden; mask-image: linear-gradient(to right,transparent,#000 3%,#000 97%,transparent); }
+.wall { position: absolute; inset: var(--intro-panel-bottom, 282px) 0 8px; display: flex; flex-direction: column; justify-content: space-evenly; gap: var(--wall-row-gap, 10px); overflow: hidden; mask-image: linear-gradient(to right,transparent,#000 3%,#000 97%,transparent); }
 .rail { width: 100%; overflow: hidden; flex-shrink: 0; }
 .track { width: max-content; display: flex; animation: slideLeft linear infinite; will-change: transform; }
 .group { display: flex; gap: 18px; padding-right: 18px; }
 .rail:nth-child(2) .track { margin-left: -96px; }
 .rail:nth-child(3) .track { margin-left: -42px; }
-.shoeTile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 185px; height: 160px; padding: 13px 12px 11px; border: 1px solid rgb(var(--text) / .07); border-radius: 18px; background: rgb(var(--bg-elev) / .88); color: rgb(var(--text)); cursor: pointer; box-shadow: 0 3px 10px rgb(var(--shadow) / .03); transition: background .2s, border-color .2s, box-shadow .2s; }
-.shoeTile img { width: 100%; height: 110px; min-height: 0; object-fit: contain; mix-blend-mode: normal; filter: drop-shadow(0 6px 5px rgb(var(--shadow) / .08)); }
+.shoeTile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; width: var(--wall-tile-width, 185px); height: var(--wall-tile-height, 160px); padding: 8px 10px; border: 1px solid rgb(var(--text) / .07); border-radius: 18px; background: rgb(var(--bg-elev) / .88); color: rgb(var(--text)); cursor: pointer; box-shadow: 0 3px 10px rgb(var(--shadow) / .03); transition: background .2s, border-color .2s, box-shadow .2s; }
+.shoeTile img { width: 100%; flex: 1; height: 0; min-height: 0; object-fit: contain; mix-blend-mode: normal; filter: drop-shadow(0 6px 5px rgb(var(--shadow) / .08)); }
 .shoeTile[data-transferring="true"] img { opacity: 0; }
 .shoeTile > span { display: block; width: 100%; flex-shrink: 0; font-size: 11px; line-height: 17px; font-weight: 500; text-align: center; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 .shoeTile:hover { border-color: rgb(var(--brand) / .25); box-shadow: 0 8px 24px rgb(var(--shadow) / .06); }
@@ -66,32 +67,27 @@
 .transferringShoe { position: fixed; z-index: 160; object-fit: contain; pointer-events: none; filter: drop-shadow(0 18px 12px rgb(var(--shadow) / .12)); }
 @keyframes slideLeft { to { transform: translateX(-50%); } }
 @media (min-width:851px) and (max-height:800px) {
-  .discovery { min-height: 490px; }
-  .heroCopy { min-height: 490px; padding-block: 20px; }
+  .heroCopy { padding-block: 20px; }
   .heroCopy .title { font-size: 42px; }
-  .expanded { min-height: calc(var(--intro-panel-bottom, 260px) + 242px); }
   .topPanel { top: 16px; left: 18px; right: 18px; padding: 20px 28px; gap: 32px; }
   .plaque .title { font-size: 22px; }
   .plaqueStats > div:first-child { margin-top: 12px; padding-top: 10px; }
   .plaqueStats strong { font-size: 20px; }
   .selectedShoe, .emptySelection { height: 126px; }
-  .wall .rail:last-child { display: none; }
-  .shoeTile { width: 165px; height: 112px; padding: 8px 10px; }
-  .shoeTile img { height: 78px; }
 }
 @media (max-width:850px) {
-  .discovery { min-height: 700px; }
-  .heroPanel { width: 100%; }
-  .heroCopy { min-height: 0; align-items: center; padding: 20px 24px; text-align: center; }
+  .heroPanel { width: 100%; height: 64%; }
+  .heroCopy { align-items: center; padding: 16px 24px; text-align: center; }
   .heroCopy .brandLine { justify-content: center; }
   .heroCopy .plaqueStats { text-align: center; }
   .heroCopy .plaqueStats > div:first-child { justify-content: center; }
   .title { font-size: 34px; line-height: 1.24; }
   .description { font-size: 16px; margin-top: 14px; }
   .openWall { align-self: center; margin-top: 6px; }
-  .heroShoe { left: 10%; right: 10%; top: auto; bottom: 0; height: 290px; }
-  .expanded { min-height: calc(var(--intro-panel-bottom, 360px) + 420px); border-radius: 24px; }
-  .topPanel { position: relative; top: auto; left: auto; right: auto; margin: 16px; padding: 24px; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 24px; border-radius: 20px; }
+  .heroShoe { left: 10%; right: 10%; top: auto; bottom: 8px; height: 34%; }
+  .heroShoe > span { margin-top: 5px; font-size: 12px; }
+  .expanded { border-radius: 24px; }
+  .topPanel { top: 12px; left: 12px; right: 12px; padding: 18px; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 18px; border-radius: 20px; }
   .plaque .title { font-size: 23px; }
   .plaque .brandLine { gap: 7px; }
   .brandLine > span { font-size: 8px; letter-spacing: .03em; }
@@ -102,22 +98,39 @@
   .selectionIntro > span:first-child { font-size: 8px; letter-spacing: .02em; }
   .selectionHelp { font-size: 9px; }
   .emptyLabel { font-size: 8px; }
-  .wall { top: var(--intro-panel-bottom, 360px); bottom: auto; padding: 0; mask-image: linear-gradient(to right,transparent,#000 2%,#000 98%,transparent); }
-  .shoeTile { width: 145px; height: 125px; border-radius: 14px; padding: 8px; }
-  .shoeTile img { height: 88px; }
+  .wall { mask-image: linear-gradient(to right,transparent,#000 2%,#000 98%,transparent); }
+  .shoeTile { border-radius: 14px; padding: 8px; }
   .shoeTile > span { font-size: 10px; }
   .group { gap: 12px; padding-right: 12px; }
 }
 @media (max-width:620px) {
-  .topPanel { grid-template-columns: 1fr; gap: 22px; padding: 22px; }
+  .topPanel { grid-template-columns: 1fr; grid-template-rows: minmax(0,1fr) auto; gap: 12px; padding: 14px 16px; }
+  .plaque .title { font-size: 21px; margin-top: 8px; }
+  .plaque .description { margin-top: 6px; line-height: 1.5; }
   .plaque .brandLine { gap: 10px; }
   .brandLine > span { font-size: 9px; letter-spacing: .05em; }
-  .plaqueStats > div:first-child { margin-left: 0; margin-right: 0; }
-  .selectionDock { padding-top: 16px; border-top: 1px solid rgb(var(--text) / .045); }
+  .plaqueStats > div:first-child { margin: 9px 0 0; padding-top: 8px; }
+  .plaqueStats strong { font-size: 19px; }
+  .plaqueStats [data-intro-metrics-note] { font-size: 9px; line-height: 1.4; margin-top: 5px; }
+  .selectionDock { padding-top: 9px; border-top: 1px solid rgb(var(--text) / .045); row-gap: 4px; }
   .selectionIntro > span:first-child { font-size: 9px; letter-spacing: .08em; }
-  .selectedShoe, .emptySelection { height: 112px; }
+  .selectedShoe, .emptySelection { height: 88px; padding-top: 4px; }
+  .selectedShoe img, .emptyLanding { height: 88px; margin: -17px 0; }
+  .landingPlane { top: 36px; height: 25px; }
+  .emptyLabel, .selectedName { margin-top: 7px; }
   .selectionHelp { display: none; }
   .emptyLabel { font-size: 9px; }
+}
+@container (max-height: 420px) {
+  .topPanel { top: 8px; left: 10px; right: 10px; gap: 10px; padding: 12px 16px; max-height: calc(100% - 110px); }
+  .plaque .title { font-size: 19px; }
+  .plaque .description { font-size: 11px; line-height: 1.5; }
+  .selectedShoe, .emptySelection { height: 84px; }
+  .selectedShoe img, .emptyLanding { height: 86px; margin-block: -17px; }
+  .landingPlane { top: 36px; height: 25px; }
+  .selectionHelp { display: none; }
+  .heroCopy .title { font-size: 30px; }
+  .heroCopy .description { font-size: 14px; margin-top: 12px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .track { animation: none; transform: none; }

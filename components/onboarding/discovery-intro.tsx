@@ -7,6 +7,7 @@ import { Check, Plus, X } from "lucide-react";
 import { EASE } from "@/lib/motion/constants";
 import { BrandLogo, type StoryCatalog, type StoryShoe } from "./site-stories";
 import styles from "./discovery-intro.module.css";
+import { ScrollHint } from "./scroll-hint";
 
 type ShoeTransfer = { shoe: StoryShoe; from: DOMRect; to: DOMRect; returning: boolean };
 
@@ -57,7 +58,9 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
   const elapsed = useRef(0);
   const surface = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const copyPanel = useRef<HTMLElement>(null);
   const [panelBottom, setPanelBottom] = useState(282);
+  const [viewport, setViewport] = useState({ width: 1000, height: 600 });
   const expandRef = useRef(onExpand);
   expandRef.current = onExpand;
   useEffect(() => {
@@ -81,18 +84,30 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
   }, [expanded, hero, heroReady, visible, reduced]);
   const remaining = (catalog?.shoes || []).filter((shoe) => shoe.slug !== hero?.slug);
   useLayoutEffect(() => {
-    if (!expanded || !panel.current || !surface.current) return;
+    if (!panel.current || !surface.current) return;
     const measure = () => {
       // Local layout coordinates stay stable during the hero-to-wall transform.
-      if (panel.current) setPanelBottom(panel.current.offsetTop + panel.current.offsetHeight + 18);
+      if (panel.current) setPanelBottom(panel.current.offsetTop + panel.current.offsetHeight + 12);
+      if (surface.current) {
+        const width = surface.current.clientWidth;
+        const height = surface.current.clientHeight;
+        setViewport(current => current.width === width && current.height === height ? current : { width, height });
+      }
     };
     measure();
     const observer = new ResizeObserver(measure);
-    observer.observe(panel.current); window.addEventListener("resize", measure);
+    observer.observe(panel.current); observer.observe(surface.current); window.addEventListener("resize", measure);
     return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
   }, [expanded]);
   const shoes = hero ? [...remaining.slice(0, 6), hero, ...remaining.slice(6)] : remaining;
-  const rows = [0, 1, 2].map((row) => shoes.filter((_, index) => index % 3 === row));
+  const wallHeight = Math.max(0, viewport.height - panelBottom - 8);
+  const rowGap = 10;
+  const minTileHeight = viewport.width <= 620 ? 94 : 108;
+  const rowCount = Math.max(1, Math.min(3, Math.floor((wallHeight + rowGap) / (minTileHeight + rowGap))));
+  const tileHeight = Math.max(72, Math.min(160, Math.floor((wallHeight - (rowCount - 1) * rowGap) / rowCount)));
+  const tileWidth = Math.max(130, Math.min(185, Math.round(tileHeight * 1.3)));
+  // Every shoe remains reachable when a short viewport needs fewer rows.
+  const rows = Array.from({ length: rowCount }, (_, row) => shoes.filter((_, index) => index % rowCount === row));
   const transition = { duration: reduced ? .15 : .65, ease: EASE };
   function completeTransfer() {
     const finish = finishTransfer.current;
@@ -151,12 +166,12 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
     window.addEventListener("resize", finish);
     return () => window.removeEventListener("resize", finish);
   }, []);
-  return <div ref={surface} style={{ "--intro-panel-bottom": `${panelBottom}px` } as CSSProperties} className={`${styles.discovery} ${expanded ? styles.expanded : ""}`} data-testid="onboarding-scene-0" data-expanded={expanded}>
+  return <div ref={surface} style={{ "--intro-panel-bottom": `${panelBottom}px`, "--wall-tile-height": `${tileHeight}px`, "--wall-tile-width": `${tileWidth}px`, "--wall-row-gap": `${rowGap}px` } as CSSProperties} className={`${styles.discovery} ${expanded ? styles.expanded : ""}`} data-testid="onboarding-scene-0" data-expanded={expanded} data-wall-rows={rowCount}>
     <div className={styles.wallTexture} aria-hidden="true"/>
     <AnimatePresence initial={false}>
       {expanded && <motion.div ref={wall} key="wall" data-shoe-wall className={styles.wall} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduced ? .15 : .75, delay: reduced ? 0 : .12 }} data-motion-idle={reduced}>
         {rows.map((row, ri) => <div className={styles.rail} key={ri}>
-          <div className={styles.track} style={{ animationDuration: `${95 + ri * 14}s` }}>
+          <div className={styles.track} style={{ animationDuration: `${Math.max(45, row.length * (tileWidth + (viewport.width <= 850 ? 12 : 18)) / (18 - ri * 1.5))}s` }}>
             {[0, 1].map((copy) => <div className={styles.group} key={copy} aria-hidden={copy ? true : undefined}>
               {row.map((shoe) => {
                 const index = selected.findIndex((item) => item.slug === shoe.slug);
@@ -186,12 +201,13 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
       </motion.div>}
     </AnimatePresence>
     <motion.div ref={panel} layout transition={transition} className={expanded ? styles.topPanel : styles.heroPanel}>
-    <motion.aside layout transition={transition} className={expanded ? styles.plaque : styles.heroCopy}>
-      <motion.div layout className={styles.brandLine} transition={transition}><BrandLogo compact={expanded}/>{expanded ? <span>MEET SNKRFEATURE</span> : null}</motion.div>
+    <motion.aside ref={copyPanel} layout transition={transition} className={expanded ? styles.plaque : styles.heroCopy}>
+      <motion.div layout className={styles.brandLine} transition={transition}><BrandLogo compact={expanded || viewport.width <= 620 || viewport.height < 420}/>{expanded ? <span>MEET SNKRFEATURE</span> : null}</motion.div>
       <motion.h1 tabIndex={-1} layout transition={transition} className={styles.title}>{expanded ? (zh ? "从心动的一双，开始。" : "Start with a pair you love.") : <>{zh ? "找到更适合" : "A better pair."}<br/><em>{zh ? "你打法的篮球鞋。" : "For your game."}</em></>}</motion.h1>
       <motion.p layout transition={transition} className={styles.description}>{expanded ? (zh ? "在这面鞋墙上选两双，下一屏一起看它们的差异。" : "Pick any two from the wall. Compare their details next.") : (zh ? "浏览、比较、了解。把关于篮球鞋的信息，变成对你有用的选择。" : "Explore, compare and understand. Find a pair that makes sense for your game.")}</motion.p>
       <motion.div layout transition={transition} className={styles.plaqueStats}>{stats}</motion.div>
       {!expanded ? <button type="button" className={styles.openWall} onClick={onExpand}>{zh ? "展开球鞋墙" : "Open the shoe wall"}<Plus size={15}/></button> : <span className={styles.plaquePin} aria-hidden="true"/>}
+      <ScrollHint targetRef={copyPanel} zh={zh}/>
     </motion.aside>
     {expanded ? <div className={styles.selectionDock}>
       <div className={styles.selectionIntro}><span>{zh ? "为你的下一场" : "FOR YOUR NEXT GAME"}</span><span className={styles.selectionCount} aria-label={`${selected.length} / 2`}>{[0, 1].map((index) => <i key={index} data-filled={index < selected.length}/>)}</span></div>
