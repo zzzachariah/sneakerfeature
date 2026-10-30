@@ -169,7 +169,7 @@ function OnboardingShell({ children, shellRef, label, phase, reduced }: {
   return <motion.div ref={shellRef} className={styles.shell}
     role={present ? "dialog" : undefined} aria-modal={present ? true : undefined} aria-label={label}
     inert={!present} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
-    initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .25 }}
+    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: reduced ? .15 : .25 } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
     data-testid="site-onboarding" data-phase={phase} data-exiting={!present || undefined}>
     <LayoutGroup id="sf-onboarding">{children}</LayoutGroup>
   </motion.div>;
