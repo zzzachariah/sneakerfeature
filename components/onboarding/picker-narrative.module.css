@@ -104,3 +104,9 @@
 .catalogSources a {display:flex;align-items:center;gap:7px;font-size:12px;}
 .progress[hidden] { display:none; }
 .historyToggle { align-self:flex-start;min-height:44px;background:none;border:0;padding:0;color:rgb(var(--subtext));font-size:11px;cursor:pointer; }
+
+.answer { display:flex;flex-direction:column;gap:24px;min-width:0;scroll-margin-top:14px; }
+.answer:empty { display:none; }
+.answerPriorities { padding-top:6px; }
+.answerPriorities .selections > div { gap:12px; }
+.answerPriorities + .progress { border-top:0;padding-top:0; }

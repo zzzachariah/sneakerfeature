@@ -1649,7 +1649,9 @@ async function candidateEvidencePipeline(
   deadline?: Deadline
 ): Promise<RecommendResult | null> {
   const { shoes, history, currentInput, count } = opts;
-  const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: opts.onboardingDemo ? 6000 : 16000 };
+  // The relay counts reasoning and the final JSON against the same ceiling.
+  // Keep room for both complete picks even in the smaller, bounded demo flow.
+  const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
   const lang = detectReplyLang(currentInput);
   const zh = lang === "zh";
@@ -1923,7 +1925,11 @@ async function candidateEvidencePipeline(
               { role: "assistant" as const, content: '{"omitted":"truncated_payload"}' },
               {
                 role: "user" as const,
-                content: zh
+                content: opts.onboardingDemo
+                  ? (zh
+                    ? "刚才的 JSON 被截断了。重新输出完整 JSON，恰好两双有依据的目录鞋。reply、follow_up、title 留空；每双 reason 用两三句回应三个优先项，pros/cons 各一两条，references 仅保留实际引用的给定网页。不要加额外说明。"
+                    : "The JSON was cut off. Return complete JSON for exactly two supported catalog shoes. Leave reply, follow_up and title empty. Each reason must address all three priorities in two or three sentences; include one or two pros and cons and only supplied references actually used. No extra commentary.")
+                  : zh
                   ? "刚才的输出被截断了。请重新输出完整 JSON，并进一步精简：reply 保留 2 段、每段 ≤40 字，reason ≤ 20 字，每条 pros/cons ≤ 10 字，follow_up 一句话。"
                   : "That output was cut off. Emit the complete JSON again, much shorter: keep `reply` to 2 paragraphs of under 25 words each, `reason` under 12 words, each pro/con under 6 words, `follow_up` one short sentence."
               }
