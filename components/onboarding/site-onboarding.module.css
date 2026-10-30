@@ -1,7 +1,7 @@
 .shell { --onb-line: rgb(var(--text) / .09); position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; overflow-anchor: none; overscroll-behavior: contain; background: rgb(var(--bg)); color: rgb(var(--text)); font-family: var(--font-geist-sans), "PingFang SC", sans-serif; }
 .shell * { box-sizing: border-box; }
-.shell:is([data-comparison-phase="moving"], [data-comparison-phase="copy"], [data-comparison-phase="radar"]) :is(.topbar, .footer, .controls, .compactBodyHint) { opacity: 0; }
-.shell[data-comparison-phase="moving"] .copy { opacity: 0; transform: translateY(8px); }
+.shell:is([data-comparison-phase="moving"], [data-comparison-phase="shoes"], [data-comparison-phase="radar"], [data-comparison-phase="copy"]) :is(.topbar, .footer, .controls, .compactBodyHint) { opacity: 0; }
+.shell:is([data-comparison-phase="moving"], [data-comparison-phase="shoes"], [data-comparison-phase="radar"]) .copy { opacity: 0; transform: translateY(8px); }
 .shell[data-comparison-phase="copy"] .copy { animation: comparison-copy .9s cubic-bezier(.22, 1, .36, 1) both; }
 .shell[data-comparison-phase="details"] :is(.topbar, .footer, .controls, .compactBodyHint) { animation: comparison-copy .65s cubic-bezier(.22, 1, .36, 1) both; }
 @keyframes comparison-copy { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

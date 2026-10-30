@@ -8,13 +8,13 @@
 .scene:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 3px; border-radius: 8px; }
 .scene > * { flex-shrink: 0; min-width: 0; max-width: 100%; }
 .comparisonDetails { display: flex; flex-direction: column; gap: 12px; }
-/* Shoes remain the visual anchors. Copy, radar, then controls get their own beat. */
-.stage[data-comparison-phase="moving"] :is(.sceneTop, .sectionHeading, .shoeIndex, .shoeIdentity, .detailLink) { opacity: 0; }
-.stage[data-comparison-phase="copy"] :is(.sceneTop, .sectionHeading, .shoeIndex, .shoeIdentity, .detailLink) { animation: comparison-reveal .9s cubic-bezier(.22, 1, .36, 1) both; }
-.stage:is([data-comparison-phase="moving"], [data-comparison-phase="copy"]) .radarSection { opacity: 0; }
+/* Shoe information, radar, then the left-hand copy each get their own beat. */
+.stage[data-comparison-phase="moving"] :is(.shoeIndex, .shoeIdentity, .detailLink) { opacity: 0; }
+.stage[data-comparison-phase="shoes"] :is(.shoeIndex, .shoeIdentity, .detailLink) { animation: comparison-reveal .9s cubic-bezier(.22, 1, .36, 1) both; }
+.stage:is([data-comparison-phase="moving"], [data-comparison-phase="shoes"]) .radarSection { opacity: 0; }
 .stage[data-comparison-phase="radar"] .radarSection { animation: comparison-reveal .75s cubic-bezier(.22, 1, .36, 1) both; }
-.stage:is([data-comparison-phase="moving"], [data-comparison-phase="copy"], [data-comparison-phase="radar"]) :is(.comparisonDetails, [data-scroll-hint]) { opacity: 0; }
-.stage[data-comparison-phase="details"] :is(.comparisonDetails, [data-scroll-hint]) { animation: comparison-reveal .65s cubic-bezier(.22, 1, .36, 1) both; }
+.stage:is([data-comparison-phase="moving"], [data-comparison-phase="shoes"], [data-comparison-phase="radar"], [data-comparison-phase="copy"]) :is(.sceneTop, .sectionHeading, .comparisonDetails, [data-scroll-hint]) { opacity: 0; }
+.stage[data-comparison-phase="details"] :is(.sceneTop, .sectionHeading, .comparisonDetails, [data-scroll-hint]) { animation: comparison-reveal .65s cubic-bezier(.22, 1, .36, 1) both; }
 @keyframes comparison-reveal { from { opacity: 0; } to { opacity: 1; } }
 .scene > :last-child[data-scroll-hint] { margin-top: 0; margin-bottom: -24px; }
 .scene h3, .scene p, .scene label { overflow-wrap: anywhere; }

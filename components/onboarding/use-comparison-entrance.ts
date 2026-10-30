@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
-export type ComparisonPhase = "rest" | "preparing" | "dimming" | "moving" | "copy" | "radar" | "details";
+export type ComparisonPhase = "rest" | "preparing" | "dimming" | "moving" | "shoes" | "radar" | "copy" | "details";
 const EASE = "cubic-bezier(.4, 0, .2, 1)";
-const TIMES = { dim: 900, travel: 1600, copy: 900, radar: 1150, details: 650 };
+const TIMES = { dim: 900, travel: 1600, shoes: 900, radar: 1150, copy: 900, details: 650 };
 
 // Measure the painted image, not its object-fit box. This keeps the shoes at
 // their natural proportions even when the two layouts have different ratios.
@@ -154,13 +154,15 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
         return animate(image, [{ transform: "translate(0, 0) scale(1)" }, { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width})`, filter: getComputedStyle(target).filter }], TIMES.travel, "cubic-bezier(.65, 0, .35, 1)");
       });
       await Promise.all(journeys);
-      setPhase("copy");
-      await animate(veil, [{ opacity: 1 }, { opacity: 0 }], TIMES.copy);
+      setPhase("shoes");
+      await animate(veil, [{ opacity: 1 }, { opacity: 0 }], TIMES.shoes);
       // Transfer ownership at the measured landing positions, then start the
       // site's existing radar drawing. It has not played behind the curtain.
       current.cleanup();
       setPhase("radar");
       await hold(TIMES.radar);
+      setPhase("copy");
+      await hold(TIMES.copy);
       setPhase("details");
       await hold(TIMES.details);
       if (run.current === current) {
