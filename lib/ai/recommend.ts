@@ -1226,7 +1226,7 @@ async function tryToolLoopWithSearch(
       stats.attempts += 1;
       if (sr.ok) {
         stats.succeeded += 1;
-        onProgress?.({ type: "search", query: q, state: "ok", resultCount: sr.results.length });
+        onProgress?.({ type: "search", query: q, state: "ok", resultCount: sr.results.length, sources: sr.results.map(r => ({ title: r.title, url: r.url })), cached: Boolean(sr.cached) });
       } else {
         stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
         onProgress?.({ type: "search", query: q, state: "fail", kind: sr.error });
@@ -1528,6 +1528,7 @@ export type RecommendOpts = {
    * of being killed mid-stream (see lib/ai/budget.ts).
    */
   deadline?: Deadline;
+  onboardingDemo?: boolean;
 };
 
 // Persona / foot-profile context appended to the ask in every pipeline phase.
@@ -1647,7 +1648,7 @@ async function candidateEvidencePipeline(
   deadline?: Deadline
 ): Promise<RecommendResult | null> {
   const { shoes, history, currentInput, count } = opts;
-  const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: 16000 };
+  const base = { model: opts.model ?? PACKY_MODEL, temperature: 0.2, max_tokens: opts.onboardingDemo ? 6000 : 16000 };
   const stats: WebSearchStats = { attempts: 0, succeeded: 0, failures: [] };
   const lang = detectReplyLang(currentInput);
   const zh = lang === "zh";
@@ -1657,7 +1658,8 @@ async function candidateEvidencePipeline(
 
   // --- A) shortlist -------------------------------------------------------
   onProgress?.({ type: "status", phase: "shortlist", message: "正在从目录圈定候选鞋款…" });
-  const wanted = Math.min(Math.max(count + SHORTLIST_EXTRA, 5), Math.max(count, MAX_CANDIDATES));
+  const wanted = opts.onboardingDemo ? 3 : Math.min(Math.max(count + SHORTLIST_EXTRA, 5), Math.max(count, MAX_CANDIDATES));
+  const backupCount = opts.onboardingDemo ? 0 : BACKUP_POOL_SIZE;
   const fullCatalog = JSON.stringify(buildCompactCatalog(shoes, opts.persona, opts.reviewsByShoe));
   // On a follow-up the previous picks are pre-seeded into the candidate pool, so
   // the model can double down on them without the shortlist having to
@@ -1679,12 +1681,12 @@ async function candidateEvidencePipeline(
         ? `${languageDirective(currentInput)}\n\n` +
           `本次要求："${currentInput}"${suffix}\n\n` +
           shortlistFollowUpNote +
-          `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${BACKUP_POOL_SIZE} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
+          `第一步（先不要给最终推荐）：从目录中圈定 ${wanted} 双最匹配的候选鞋，稍后我会对它们逐双联网查证口碑，再请你出最终推荐。另外再给 ${backupCount} 双次优先级的备选（万一候选口碑不佳时的替补）。\n` +
           `只输出 JSON：{"candidates":["鞋名1","鞋名2",…],"backups":["鞋名A","鞋名B",…]}——鞋名必须逐字复制目录里的 name 字段。不要输出任何其他内容。思考尽量简短。`
         : `${languageDirective(currentInput)}\n\n` +
           `This request: "${currentInput}"${suffix}\n\n` +
           shortlistFollowUpNote +
-          `Step one (do NOT give final recommendations yet): shortlist the ${wanted} best-matching shoes from the catalog. I'll research each one on the web and then ask you for the final picks. Also give ${BACKUP_POOL_SIZE} second-tier backups in case a candidate's reputation turns out poor.\n` +
+          `Step one (do NOT give final recommendations yet): shortlist the ${wanted} best-matching shoes from the catalog. I'll research each one on the web and then ask you for the final picks. Also give ${backupCount} second-tier backups in case a candidate's reputation turns out poor.\n` +
           `Output JSON only: {"candidates":["shoe name 1","shoe name 2",…],"backups":["shoe name A","shoe name B",…]} — every name copied VERBATIM from the catalog's \`name\` field. Nothing else. Keep your thinking brief.`
     }
   ];
@@ -1716,7 +1718,7 @@ async function candidateEvidencePipeline(
     }
   }
   for (const name of candidateNames) {
-    if (candidates.length >= MAX_CANDIDATES) break;
+    if (candidates.length >= (opts.onboardingDemo ? 3 : MAX_CANDIDATES)) break;
     const shoe = matchShoeByName(name, shoes);
     if (shoe && !seen.has(shoe.id)) {
       seen.add(shoe.id);
@@ -1730,7 +1732,7 @@ async function candidateEvidencePipeline(
   // Backup pool: researched only if the commit step finds the candidates
   // insufficient (explicitly via add_candidates, or by under-returning).
   const backups: Shoe[] = [];
-  for (const name of backupNames) {
+  for (const name of opts.onboardingDemo ? [] : backupNames) {
     const shoe = matchShoeByName(name, shoes);
     if (shoe && !seen.has(shoe.id)) {
       seen.add(shoe.id);
@@ -1745,6 +1747,8 @@ async function candidateEvidencePipeline(
       : `Candidate shoes (${candidates.length}): ${candidates.map((s) => s.shoe_name).join(", ")}` +
         (backups.length ? `\nBackups (not verified yet): ${backups.map((s) => s.shoe_name).join(", ")}` : "")
   });
+
+  onProgress?.({ type: "status", phase: "shortlist", message: "Candidates selected", candidates: candidates.map(s => ({name: s.shoe_name, slug: s.slug})) });
 
   // --- B) parallel evidence searches --------------------------------------
   type Probe = { label: string; query: string; result?: WebSearchResult };
@@ -1775,7 +1779,7 @@ async function candidateEvidencePipeline(
         stats.attempts += 1;
         if (sr.ok) {
           stats.succeeded += 1;
-          onProgress?.({ type: "search", query: p.query, state: "ok", resultCount: sr.results.length });
+          onProgress?.({ type: "search", query: p.query, state: "ok", resultCount: sr.results.length, sources: sr.results.map(r => ({ title: r.title, url: r.url })), cached: Boolean(sr.cached) });
         } else {
           stats.failures.push({ kind: sr.error, detail: sr.detail, query: sr.query });
           onProgress?.({ type: "search", query: p.query, state: "fail", kind: sr.error });
@@ -1823,7 +1827,7 @@ async function candidateEvidencePipeline(
     if (zh) {
       const backupNote =
         !extensionUsed && pool.length
-          ? `【备选（尚未查证）】${pool.map((s) => s.shoe_name).join("、")}。若查证摘要显示候选中匹配良好的不足 ${count} 双，不要硬凑：在输出 JSON 里额外加 "add_candidates":["鞋名",…]（≤${BACKUP_POOL_SIZE} 个，从备选或目录里选），我会补充联网查证后再请你重新决定。\n\n`
+          ? `【备选（尚未查证）】${pool.map((s) => s.shoe_name).join("、")}。若查证摘要显示候选中匹配良好的不足 ${count} 双，不要硬凑：在输出 JSON 里额外加 "add_candidates":["鞋名",…]（≤${backupCount} 个，从备选或目录里选），我会补充联网查证后再请你重新决定。\n\n`
           : "";
       return [
         ...buildBaseMessages("候选鞋款目录(JSON)——已按本次需求初筛", candidateCatalog, history, lang),
@@ -1846,14 +1850,14 @@ async function candidateEvidencePipeline(
               : `【联网查证摘要】本次联网查证不可用——仅依据目录与博主点评作答，所有 references 一律留空数组。\n\n`) +
             `表达规范：reason/pros/cons 里不得出现 court_feel、traction 这类内部字段名——用"场地感/贴地感、抓地力"等中文说法；elite/excellent 等评价词翻成中文；科技专有名词（Zoom Air、BOOM 等）保留原文。\n\n` +
             `只输出 JSON：${jsonShape}。不要调用工具、不要 markdown、不要 JSON 之外的文字。思考尽量简短，不要在思考里起草文案。\n\n` +
-            languageDirective(currentInput)
+            languageDirective(currentInput) + (opts.onboardingDemo ? "\n【导览演示输出约束，优先于上面的通用格式】follow_up 留空；不要求用户补充资料。reason 用 2-3 句逐一回应用户的三个有序重点，说明依据及不确定性；pros/cons 必须各至少一项，不能空泛，不得编造试穿体验。只按已给位置与偏好判断，不推断预算、场地、尺寸或体重。选中鞋是兴趣参考，不是只能从其中推荐。只有目录或检索支持时才作性能断言；缺失就说缺少资料。恰好返回两双不同的候选目录鞋（若依据不足以形成两双真实建议，应明确少返，不要编造）。" : "")
         }
       ];
     }
 
     const backupNoteEn =
       !extensionUsed && pool.length
-        ? `[BACKUPS — not researched yet] ${pool.map((s) => s.shoe_name).join(", ")}. If the research digests show fewer than ${count} genuinely good matches among the candidates, do NOT pad the list: add "add_candidates":["shoe name",…] (≤${BACKUP_POOL_SIZE}, from the backups or the catalog) to your JSON and I'll research them and ask you again.\n\n`
+        ? `[BACKUPS — not researched yet] ${pool.map((s) => s.shoe_name).join(", ")}. If the research digests show fewer than ${count} genuinely good matches among the candidates, do NOT pad the list: add "add_candidates":["shoe name",…] (≤${backupCount}, from the backups or the catalog) to your JSON and I'll research them and ask you again.\n\n`
         : "";
     return [
       ...buildBaseMessages(
@@ -1881,7 +1885,7 @@ async function candidateEvidencePipeline(
             : `[WEB RESEARCH DIGEST] Web research was unavailable this turn — answer from the catalog and blogger reviews alone, and leave every \`references\` array empty.\n\n`) +
           `Wording: never let internal field names (court_feel, traction, cushioning_feel…) appear in \`reason\`/\`pros\`/\`cons\` — say "court feel", "traction", "cushioning" in plain English. Technology proper nouns (Zoom Air, BOOM, Lightstrike Pro…) stay verbatim as written in the catalog.\n\n` +
           `Output JSON only: ${jsonShape}. No tool calls, no markdown, nothing outside the JSON. Keep your thinking brief — don't draft the copy inside your reasoning.\n\n` +
-          languageDirective(currentInput)
+          languageDirective(currentInput) + (opts.onboardingDemo ? "\n[INTRO DEMO OVERRIDE] Leave follow_up empty. Do not ask for more input. For each reason, use 2-3 sentences addressing ALL THREE ordered priorities, evidence and uncertainty. Include at least one specific pro and con. Do not invent a court, budget, size, weight or hands-on testing. The selected shoes are interest context, not a restriction on recommendations. Make performance claims only when supported by the catalog or search evidence; identify missing evidence. Return two distinct candidate catalog shoes when justified; do not fabricate a second recommendation if evidence is insufficient." : "")
       }
     ];
   };
@@ -1960,7 +1964,7 @@ async function candidateEvidencePipeline(
       // Extension trigger: the model asked for more shoes, or under-returned.
       // Skipped when the remaining wall clock can't cover another search burst
       // AND another commit call — a good answer now beats a killed request.
-      if (round === 0 && !extensionUsed && hasBudget(deadline, 45_000)) {
+      if (!opts.onboardingDemo && round === 0 && !extensionUsed && hasBudget(deadline, 45_000)) {
         let addNames: string[] = [];
         try {
           addNames = coerceStringArray(
@@ -2011,6 +2015,11 @@ async function candidateEvidencePipeline(
 function okIfRecsText(text: string): RecommendResult | null {
   const r = parseResult(text);
   return r.recommendations.length ? { ...r, raw: text.slice(0, 600) } : null;
+}
+
+/** One bounded onboarding run; never substitutes rule-based fallback picks. */
+export async function recommendOnboardingShoes(client: OpenAI, opts: RecommendOpts, onProgress?: OnProgress) {
+  return candidateEvidencePipeline(client, { ...opts, onboardingDemo: true }, onProgress, opts.deadline);
 }
 
 export async function recommendShoes(

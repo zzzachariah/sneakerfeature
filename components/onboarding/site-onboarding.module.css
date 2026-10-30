@@ -396,3 +396,5 @@
   .body:has([data-picker-narrative][data-explained="false"]) .copy { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .shell, .body:has([data-picker-narrative]) { transition: none; } }
+
+.body[data-profile-exit="true"] .copy { opacity:0; transition:opacity .85s ease; }
