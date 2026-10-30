@@ -43,7 +43,7 @@ console.log('PASS demo recency, explicit legacy interests, brand-qualified queri
 // The demo must consume complete native tool arguments, including quoted prose,
 // rather than treating the tool result as an absent/truncated text answer.
 const {recommendOnboardingShoes}=await import('../lib/ai/recommend.ts');
-const {HAIKU_MODEL}=await import('../lib/ai/packy-client.ts');
+const {HAIKU_MODEL,PACKY_MODEL}=await import('../lib/ai/packy-client.ts');
 const savedKeys={t:process.env.TAVILY_API_KEY,b:process.env.BOCHA_API_KEY};
 delete process.env.TAVILY_API_KEY;delete process.env.BOCHA_API_KEY;
 let completionCalls=0;
@@ -52,6 +52,7 @@ const mockClient={chat:{completions:{create:async(params:any)=>{
  completionCalls++;
  async function* chunks(){
   if(completionCalls===1){yield {choices:[{delta:{content:JSON.stringify({candidates:demoRecs.map(r=>r.name),backups:[]})},finish_reason:'stop'}]};return;}
+  if(params.model===PACKY_MODEL){assert.equal(params.response_format.type,'json_object');yield {choices:[{delta:{content:JSON.stringify({recommendations:demoRecs})},finish_reason:'stop'}]};return;}
   assert.equal(params.tool_choice.function.name,'recommend_shoes');
   assert.equal(params.tools[0].function.parameters.properties.recommendations.maxItems,2);
   const args=JSON.stringify({recommendations:demoRecs});
@@ -60,12 +61,13 @@ const mockClient={chat:{completions:{create:async(params:any)=>{
  }
  return chunks();
 }}}};
-try{
- const result=await recommendOnboardingShoes(mockClient as any,{shoes:demoRecs.map((r,i)=>({id:'fixture-'+i,shoe_name:r.name,slug:'fixture-'+i,brand:'Test',spec:{traction:'good',stability:'stable',fit:'snug'}})) as any,history:[],currentInput:'PG / SG, traction, stability and fit. Recommend two basketball shoes.',count:2,model:HAIKU_MODEL});
+try{for(const model of [HAIKU_MODEL,PACKY_MODEL]){
+ completionCalls=0;
+ const result=await recommendOnboardingShoes(mockClient as any,{shoes:demoRecs.map((r,i)=>({id:'fixture-'+i,shoe_name:r.name,slug:'fixture-'+i,brand:'Test',spec:{traction:'good',stability:'stable',fit:'snug'}})) as any,history:[],currentInput:'PG / SG, traction, stability and fit. Recommend two basketball shoes.',count:2,model});
  assert.deepEqual(result?.recommendations.map(r=>r.name),demoRecs.map(r=>r.name));
  assert.equal(result?.recommendations[0].reason,demoRecs[0].reason);
  assert.equal(completionCalls,2,'one shortlist and one structured final answer');
-}finally{if(savedKeys.t)process.env.TAVILY_API_KEY=savedKeys.t;if(savedKeys.b)process.env.BOCHA_API_KEY=savedKeys.b;}
+}}finally{if(savedKeys.t)process.env.TAVILY_API_KEY=savedKeys.t;if(savedKeys.b)process.env.BOCHA_API_KEY=savedKeys.b;}
 console.log('PASS native demo tool output, split argument stream, quoted reasons and two distinct results.');
 
 assert.equal(demoSourceMatches('Wade 808 5',{title:'Way of Wade 808 5 Ultra V2 Review',snippet:'Wade 808 5 basketball shoe',url:'https://example.com/wade-808-5-ultra-v2'}),false);
