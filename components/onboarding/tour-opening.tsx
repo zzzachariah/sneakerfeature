@@ -11,7 +11,7 @@ import styles from "./tour-opening.module.css";
 
 type TourOpeningProps = {
   zh: boolean;
-  users: number | null;
+  shoes: number | null;
   brands: number | null;
   loading: boolean;
   stale: boolean;
@@ -24,16 +24,16 @@ function confirmedCount(value: number | null) {
 }
 
 /** The brand opening owns only its available shell space, never the viewport. */
-export function TourOpening({ zh, users, brands, loading, stale, onStart, onLanguageChange }: TourOpeningProps) {
+export function TourOpening({ zh, shoes, brands, loading, stale, onStart, onLanguageChange }: TourOpeningProps) {
   const reduced = useReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const userCount = confirmedCount(users);
+  const shoeCount = confirmedCount(shoes);
   const brandCount = confirmedCount(brands);
-  const ready = userCount !== null && brandCount !== null;
+  const ready = shoeCount !== null && brandCount !== null;
   const notice = loading && !ready
-    ? (zh ? "正在读取人数与品牌资料…" : "Loading our community and brands…")
-    : stale && (userCount !== null || brandCount !== null)
+    ? (zh ? "正在读取球鞋与品牌资料…" : "Loading our shoes and brands…")
+    : stale && (shoeCount !== null || brandCount !== null)
       ? (zh ? "显示上次确认的统计。" : "Showing the last confirmed figures.")
       : !ready && !loading
         ? (zh ? "部分统计暂不可用，仍可开始介绍。" : "Some figures are unavailable. You can still start the tour.")
@@ -56,8 +56,8 @@ export function TourOpening({ zh, users, brands, loading, stale, onStart, onLang
           <CountReveal runKey={ready ? "opening-counts-ready" : "opening-counts-pending"}>
             <dl className={styles.figures}>
               <div className={styles.figure}>
-                <dt>{zh ? "位注册用户" : "registered players"}</dt>
-                <dd>{userCount !== null ? <AnimatedCount value={userCount}/> : <span aria-label={zh ? "人数暂不可用" : "Player count unavailable"}>—</span>}</dd>
+                <dt>{zh ? "款球鞋" : "shoes to explore"}</dt>
+                <dd>{shoeCount !== null ? <AnimatedCount value={shoeCount}/> : <span aria-label={zh ? "球鞋数量暂不可用" : "Shoe count unavailable"}>—</span>}</dd>
               </div>
               <div className={styles.figure}>
                 <dt>{zh ? "个球鞋品牌" : "shoe brands"}</dt>
