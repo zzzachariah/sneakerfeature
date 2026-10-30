@@ -125,9 +125,32 @@ function OnboardingShell({ children, shellRef, label, phase, reduced }: {
   label: string; phase: string; reduced: boolean | null;
 }) {
   const present = useIsPresent();
+  const [visibleFrame, setVisibleFrame] = useState<{ height: number; top: number } | null>(null);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      // A soft keyboard can shrink only the visual viewport. Do not resize
+      // the dialog around a user's pinch zoom, which must remain available.
+      if (Math.abs(viewport.scale - 1) > .01) return;
+      const next = { height: viewport.height, top: viewport.offsetTop };
+      setVisibleFrame(current => current?.height === next.height && current.top === next.top ? current : next);
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(measure); };
+    measure();
+    viewport.addEventListener("resize", schedule);
+    viewport.addEventListener("scroll", schedule);
+    return () => {
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", schedule);
+      viewport.removeEventListener("scroll", schedule);
+    };
+  }, []);
   return <motion.div ref={shellRef} className={styles.shell}
     role={present ? "dialog" : undefined} aria-modal={present ? true : undefined} aria-label={label}
-    inert={!present} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none" }}
+    inert={!present} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
     initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .25 }}
     data-testid="site-onboarding" data-phase={phase} data-exiting={!present || undefined}>
     <LayoutGroup id="sf-onboarding">{children}</LayoutGroup>
