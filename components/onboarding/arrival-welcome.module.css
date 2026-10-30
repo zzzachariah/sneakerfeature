@@ -36,9 +36,9 @@
 .source > span { padding-inline: 4px; }
 .dataNotice { padding-top: 4px; }
 .sourceDetails { margin-top: 4px; }
-.sourceDetails summary { width: fit-content; margin: 0 auto; padding: 5px 8px; min-height: 28px; cursor: pointer; color: rgb(var(--subtext)); }
-.sourceDetails summary:hover { color: rgb(var(--text)); }
-.sourceDetails summary:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 5px; }
+.sourceToggle { width: fit-content; margin: 0 auto; padding: 5px 10px; min-height: 44px; display: flex; align-items: center; gap: 5px; border: 0; background: transparent; font: inherit; cursor: pointer; color: rgb(var(--subtext)); }
+.sourceToggle:hover { color: rgb(var(--text)); }
+.sourceToggle:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 2px; border-radius: 5px; }
 .sourceExplanation { margin: 8px auto 0; max-width: 500px; padding: 10px 14px; border-top: 1px solid rgb(var(--text) / .08); text-wrap: pretty; }
 .error { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid rgb(var(--error) / .2); border-radius: 12px; color: rgb(var(--error)); background: rgb(var(--error) / .045); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .error svg { flex: 0 0 16px; margin-top: 3px; }

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useId, useRef, type CSSProperties } from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AlertCircle, ArrowRight, ChevronDown, Loader2 } from "lucide-react";
 import type { OnboardingPageviews } from "@/lib/onboarding/server-contract";
 import { EASE } from "@/lib/motion/constants";
 import { AnimatedCount, CountReveal } from "./animated-count";
@@ -36,6 +36,7 @@ function formattedDate(value: string | null | undefined, zh: boolean, range = fa
 export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, onEnter, busy, error }: ArrivalWelcomeProps) {
   const reduced = useReducedMotion();
   const id = useId();
+  const [sourceOpen, setSourceOpen] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const feedback = useRef<HTMLDivElement>(null);
@@ -108,17 +109,17 @@ export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, o
               <p className={styles.source}>Vercel <span aria-hidden="true">·</span> {updated && views !== null ? <>{outdated ? t("上次核实 ", "Last confirmed ") : t("更新于 ", "Updated ")}<time dateTime={pageviews?.asOf ?? undefined}>{updated}</time></> : views !== null ? t("更新时间暂不可用", "Update time unavailable") : t("浏览统计暂不可用", "Page view data unavailable")}</p>
               {views !== null && outdated ? <p className={styles.dataNotice} role="status">{t("暂时无法更新，保留上次确认的数据。", "Updates are unavailable. Showing the last confirmed total.")}</p> : null}
               {views === null ? <p className={styles.dataNotice}>{t("不影响你的球鞋探索，准备好就出发。", "Your shoe discovery can begin whenever you’re ready.")}</p> : null}
-              <details className={styles.sourceDetails}>
-                <summary>{t("数据来源", "About these figures")}</summary>
-                <div className={styles.sourceExplanation}>
+              <div className={styles.sourceDetails}>
+                <button className={styles.sourceToggle} type="button" aria-expanded={sourceOpen} aria-controls={`${id}-source`} onClick={() => setSourceOpen(open => !open)}>{t("数据来源", "About these figures")}<motion.span animate={{ rotate: sourceOpen ? 180 : 0 }} transition={{ duration: reduced ? 0 : .24 }}><ChevronDown size={12}/></motion.span></button>
+                <AnimatePresence initial={false}>{sourceOpen ? <motion.div key="source" id={`${id}-source`} initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: reduced ? .12 : .3, ease: EASE }} style={{ overflow: "hidden" }}><div className={styles.sourceExplanation}>
                   <p>Vercel Web Analytics <span aria-hidden="true">·</span> {t("全站历史浏览总量", "Lifetime website page views")}</p>
                   {since && through ? <p>{t("统计范围（UTC）", "Reported range (UTC)")} <time dateTime={pageviews?.since ?? undefined}>{since}</time><span aria-hidden="true"> — </span><time dateTime={pageviews?.rangeThrough ?? undefined}>{through}</time></p>
                     : since ? <p>{t("统计起点（UTC）", "Recorded since (UTC)")} <time dateTime={pageviews?.since ?? undefined}>{since}</time></p>
                     : through ? <p>{t("统计截至（UTC）", "Reported through (UTC)")} <time dateTime={pageviews?.rangeThrough ?? undefined}>{through}</time></p>
                     : <p>{t("统计范围暂不可用", "The reporting range is unavailable")}</p>}
                   <p>{t("浏览总量与球员编号分别记录，不表示你的个人浏览次数或历史注册排名。", "Page views and player numbers are separate records, not your personal view count or a historical registration rank.")}</p>
-                </div>
-              </details>
+                </div></motion.div> : null}</AnimatePresence>
+              </div>
             </div>
           </div>
         </CountReveal>
