@@ -60,7 +60,10 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
   const panel = useRef<HTMLDivElement>(null);
   const copyPanel = useRef<HTMLElement>(null);
   const [panelBottom, setPanelBottom] = useState(282);
-  const [viewport, setViewport] = useState({ width: 1000, height: 600 });
+  // Start compact until the real frame is measured; a guessed desktop size
+  // otherwise animates a large logo through a phone's title on first mount.
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const compactViewport = expanded && viewport.height < (viewport.width <= 620 ? 380 : 280);
   const expandRef = useRef(onExpand);
   expandRef.current = onExpand;
   useEffect(() => {
@@ -139,6 +142,17 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
     if (transfer) return;
     const existing = selected.some((item) => item.slug === shoe.slug);
     if (!existing && selected.length >= 2) return;
+    if (!existing && compactViewport && panel.current) {
+      const slot = slots.current[selected.length];
+      if (slot) {
+        // Reveal the choice for reduced-motion users too. Only this panel
+        // scrolls; the shell and page remain fixed.
+        const panelRect = panel.current.getBoundingClientRect();
+        const slotRect = slot.getBoundingClientRect();
+        if (slotRect.bottom > panelRect.bottom - 12) panel.current.scrollTop += slotRect.bottom - panelRect.bottom + 12;
+        else if (slotRect.top < panelRect.top + 12) panel.current.scrollTop -= panelRect.top + 12 - slotRect.top;
+      }
+    }
     if (existing && !reduced) {
       const index = selected.findIndex((item) => item.slug === shoe.slug);
       const from = slots.current[index]?.querySelector("img")?.getBoundingClientRect();
@@ -166,10 +180,10 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
     window.addEventListener("resize", finish);
     return () => window.removeEventListener("resize", finish);
   }, []);
-  return <div ref={surface} style={{ "--intro-panel-bottom": `${panelBottom}px`, "--wall-tile-height": `${tileHeight}px`, "--wall-tile-width": `${tileWidth}px`, "--wall-row-gap": `${rowGap}px` } as CSSProperties} className={`${styles.discovery} ${expanded ? styles.expanded : ""}`} data-testid="onboarding-scene-0" data-expanded={expanded} data-wall-rows={rowCount}>
+  return <div ref={surface} style={{ "--intro-panel-bottom": `${panelBottom}px`, "--wall-tile-height": `${tileHeight}px`, "--wall-tile-width": `${tileWidth}px`, "--wall-row-gap": `${rowGap}px` } as CSSProperties} className={`${styles.discovery} ${expanded ? styles.expanded : ""} ${compactViewport ? styles.compactViewport : ""}`} data-testid="onboarding-scene-0" data-expanded={expanded} data-wall-rows={rowCount} data-compact-viewport={compactViewport}>
     <div className={styles.wallTexture} aria-hidden="true"/>
     <AnimatePresence initial={false}>
-      {expanded && <motion.div ref={wall} key="wall" data-shoe-wall className={styles.wall} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduced ? .15 : .75, delay: reduced ? 0 : .12 }} data-motion-idle={reduced}>
+      {expanded && <motion.div ref={wall} key="wall" data-shoe-wall className={styles.wall} role="region" aria-label={zh ? "可选择的球鞋墙" : "Selectable shoe wall"} tabIndex={0} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduced ? .15 : .75, delay: reduced ? 0 : .12 }} data-motion-idle={reduced}>
         {rows.map((row, ri) => <div className={styles.rail} key={ri}>
           <div className={styles.track} style={{ animationDuration: `${Math.max(45, row.length * (tileWidth + (viewport.width <= 850 ? 12 : 18)) / (18 - ri * 1.5))}s` }}>
             {[0, 1].map((copy) => <div className={styles.group} key={copy} aria-hidden={copy ? true : undefined}>
@@ -198,10 +212,11 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
             </div>)}
           </div>
         </div>)}
+        <ScrollHint targetRef={wall} zh={zh}/>
       </motion.div>}
     </AnimatePresence>
-    <motion.div ref={panel} layout transition={transition} className={expanded ? styles.topPanel : styles.heroPanel}>
-    <motion.aside ref={copyPanel} role="region" tabIndex={0} aria-label={zh ? "网站介绍与统计" : "About snkrfeature and live statistics"} layout transition={transition} className={expanded ? styles.plaque : styles.heroCopy}>
+    <motion.div ref={panel} layout transition={transition} className={expanded ? styles.topPanel : styles.heroPanel} data-discovery-panel role={compactViewport ? "region" : undefined} aria-label={compactViewport ? (zh ? "网站介绍和已选球鞋" : "Introduction and selected shoes") : undefined} tabIndex={compactViewport ? 0 : undefined}>
+    <motion.aside ref={copyPanel} role="region" tabIndex={compactViewport ? undefined : 0} aria-label={zh ? "网站介绍与统计" : "About snkrfeature and live statistics"} layout transition={transition} className={expanded ? styles.plaque : styles.heroCopy} data-discovery-copy>
       <motion.div layout className={styles.brandLine} transition={transition}><BrandLogo compact={expanded || viewport.width <= 620 || viewport.height < 420}/>{expanded ? <span>MEET SNKRFEATURE</span> : null}</motion.div>
       <motion.h1 tabIndex={-1} layout transition={transition} className={styles.title}>{expanded ? (zh ? "从心动的一双，开始。" : "Start with a pair you love.") : <>{zh ? "找到更适合" : "A better pair."}<br/><em>{zh ? "你打法的篮球鞋。" : "For your game."}</em></>}</motion.h1>
       <motion.p layout transition={transition} className={styles.description}>{expanded ? (zh ? "在这面鞋墙上选两双，下一屏一起看它们的差异。" : "Pick any two from the wall. Compare their details next.") : (zh ? "浏览、比较、了解。把关于篮球鞋的信息，变成对你有用的选择。" : "Explore, compare and understand. Find a pair that makes sense for your game.")}</motion.p>
@@ -223,6 +238,7 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
       })}</div>
       <span className={styles.selectionHelp} role="status">{selected.length === 2 ? (zh ? "选好了，看看这两双。想换鞋？先取消一双。" : "Ready to compare. Remove a pair to choose another.") : (zh ? "选中一双，它就会来到这里。" : "Choose a pair and bring it up here.")}</span>
     </div> : null}
+      <ScrollHint targetRef={panel} zh={zh}/>
     </motion.div>
     <AnimatePresence initial={false}>
       {!expanded && hero ? <motion.div key="hero" className={styles.heroShoe} layoutId={reduced ? undefined : `sf-shoe-${hero.slug}`} transition={transition} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 25, rotate: -6 }} animate={{ opacity: 1, y: 0, rotate: 0 }}>

@@ -35,19 +35,22 @@ export type OnboardingMember = {
 
 export type OnboardingPageviews = {
   total: number | null;
+  /** When Vercel was actually read, never the API's rounded future until. */
   asOf: string | null;
   source: "vercel";
   since: string | null;
+  rangeThrough: string | null;
+  status: "live" | "stale" | "snapshot" | "unavailable";
   snapshot: boolean;
 };
 
-// Verified production Vercel query. This is contextual history, not a live
-// ordinal and not a baseline to add to the independently started counter.
-export const VERIFIED_VERCEL_SNAPSHOT: OnboardingPageviews = {
-  total: 28096,
-  since: "2026-03-31T00:00:00.000Z",
-  asOf: "2026-10-29T00:00:00.000Z",
+export const UNAVAILABLE_VERCEL_PAGEVIEWS: OnboardingPageviews = {
+  total: null,
+  since: null,
+  asOf: null,
+  rangeThrough: null,
   source: "vercel",
+  status: "unavailable",
   snapshot: true
 };
 

@@ -4,10 +4,11 @@
 .stage button:focus-visible, .stage a:focus-visible, .stage summary:focus-visible, .stage input:focus-visible, .stage textarea:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 4px; }
 .stage button:disabled { cursor: not-allowed; opacity: .42; }
 .sceneTop { display: flex; flex: none; justify-content: space-between; gap: 12px; padding-bottom: 9px; color: rgb(var(--subtext)); font: 500 9px/1.5 var(--font-geist-mono), monospace; letter-spacing: .13em; }
-.scene { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; padding: 4px 7px 12px 4px; scroll-padding-block: 12px; }
+.scene { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 12px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; padding: 4px 7px 36px 4px; scroll-padding-block: 16px 40px; }
 .scene:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 3px; border-radius: 8px; }
-.scene > * { flex-shrink: 0; }
-.scene > :last-child[data-scroll-hint] { margin-top: -12px; }
+.scene > * { flex-shrink: 0; min-width: 0; max-width: 100%; }
+.scene > :last-child[data-scroll-hint] { margin-top: 0; margin-bottom: -24px; }
+.scene h3, .scene p, .scene label { overflow-wrap: anywhere; }
 .scene h3, .scene h4, .scene p { margin: 0; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sectionHeading > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -87,7 +88,7 @@
 .composer textarea { display: block; width: 100%; min-height: 112px; max-height: 280px; resize: vertical; padding: 3px 0; border: 0; color: rgb(var(--text)); background: transparent; font: inherit; font-size: 15px; line-height: 1.75; }
 .composer textarea::placeholder { color: rgb(var(--subtext) / .65); }
 .composer textarea:focus-visible { outline-offset: 3px; border-radius: 4px; }
-.composerBottom { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; }
+.composerBottom { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; }
 .questionnaireToggle { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0; border: 0; color: rgb(var(--subtext)); background: transparent; font-size: 10px; cursor: pointer; }
 .prepareButton { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 40px; padding: 8px 12px; border: 0; border-radius: 15px; color: rgb(var(--bg)); background: rgb(var(--text)); font-size: 11px; cursor: pointer; }
 .questionnaire { display: flex; flex-direction: column; gap: 14px; padding: 17px; border: 1px solid rgb(var(--text) / .07); border-radius: 19px; background: rgb(var(--bg) / .5); }

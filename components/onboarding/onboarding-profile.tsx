@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCircle2, ChevronRight, Loader2, UserRound } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -10,7 +10,7 @@ import { HEIGHT_MAX, HEIGHT_MIN, POSITIONS, SKILL_LEVELS, WEIGHT_MAX, WEIGHT_MIN
 import { DIM_KEYS, isValidFocus, type DimKey, type RatingFocus } from "@/lib/star-rating";
 import { personaSchema } from "@/lib/validation/schemas";
 import { onboardingRequest } from "./form-utils";
-import { ScrollHint } from "./scroll-hint";
+import { ScrollHint, useFormScroll } from "./scroll-hint";
 import styles from "./onboarding-forms.module.css";
 
 export type OnboardingProfileProps = { onComplete: () => void; onBack?: () => void };
@@ -61,9 +61,10 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
   const [baseConfirmed, setBaseConfirmed] = useState(false);
   const busyRef = useRef(false);
   const stageHeading = useRef<HTMLHeadingElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { rootRef, viewportRef, scrollRef, targetRef, short } = useFormScroll();
   const feedbackRef = useRef<HTMLDivElement>(null);
   const didChangeStep = useRef(false);
+  const lastScrollStep = useRef(step);
   const loadGeneration = useRef(0);
   const accountRef = useRef(userId);
   accountRef.current = userId;
@@ -71,18 +72,26 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
 
   const stepNames = [t("球员身份", "Your game"), t("身体信息", "Your build"), t("选鞋偏好", "Your priorities"), t("确认档案", "Ready to play")];
 
-  function revealField(target: HTMLElement | null) {
-    const panel = scrollRef.current;
+  const revealField = useCallback((target: HTMLElement | null) => {
+    const panel = targetRef.current;
     if (!panel || !target || !panel.getClientRects().length) return;
     const bounds = panel.getBoundingClientRect();
     const field = target.getBoundingClientRect();
+    const bottom = bounds.bottom - (short ? rootRef.current?.querySelector<HTMLElement>("[data-form-actions]")?.offsetHeight ?? 0 : 0);
     if (field.top < bounds.top + 8) panel.scrollTop += field.top - bounds.top - 8;
-    else if (field.bottom > bounds.bottom - 8) panel.scrollTop += field.bottom - bounds.bottom + 8;
-  }
+    else if (field.bottom > bottom - 8) panel.scrollTop += field.bottom - bottom + 8;
+  }, [rootRef, short, targetRef]);
 
   useEffect(() => {
     if (message) revealField(feedbackRef.current);
-  }, [message]);
+  }, [message, revealField]);
+
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (!(focused instanceof HTMLElement) || !rootRef.current?.contains(focused)) return;
+    const frame = requestAnimationFrame(() => revealField(focused));
+    return () => cancelAnimationFrame(frame);
+  }, [revealField, rootRef]);
 
   async function loadSaved() {
     const generation = ++loadGeneration.current;
@@ -130,14 +139,15 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
   }, [userId]);
 
   useEffect(() => {
-    if (!didChangeStep.current) return;
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    if (!didChangeStep.current || lastScrollStep.current === step) return;
+    lastScrollStep.current = step;
+    if (targetRef.current) targetRef.current.scrollTop = 0;
     const timer = window.setTimeout(() => {
-      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      if (targetRef.current) targetRef.current.scrollTop = 0;
       stageHeading.current?.focus({ preventScroll: true });
     }, reduce ? 150 : 320);
     return () => window.clearTimeout(timer);
-  }, [step, reduce]);
+  }, [step, reduce, targetRef]);
 
   function move(next: number) {
     if (busyRef.current) return;
@@ -237,20 +247,23 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
   }
   function error(key: string) { return errors[key] ? <p id={`${id}-${key}-error`} className={styles.fieldError} role="alert">{errors[key]}</p> : null; }
 
-  return <section className={styles.formRoot} lang={locale} data-onboarding-profile aria-labelledby={`${id}-title`} aria-busy={busy || loading}>
+  return <section ref={rootRef} className={styles.formRoot} lang={locale} data-onboarding-profile data-short={short} aria-labelledby={`${id}-title`} aria-busy={busy || loading}>
+    <div ref={viewportRef} className={styles.formViewport} role={short ? "region" : undefined} tabIndex={short ? 0 : undefined} aria-label={short ? t("球员档案信息，可滚动", "Player profile details, scrollable") : undefined}>
     <div className={styles.heading}>
-      <p className={styles.eyebrow}>{t("为你的打法，建立档案", "Built around the way you play")}</p>
       <h2 id={`${id}-title`} className={styles.title}>{t("先认识球场上的你。", "Let’s meet the player.")}</h2>
-      <p className={styles.description}>{t("几项真实信息，让选鞋更有依据。之后随时可以修改。", "A few details give your shoe choices more context. You can edit them anytime.")}</p>
     </div>
-    {loading ? <div ref={scrollRef} className={styles.formScroll}><div className={`${styles.feedback} ${styles.notice}`} role="status"><Loader2 size={16} className={styles.spinner} /><span>{t("正在读取你的球员档案…", "Checking your player profile…")}</span></div><ScrollHint targetRef={scrollRef} zh={zh} /></div> : loadFailed ? <div className={styles.panelForm}>
-      <div ref={scrollRef} className={styles.formScroll}><div className={styles.feedback} role="alert"><AlertCircle size={16} /><span>{t("未能读取档案。请重试，避免覆盖已有信息。", "Your profile couldn’t be loaded. Retry before making changes to existing details.")}</span></div><ScrollHint targetRef={scrollRef} zh={zh} /></div>
-      <div className={styles.formActions}><button type="button" className={styles.primary} onClick={() => void loadSaved()}>{t("重新读取", "Try again")}</button></div>
+    {loading ? <div ref={scrollRef} className={styles.formScroll} role={short ? undefined : "region"} tabIndex={short ? undefined : 0} aria-label={short ? undefined : t("档案读取状态，可滚动", "Profile loading status, scrollable")}><div className={`${styles.feedback} ${styles.notice}`} role="status"><Loader2 size={16} className={styles.spinner} /><span>{t("正在读取你的球员档案…", "Checking your player profile…")}</span></div><ScrollHint targetRef={targetRef} zh={zh} compact={short} /></div> : loadFailed ? <div className={styles.panelForm}>
+      <div ref={scrollRef} className={styles.formScroll} role={short ? undefined : "region"} tabIndex={short ? undefined : 0} aria-label={short ? undefined : t("档案读取状态，可滚动", "Profile loading status, scrollable")}><div className={styles.feedback} role="alert"><AlertCircle size={16} /><span>{t("未能读取档案。请重试，避免覆盖已有信息。", "Your profile couldn’t be loaded. Retry before making changes to existing details.")}</span></div><ScrollHint targetRef={targetRef} zh={zh} compact={short} /></div>
+      <div className={styles.formActions} data-form-actions><button type="button" className={styles.primary} onClick={() => void loadSaved()}>{t("重新读取", "Try again")}</button></div>
     </div> : <>
       <div className={styles.steps} aria-hidden="true">{stepNames.map((_, index) => <span key={index} className={styles.stepMark} data-done={index <= step} />)}</div>
       <div className={styles.stepCaption}><span>{stepNames[step]}</span><span>{step + 1} / 4</span></div>
       <form className={styles.panelForm} noValidate onSubmit={(event) => { event.preventDefault(); if (busyRef.current) return; if (step < 3) { if (validateStep()) move(step + 1); } else void finish(); }}>
-        <div ref={scrollRef} className={styles.formScroll} onFocusCapture={(event) => { if (event.target !== stageHeading.current && event.target.matches(":focus-visible")) revealField(event.target); }}>
+        <div ref={scrollRef} className={styles.formScroll} role={short ? undefined : "region"} tabIndex={short ? undefined : 0} aria-label={short ? undefined : t("球员档案信息，可滚动", "Player profile details, scrollable")} onFocusCapture={(event) => { if (event.target !== event.currentTarget && event.target !== stageHeading.current && event.target.matches(":focus-visible")) revealField(event.target); }}>
+      <div className={styles.scrollIntro}>
+        <p className={styles.eyebrow}>{t("为你的打法，建立档案", "Built around the way you play")}</p>
+        <p className={styles.description}>{t("几项真实信息，让选鞋更有依据。之后随时可以修改。", "A few details give your shoe choices more context. You can edit them anytime.")}</p>
+      </div>
       <motion.div layout className={styles.identityCard} transition={{ duration: reduce ? .14 : .3, ease: EASE }}>
         <motion.div className={styles.avatar} layoutId={`${id}-player-mark`}><UserRound size={25} strokeWidth={1.4} /></motion.div>
         <div style={{ minWidth: 0 }}><div className={styles.identityName}>{username || t("你的球员档案", "Your player profile")}</div><div className={styles.identityDetail}>{positions.length ? positions.join(" / ") : t("你的打法，由你定义", "Your game, in your own terms")}{skill ? ` · ${SKILL_TEXT[skill][zh ? 0 : 1]}` : ""}</div></div>
@@ -307,21 +320,22 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
           </motion.div>
         </AnimatePresence>
           {message && <div ref={feedbackRef} className={`${styles.feedback} ${styles.profileFeedback} ${partial ? styles.notice : ""}`} role="status">{partial ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}<span>{message}</span></div>}
-          <ScrollHint targetRef={scrollRef} zh={zh} />
+          {partial && baseConfirmed && <div className={styles.partialActions}><button type="button" className={styles.secondary} disabled={busy} onClick={() => void finish()}>{t("重试保存偏好", "Retry saving priorities")}</button></div>}
+          {step === 2 && picks.length > 0 && <div className={styles.partialActions}><button type="button" className={styles.secondary} onClick={() => { setPicks([]); move(3); }}>{t("暂不设置偏好，继续", "Continue without priorities")}</button></div>}
+          <ScrollHint targetRef={targetRef} zh={zh} compact={short} />
         </div>
-        <div className={styles.profileActions}>
+        <div className={styles.profileActions} data-form-actions>
           {partial && baseConfirmed ? <>
             <motion.button type="button" className={styles.primary} disabled={busy} onClick={() => void finish(true)} whileTap={reduce ? undefined : { scale: .985 }}>{busy ? <Loader2 size={18} className={styles.spinner} /> : <ArrowRight size={18} />}{t("先开始球鞋探索", "Start exploring now")}</motion.button>
-            <button type="button" className={styles.secondary} disabled={busy} onClick={() => void finish()}>{t("重试保存偏好", "Retry saving priorities")}</button>
           </> : <motion.button type="submit" className={styles.primary} disabled={busy} whileTap={reduce ? undefined : { scale: .985 }} transition={{ duration: .12 }}>
             {busy ? <Loader2 size={18} className={styles.spinner} /> : null}
             {busy ? t("正在保存并确认…", "Saving & confirming…") : step === 3 ? t("保存档案，开启球鞋探索", "Save profile & explore") : t("继续", "Continue")}
             {!busy && (step === 3 ? <ArrowRight size={18} /> : <ChevronRight size={18} />)}
           </motion.button>}
-          {step === 2 && picks.length > 0 && <button type="button" className={styles.secondary} onClick={() => { setPicks([]); move(3); }}>{t("暂不设置偏好，继续", "Continue without priorities")}</button>}
           <div className={styles.backRow}>{(step > 0 || onBack) && <button type="button" className={styles.secondary} disabled={busy} onClick={() => step > 0 ? move(step - 1) : onBack?.()}><ArrowLeft size={15} />{t("返回", "Back")}</button>}</div>
         </div>
       </form>
     </>}
+    </div>
   </section>;
 }

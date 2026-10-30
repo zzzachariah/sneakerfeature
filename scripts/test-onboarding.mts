@@ -7,7 +7,7 @@ import type { Shoe } from "../lib/types.ts";
 import { PGlite } from "@electric-sql/pglite";
 import {
   isExcludedPageview, isSameOriginMutation, onboardingPageviewSchema,
-  onboardingPatchSchema, safeCount, safePositiveInteger, VERIFIED_VERCEL_SNAPSHOT
+  onboardingPatchSchema, safeCount, safePositiveInteger
 } from "../lib/onboarding/server-contract.ts";
 
 // These tests execute the real migration and stored functions in an isolated
@@ -178,7 +178,6 @@ try {
   assert.equal(onboardingPatchSchema.safeParse({ tour: "ai", status: "skipped" }).success, true);
   assert.equal(safeCount(0), 0); assert.equal(safeCount(-1), null);
   assert.equal(safePositiveInteger(0), null); assert.equal(safePositiveInteger(Number.MAX_SAFE_INTEGER+1), null);
-  assert.equal(VERIFIED_VERCEL_SNAPSHOT.asOf, "2026-10-29T00:00:00.000Z");
   const completeSpec = { cushioning_feel: "soft cushioning", court_feel: "low to the ground", bounce: "high bounce", stability: "wide base support", traction: "strong grip", fit: "snug fit" };
   const sourceShoes: Shoe[] = Array.from({length:35}, (_, i) => ({
     id: `shoe-${i}`, slug: `shoe-${String(i).padStart(2,"0")}`, shoe_name: `Shoe ${i}`,

@@ -279,8 +279,6 @@
 .arrivalView { margin: -10px 0 28px; font-size: 14px; line-height: 1.7; color: rgb(var(--subtext)); }
 .arrivalView strong { font-family: var(--font-geist-mono), monospace; color: rgb(var(--text)); }
 .arrivalView small { display: block; font-size: 10px; }
-.homeIntroButton { position: fixed; left: 24px; bottom: 24px; z-index: 41; display: flex; align-items: center; gap: 9px; min-height: 46px; padding: 12px 18px; border: 1px solid rgb(var(--text) / .12); border-radius: 99px; background: rgb(var(--bg-elev)); color: rgb(var(--text)); font-size: 13px; box-shadow: 0 5px 25px rgb(var(--shadow) / .1); cursor: pointer; }
-.homeIntroButton:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 4px; }
 .wayfinding { margin-top: 32px; padding: 20px 22px; border: 1px solid rgb(var(--text) / .09); border-radius: 18px; background: rgb(var(--bg-elev) / .65); max-width: 410px; text-align: left; }
 .wayfinding > span { font: 10px/16px var(--font-geist-mono),monospace; color: rgb(var(--subtext)); letter-spacing: .05em; }
 .wayfinding p { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; font-size: 13px; line-height: 1.7; margin: 10px 0; }
@@ -290,7 +288,6 @@
 .wayfindingLinks a { display: inline-flex; align-items: center; gap: 5px; min-height: 36px; color: rgb(var(--brand)); font-size: 12px; text-decoration: none; }
 @media (max-width:850px) { .wayfinding { margin: 22px auto 0; } }
 @media (max-width:480px) { .shell[data-phase="auth"] .formBody, .shell[data-phase="profile"] .formBody { width: calc(100% - 24px); } .shell[data-phase="auth"] .formStage, .shell[data-phase="profile"] .formStage { padding: 16px; border-radius: 21px; } }
-@media (max-width:767px) { .homeIntroButton { bottom: calc(78px + env(safe-area-inset-bottom)); left: 16px; min-height: 42px; padding: 10px 15px; } }
 
 /* The viewport is the frame; only bounded content panels may scroll. */
 @media (min-width: 851px) and (max-height: 800px) {
@@ -337,3 +334,14 @@
 @media (max-width: 480px) { .shell[data-phase="auth"] .formStage { padding-inline: 12px; } }
 
 .shell [role="region"]:focus-visible { outline: 2px solid rgb(var(--brand) / .7); outline-offset: -2px; border-radius: 12px; }
+
+.compactBodyHint { display: none; }
+/* At keyboard/landscape heights a second tiny scroll pane is unusable.
+   Give the middle panel one continuous reading order; shell actions stay put. */
+@media (max-width: 850px) and (max-height: 600px) {
+  .body { display: block; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scroll-padding-block: 16px 40px; padding: 6px 3px 28px; }
+  .body .copy { max-height: none; overflow: visible; margin-bottom: 16px; }
+  .body > [data-testid^="onboarding-scene-"] { height: auto; max-height: none; min-height: 0; container-type: inline-size; overflow: visible; }
+  .body [data-onboarding-story-scroll] { flex: none; min-height: auto; overflow: visible; }
+  .compactBodyHint { display: contents; }
+}

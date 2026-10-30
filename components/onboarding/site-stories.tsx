@@ -61,10 +61,10 @@ function ShoeImage({ shoe, className = "" }: { shoe?: StoryShoe; className?: str
   );
 }
 
-export function BrandLogo({ compact = false }: { compact?: boolean }) {
+export function BrandLogo({ compact = false, shared = true }: { compact?: boolean; shared?: boolean }) {
   const reduced = useReducedMotion();
   return (
-    <motion.div layoutId={reduced ? undefined : "sf-brand-logo"} transition={{ duration: reduced ? .15 : .6, ease }} className={compact ? styles.logoCompact : styles.logoHero}>
+    <motion.div layoutId={reduced || !shared ? undefined : "sf-brand-logo"} transition={{ duration: reduced ? .15 : .6, ease }} className={compact ? styles.logoCompact : styles.logoHero}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/logo.png" alt="snkrfeature" width="1024" height="1024" draggable={false}/>
     </motion.div>
