@@ -600,7 +600,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.div key={step} initial={reduced ? { opacity: 0 } : { opacity: 0, y: direction * 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : -direction * 8 }} transition={{ duration: reduced ? .15 : .38, ease: EASE }}>
                     <p className={styles.eyebrow}>{["WELCOME TO YOUR GAME", "KNOW YOUR SNEAKERS", "MAKE IT PERSONAL", "YOUR NEXT MOVE"][step]}</p>
-                    <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>{titles[step][0]}<br/><span className={styles.accent}>{titles[step][1]}</span></h1>
+                    <h1 ref={headingRef} tabIndex={-1} className={styles.heading}>{titles[step][0]}<br/>{zh ? null : " "}<span className={styles.accent}>{titles[step][1]}</span></h1>
                     <p className={styles.description}>{descriptions[step]}</p>
                     <div className={styles.wayfinding}>
                       <span>{zh ? "以后，在这里找到它" : "FIND IT ON SNKRFEATURE"}</span>

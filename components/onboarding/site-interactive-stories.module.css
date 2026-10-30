@@ -263,3 +263,9 @@
   .comparisonOverview .radarDisplay > div > svg { max-width: 145px; }
   .comparisonOverview .radarDisplay > div > p { font-size: 8px; }
 }
+@media (max-height: 600px) {
+  .stage[data-story-step="1"] [data-scroll-hint] { position: absolute; inset: auto 12px 9px auto; width: auto; }
+  .stage[data-story-step="1"] [data-scroll-hint]::before { display: none; }
+  .stage[data-story-step="1"] [data-scroll-hint] > span { left: auto; right: 0; bottom: 0; transform: none; padding: 3px; border-radius: 50%; }
+  .stage[data-story-step="1"] [data-scroll-hint] > span > span { display: none; }
+}
