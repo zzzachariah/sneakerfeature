@@ -67,3 +67,8 @@ try{
  assert.equal(completionCalls,2,'one shortlist and one structured final answer');
 }finally{if(savedKeys.t)process.env.TAVILY_API_KEY=savedKeys.t;if(savedKeys.b)process.env.BOCHA_API_KEY=savedKeys.b;}
 console.log('PASS native demo tool output, split argument stream, quoted reasons and two distinct results.');
+
+assert.equal(demoSourceMatches('Wade 808 5',{title:'Way of Wade 808 5 Ultra V2 Review',snippet:'Wade 808 5 basketball shoe',url:'https://example.com/wade-808-5-ultra-v2'}),false);
+assert.equal(demoSourceMatches('Wade 808 5',{title:'Way of Wade 808 5 Review',snippet:'Basketball shoe performance',url:'https://example.com/wade-808-5'}),true);
+assert.equal(demoSourceMatches('Wade 808 5 Ultra V2',{title:'Way of Wade 808 5 Ultra V2 Review',snippet:'Basketball shoe performance',url:'https://example.com/wade-808-5-ultra-v2'}),true);
+console.log('PASS review evidence cannot silently substitute Ultra/V2 for the selected base model.');

@@ -14,6 +14,13 @@ export function demoSourceMatches(name:string,hit:WebSearchHit) {
   const normalize=(s:string)=>s.toLowerCase().replace(/[^\p{L}\p{N}]/gu,"");
   const haystack=`${hit.title} ${hit.snippet} ${hit.url}`;
   const core=name.replace(/^(nike|adidas|under armour|jordan brand|jordan)\s+/i,"");
+  const model=normalize(core);
+  // A base model is not its Ultra / Pro / V2 variant. Search snippets may
+  // mention both, so reject a differently named title/URL before using it.
+  for(const field of [hit.title,hit.url]) {
+    const value=normalize(field),at=value.indexOf(model);
+    if(at>=0&&/^(ultra|pro(?!s)|elite|v[2-9]|low|high|mid|plus)/.test(value.slice(at+model.length)))return false;
+  }
   return /basketball|sneaker|shoe|review|球鞋|篮球鞋|测评|评测|实战/i.test(haystack)
-    && normalize(haystack).includes(normalize(core));
+    && normalize(haystack).includes(model);
 }
