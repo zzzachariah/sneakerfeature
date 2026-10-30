@@ -27,7 +27,7 @@
     "test:ai-reservations": "tsx scripts/test-ai-reservations.mts",
     "test:rating-summary": "tsx scripts/test-rating-summary.mts",
     "test:product-boundaries": "tsx scripts/test-product-boundaries.mts",
-    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits && npm run test:catalogue-updates && npm run test:dependencies && npm run test:validation-contracts && npm run test:onboarding-vercel && npm run test:onboarding-entry",
+    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits && npm run test:catalogue-updates && npm run test:dependencies && npm run test:validation-contracts && npm run test:onboarding-vercel && npm run test:onboarding-entry && npm run test:onboarding-wall",
     "test:onboarding-vercel": "tsx scripts/test-onboarding-vercel.mts",
     "test:onboarding-entry": "tsx scripts/test-onboarding-entry.mts",
     "test:credits": "tsx scripts/test-credit-functions.mts",
@@ -37,7 +37,8 @@
     "vendor:imgly:build": "node vendor/imgly-background-removal/scripts/build.mjs",
     "test:validation-contracts": "tsx scripts/test-validation-contracts.mts",
     "test:imgly:browser": "node scripts/test-imgly-browser.mjs",
-    "vendor:imgly:check": "node vendor/imgly-background-removal/scripts/build.mjs --check"
+    "vendor:imgly:check": "node vendor/imgly-background-removal/scripts/build.mjs --check",
+    "test:onboarding-wall": "tsx scripts/test-onboarding-wall.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

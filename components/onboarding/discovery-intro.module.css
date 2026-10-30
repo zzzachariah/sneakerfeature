@@ -156,3 +156,10 @@
   .group[aria-hidden="true"] { display: none; }
   .discovery * { transition-duration: .15s !important; }
 }
+
+.rail { touch-action: pan-y pinch-zoom; user-select: none; cursor: grab; }
+.rail .shoeTile { cursor: inherit; }
+.rail[data-dragging="true"] { cursor: grabbing; }
+.rail:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: -3px; border-radius: 16px; }
+.swipeHint { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; color: rgb(var(--text) / .8); }
+.swipeHint svg { flex-shrink: 0; }
