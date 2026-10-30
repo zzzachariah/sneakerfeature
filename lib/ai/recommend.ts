@@ -1684,7 +1684,10 @@ async function candidateEvidencePipeline(
   onProgress?.({ type: "status", phase: "shortlist", message: "正在从目录圈定候选鞋款…" });
   const wanted = opts.onboardingDemo ? 3 : Math.min(Math.max(count + SHORTLIST_EXTRA, 5), Math.max(count, MAX_CANDIDATES));
   const backupCount = opts.onboardingDemo ? 0 : BACKUP_POOL_SIZE;
-  const fullCatalog = JSON.stringify(buildCompactCatalog(shoes, opts.persona, opts.reviewsByShoe));
+  const pipelineCatalog = (items:Shoe[]) => buildCompactCatalog(items,opts.persona,opts.reviewsByShoe).map(entry => opts.onboardingDemo
+    ? Object.fromEntries(Object.entries(entry).filter(([key])=>["name","brand","year","cushioning_feel","court_feel","bounce","stability","traction","fit","playstyle"].includes(key)))
+    : entry);
+  const fullCatalog = JSON.stringify(pipelineCatalog(shoes));
   // On a follow-up the previous picks are pre-seeded into the candidate pool, so
   // the model can double down on them without the shortlist having to
   // rediscover them from the whole catalog.
@@ -1698,8 +1701,8 @@ async function candidateEvidencePipeline(
         ? "注意：这是一次追问，请结合上文已经聊过的内容来圈定候选。\n"
         : "Note: this is a follow-up — shortlist with everything already discussed above in mind.\n";
   const demoGrounding = zh
-    ? "你是 snkrfeature 的篮球鞋资料顾问。只推荐给定目录中的型号，型号和不同版本不可混用。事实以当前型号的目录为准，搜索只能补充同款的有出处的表现反馈。不得编造穿着体验、未知条件、科技或尺寸建议。资料中的等级是定性描述，不是可直接比较的测试分数；不用评级得出绝对排名，不转述网页数字分数。输出自然中文：性能描述和评级词译成中文，只有球鞋名和明确的科技专名保留原文。"
-    : "You advise snkrfeature visitors using the supplied catalog. Recommend exact catalog models; never mix a base shoe with another version. Construction facts must come from that model's record; web evidence may add attributed performance reports about the same model only. Do not invent try-on experience, missing user traits, technology or sizing advice. Qualitative catalog labels are not comparable test scores: do not infer absolute rankings or repeat web review numeric scores. Use natural English, naming uncertainty and trade-offs.";
+    ? "你是 snkrfeature 的篮球鞋资料顾问。只推荐给定目录中的型号，型号和不同版本不可混用。事实以当前型号的目录为准，搜索只能补充同款的有出处的表现反馈。不得编造穿着体验、未知条件、科技或尺寸建议。资料中的等级是定性描述，不是可直接比较的测试分数；不用评级得出绝对排名，不转述网页数字分数。这次只解释性能和偏好是否匹配，不讨论中底、外底、鞋面、材料或科技造成的机理。不得猜测价格、竞品比较或把缺资料说成实际缺点。输出自然中文：性能描述和评级词译成中文，只有球鞋名和明确的科技专名保留原文。"
+    : "You advise snkrfeature visitors using the supplied catalog. Recommend exact catalog models; never mix a base shoe with another version. Construction facts must come from that model's record; web evidence may add attributed performance reports about the same model only. Do not invent try-on experience, missing user traits, technology or sizing advice. Qualitative catalog labels are not comparable test scores: do not infer absolute rankings or repeat web review numeric scores. This demo explains performance fit only: do not discuss midsole, outsole, upper, material or technology mechanisms. Never infer pricing or competitor comparisons, or mistake missing evidence for a proven weakness. Use natural English, naming uncertainty and trade-offs.";
   const shortlistMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     ...(opts.onboardingDemo ? [{role:"user" as const,content:`${demoGrounding}\n${fullCatalog}`}] : buildBaseMessages(zh ? "鞋款目录(JSON)" : "Shoe catalog (JSON)", fullCatalog, history, lang)),
     {
@@ -1846,7 +1849,7 @@ async function candidateEvidencePipeline(
     const urlList = Array.from(allowedUrls)
       .map((u) => `- ${u}`)
       .join("\n");
-    const candidateCatalog = JSON.stringify(buildCompactCatalog(researched, opts.persona, opts.reviewsByShoe));
+    const candidateCatalog = JSON.stringify(pipelineCatalog(researched));
     const followUpNote = isFollowUp ? followUpBlock(opts.priorRecommendations, lang) : "";
     const jsonShape =
       `{"reply":"…","follow_up":"…","title":"…","recommendations":[{"name":"…","stars":4.5,"reason":"…","pros":["…","…","…"],"cons":["…","…","…"],"references":[{"title":"…","url":"…"}]}]}`;
