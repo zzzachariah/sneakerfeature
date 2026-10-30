@@ -23,6 +23,7 @@ import { OnboardingProfile } from "./onboarding-profile";
 import { ScrollHint } from "./scroll-hint";
 import { TourOpening } from "./tour-opening";
 import { ArrivalWelcome } from "./arrival-welcome";
+import { useComparisonEntrance, type ComparisonPhase } from "./use-comparison-entrance";
 import { isValidPersona } from "@/lib/persona/types";
 import styles from "./site-onboarding.module.css";
 
@@ -136,9 +137,9 @@ function FlightPreview({ snapshot }: { snapshot?: HTMLElement }) {
 }
 
 /** The fading shell must release the page before nested layout exits settle. */
-function OnboardingShell({ children, shellRef, label, phase, reduced }: {
+function OnboardingShell({ children, shellRef, label, phase, reduced, comparisonPhase }: {
   children: ReactNode; shellRef: RefObject<HTMLDivElement | null>;
-  label: string; phase: string; reduced: boolean | null;
+  label: string; phase: string; reduced: boolean | null; comparisonPhase: ComparisonPhase;
 }) {
   const present = useIsPresent();
   const [visibleFrame, setVisibleFrame] = useState<{ height: number; top: number } | null>(null);
@@ -166,9 +167,9 @@ function OnboardingShell({ children, shellRef, label, phase, reduced }: {
   }, []);
   return <motion.div ref={shellRef} className={styles.shell}
     role={present ? "dialog" : undefined} aria-modal={present ? true : undefined} aria-label={label}
-    inert={!present} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
+    inert={!present || comparisonPhase !== "rest"} aria-busy={comparisonPhase !== "rest" || undefined} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: !reduced && phase === "welcome" ? .99 : 1, transition: { duration: reduced ? .15 : phase === "welcome" ? .7 : .35, ease: EASE } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
-    data-testid="site-onboarding" data-phase={phase} data-exiting={!present || undefined}>
+    data-testid="site-onboarding" data-comparison-phase={comparisonPhase} data-phase={phase} data-exiting={!present || undefined}>
     <LayoutGroup id="sf-onboarding">{children}</LayoutGroup>
   </motion.div>;
 }
@@ -243,6 +244,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const showingRef = useRef(showing);
   showingRef.current = showing;
   const showingIntro = showing && (replay || phase === "intro");
+  const comparison = useComparisonEntrance({
+    root: shellRef, enabled: showingIntro && tourStarted, reduced,
+    onArrive: () => {
+      storyRef.current?.scrollTo({ top: 0, behavior: "instant" });
+      copyRef.current?.scrollTo({ top: 0, behavior: "instant" });
+      setDirection(1);
+      setStep(1);
+    }
+  });
+  const cancelComparison = comparison.cancel;
   const active = showing || library;
   const { metrics, connection: metricsConnection } = useLiveMetrics(active);
   const transition = { duration: reduced ? .15 : .6, ease: EASE };
@@ -454,6 +465,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
 
   const finishIntro = useCallback((result: "skipped" | "completed") => {
     if (flight) return;
+    cancelComparison();
     rememberIntro(result);
     if (status?.userId) void api({ tour: "site", status: result }).catch(() => {});
     const done = () => {
@@ -476,7 +488,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     if (replay && (phase === "complete" || !onHome)) { setReplay(false); revealMenu(from, snapshot); }
     else if (from && to && replayRef.current && !reduced) setFlight({ from, to, snapshot, target: replayRef.current, after: done });
     else done();
-  }, [flight, status?.userId, reduced, showHint, replay, phase, onHome, revealMenu, step]);
+  }, [flight, status?.userId, reduced, showHint, replay, phase, onHome, revealMenu, step, cancelComparison]);
 
   useEffect(() => {
     if (!showingIntro) return;
@@ -546,8 +558,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setStatus(null); setBusy(false); setAuthMounted(false); setProfileMounted(false); setPhase("auth"); setError("");
     router.refresh();
   }
-  function changeStep(next: number) { if (flight || (next > 0 && selectedShoes.length < 2)) return; storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
-  function openReplay() { setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
+  function changeStep(next: number) { if (comparison.busy || flight || (next > 0 && selectedShoes.length < 2)) return; if (step === 0 && next === 1) { comparison.start(); return; } storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
+  function openReplay() { cancelComparison(); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
   function selectShoe(shoe: StoryShoe) { setSelectedShoes((current) => current.some((item) => item.slug === shoe.slug) ? current.filter((item) => item.slug !== shoe.slug) : current.length < 2 ? [...current, shoe] : current); }
   const titles = zh
     ? [["找到更适合", "你打法的篮球鞋。"], ["你选的两双，", "差别在这里。"], ["你的打法，", "让推荐更贴近你。"], ["告诉 AI 你的需求，", "也可以自己挑。"]]
@@ -568,7 +580,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   </CountReveal>;
 
   const shell = showing ? (
-    <OnboardingShell key="site-onboarding" shellRef={shellRef} label={zh ? "snkrfeature 新手体验" : "Welcome to snkrfeature"} phase={showingIntro ? "intro" : phase} reduced={reduced}>
+    <OnboardingShell key="site-onboarding" shellRef={shellRef} label={zh ? "snkrfeature 新手体验" : "Welcome to snkrfeature"} phase={showingIntro ? "intro" : phase} reduced={reduced} comparisonPhase={comparison.phase}>
         <header className={styles.topbar}>
           <div className={styles.wordmark}>{phase !== "boot" && phase !== "error" && (!showingIntro || step > 0) ? <BrandLogo compact/> : <span className={styles.wordmarkDot}/>}<span>snkrfeature</span></div>
           <div className={styles.headerActions}><button className={styles.quietButton} type="button" onClick={() => requestLocaleChange(zh ? "en" : "zh")} aria-label={zh ? "Switch to English" : "切换中文"}><Languages size={15}/><span className={styles.languageLabel}>{zh ? "EN" : "中文"}</span></button>
@@ -582,7 +594,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         }}>
         {showingIntro && !tourStarted ? <TourOpening key="opening" zh={zh} shoes={metrics?.catalogCount ?? null} brands={metrics?.brandCount ?? null} loading={metricsConnection === "loading"} stale={metricsConnection === "offline"} onLanguageChange={requestLocaleChange} onStart={() => { setWallExpanded(true); setTourStarted(true); }}/> : showingIntro ? (
           <motion.div key="tour" className={styles.tourSequence} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 18, scale: .985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, transition: { duration: reduced ? .15 : .3 } }} transition={{ duration: reduced ? .15 : .7, ease: EASE }}>
-            <motion.div className={step === 0 ? styles.discoveryBody : styles.body} ref={storyRef} role={step ? "region" : undefined} tabIndex={step ? 0 : undefined} aria-label={step ? (zh ? "导览内容" : "Introduction content") : undefined} data-onboarding-content animate={{ opacity: flight ? 0 : 1 }} transition={{ duration: reduced ? .15 : .3 }}>
+            <motion.div className={step === 0 ? styles.discoveryBody : `${styles.body} ${step === 1 ? styles.comparisonBody : ""}`} ref={storyRef} role={step ? "region" : undefined} tabIndex={step ? 0 : undefined} aria-label={step ? (zh ? "导览内容" : "Introduction content") : undefined} data-onboarding-content animate={{ opacity: flight ? 0 : 1 }} transition={{ duration: reduced ? .15 : .3 }}>
               {step === 0 ? <DiscoveryIntro catalog={catalog} selected={selectedShoes} onSelect={selectShoe} zh={zh} stats={catalogStats} expanded={wallExpanded} onExpand={() => setWallExpanded(true)}/> : <>
               <div ref={copyRef} className={styles.copy} role="region" tabIndex={0} aria-label={zh ? "功能介绍与入口" : "Feature introduction and navigation"}>
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -609,7 +621,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 </AnimatePresence>
                 <ScrollHint targetRef={copyRef} zh={zh}/>
               </div>
-              <SiteStory step={step} catalog={catalog} zh={zh} selectedShoes={selectedShoes} introDemoRunKey={introDemoRunKey} onChangeSelection={() => changeStep(0)}/><div className={styles.compactBodyHint}><ScrollHint targetRef={storyRef} zh={zh}/></div></>}
+              <SiteStory comparisonPhase={comparison.phase} step={step} catalog={catalog} zh={zh} selectedShoes={selectedShoes} introDemoRunKey={introDemoRunKey} onChangeSelection={() => changeStep(0)}/><div className={styles.compactBodyHint}><ScrollHint targetRef={storyRef} zh={zh}/></div></>}
             </motion.div>
             <div className={styles.controls}>
               <nav className={styles.steps} aria-label={zh ? "介绍步骤" : "Introduction steps"}>{[0, 1, 2, 3].map((n) => <button key={n} className={styles.stepDot} type="button" aria-current={step === n ? "step" : undefined} aria-label={(zh ? "第 " : "Step ") + (n + 1)} onClick={() => changeStep(n)} disabled={!!flight || (n > 0 && selectedShoes.length < 2)}/>)}</nav>

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComparisonPhase } from "./use-comparison-entrance";
 import { forwardRef, useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { motion, AnimatePresence, useIsPresent, useReducedMotion } from "framer-motion";
 import { ArrowUpRight, Check, ChevronDown, GitCompareArrows, Info, SlidersHorizontal, Sparkles, UserRound } from "lucide-react";
@@ -71,11 +72,11 @@ export function BrandLogo({ compact = false, shared = true }: { compact?: boolea
   );
 }
 
-function SelectedPair({ shoes, zh, reduced, compact = false }: { shoes: StoryShoe[]; zh: boolean; reduced: boolean; compact?: boolean }) {
+function SelectedPair({ shoes, zh, reduced, compact = false, shared = true }: { shoes: StoryShoe[]; zh: boolean; reduced: boolean; compact?: boolean; shared?: boolean }) {
   return <div className={`${interactive.selectedPair} ${compact ? interactive.compactPair : ""}`}>
     {shoes.map((shoe, index) => <article className={interactive.shoeCard} key={shoe.slug}>
       <span className={interactive.shoeIndex} style={{ color: `rgb(var(--radar-c${index + 1}))` }}>{String(index + 1).padStart(2, "0")}</span>
-      <motion.div className={interactive.productImage} layoutId={reduced ? undefined : `sf-shoe-${shoe.slug}`} transition={{ duration: reduced ? .15 : .65, ease }}><ShoeImage shoe={shoe}/></motion.div>
+      <motion.div className={interactive.productImage} data-comparison-target={shoe.slug} layoutId={reduced || !shared ? undefined : `sf-shoe-${shoe.slug}`} transition={{ duration: reduced ? .15 : .65, ease }}><ShoeImage shoe={shoe}/></motion.div>
       <div className={interactive.shoeIdentity}><span>{shoe.brand}</span><strong>{shoe.name}</strong></div>
       {!compact && <a className={interactive.detailLink} href={`/shoes/${shoe.slug}`} target="_blank" rel="noreferrer" aria-label={zh ? `查看 ${shoe.name} 真实资料（新窗口）` : `View ${shoe.name} details (new window)`}>{zh ? "查看资料" : "View details"}<ArrowUpRight size={12}/></a>}
     </article>)}
@@ -157,13 +158,14 @@ const StoryScene = forwardRef<HTMLDivElement, { children: ReactNode; reduced: bo
   return <motion.div ref={setRef} className={interactive.scene} data-onboarding-story-scroll role="region" aria-label={label} tabIndex={0} inert={!present} aria-hidden={!present} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .55, ease }}>{children}<ScrollHint targetRef={scrollRef} zh={zh}/></motion.div>;
 });
 
-export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, introDemoRunKey = 0 }: {
+export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, introDemoRunKey = 0, comparisonPhase = "rest" }: {
   step: number;
   catalog: StoryCatalog | null;
   zh: boolean;
   selectedShoes?: StoryShoe[];
   onChangeSelection?: () => void;
   introDemoRunKey?: number;
+  comparisonPhase?: ComparisonPhase;
 }) {
   const reduced = Boolean(useReducedMotion());
   const stageRef = useRef<HTMLDivElement>(null);
@@ -212,12 +214,12 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
 
   useEffect(() => {
     const clock = demo.current;
-    if (step !== 1 || !havePair || completedDemoSteps().has(step) || clock.manual || clock.elapsed >= 2400 || reduced || !inView || !visible) return;
+    if (comparisonPhase !== "rest" || step !== 1 || !havePair || completedDemoSteps().has(step) || clock.manual || clock.elapsed >= 2400 || reduced || !inView || !visible) return;
     const start = performance.now();
     clock.timers = ([{ at: 950, key: "traction" }, { at: 1900, key: "stability" }] as const).flatMap(({ at, key }) => at > clock.elapsed ? [window.setTimeout(() => { if (!clock.manual && !document.hidden) setDimension(key); }, at - clock.elapsed)] : []);
     clock.timers.push(window.setTimeout(() => { if (!clock.manual && !document.hidden) completedDemoSteps().add(step); }, 2400 - clock.elapsed));
     return () => { clock.elapsed = Math.min(2400, clock.elapsed + performance.now() - start); clock.timers.forEach(window.clearTimeout); clock.timers = []; };
-  }, [step, havePair, reduced, inView, visible, completedDemoSteps]);
+  }, [step, havePair, reduced, inView, visible, completedDemoSteps, comparisonPhase]);
 
   useEffect(() => {
     const clock = teaching.current[step];
@@ -233,7 +235,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
       }
     }, at - clock.elapsed)] : []);
     return () => { clock.elapsed = Math.min(2600, clock.elapsed + performance.now() - started); clock.timers.forEach(window.clearTimeout); clock.timers = []; };
-  }, [step, havePair, reduced, inView, visible, completedDemoSteps]);
+  }, [step, havePair, reduced, inView, visible, completedDemoSteps, comparisonPhase]);
 
   useEffect(() => {
     // Capture intent before React handlers or a pending cue can run. Navigating
@@ -257,7 +259,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
     { label: zh ? "从我的打法出发" : "Start with my game", text: zh ? `我${positions.length ? `打${positionText}` : "经常打篮球"}，最看重${picks.length ? picks.map(key => dimensionLabel(key, true)).join("、") : "抓地和稳定"}。请结合 ${pairNames} 的资料帮我理解取舍，资料不足时请说明。` : `I ${positions.length ? `play ${positionText}` : "play basketball regularly"} and care most about ${picks.length ? picks.map(key => dimensionLabel(key, false)).join(", ") : "traction and stability"}. Help me understand the trade-offs between ${pairNames}, and note any missing evidence.` }
   ];
 
-  return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-story-step={step} data-teaching-phase={cue ?? "quiet"} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
+  return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-story-step={step} data-comparison-phase={comparisonPhase} data-teaching-phase={cue ?? "quiet"} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
     {step === 0 ? <div className={styles.heroScene}>
       <div className={styles.heroHalo} aria-hidden="true"/>
       <motion.div layoutId={reduced || !primary ? undefined : `sf-shoe-${primary.slug}`} className={styles.heroShoe} initial={reduced ? false : { y: 25, rotate: -12 }} animate={{ y: 0, rotate: reduced ? 0 : -6 }} transition={{ ...transition, duration: reduced ? .15 : 1.1 }}><ShoeImage shoe={primary} className={styles.shoeImage}/></motion.div>
@@ -267,15 +269,15 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
       <AnimatePresence initial={false} mode="popLayout">
         {step === 1 && <StoryScene key="comparison" reduced={reduced} zh={zh} label={zh ? "球鞋对比演示" : "Shoe comparison preview"}>
           <div className={interactive.sectionHeading}><div><GitCompareArrows size={18}/><h3>{zh ? "你选的两双，放在一起看。" : "Your two picks. Side by side."}</h3></div><button type="button" className={interactive.textButton} onClick={onChangeSelection}><SlidersHorizontal size={14}/>{zh ? "修改选择" : "Change picks"}</button></div>
-          <div className={interactive.comparisonOverview}><SelectedPair shoes={shoes} zh={zh} reduced={reduced}/>
+          <div className={interactive.comparisonOverview}><SelectedPair shoes={shoes} zh={zh} reduced={reduced} shared={false}/>
           <div className={interactive.radarSection} data-testid="onboarding-real-comparison">
             <div className={interactive.subheading}><strong>{zh ? "六维性能资料" : "Six dimensions of performance"}</strong><span>{zh ? "与站内对比工具一致" : "The same comparison used on the site"}</span></div>
-            {shoes.every(shoe => hasCompletePerformance(shoe.shoe)) ? <OnboardingRadar shoes={shoes.map(shoe => shoe.shoe)} active={visible && inView && step === 1}/> : <ComparisonEvidenceTable shoes={shoes.map(shoe => shoe.shoe)}/>}
+            {shoes.every(shoe => hasCompletePerformance(shoe.shoe)) ? <OnboardingRadar shoes={shoes.map(shoe => shoe.shoe)} active={visible && inView && step === 1 && ["rest", "radar", "details"].includes(comparisonPhase)}/> : <ComparisonEvidenceTable shoes={shoes.map(shoe => shoe.shoe)}/>}
           </div></div>
-          <div className={interactive.dimensionTabs} aria-label={zh ? "查看真实性能资料" : "Explore recorded performance"}>{DIM_KEYS.map(key => <button type="button" key={key} aria-pressed={dimension === key} onClick={() => setDimension(key)}>{dimensionLabel(key, zh)}</button>)}</div>
+          <div className={interactive.comparisonDetails}><div className={interactive.dimensionTabs} aria-label={zh ? "查看真实性能资料" : "Explore recorded performance"}>{DIM_KEYS.map(key => <button type="button" key={key} aria-pressed={dimension === key} onClick={() => setDimension(key)}>{dimensionLabel(key, zh)}</button>)}</div>
           <FieldComparison shoes={shoes} dimension={dimension} zh={zh} reduced={reduced}/>
           <ConstructionDisclosure shoes={shoes} zh={zh} reduced={reduced}/>
-          <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "资料参考，并非本站实测；缺少依据的项目不会补分。" : "Reference information, not our own testing. Missing evidence is never filled with a score."}</p>
+          <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "资料参考，并非本站实测；缺少依据的项目不会补分。" : "Reference information, not our own testing. Missing evidence is never filled with a score."}</p></div>
         </StoryScene>}
         {step === 2 && <StoryScene key="profile" reduced={reduced} zh={zh} label={zh ? "球员档案演示" : "Player profile preview"}>
           <div className={interactive.profileHeading}><motion.div className={interactive.profileMark} layoutId={reduced ? undefined : "sf-player-card"} transition={transition}><UserRound size={23}/><span>{positions.length ? positions.join(" / ") : "YOU"}</span></motion.div><div><h3>{zh ? "先从你的打法开始。" : "Start with your game."}</h3><p>{zh ? "试选你的位置和关注重点，看看资料怎样变得更好读。" : "Try your positions and priorities, then see the details that matter to you."}</p></div></div>
