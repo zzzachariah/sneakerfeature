@@ -3,7 +3,7 @@ import { LegalPageLayout } from "@/components/legal/legal-page-layout";
 import { TERMS } from "@/lib/legal/content";
 import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 
-const title = "Terms of Use | Sneaker Feature";
+const title = "Terms of Use | snkrfeature";
 const description = "The terms that govern your use of sneakerfeature.";
 
 export const metadata: Metadata = {

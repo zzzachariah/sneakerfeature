@@ -6,7 +6,7 @@ import { absoluteUrl, DEFAULT_OG_IMAGE_URL } from "@/lib/seo";
 // Always render fresh so newly-published announcements show up immediately.
 export const dynamic = "force-dynamic";
 
-const title = "Announcements | Sneaker Feature";
+const title = "Announcements | snkrfeature";
 const description =
   "Every site-wide announcement from sneakerfeature, archived in one place.";
 

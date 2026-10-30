@@ -59,7 +59,7 @@ export function TourOpening({ zh, shoes, brands, loading, stale, onStart, onLang
       <div className={styles.content}>
         <div className={styles.identity}>
           <motion.div {...reveal(1)} className={styles.emblem} data-opening-beat="logo" aria-hidden="true"><BrandLogo compact shared={false}/></motion.div>
-          <motion.h1 {...reveal(2)} className={styles.wordmark} data-opening-beat="name" id={titleId} tabIndex={-1}>Sneaker Feature</motion.h1>
+          <motion.h1 {...reveal(2)} className={styles.wordmark} data-opening-beat="name" id={titleId} tabIndex={-1}>snkrfeature</motion.h1>
           <motion.p {...reveal(3)} className={styles.tagline} data-opening-beat="tagline">{zh ? "为你的打法，找到下一双。" : "Your game. Your next pair."}</motion.p>
         </div>
 
