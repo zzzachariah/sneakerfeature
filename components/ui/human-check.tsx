@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import Script from "next/script";
 
@@ -36,13 +36,18 @@ type Props = {
   // Passed through to Turnstile's `action` field for analytics; optional.
   action?: string;
   onToken: (token: string) => void;
+  size?: "normal" | "compact";
 };
 
-export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanCheck({ action, onToken }, ref) {
+export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanCheck({ action, onToken, size = "normal" }, ref) {
   const { translate } = useLocale();
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const id = useId().replace(/:/g, "");
   const widgetId = useRef<string | null>(null);
+  const generation = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onTokenRef = useRef(onToken);
+  onTokenRef.current = onToken;
   const [failed, setFailed] = useState(false);
 
   useImperativeHandle(ref, () => ({
@@ -50,7 +55,7 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
       // Demo mode / widget not rendered yet: nothing to reset (the demo token
       // is not single-use, so it stays valid across attempts).
       if (!widgetId.current || !window.turnstile) return;
-      onToken("");
+      onTokenRef.current("");
       try {
         window.turnstile.reset(widgetId.current);
       } catch {
@@ -60,27 +65,44 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
     }
   }));
 
-  function handleScriptLoad() {
+  const handleScriptLoad = useCallback(() => {
     const container = document.getElementById(id);
     if (container && !widgetId.current && window.turnstile && siteKey) {
+      const current = ++generation.current;
       widgetId.current = window.turnstile.render(container, {
         sitekey: siteKey,
         theme: "auto",
+        size,
         action,
-        callback: (token: string) => onToken(token),
-        "error-callback": () => setFailed(true),
-        "expired-callback": () => onToken("")
+        callback: (token: string) => { if (generation.current === current) onTokenRef.current(token); },
+        "error-callback": () => { if (generation.current === current) { onTokenRef.current(""); setFailed(true); } },
+        "expired-callback": () => { if (generation.current === current) onTokenRef.current(""); }
       });
     }
-  }
+  }, [action, id, siteKey, size]);
 
   // If the Turnstile script was already loaded before this component mounted
   // (SPA navigation between pages that both include HumanCheck), the Script
   // onLoad won't fire again. Fall back to rendering immediately on mount.
   useEffect(() => {
-    if (siteKey && window.turnstile) handleScriptLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // A size/action change replaces the challenge; an old callback cannot
+    // restore a token after its widget has been removed.
+    onTokenRef.current("");
+    setFailed(false);
+    const frame = requestAnimationFrame(handleScriptLoad);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = null;
+      generation.current += 1;
+      const previous = widgetId.current;
+      widgetId.current = null;
+      if (previous && window.turnstile) {
+        try { window.turnstile.remove(previous); } catch { /* Already removed. */ }
+      }
+      onTokenRef.current("");
+    };
+  }, [handleScriptLoad]);
 
   if (!siteKey) {
     return (
@@ -102,6 +124,8 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
           className="ml-2 underline"
           onClick={() => {
             // Clear any stale widget id so handleScriptLoad will re-render.
+            generation.current += 1;
+            onTokenRef.current("");
             if (widgetId.current && window.turnstile) {
               try {
                 window.turnstile.remove(widgetId.current);
@@ -115,7 +139,7 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
               // Script already loaded (the challenge errored, not the script):
               // re-render the widget once the container is back in the DOM.
               // next/script won't re-fire onLoad, so drive it ourselves.
-              setTimeout(() => handleScriptLoad(), 0);
+              retryTimer.current = setTimeout(() => { retryTimer.current = null; handleScriptLoad(); }, 0);
             } else {
               // The script itself never loaded (blocked/offline). It can't be
               // re-fetched under the same next/script id, so a clean reload is
@@ -131,7 +155,7 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
   }
 
   return (
-    <div className="flex min-h-[66px] justify-center md:justify-start">
+    <div className="flex justify-center md:justify-start" data-human-check-size={size} style={{ minHeight: size === "compact" ? 140 : 66 }}>
       <Script
         id="cf-turnstile-script"
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"

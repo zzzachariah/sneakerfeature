@@ -1,9 +1,12 @@
 .formRoot { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; container: onboarding-form / size; color: rgb(var(--text)); text-align: left; }
+.formViewport { display: flex; flex: 1 1 0; flex-direction: column; min-height: 0; min-width: 0; overflow: hidden; }
 .heading { flex: 0 0 auto; margin-bottom: 20px; }
 .eyebrow { margin: 0 0 10px; color: rgb(var(--subtext)); font-size: 12px; line-height: 18px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; }
 .title { margin: 0; font-size: clamp(28px, 3vw, 34px); line-height: 1.2; font-weight: 600; letter-spacing: -.035em; text-wrap: balance; }
 .formRoot:lang(zh) .title { letter-spacing: 0; line-height: 1.35; }
 .description { margin: 12px 0 0; font-size: 15px; line-height: 1.65; color: rgb(var(--subtext)); text-wrap: pretty; }
+.scrollIntro { margin-bottom: 18px; }
+.scrollIntro .description { margin-top: 0; }
 .tabs { display: grid; flex: 0 0 auto; grid-template-columns: 1fr 1fr; padding: 4px; gap: 4px; margin-bottom: 16px; border-radius: 16px; background: rgb(var(--text) / .05); }
 .tab { position: relative; min-height: 44px; border: 0; border-radius: 12px; color: rgb(var(--subtext)); font-size: 14px; font-weight: 500; }
 .tab[data-selected="true"] { color: rgb(var(--text)); }
@@ -14,6 +17,8 @@
 .formScroll { position: relative; flex: 1 1 0; min-height: 0; min-width: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scroll-padding-block: 8px; padding: 4px 0 22px; }
 .formActions, .profileActions { flex: 0 0 auto; padding-top: 14px; border-top: 1px solid rgb(var(--text) / .07); }
 .formScroll :is(input, button, a, [tabindex]) { scroll-margin-block: 8px; }
+.formScroll:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: -2px; border-radius: 8px; }
+.formViewport:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: -2px; border-radius: 8px; }
 .profileFeedback { margin-top: 16px; }
 .fieldWrap { min-width: 0; }
 .field { position: relative; }
@@ -89,6 +94,11 @@
 .tab:focus-visible, .primary:focus-visible, .secondary:focus-visible, .fieldAction:focus-visible, .choice:focus-visible, .position:focus-visible, .link:focus-visible, .consent input:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 4px; }
 @media (max-width: 420px) { .positions { gap: 5px; } .position { border-radius: 12px; } .choice { padding: 12px 10px; gap: 8px; } .identityCard { margin-bottom: 20px; } }
 @container onboarding-form (max-height: 620px) { .heading { margin-bottom: 14px; } .eyebrow { margin-bottom: 6px; } .title { font-size: 27px; } .description { margin-top: 7px; font-size: 13px; line-height: 1.5; } .tabs { margin-bottom: 10px; } .identityCard { padding: 12px; margin-bottom: 18px; } }
-@container onboarding-form (max-height: 460px) { .eyebrow, .description, .footerNote { display: none; } .title { font-size: 23px; } .heading { margin-bottom: 10px; } .tabs { padding: 2px; margin-bottom: 8px; } .formActions, .profileActions { padding-top: 8px; } .stepCaption { margin-bottom: 8px; } .identityCard { display: none; } }
-@container onboarding-form (max-height: 300px) { .title { font-size: 20px; } .heading { margin-bottom: 6px; } .steps { margin-bottom: 6px; } .profileActions { grid-template-columns: minmax(0, 1fr) auto; align-items: center; } .profileActions > .primary { grid-column: 1; grid-row: 1; } .backRow { grid-column: 2; grid-row: 1; } .profileActions > .secondary { grid-column: 1 / -1; } .primary { min-height: 44px; padding: 9px 12px; font-size: 14px; } }
+@container onboarding-form (max-height: 460px) { .title { font-size: 23px; } .heading { margin-bottom: 10px; } .tabs { padding: 2px; margin-bottom: 8px; } .formActions, .profileActions { padding-top: 8px; } .stepCaption { margin-bottom: 8px; } .profileActions { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px; } .profileActions > .primary { grid-column: 1; grid-row: 1; } .backRow { grid-column: 2; grid-row: 1; } .profileActions .primary { padding-inline: 12px; font-size: 14px; } }
+@container onboarding-form (max-height: 300px) { .title { font-size: 20px; } .heading { margin-bottom: 6px; } .steps { margin-bottom: 6px; } .primary { min-height: 44px; padding: 9px 12px; font-size: 14px; } .scrollIntro { margin-bottom: 12px; } }
+.formRoot[data-short="true"] .formViewport { display: block; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scroll-padding-block: 8px 68px; }
+.formRoot[data-short="true"] .panelForm { display: block; flex: none; overflow: visible; }
+.formRoot[data-short="true"] .formScroll { flex: none; overflow: visible; padding-bottom: 26px; }
+.formRoot[data-short="true"] :is(.formActions, .profileActions) { position: sticky; bottom: 0; z-index: 6; background: rgb(var(--bg-elev)); padding-bottom: 4px; }
+.formRoot[data-short="true"] [data-scroll-hint] { bottom: 60px; }
 @media (prefers-reduced-motion: reduce) { .formRoot *, .formRoot *::before, .formRoot *::after { transition-duration: .01ms !important; } .spinner { animation-duration: 1800ms; } }

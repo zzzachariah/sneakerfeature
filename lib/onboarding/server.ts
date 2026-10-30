@@ -8,9 +8,10 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { displayBrand } from "@/lib/data/catalog-quality";
 import { isAuthCookieName } from "@/lib/auth-cookie";
 import {
-  isSameOriginMutation, safeCount, safePositiveInteger, VERIFIED_VERCEL_SNAPSHOT,
-  type OnboardingMember, type OnboardingPageviews, type OnboardingPatch
+  isSameOriginMutation, safeCount, safePositiveInteger,
+  type OnboardingMember, type OnboardingPatch
 } from "./server-contract";
+import { getVercelPageviews } from "./server-vercel";
 
 const PRIVATE_HEADERS = {
   "Cache-Control": "private, no-store, max-age=0", "CDN-Cache-Control": "no-store",
@@ -107,43 +108,6 @@ export async function onboardingContext(requireUser = false): Promise<Context> {
   return { admin, user: data.user };
 }
 
-let vercelCache: { value: OnboardingPageviews; expires: number } | null = null;
-let vercelRequest: Promise<OnboardingPageviews> | null = null;
-
-async function getHistoricalPageviews(): Promise<OnboardingPageviews> {
-  if (vercelCache && vercelCache.expires > Date.now()) return vercelCache.value;
-  const token = process.env.VERCEL_ANALYTICS_TOKEN;
-  if (!token) return VERIFIED_VERCEL_SNAPSHOT;
-  if (vercelRequest) return vercelRequest;
-  vercelRequest = (async () => {
-    const until = new Date().toISOString();
-    const url = new URL("https://api.vercel.com/v1/query/web-analytics/visits/count");
-    url.searchParams.set("projectId", "prj_fKFAsXiLsf2avMpOqjKjC0ili15S");
-    url.searchParams.set("teamId", "team_YXU6Q9GVndYBNQnFRo221v5l");
-    url.searchParams.set("since", VERIFIED_VERCEL_SNAPSHOT.since!);
-    url.searchParams.set("until", until);
-    try {
-      const response = await fetch(url, {
-        headers: { Authorization: `Bearer ${token}` }, cache: "no-store", signal: AbortSignal.timeout(1800)
-      });
-      if (!response.ok) throw new Error("analytics unavailable");
-      const body = await response.json() as { data?: { pageviews?: unknown }; query?: { since?: string; until?: string } };
-      const total = safeCount(body.data?.pageviews);
-      if (total === null) throw new Error("invalid analytics response");
-      const value: OnboardingPageviews = { total, source: "vercel", since: body.query?.since ?? VERIFIED_VERCEL_SNAPSHOT.since, asOf: body.query?.until ?? until, snapshot: false };
-      vercelCache = { value, expires: Date.now() + 300_000 };
-      return value;
-    } catch {
-      const value = vercelCache ? { ...vercelCache.value, snapshot: true } : VERIFIED_VERCEL_SNAPSHOT;
-      vercelCache = { value, expires: Date.now() + 60_000 };
-      return value;
-    } finally {
-      vercelRequest = null;
-    }
-  })();
-  return vercelRequest;
-}
-
 function validMember(raw: unknown): OnboardingMember {
   const value = raw as OnboardingMember | null;
   if (!value || typeof value.userId !== "string" || safePositiveInteger(value.memberNumber) === null ||
@@ -155,7 +119,7 @@ function validMember(raw: unknown): OnboardingMember {
 
 async function statusResponse(context: Context, member: OnboardingMember | null) {
   const [metrics, pageviews] = await Promise.all([
-    getLiveOnboardingMetrics(context.admin).catch(() => null), getHistoricalPageviews()
+    getLiveOnboardingMetrics(context.admin).catch(() => null), getVercelPageviews()
   ]);
   // Failure to read the activation boundary must never misclassify a member.
   // Member status is already server-confirmed; a counts-only error is optional.
@@ -165,10 +129,8 @@ async function statusResponse(context: Context, member: OnboardingMember | null)
     registeredUsers: metrics?.registeredUsers ?? null,
     catalogCount: metrics?.catalogCount ?? null,
     brandCount: metrics?.brandCount ?? null,
-    livePageviews: metrics?.livePageviews ?? null,
     countsAsOf: metrics?.countsAsOf ?? null,
-    pageviews,
-    pageviewStartedAt: metrics?.pageviewStartedAt ?? null
+    pageviews
   };
 }
 
@@ -176,30 +138,30 @@ async function statusResponse(context: Context, member: OnboardingMember | null)
 export async function getLiveOnboardingMetrics(admin: AdminClient = requireOnboardingAdmin()) {
   const publicClient = createPublicClient((input, init) => fetch(input, { ...init, cache: "no-store" }));
   if (!publicClient) throw new OnboardingError("not_configured", "Catalogue services are not configured.", 503, true);
-  const [privateResult, catalogResult] = await Promise.all([
+  const [privateResult, catalogResult, pageviews] = await Promise.all([
     admin.rpc("onboarding_get_summary").abortSignal(AbortSignal.timeout(6500)),
-    publicClient.rpc("onboarding_catalog_counts").abortSignal(AbortSignal.timeout(6500))
+    publicClient.rpc("onboarding_catalog_counts").abortSignal(AbortSignal.timeout(6500)),
+    getVercelPageviews()
   ]);
   if (privateResult.error) rpcError(privateResult.error);
   if (catalogResult.error) rpcError(catalogResult.error);
-  const summary = privateResult.data as { registeredUsers?: unknown; livePageviews?: unknown; pageviewStartedAt?: string; countsAsOf?: string } | null;
+  const summary = privateResult.data as { registeredUsers?: unknown; countsAsOf?: string } | null;
   const catalog = catalogResult.data as { catalogCount?: unknown; brands?: unknown; countsAsOf?: string } | null;
   const registeredUsers = safeCount(summary?.registeredUsers);
-  const livePageviews = safeCount(summary?.livePageviews);
   const catalogCount = safeCount(catalog?.catalogCount);
   const brands = catalog?.brands;
-  if (registeredUsers === null || livePageviews === null || catalogCount === null ||
+  if (registeredUsers === null || catalogCount === null ||
       !Array.isArray(brands) || brands.some((brand) => typeof brand !== "string") ||
-      brands.length !== catalogCount || !summary?.pageviewStartedAt || !summary?.countsAsOf || !catalog?.countsAsOf) {
+      brands.length !== catalogCount || !summary?.countsAsOf || !catalog?.countsAsOf) {
     throw new OnboardingError("unavailable", "Live statistics are temporarily unavailable. Please retry.", 503, true);
   }
   return {
     ok: true, registeredUsers, catalogCount,
     brandCount: new Set((brands as string[]).map(displayBrand)).size,
-    livePageviews, pageviewStartedAt: summary.pageviewStartedAt,
+    pageviews,
     countsAsOf: new Date().toISOString(),
-    // Each aggregate is fresh. These source times also preserve the boundary
-    // between the public RLS snapshot and the private Auth/counter snapshot.
+    // Account/catalogue freshness is independent of the Vercel read status.
+    // The private navigation ledger is not the website's historical PV count.
     catalogAsOf: catalog.countsAsOf, accountsAsOf: summary.countsAsOf
   };
 }

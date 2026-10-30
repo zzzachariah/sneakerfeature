@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, Eye, EyeOff, Loader2, LockKeyhole } from "lucide-react";
@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { EASE } from "@/lib/motion/constants";
 import { authSchema } from "@/lib/validation/schemas";
 import { onboardingRequest, onboardingTimeout, OnboardingRequestError } from "./form-utils";
-import { ScrollHint } from "./scroll-hint";
+import { ScrollHint, useFormScroll } from "./scroll-hint";
 import styles from "./onboarding-forms.module.css";
 
 type Mode = "signup" | "login";
@@ -51,23 +51,45 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const humanCheck = useRef<HumanCheckHandle>(null);
+  const verificationRef = useRef<HTMLDivElement>(null);
+  const [verificationSize, setVerificationSize] = useState<"normal" | "compact">("compact");
   const formRef = useRef<HTMLFormElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const { rootRef, viewportRef, scrollRef, targetRef, short } = useFormScroll();
   const feedbackRef = useRef<HTMLDivElement>(null);
   const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
 
-  function revealField(target: HTMLElement | null) {
-    const panel = scrollRef.current;
+  useEffect(() => {
+    const verification = verificationRef.current;
+    if (!verification) return;
+    const measure = () => {
+      if (verification.clientWidth > 0) setVerificationSize(verification.clientWidth < 300 ? "compact" : "normal");
+    };
+    const resize = new ResizeObserver(measure);
+    resize.observe(verification);
+    measure();
+    return () => resize.disconnect();
+  }, []);
+
+  const revealField = useCallback((target: HTMLElement | null) => {
+    const panel = targetRef.current;
     if (!panel || !target || !panel.getClientRects().length) return;
     const bounds = panel.getBoundingClientRect();
     const field = target.getBoundingClientRect();
+    const bottom = bounds.bottom - (short ? formRef.current?.querySelector<HTMLElement>(`[data-form-actions]`)?.offsetHeight ?? 0 : 0);
     if (field.top < bounds.top + 8) panel.scrollTop += field.top - bounds.top - 8;
-    else if (field.bottom > bounds.bottom - 8) panel.scrollTop += field.bottom - bounds.bottom + 8;
-  }
+    else if (field.bottom > bottom - 8) panel.scrollTop += field.bottom - bottom + 8;
+  }, [short, targetRef]);
 
   useEffect(() => {
     if (message) revealField(feedbackRef.current);
-  }, [message]);
+  }, [message, revealField]);
+
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (!(focused instanceof HTMLElement) || !rootRef.current?.contains(focused)) return;
+    const frame = requestAnimationFrame(() => revealField(focused));
+    return () => cancelAnimationFrame(frame);
+  }, [revealField, rootRef]);
 
   function selectMode(next: Mode) {
     if (busyRef.current || next === mode) return;
@@ -79,7 +101,7 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     setRecovery(false);
     setToken("");
     humanCheck.current?.reset();
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    if (targetRef.current) targetRef.current.scrollTop = 0;
   }
 
   function fieldError(field: Fields, value: string) {
@@ -214,20 +236,23 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     </div>;
   }
 
-  return <section className={styles.formRoot} lang={locale} aria-labelledby={`${id}-title`} data-onboarding-auth>
+  return <section ref={rootRef} className={styles.formRoot} lang={locale} aria-labelledby={`${id}-title`} data-onboarding-auth data-short={short}>
+    <div ref={viewportRef} className={styles.formViewport} role={short ? "region" : undefined} tabIndex={short ? 0 : undefined} aria-label={short ? t("账号信息，可滚动", "Account details, scrollable") : undefined}>
     <div className={styles.heading}>
-      <p className={styles.eyebrow}>{t("你的球鞋之旅，从这里开始", "Your game. Your next pair.")}</p>
       <h2 id={`${id}-title`} className={styles.title}>{mode === "signup" ? t("让每一次选鞋，\n更懂你。", "Make your next pair personal.") : t("回到你的球场。", "Back to your game.")}</h2>
-      <p className={styles.description}>{mode === "signup" ? t("创建账号，保存你的球员档案与选鞋偏好。", "Create an account to keep your player profile and shoe preferences together.") : t("登录后，从你熟悉的地方继续。", "Sign in and pick up where you left off.")}</p>
     </div>
+    <form ref={formRef} className={styles.panelForm} onSubmit={submit} noValidate aria-busy={busy}>
+      <div ref={scrollRef} className={styles.formScroll} role={short ? undefined : "region"} tabIndex={short ? undefined : 0} aria-label={short ? undefined : t("账号信息，可滚动", "Account details, scrollable")} onFocusCapture={(event) => { if (event.target !== event.currentTarget && event.target.matches(":focus-visible")) revealField(event.target); }}>
+      <div className={styles.scrollIntro}>
+        <p className={styles.eyebrow}>{t("你的球鞋之旅，从这里开始", "Your game. Your next pair.")}</p>
+        <p className={styles.description}>{mode === "signup" ? t("创建账号，保存你的球员档案与选鞋偏好。", "Create an account to keep your player profile and shoe preferences together.") : t("登录后，从你熟悉的地方继续。", "Sign in and pick up where you left off.")}</p>
+      </div>
     <div className={styles.tabs} role="group" aria-label={t("账号操作", "Account options")}>
       {(["signup", "login"] as const).map((item) => <button key={item} type="button" className={styles.tab} data-selected={mode === item} aria-pressed={mode === item} onClick={() => selectMode(item)} disabled={busy}>
         {mode === item && <motion.span className={styles.tabFill} layoutId={`${id}-auth-tab`} transition={{ duration: reduce ? .14 : .3, ease: EASE }} />}
         <span className={styles.tabLabel}>{item === "signup" ? t("创建账号", "Create account") : t("已有账号", "Sign in")}</span>
       </button>)}
     </div>
-    <form ref={formRef} className={styles.panelForm} onSubmit={submit} noValidate aria-busy={busy}>
-      <div ref={scrollRef} className={styles.formScroll} onFocusCapture={(event) => { if (event.target.matches(":focus-visible")) revealField(event.target); }}>
       <div className={styles.form}>
       <AnimatePresence initial={false} mode="popLayout">
         {mode === "signup" ? <motion.div key="signup-fields" className={styles.form} initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -5 }} transition={{ duration: reduce ? .14 : .28, ease: EASE }}>
@@ -246,8 +271,8 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
         </label>
         {errors.agreement && <p id={`${id}-agreement-error`} className={styles.fieldError}>{errors.agreement}</p>}
       </div>}
-      <div className={styles.verification} data-form-field tabIndex={-1} aria-invalid={Boolean(errors.verification)} aria-describedby={errors.verification ? `${id}-verification-error` : undefined}>
-        {configured ? <HumanCheck key={mode} ref={humanCheck} action={mode === "signup" ? "register" : "login"} onToken={setToken} /> : <div className={styles.feedback} role="status"><AlertCircle size={16} /><span>{t("账号服务暂不可用，请稍后重试。", "Account setup is temporarily unavailable. Please try again later.")}</span></div>}
+      <div ref={verificationRef} className={styles.verification} data-form-field tabIndex={-1} aria-invalid={Boolean(errors.verification)} aria-describedby={errors.verification ? `${id}-verification-error` : undefined}>
+        {configured ? <HumanCheck key={mode} ref={humanCheck} action={mode === "signup" ? "register" : "login"} onToken={setToken} size={verificationSize} /> : <div className={styles.feedback} role="status"><AlertCircle size={16} /><span>{t("账号服务暂不可用，请稍后重试。", "Account setup is temporarily unavailable. Please try again later.")}</span></div>}
         {errors.verification && <p id={`${id}-verification-error`} className={styles.fieldError} role="alert">{errors.verification}</p>}
       </div>
       <AnimatePresence initial={false}>
@@ -256,16 +281,17 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
         </motion.div>}
       </AnimatePresence>
       </div>
-      <ScrollHint targetRef={scrollRef} zh={zh} />
+      <p className={styles.footerNote}><LockKeyhole size={12} />{t("表单不会将密码保存在设备上。", "This form never stores your password on this device.")}</p>
+      <ScrollHint targetRef={targetRef} zh={zh} compact={short} />
       </div>
-      <div className={styles.formActions}>
+      <div className={styles.formActions} data-form-actions>
       <motion.button type="submit" className={styles.primary} disabled={busy || !configured} whileTap={reduce ? undefined : { scale: .985 }} transition={{ duration: .12 }}>
         {busy ? <Loader2 size={18} className={styles.spinner} /> : null}
         {busy ? t(mode === "signup" ? "正在创建账号…" : "正在登录…", mode === "signup" ? "Creating your account…" : "Signing in…") : mode === "signup" ? t("创建账号，继续", "Create account & continue") : t("登录，继续", "Sign in & continue")}
         {!busy && <ArrowRight size={18} />}
       </motion.button>
-      <p className={styles.footerNote}><LockKeyhole size={12} />{t("表单不会将密码保存在设备上。", "This form never stores your password on this device.")}</p>
       </div>
     </form>
+    </div>
   </section>;
 }
