@@ -15,8 +15,8 @@ export function priorityName(key: DimKey, zh: boolean) { return zh ? PRIORITY_ZH
 export function demoPrompt(input: DemoInput, names: string[]) {
   const priorities = input.priorities.map((key, i) => `${i + 1}. ${priorityName(key, input.lang === "zh")}`).join(" > ");
   return input.lang === "zh"
-    ? `我在场上打 ${input.positions.join(" / ")}，我的优先顺序是 ${priorities}。我刚刚对 ${names.join(" 和 ")} 感兴趣。请以它们为兴趣参考，从 snkrfeature 目录中为我推荐两双篮球鞋，不必只限于这两双。说明每双如何回应我的三个重点、需要接受的取舍，以及可核对的资料依据。我没有提供场地、身高、体重或脚型，不要假设这些信息。`
-    : `I play ${input.positions.join(" / ")}. My priorities, in order: ${priorities}. I was interested in ${names.join(" and ")}. Use those as context and recommend two basketball shoes from the snkrfeature catalog; you may recommend other models. Explain each shoe against my three priorities, its trade-offs and the evidence I can check. I have not supplied my court, height, weight or foot shape; do not assume them.`;
+    ? `我在场上打 ${input.positions.join(" / ")}，我的优先顺序是 ${priorities}。我刚刚对 ${names.join(" 和 ")} 感兴趣。请以它们为兴趣参考，从 snkrfeature 目录中为我推荐两双篮球鞋，不必只限于这两双。在满足优先项的前提下，优先考虑近六年的型号；不推断在售情况、价格或库存。说明每双如何回应我的三个重点、需要接受的取舍，以及可核对的资料依据。我没有提供场地、身高、体重或脚型，不要假设这些信息。`
+    : `I play ${input.positions.join(" / ")}. My priorities, in order: ${priorities}. I was interested in ${names.join(" and ")}. Use those as context and recommend two basketball shoes from the snkrfeature catalog; you may recommend other models. Prefer models from the last six years when they meet these priorities; availability, prices and stock are unknown. Explain each shoe against my three priorities, its trade-offs and the evidence I can check. I have not supplied my court, height, weight or foot shape; do not assume them.`;
 }
 export type DemoStage = "catalog" | "shortlist" | "research" | "writing";
 export type DemoEvent = {
@@ -27,6 +27,7 @@ export type DemoEvent = {
 export type DemoShoe = { id: string; slug: string; name: string; brand: string; image: string | null; reason: string; pros: string[]; cons: string[]; references: WebReference[] };
 export type DemoSnapshot = {
   status: "idle" | "running" | "complete" | "failed";
+  finishedAt?: string;
   startedAt?: string; input?: DemoInput; prompt?: string; events: DemoEvent[];
   interests?: Pick<DemoShoe,"id"|"name"|"slug"|"image">[];
   shoes?: DemoShoe[]; retryable?: boolean; error?: string;

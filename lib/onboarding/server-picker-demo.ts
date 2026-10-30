@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { getPublicShoes } from "@/lib/data/shoes";
 import { createPackyClientForModel, HAIKU_MODEL, PACKY_MODEL, resolvedKeyEnvName } from "@/lib/ai/packy-client";
 import { recommendOnboardingShoes, matchShoeByName } from "@/lib/ai/recommend";
+import { demoCandidateShoes } from "@/lib/ai/demo-evidence";
 import { startDeadline } from "@/lib/ai/budget";
 import { OnboardingError, requireOnboardingAdmin } from "./server";
 import { demoPrompt, safeReferences, type DemoInput, type DemoSnapshot, type DemoEvent, type DemoShoe } from "./picker-demo-contract";
@@ -34,7 +35,7 @@ export async function readDemo(visitor: string) {
   return snapshot(data as Stored | null);
 }
 export async function reserveDemo(visitor: string, network: string, input: DemoInput) {
-  const shoes = await getPublicShoes();
+  const shoes = demoCandidateShoes(await getPublicShoes(),input.shoeIds);
   const selected = input.shoeIds.map(id => shoes.find(shoe => shoe.id === id));
   if (selected.some(shoe => !shoe)) throw new OnboardingError("invalid_shoes", "Choose two available shoes from the wall.", 400);
   const model = resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? HAIKU_MODEL : PACKY_MODEL;
@@ -83,11 +84,11 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
         return [{id:shoe.id,slug:shoe.slug,name:shoe.shoe_name,brand:shoe.brand,image:shoe.image_url ?? null,reason:rec.reason.slice(0,2400),pros:rec.pros.slice(0,3),cons:rec.cons.slice(0,3),references:safeReferences(rec.references).filter(ref => allowed.has(ref.url))}];
       }).slice(0,2);
       if (recommendations.length !== 2) throw new Error("incomplete");
-      current = {...current,shoes:recommendations};
+      current = {...current,shoes:recommendations,finishedAt:new Date().toISOString()};
       await persist("complete");
     } catch (cause) {
       const code = Date.now()>=deadline.at-2000 || (cause instanceof Error && /timeout|timed out/i.test(cause.message)) ? "timeout" : cause instanceof OpenAI.APIError ? cause.status===429?"provider_busy":"provider_unavailable" : cause instanceof Error && cause.message==="incomplete" ? "incomplete" : "unavailable";
-      current = {...current,error:code};
+      current = {...current,error:code,finishedAt:new Date().toISOString()};
       await persist("failed").catch(() => {console.error("[onboarding/demo] Could not persist completion");});
     }
   } : null};

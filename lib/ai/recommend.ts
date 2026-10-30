@@ -1,3 +1,4 @@
+import { demoSearchQuery, demoSourceMatches } from "./demo-evidence";
 import OpenAI from "openai";
 import type { Shoe, ShoeSpec, BloggerReview } from "@/lib/types";
 import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference, OnProgress } from "@/lib/ai/types";
@@ -1757,12 +1758,12 @@ async function candidateEvidencePipeline(
     onProgress?.({ type: "status", phase: "searching", message: statusMsg });
     const batch: Probe[] = targets.slice(0, MAX_CANDIDATE_SEARCHES).map((s) => ({
       label: s.shoe_name,
-      query: zh
+      query: opts.onboardingDemo ? demoSearchQuery(s) : zh
         ? `${s.shoe_name} 篮球鞋 实战测评 优缺点 口碑`
         : `${s.shoe_name} basketball shoe performance review pros cons`
     }));
     const generic = currentInput.trim().slice(0, 60);
-    if (includeGeneric && history.length === 0 && generic) batch.unshift({ label: generic, query: generic });
+    if (!opts.onboardingDemo && includeGeneric && history.length === 0 && generic) batch.unshift({ label: generic, query: generic });
     // Bounded concurrency: an unthrottled burst of 6-9 simultaneous calls trips
     // the search provider's rate limit (observed HTTP 429). Three workers drain the queue,
     // and a rate-limited query gets ONE retry after a short backoff.
@@ -1775,7 +1776,7 @@ async function candidateEvidencePipeline(
           await new Promise((r) => setTimeout(r, 1200));
           sr = await cachedWebSearch(p.query, { count: 3, timeoutMs: 8000 });
         }
-        p.result = sr;
+        p.result = opts.onboardingDemo && sr.ok ? { ...sr, results: sr.results.filter(hit => demoSourceMatches(p.label, hit)) } : sr;
         stats.attempts += 1;
         if (sr.ok) {
           stats.succeeded += 1;
@@ -1850,7 +1851,7 @@ async function candidateEvidencePipeline(
               : `【联网查证摘要】本次联网查证不可用——仅依据目录与博主点评作答，所有 references 一律留空数组。\n\n`) +
             `表达规范：reason/pros/cons 里不得出现 court_feel、traction 这类内部字段名——用"场地感/贴地感、抓地力"等中文说法；elite/excellent 等评价词翻成中文；科技专有名词（Zoom Air、BOOM 等）保留原文。\n\n` +
             `只输出 JSON：${jsonShape}。不要调用工具、不要 markdown、不要 JSON 之外的文字。思考尽量简短，不要在思考里起草文案。\n\n` +
-            languageDirective(currentInput) + (opts.onboardingDemo ? "\n【导览演示输出约束，优先于上面的通用格式】follow_up 留空；不要求用户补充资料。reason 用 2-3 句逐一回应用户的三个有序重点，说明依据及不确定性；pros/cons 必须各至少一项，不能空泛，不得编造试穿体验。只按已给位置与偏好判断，不推断预算、场地、尺寸或体重。选中鞋是兴趣参考，不是只能从其中推荐。只有目录或检索支持时才作性能断言；缺失就说缺少资料。恰好返回两双不同的候选目录鞋（若依据不足以形成两双真实建议，应明确少返，不要编造）。" : "")
+            languageDirective(currentInput) + (opts.onboardingDemo ? "\n【导览演示输出约束，优先于上面的通用格式】follow_up 留空；不要求用户补充资料。不要把描述标签当可直接比较的实验分数，不要写“目录最强”“仅次于”等无同口径证据的绝对排名。中文必须完整自然，elite/excellent 等评级词译成中文；网站条目或搜索支持之外的结构科技不要凭记忆补全。reason 用 2-3 句逐一回应用户的三个有序重点，说明依据及不确定性；pros/cons 必须各至少一项，不能空泛，不得编造试穿体验。只按已给位置与偏好判断，不推断预算、场地、尺寸或体重。选中鞋是兴趣参考，不是只能从其中推荐。只有目录或检索支持时才作性能断言；缺失就说缺少资料。恰好返回两双不同的候选目录鞋（若依据不足以形成两双真实建议，应明确少返，不要编造）。" : "")
         }
       ];
     }
@@ -1885,7 +1886,7 @@ async function candidateEvidencePipeline(
             : `[WEB RESEARCH DIGEST] Web research was unavailable this turn — answer from the catalog and blogger reviews alone, and leave every \`references\` array empty.\n\n`) +
           `Wording: never let internal field names (court_feel, traction, cushioning_feel…) appear in \`reason\`/\`pros\`/\`cons\` — say "court feel", "traction", "cushioning" in plain English. Technology proper nouns (Zoom Air, BOOM, Lightstrike Pro…) stay verbatim as written in the catalog.\n\n` +
           `Output JSON only: ${jsonShape}. No tool calls, no markdown, nothing outside the JSON. Keep your thinking brief — don't draft the copy inside your reasoning.\n\n` +
-          languageDirective(currentInput) + (opts.onboardingDemo ? "\n[INTRO DEMO OVERRIDE] Leave follow_up empty. Do not ask for more input. For each reason, use 2-3 sentences addressing ALL THREE ordered priorities, evidence and uncertainty. Include at least one specific pro and con. Do not invent a court, budget, size, weight or hands-on testing. The selected shoes are interest context, not a restriction on recommendations. Make performance claims only when supported by the catalog or search evidence; identify missing evidence. Return two distinct candidate catalog shoes when justified; do not fabricate a second recommendation if evidence is insufficient." : "")
+          languageDirective(currentInput) + (opts.onboardingDemo ? "\n[INTRO DEMO OVERRIDE] Leave follow_up empty. Do not ask for more input. Never turn descriptive labels into comparable lab scores or claim best-in-catalog rankings. Do not fill in technology or construction details from memory when not supported by these records. Cite a supplied relevant source when you actually use its evidence; never cite unrelated results just to include a link. For each reason, use 2-3 sentences addressing ALL THREE ordered priorities, evidence and uncertainty. Include at least one specific pro and con. Do not invent a court, budget, size, weight or hands-on testing. The selected shoes are interest context, not a restriction on recommendations. Make performance claims only when supported by the catalog or search evidence; identify missing evidence. Return two distinct candidate catalog shoes when justified; do not fabricate a second recommendation if evidence is insufficient." : "")
       }
     ];
   };

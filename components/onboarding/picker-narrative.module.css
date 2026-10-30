@@ -90,3 +90,17 @@
 @media(max-width:600px) { .workbench {grid-template-columns:1fr;gap:14px;} .workbench nav {flex-direction:row;flex-wrap:wrap;column-gap:16px;} .workbench nav button {font-size:10px;} .stageWindow {padding-left:14px;} .resultGrid {gap:20px;} .resultGrid h4 {font-size:18px;} .picker {gap:24px;} .prompt {font-size:13px;} .homeCard {right:16px;bottom:calc(80px + env(safe-area-inset-bottom));padding:20px;} }
 @media(max-width:380px) { .resultGrid {grid-template-columns:1fr;} .resultImage {max-height:170px;} }
 @media(prefers-reduced-motion:reduce) { .spinner,.progressHeader i {animation:none;} }
+.sources { padding-block:10px; min-width:0; }
+.sources > span { display:block; font:10px var(--font-geist-mono),monospace; color:rgb(var(--subtext)); margin-bottom:14px; }
+.sourceCards { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; position:relative; }
+.sourceCards a { display:flex; flex-direction:column; gap:8px; position:relative; padding:14px 28px 14px 14px; border:1px solid rgb(var(--text)/.12); border-radius:14px; background:rgb(var(--text)/.025); min-width:0; }
+.sourceCards a > span { color:rgb(var(--subtext)); font-size:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sourceCards strong { font-size:11px; line-height:1.6; font-weight:450; display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden; }
+.sourceCards svg { position:absolute;right:12px;top:14px;color:rgb(var(--subtext)); }
+.sources[data-source-fold=true] .sourceCards a { padding-block:10px; }
+.sources[data-source-fold=true] .sourceCards strong { -webkit-line-clamp:2; }
+.sources p { font-size:12px;line-height:1.7;color:rgb(var(--subtext)); }
+.catalogSources { display:flex;flex-wrap:wrap;gap:12px;margin-top:12px; }
+.catalogSources a {display:flex;align-items:center;gap:7px;font-size:12px;}
+.progress[hidden] { display:none; }
+.historyToggle { align-self:flex-start;min-height:44px;background:none;border:0;padding:0;color:rgb(var(--subtext));font-size:11px;cursor:pointer; }

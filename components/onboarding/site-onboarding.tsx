@@ -286,7 +286,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     foregroundCheck.current = false;
     entryNeedsRetry.current = false;
     setPhase(onHome ? "checking" : "complete");
-    setReplay(false); setLibrary(false); setFlight(null); setHint(null); setTourStarted(false);
+    setProfileExit(false); setReplay(false); setLibrary(false); setFlight(null); setHint(null); setTourStarted(false);
   }, [onHome, pathname]);
   useLayoutEffect(() => {
     requestId.current += 1;
@@ -395,7 +395,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const openLibrary = () => setLibrary(true);
     const replayTour = (e: Event) => {
       if ((e as CustomEvent<{ kind: string }>).detail?.kind !== "site") return;
-      setLibrary(false); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true);
+      setProfileExit(false); setLibrary(false); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true);
     };
     window.addEventListener("sf:tutorial-library", openLibrary);
     window.addEventListener("sf:replay-tutorial", replayTour);
