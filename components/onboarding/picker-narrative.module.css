@@ -110,3 +110,5 @@
 .answerPriorities { padding-top:6px; }
 .answerPriorities .selections > div { gap:12px; }
 .answerPriorities + .progress { border-top:0;padding-top:0; }
+
+.results .answerPriorities { margin-bottom:24px; }
