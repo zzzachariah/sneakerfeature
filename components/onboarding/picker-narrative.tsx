@@ -55,7 +55,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   useEffect(()=>{if(reduced){setBeat(2);return;}const a=setTimeout(()=>setBeat(1),800),b=setTimeout(()=>setBeat(2),1700);return()=>{clearTimeout(a);clearTimeout(b);};},[reduced]);
   useEffect(()=>{if(!snapshot.startedAt)return;if(snapshot.status!=="running"){setElapsed(Math.max(0,Math.floor((Date.parse(snapshot.finishedAt??snapshot.events.at(-1)?.at??snapshot.startedAt)-Date.parse(snapshot.startedAt))/1000)));return;}const update=()=>setElapsed(Math.max(0,Math.floor((Date.now()-Date.parse(snapshot.startedAt!))/1000)));update();const timer=setInterval(update,1000);return()=>clearInterval(timer);},[snapshot.status,snapshot.startedAt,snapshot.finishedAt,snapshot.events]);
   useEffect(()=>{if(snapshot.status==="running")void scroll(progressRef.current,false,250);},[snapshot.status,scroll]);
-  useEffect(()=>{if(resultReady)void scroll(resultRef.current,false,650);},[resultReady,scroll]);
+  useEffect(()=>{if(resultReady)void scroll(resultRef.current,false,900);},[resultReady,scroll]);
   const context=snapshot.input??input;
   const interestShoes=snapshot.interests??shoes;
   const prompt=context?(zh?"请根据这些选择，为我推荐两双篮球鞋，告诉我理由和需要权衡的地方。":"Find two basketball shoes for these choices, with the reasons and trade-offs."):"";
@@ -84,7 +84,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
       </motion.div>
     </motion.section>
     {resultReady&&<button type="button" className={styles.historyToggle} onClick={()=>setShowHistory(v=>!v)} aria-expanded={showHistory}>{zh?"查看这次选鞋过程":"Revisit this search"}</button>}
-    {began&&<section hidden={resultReady&&!showHistory} ref={progressRef} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
+    {began&&<motion.section inert={resultReady&&!showHistory} aria-hidden={resultReady&&!showHistory} initial={false} animate={{height:resultReady&&!showHistory?0:"auto",opacity:resultReady&&!showHistory?0:1,paddingTop:resultReady&&!showHistory?0:22}} transition={{duration:reduced?0:.8,ease:EASE}} style={{overflow:resultReady&&!showHistory?"hidden":undefined}} ref={progressRef} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
       <div className={styles.progressHeader}><span>{snapshot.status==="running"||posting?<><i/>{zh?"正在进行":"IN PROGRESS"}</>:snapshot.status==="complete"?<><Check size={13}/>{zh?"本次查询记录":"RESEARCH RECORD"}</>:<>{zh?"本次未完成":"NOT COMPLETED"}</>}</span><time>{elapsed}s</time></div>
       <div className={styles.workbench}>
         <nav aria-label={zh?"已发生的工作阶段":"Activity history"}>{observed.map((stage,i)=><button type="button" key={stage} aria-pressed={active===stage} onClick={()=>setHistory(stage)}><span>{String(i+1).padStart(2,"0")}</span>{labels[stage][zh?0:1]}{stage!==latest||snapshot.status==="complete"?<Check size={12}/>:null}</button>)}{history&&history!==latest&&<button type="button" onClick={()=>setHistory(null)}>{zh?"跟随实时进度":"Follow live"}<ArrowRight size={12}/></button>}</nav>
@@ -94,7 +94,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
         </motion.div></AnimatePresence></div>
       </div>
       <p className={styles.liveNote} role="status">{connection==="offline"?(zh?"连接暂时中断，正在恢复真实进度。已完成的资料不会清空。":"Connection interrupted. Reconnecting without clearing completed research."):snapshot.status==="running"&&elapsed>25?(zh?"这次仍在处理中。你可以继续注册，完成后在首页接着看。":"Still working. You can continue signing up and find the result on the homepage."):null}</p>
-    </section>}
+    </motion.section>}
     {(allSources.length>0 || snapshot.status==="complete")&&<motion.section ref={sourcesRef} layout className={styles.sources} data-source-fold={folded} transition={{duration:reduced?0:1,ease:EASE}} aria-label={zh?"资料来源":"Sources"}>
       <span>{zh?"资料来源":"SOURCES"}</span><motion.div layout className={styles.sourceCards} transition={{duration:reduced?0:1,ease:EASE}}><AnimatePresence initial={false} mode="popLayout">{displayedSources.map(source=><motion.a layout key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" initial={reduced?false:{opacity:0,y:14,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:reduced?0:-10,scale:reduced?1:.96}} transition={{duration:reduced?.1:.75,ease:EASE}}><span>{new URL(source.url).hostname.replace(/^www\./,"")}</span><strong>{source.title}</strong><ExternalLink size={12}/></motion.a>)}</AnimatePresence></motion.div>
       {folded&&!displayedSources.length&&<motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration}}><p>{zh?"本次推荐依据站内球鞋资料。":"These recommendations draw on the site’s shoe records."}</p><div className={styles.catalogSources}>{snapshot.shoes?.map(s=><a key={s.id} href={`/shoes/${s.slug}`} target="_blank" rel="noopener noreferrer">{s.name}<ExternalLink size={11}/></a>)}</div></motion.div>}
