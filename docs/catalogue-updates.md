@@ -110,3 +110,26 @@ connectivity returns; do not invent a successful website posting.
 - Continue running the normal lint, type checks and production build for code
   changes. Do not alter the existing weekly email digest cron to publish these
   catalogue records; it serves a different feature.
+
+## AI API maintenance reports
+
+The same public archive also accepts `report.category = "ai_api"`. Omitted
+category means `catalogue`, preserving existing weekly records. The homepage,
+archive cards, category filters and detail view label AI checks as checks rather
+than shoe additions. The JSON version, table and published-only access remain
+unchanged. Deploy category support before publishing the first AI report.
+
+For each daily AI run, retain one run ID across retries and publish a bilingual,
+sanitized report after verification, including healthy/no-change and unsuccessful
+runs. Use entries for concrete checks: `unchanged` for passed checks without a
+change, `updated` for verified fixes, `pending` for attempted unresolved checks.
+Counts must agree with entries. Put elapsed time, model, actual search successes
+and failures, source-link counts, and verification limits in the summaries.
+Unexercised models or photo flows belong in explicit limitations; don't imply
+they passed. Link public PRs where useful. Do not publish account identifiers,
+keys, raw logs, private user prompts/profiles, balances or internal request IDs.
+
+Follow the same validation, readback and public-page verification procedure.
+No database schema change or new deploy is needed for subsequent reports.
+Do not alter the weekly catalogue automation. Update the existing daily AI
+automation to publish this category even when no chat notification is needed.
