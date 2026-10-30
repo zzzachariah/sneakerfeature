@@ -264,12 +264,12 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
         <p className={styles.eyebrow}>{t("为你的打法，建立档案", "Built around the way you play")}</p>
         <p className={styles.description}>{t("几项真实信息，让选鞋更有依据。之后随时可以修改。", "A few details give your shoe choices more context. You can edit them anytime.")}</p>
       </div>
-      <motion.div layout className={styles.identityCard} transition={{ duration: reduce ? .14 : .3, ease: EASE }}>
+      <motion.div layout className={styles.identityCard} transition={{ duration: reduce ? .14 : .5, ease: EASE }}>
         <motion.div className={styles.avatar} layoutId={`${id}-player-mark`}><UserRound size={25} strokeWidth={1.4} /></motion.div>
         <div style={{ minWidth: 0 }}><div className={styles.identityName}>{username || t("你的球员档案", "Your player profile")}</div><div className={styles.identityDetail}>{positions.length ? positions.join(" / ") : t("你的打法，由你定义", "Your game, in your own terms")}{skill ? ` · ${SKILL_TEXT[skill][zh ? 0 : 1]}` : ""}</div></div>
       </motion.div>
         <AnimatePresence initial={false} mode="wait" custom={direction}>
-          <motion.div key={step} custom={direction} initial={{ opacity: 0, x: reduce ? 0 : direction * 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: reduce ? 0 : direction * -12 }} transition={{ duration: reduce ? .14 : .28, ease: EASE }}>
+          <motion.div key={step} custom={direction} initial={{ opacity: 0, x: reduce ? 0 : direction * 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: reduce ? 0 : direction * -8 }} transition={{ duration: reduce ? .14 : .55, ease: EASE }}>
             <h3 ref={stageHeading} tabIndex={-1} className="sr-only">{stepNames[step]}</h3>
             {step === 0 && <div className={styles.stack}>
               <fieldset className={styles.fieldGroup} data-profile-field="positions" aria-invalid={Boolean(errors.positions)} aria-describedby={errors.positions ? `${id}-positions-error` : undefined}>

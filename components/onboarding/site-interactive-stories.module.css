@@ -269,3 +269,7 @@
   .stage[data-story-step="1"] [data-scroll-hint] > span { left: auto; right: 0; bottom: 0; transform: none; padding: 3px; border-radius: 50%; }
   .stage[data-story-step="1"] [data-scroll-hint] > span > span { display: none; }
 }
+
+/* Anchor a small cue at the panel edge; never paint a veil over its contents. */
+.scene > :last-child[data-scroll-hint] { position: absolute; inset: auto 18px 8px auto; width: auto; margin: 0; }
+.scene > :last-child[data-scroll-hint] > span { bottom: 0; }
