@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AnimatePresence, LayoutGroup, motion, useIsPresent, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, GraduationCap, Languages, LogOut, RotateCcw, ShieldCheck, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, GraduationCap, Languages, LogOut, RotateCcw, ShieldCheck, Sparkles, X } from "lucide-react";
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useCookieConsent } from "@/components/consent/cookie-consent";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -21,6 +21,9 @@ import { DiscoveryIntro } from "./discovery-intro";
 import { OnboardingAuth } from "./onboarding-auth";
 import { OnboardingProfile } from "./onboarding-profile";
 import { ScrollHint } from "./scroll-hint";
+import { TourOpening } from "./tour-opening";
+import { ArrivalWelcome } from "./arrival-welcome";
+import { isValidPersona } from "@/lib/persona/types";
 import styles from "./site-onboarding.module.css";
 
 const SITE_KEY = "sf-onboarding-site-v2";
@@ -30,6 +33,7 @@ type Status = {
   requiresOnboarding: boolean; stage: "welcome" | "profile" | "complete" | null;
   tours: { site: "skipped" | "completed" | null; ai: "skipped" | "completed" | null };
   registeredUsers: number | null;
+  profileReady?: boolean;
   pageviews: OnboardingPageviews;
 };
 type LiveMetrics = {
@@ -42,12 +46,6 @@ let sessionIntro: string | null = null;
 function readIntro() { try { return localStorage.getItem(SITE_KEY) || sessionIntro; } catch { return sessionIntro; } }
 function rememberIntro(value: string) { sessionIntro = value; try { localStorage.setItem(SITE_KEY, value); } catch { /* memory preserves this session */ } }
 function event(kind: string, detail?: unknown) { window.dispatchEvent(new CustomEvent(kind, { detail })); }
-function formatMetricTime(value: string, zh: boolean, includeDate = false) {
-  return new Date(value).toLocaleString(zh ? "zh-CN" : "en-GB", {
-    ...(includeDate ? { month: "short", day: "numeric" } as const : {}),
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false
-  });
-}
 function validMetrics(value: unknown): value is LiveMetrics {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
@@ -169,7 +167,7 @@ function OnboardingShell({ children, shellRef, label, phase, reduced }: {
   return <motion.div ref={shellRef} className={styles.shell}
     role={present ? "dialog" : undefined} aria-modal={present ? true : undefined} aria-label={label}
     inert={!present} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
-    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: reduced ? .15 : .25 } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
+    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: !reduced && phase === "welcome" ? .99 : 1, transition: { duration: reduced ? .15 : phase === "welcome" ? .7 : .35, ease: EASE } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
     data-testid="site-onboarding" data-phase={phase} data-exiting={!present || undefined}>
     <LayoutGroup id="sf-onboarding">{children}</LayoutGroup>
   </motion.div>;
@@ -202,6 +200,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status | null>(null);
   const [catalog, setCatalog] = useState<StoryCatalog | null>(null);
   const [step, setStep] = useState(0);
+  const [tourStarted, setTourStarted] = useState(false);
   const [introDemoRunKey, setIntroDemoRunKey] = useState(0);
   const [selectedShoes, setSelectedShoes] = useState<StoryShoe[]>([]);
   const [wallExpanded, setWallExpanded] = useState(false);
@@ -220,7 +219,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const shellRef = useRef<HTMLDivElement>(null);
   const storyRef = useRef<HTMLDivElement>(null);
   const copyRef = useRef<HTMLDivElement>(null);
-  const welcomeContentRef = useRef<HTMLDivElement>(null);
   const authIntroRef = useRef<HTMLDivElement>(null);
   const profileIntroRef = useRef<HTMLDivElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -261,7 +259,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     // Shared-layout descendants can outlive their opacity animation. Bound the
     // entire presence tree so an interrupted child cannot leave an invisible
     // full-screen overlay in the DOM. Reopening cancels this cleanup.
-    const timer = window.setTimeout(() => setRetainShell(false), reduced ? 200 : 350);
+    const timer = window.setTimeout(() => setRetainShell(false), reduced ? 200 : 850);
     return () => window.clearTimeout(timer);
   }, [showing, reduced]);
   useLayoutEffect(() => {
@@ -271,7 +269,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     foregroundCheck.current = false;
     entryNeedsRetry.current = false;
     setPhase(onHome ? "checking" : "complete");
-    setReplay(false); setLibrary(false); setFlight(null); setHint(null);
+    setReplay(false); setLibrary(false); setFlight(null); setHint(null); setTourStarted(false);
   }, [onHome, pathname]);
   useLayoutEffect(() => {
     requestId.current += 1;
@@ -288,8 +286,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const id = ++requestId.current;
     const current = () => id === requestId.current && entryRequestMatches(identity, entryIdentity.current);
     try {
-      const data = await api();
+      let data = await api();
       if (!current()) return;
+      // Existing installations may already be at profile without a saved draft.
+      // Only a real readback can restore the final arrival screen after reload.
+      if (data.userId === identity.userId && data.requiresOnboarding && data.stage === "profile") {
+        foregroundCheck.current = true;
+        const response = await fetch("/api/preferences/persona", { cache: "no-store", signal: AbortSignal.timeout(8000) });
+        const profile = await response.json();
+        if (!current()) return;
+        if (!response.ok || profile.ok === false) throw new Error("Your saved profile could not be checked. Please retry.");
+        data = { ...data, profileReady: isValidPersona(profile.persona) };
+      }
       const next = resolveEntryPhase(identity, data, hasSeenSiteIntro(readIntro()) || knownVisitor.current);
       if (next === "checking") {
         entryNeedsRetry.current = true;
@@ -302,7 +310,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       entryNeedsRetry.current = false;
       foregroundCheck.current = false;
       setStatus(data); setError(""); setRecovery(false);
-      setPhase(next);
+      setPhase(previous => previous === "welcome" && next === "complete" ? "welcome" : next);
     } catch (cause) {
       if (!current()) return;
       entryNeedsRetry.current = true;
@@ -310,7 +318,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       setRecovery(cause instanceof StatusError && cause.code === "profile_recovery_required");
       // A background outage must not interrupt a restored member. A confirmed
       // anonymous visitor can still see the intro; no visit marker is written.
-      setPhase(failedEntryPhase(identity, hasSeenSiteIntro(readIntro()) || knownVisitor.current, foregroundCheck.current));
+      setPhase(previous => previous === "welcome" ? "welcome" : failedEntryPhase(identity, hasSeenSiteIntro(readIntro()) || knownVisitor.current, foregroundCheck.current));
     }
   }, [later]);
 
@@ -330,7 +338,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (phase === "auth") setAuthMounted(true);
     if (phase === "profile") setProfileMounted(true);
-    if (phase === "complete") { setAuthMounted(false); setProfileMounted(false); }
+    if (phase === "welcome" || phase === "complete") { setAuthMounted(false); setProfileMounted(false); }
   }, [phase]);
 
   useEffect(() => {
@@ -370,7 +378,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     const openLibrary = () => setLibrary(true);
     const replayTour = (e: Event) => {
       if ((e as CustomEvent<{ kind: string }>).detail?.kind !== "site") return;
-      setLibrary(false); setStep(0); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true);
+      setLibrary(false); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true);
     };
     window.addEventListener("sf:tutorial-library", openLibrary);
     window.addEventListener("sf:replay-tutorial", replayTour);
@@ -420,7 +428,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     };
     document.addEventListener("keydown", trap);
     return () => { document.removeEventListener("keydown", trap); if (previous?.isConnected) previous.focus({ preventScroll: true }); };
-  }, [showing, showingIntro, phase, step, mounted]);
+  }, [showing, showingIntro, phase, step, tourStarted, mounted]);
 
   const showHint = useCallback((rect: DOMRect, menu = false) => {
     setHint({ rect, menu }); setReplayGlow(true);
@@ -479,35 +487,39 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", escape);
   }, [showingIntro, finishIntro]);
 
-  async function continueToProfile() {
+  async function completeProfile() {
+    const identity = entryIdentity.current;
+    if (!identity.loaded || !identity.signedIn || !identity.userId || identity.userId !== auth.userId) return;
+    const id = ++requestId.current;
+    const current = () => id === requestId.current && entryRequestMatches(identity, entryIdentity.current);
+    // The form has already saved and read back the profile. Keep onboarding
+    // incomplete until the player chooses to enter from the final welcome.
+    const data = await api({ stage: "profile" });
+    if (!current()) return;
+    if (data.userId !== identity.userId) throw new Error("Your session changed. Please retry.");
+    setStatus({ ...data, profileReady: true }); setError(""); setPhase("welcome");
+    event("sf:persona-refresh"); router.refresh();
+  }
+  async function enterWebsite() {
+    if (busy) return;
     const identity = entryIdentity.current;
     if (!identity.loaded || !identity.signedIn || !identity.userId) return;
     const id = ++requestId.current;
     const current = () => id === requestId.current && entryRequestMatches(identity, entryIdentity.current);
     setBusy(true); setError("");
     try {
-      const data = await api({ stage: "profile" });
+      const data = await api({ stage: "complete" });
       if (!current()) return;
       if (data.userId !== identity.userId) throw new Error("Your session changed. Please retry.");
-      setStatus(data); setPhase("profile");
-    }
-    catch (cause) { if (current()) setError(cause instanceof Error ? cause.message : "Please retry."); }
-    finally { if (current()) setBusy(false); }
-  }
-  async function completeProfile() {
-    const identity = entryIdentity.current;
-    // A profile can finish its own save after its account was unmounted.
-    if (!identity.loaded || !identity.signedIn || !identity.userId || identity.userId !== auth.userId) return;
-    const id = ++requestId.current;
-    const current = () => id === requestId.current && entryRequestMatches(identity, entryIdentity.current);
-    const data = await api({ stage: "complete" });
-    if (!current()) return;
-    if (data.userId !== identity.userId) throw new Error("Your session changed. Please retry.");
-    if (data.requiresOnboarding) throw new Error(zh ? "档案尚未确认保存，请重试。" : "Your profile has not been confirmed. Please retry.");
-    const from = shellRef.current?.querySelector<HTMLElement>("[data-onboarding-profile-card]")?.getBoundingClientRect() || shellRef.current?.getBoundingClientRect();
-    setStatus(data); setPhase("complete"); setReplay(false);
-    event("sf:persona-refresh"); router.refresh();
-    later(() => { if (current()) revealMenu(from); }, reduced ? 30 : 280);
+      if (data.requiresOnboarding) throw new Error(zh ? "档案尚未确认保存，请重试。" : "Your profile has not been confirmed. Please retry.");
+      setStatus(data); setPhase("complete"); setReplay(false);
+      event("sf:persona-refresh"); router.refresh();
+      later(() => { if (current()) revealMenu(); }, reduced ? 160 : 780);
+    } catch (cause) {
+      if (!current()) return;
+      if (cause instanceof StatusError && cause.code === "persona_required") setPhase("profile");
+      setError(cause instanceof Error ? cause.message : "Please retry.");
+    } finally { if (current()) setBusy(false); }
   }
   async function recoverProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -535,7 +547,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     router.refresh();
   }
   function changeStep(next: number) { if (flight || (next > 0 && selectedShoes.length < 2)) return; storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
-  function openReplay() { setStep(0); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
+  function openReplay() { setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
   function selectShoe(shoe: StoryShoe) { setSelectedShoes((current) => current.some((item) => item.slug === shoe.slug) ? current.filter((item) => item.slug !== shoe.slug) : current.length < 2 ? [...current, shoe] : current); }
   const titles = zh
     ? [["找到更适合", "你打法的篮球鞋。"], ["你选的两双，", "差别在这里。"], ["你的打法，", "让推荐更贴近你。"], ["告诉 AI 你的需求，", "也可以自己挑。"]]
@@ -553,23 +565,6 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       <div className={styles.stat}><strong>{metrics ? <AnimatedCount value={metrics.catalogCount}/> : <span aria-label={zh ? "统计尚未就绪" : "Statistics unavailable"}>—</span>}</strong><span>{zh ? "款球鞋资料" : "shoes to explore"}</span></div>
       <div className={styles.stat}><strong>{metrics ? <AnimatedCount value={metrics.brandCount}/> : <span aria-label={zh ? "统计尚未就绪" : "Statistics unavailable"}>—</span>}</strong><span>{zh ? "个品牌" : "brands"}</span></div>
     </div>
-    <div className={styles.viewNote} data-intro-metrics-note data-connection={metricsConnection} data-pageviews-status={pageviews?.status ?? "loading"}>
-      {metrics ? <span title={zh ? "注册人数来自现有账号；浏览量来自 Vercel，涵盖公开网站自启用统计以来的全部页面。" : "Current registered accounts; Vercel pageviews cover every production page since Web Analytics was enabled."}>
-        <AnimatedCount value={metrics.registeredUsers}/>{zh ? " 位用户 · " : " players · "}
-        {pageviews?.total != null ? <>{zh ? "全站浏览 " : "Site views "}<AnimatedCount value={pageviews.total}/>{zh ? " 次" : ""}</> : <span>{zh ? "全站浏览量暂不可用" : "Site views unavailable"}</span>}
-      </span> : null}
-      <small>
-        {metrics ? <>
-          {pageviews?.asOf ? <>
-            <span role="status" aria-live="polite">{pageviewsStale ? (zh ? "浏览量暂未连接 · " : "Views disconnected · ") : "Vercel · "}</span>
-            <time dateTime={pageviews.asOf} title={new Date(pageviews.asOf).toLocaleString(zh ? "zh-CN" : "en-US")}>{zh ? (pageviewsStale ? "上次核实 " : "更新于 ") : (pageviewsStale ? "last checked " : "updated ")}{formatMetricTime(pageviews.asOf, zh, pageviewsStale)}</time>
-          </> : <>
-            <span role="status" aria-live="polite">{metricsConnection === "offline" ? (zh ? "统计暂未连接 · " : "Statistics disconnected · ") : ""}</span>
-            <time dateTime={metrics.countsAsOf} title={new Date(metrics.countsAsOf).toLocaleString(zh ? "zh-CN" : "en-US")}>{zh ? "鞋库与账号更新于 " : "Catalogue & players updated "}{formatMetricTime(metrics.countsAsOf, zh, metricsConnection === "offline")}</time>
-          </>}
-        </> : <span role="status" aria-live="polite">{metricsConnection === "loading" ? (zh ? "正在获取最新统计…" : "Loading current statistics…") : (zh ? "实时统计尚未就绪，暂不展示数字。" : "Live statistics are not ready yet. Figures are unavailable.")}</span>}
-      </small>
-    </div>
   </CountReveal>;
 
   const shell = showing ? (
@@ -579,11 +574,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
           <div className={styles.headerActions}><button className={styles.quietButton} type="button" onClick={() => requestLocaleChange(zh ? "en" : "zh")} aria-label={zh ? "Switch to English" : "切换中文"}><Languages size={15}/><span className={styles.languageLabel}>{zh ? "EN" : "中文"}</span></button>
             {auth.signedIn && phase !== "complete" ? <button className={styles.quietButton} type="button" onClick={() => void signOut()} aria-label={zh ? "退出登录" : "Sign out"}><LogOut size={15}/></button> : null}
             {showingIntro ? <button className={styles.quietButton} type="button" onClick={() => finishIntro("skipped")} disabled={!!flight}>{replay ? (zh ? "结束重播" : "Close tour") : (zh ? "跳过介绍" : "Skip intro")}</button> : null}
-            <div className={styles.replayAnchor}><button ref={replayRef} className={styles.replayButton + (replayGlow ? " " + styles.replayGlow : "")} type="button" onClick={openReplay} disabled={!!flight} aria-label={zh ? "重看介绍" : "Replay introduction"} data-onboarding-shell-replay><RotateCcw size={14}/><span>{zh ? "重看介绍" : "Replay"}</span></button><AnimatePresence>{hint && !hint.menu ? <motion.div className={styles.replayHint + " " + styles.shellHint} role="status" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>{zh ? "想再看一次？随时从这里开始。" : "Want another look? Your introduction is always here."}</motion.div> : null}</AnimatePresence></div>
+            <div hidden={showingIntro && !tourStarted} className={styles.replayAnchor}><button ref={replayRef} className={styles.replayButton + (replayGlow ? " " + styles.replayGlow : "")} type="button" onClick={openReplay} disabled={!!flight} aria-label={zh ? "重看介绍" : "Replay introduction"} data-onboarding-shell-replay><RotateCcw size={14}/><span>{zh ? "重看介绍" : "Replay"}</span></button><AnimatePresence>{hint && !hint.menu ? <motion.div className={styles.replayHint + " " + styles.shellHint} role="status" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: .18 }}>{zh ? "想再看一次？随时从这里开始。" : "Want another look? Your introduction is always here."}</motion.div> : null}</AnimatePresence></div>
           </div>
         </header>
-        {showingIntro ? (
-          <>
+        {showingIntro ? <AnimatePresence mode="wait" initial={false} onExitComplete={() => {
+          requestAnimationFrame(() => shellRef.current?.querySelector<HTMLElement>("h1")?.focus({ preventScroll: true }));
+        }}>
+        {showingIntro && !tourStarted ? <TourOpening key="opening" zh={zh} users={metrics?.registeredUsers ?? null} brands={metrics?.brandCount ?? null} loading={metricsConnection === "loading"} stale={metricsConnection === "offline"} onLanguageChange={requestLocaleChange} onStart={() => { setWallExpanded(true); setTourStarted(true); }}/> : showingIntro ? (
+          <motion.div key="tour" className={styles.tourSequence} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 18, scale: .985 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, transition: { duration: reduced ? .15 : .3 } }} transition={{ duration: reduced ? .15 : .7, ease: EASE }}>
             <motion.div className={step === 0 ? styles.discoveryBody : styles.body} ref={storyRef} role={step ? "region" : undefined} tabIndex={step ? 0 : undefined} aria-label={step ? (zh ? "导览内容" : "Introduction content") : undefined} data-onboarding-content animate={{ opacity: flight ? 0 : 1 }} transition={{ duration: reduced ? .15 : .3 }}>
               {step === 0 ? <DiscoveryIntro catalog={catalog} selected={selectedShoes} onSelect={selectShoe} zh={zh} stats={catalogStats} expanded={wallExpanded} onExpand={() => setWallExpanded(true)}/> : <>
               <div ref={copyRef} className={styles.copy} role="region" tabIndex={0} aria-label={zh ? "功能介绍与入口" : "Feature introduction and navigation"}>
@@ -620,17 +618,18 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 <motion.button whileTap={reduced ? undefined : { scale: .98 }} type="button" className={styles.primary} disabled={!!flight || (step === 0 && selectedShoes.length < 2)} onClick={() => step === 3 ? finishIntro("completed") : changeStep(step + 1)}>{step === 3 ? (replay ? (zh ? "完成介绍" : "Finish introduction") : (zh ? "创建账号，开始探索" : "Create your account")) : step === 0 ? (selectedShoes.length === 2 ? (zh ? "对比这两双" : "Compare these two") : (zh ? "先选两双球鞋" : "Choose two shoes")) : (zh ? "继续探索" : "Keep exploring")}<ArrowRight size={17}/></motion.button>
               </div>
             </div>
-          </>
+          </motion.div>
         ) : null}
+        </AnimatePresence> : null}
         <div hidden={showingIntro || phase !== "auth"} className={styles.formBody}>
           <motion.div ref={authIntroRef} className={styles.formIntro} role="region" tabIndex={0} aria-label={zh ? "账号介绍" : "About your account"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={transition}><p className={styles.eyebrow}>YOUR GAME STARTS HERE</p><h1 className={styles.heading}>{zh ? "下一双，" : "Your next pair."}<br/><span className={styles.accent}>{zh ? "从你开始。" : "It starts with you."}</span></h1><p className={styles.description}>{zh ? "留下你的球员身份，把每一次探索变成更了解自己的过程。" : "Make room for your player profile, your discoveries and the choices ahead."}</p><div className={styles.formVisual}><span className={styles.formSeal}><ShieldCheck size={28}/></span><p><strong>{zh ? "属于你的选鞋旅程" : "A space for your game"}</strong>{zh ? "真实档案 · 自由浏览 · 持续探索" : "Your profile. Your discoveries. Your pace."}</p></div><ScrollHint targetRef={authIntroRef} zh={zh}/></motion.div>
           <motion.div layoutId={!showingIntro && phase === "auth" ? "sf-feature-stage" : undefined} transition={transition} className={styles.formStage}>{authMounted ? <OnboardingAuth onAuthenticated={() => loadStatus({ foreground: true })}/> : null}</motion.div>
         </div>
         <div hidden={showingIntro || phase !== "profile"} className={styles.formBody}>
           <motion.div ref={profileIntroRef} className={styles.formIntro} role="region" tabIndex={0} aria-label={zh ? "球员档案介绍" : "About your player profile"} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={transition}><p className={styles.eyebrow}>GET TO KNOW YOUR GAME</p><h1 className={styles.heading}>{zh ? "让每一次选择，" : "A little about you."}<br/><span className={styles.accent}>{zh ? "更贴近你。" : "A better starting point."}</span></h1><p className={styles.description}>{zh ? "你在球场上的样子，是我们了解一双鞋是否适合你的起点。" : "How you move on court is the starting point for understanding what might work for you."}</p><div className={styles.formVisual}><span className={styles.formSeal}><Sparkles size={28}/></span><p><strong>{zh ? "你的资料，随时可修改" : "Your profile can evolve"}</strong>{zh ? "以后可以从菜单里的球员档案更新。" : "Update it anytime from Player profile in the menu."}</p></div><ScrollHint targetRef={profileIntroRef} zh={zh}/></motion.div>
-          <motion.div layoutId={!showingIntro && phase === "profile" ? "sf-player-card" : undefined} transition={transition} className={styles.formStage} data-onboarding-profile-card>{profileMounted ? <OnboardingProfile key={status?.userId || auth.userId || "pending"} onComplete={completeProfile} onBack={() => setPhase("welcome")}/> : null}</motion.div>
+          <motion.div layoutId={!showingIntro && phase === "profile" ? "sf-player-card" : undefined} transition={transition} className={styles.formStage} data-onboarding-profile-card>{profileMounted ? <OnboardingProfile key={status?.userId || auth.userId || "pending"} onComplete={completeProfile}/> : null}</motion.div>
         </div>
-        {!showingIntro && phase === "welcome" ? <motion.div className={styles.welcome} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={transition}><div ref={welcomeContentRef} className={styles.welcomeContent} role="region" tabIndex={0} aria-label={zh ? "欢迎与球员编号" : "Welcome and player number"}><p className={styles.eyebrow}>YOU ARE PART OF THE GAME</p><h1 ref={headingRef} tabIndex={-1} className={styles.heading}>{zh ? "很荣幸，你来到这里。" : "Glad you’re here."}</h1><p className={styles.description}>{zh ? "欢迎加入 snkrfeature。属于你的球鞋探索，现在开始。" : "Welcome to snkrfeature. Your next discovery starts here."}</p><CountReveal runKey={status?.memberNumber || "pending"}><motion.div layoutId={reduced ? undefined : "sf-player-card"} className={styles.memberCard} transition={transition}><div className={styles.memberCardTop}><span>SNKRFEATURE PLAYER</span><Check size={18}/></div><strong className={styles.memberNumber} aria-label={status?.memberNumber != null ? "#" + status.memberNumber : undefined}>{status?.memberNumber != null ? <AnimatedCount value={status.memberNumber} prefix="#" pad={5}/> : (zh ? "正在确认编号" : "Confirming your number")}</strong><span className={styles.memberName}>{status?.username || auth.username || (zh ? "新球员" : "New player")}</span><span className={styles.memberLabel}>{zh ? "你的固定球员编号" : "Your permanent player number"}</span></motion.div><p className={styles.arrivalView} data-welcome-pageviews>{pageviews?.total != null ? <>{zh ? "全站累计浏览 " : "Lifetime site views: "}<strong><AnimatedCount value={pageviews.total}/></strong>{zh ? " 次" : ""}</> : (zh ? "全站累计浏览量暂不可用" : "Lifetime site views are temporarily unavailable")}<small>{pageviews?.asOf ? <>{pageviewsStale ? (zh ? "Vercel · 上次核实 " : "Vercel · Last confirmed ") : (zh ? "Vercel · 更新于 " : "Vercel · Updated ")}<time dateTime={pageviews.asOf}>{formatMetricTime(pageviews.asOf, zh, true)}</time></> : (zh ? "来自 Vercel 全站历史统计" : "From Vercel’s lifetime website analytics")}</small></p></CountReveal><ScrollHint targetRef={welcomeContentRef} zh={zh}/></div><motion.button type="button" whileTap={{ scale: .98 }} className={styles.primary} onClick={() => void continueToProfile()} disabled={busy}>{zh ? "建立我的球员档案" : "Build my player profile"}<ArrowRight size={17}/></motion.button>{error ? <p role="alert" className={styles.error}>{error}</p> : null}</motion.div> : null}
+        {!showingIntro && phase === "welcome" ? <ArrivalWelcome zh={zh} memberNumber={status?.memberNumber ?? null} username={status?.username || auth.username || null} pageviews={pageviews} stale={pageviewsStale} onEnter={() => void enterWebsite()} busy={busy} error={error}/> : null}
         {!showingIntro && (phase === "boot" || phase === "error") ? <div ref={statusRef} className={styles.status}><BrandLogo shared={false}/><h1 ref={headingRef} tabIndex={-1} className={styles.heading}>{phase === "boot" ? (zh ? "准备好你的球场。" : "Making room for you.") : (zh ? "我们再试一次。" : "Let's try that again.")}</h1>{phase === "boot" ? <div className={styles.loadingMark}><span/></div> : <><p>{error}</p>{recovery ? <form onSubmit={recoverProfile} className={styles.recoveryForm}><p>{zh ? "你的账号已经创建。选择一个可用的用户名，即可继续。" : "Your account exists. Choose an available username to continue."}</p><label htmlFor="onboarding-recovery-name">{zh ? "用户名" : "Username"}</label><input id="onboarding-recovery-name" value={recoveryName} onChange={(e) => setRecoveryName(e.target.value)} minLength={3} maxLength={80} required autoComplete="username"/><button type="submit" className={styles.primary} disabled={busy}>{zh ? "恢复并继续" : "Continue setup"}</button></form> : null}<button className={styles.quietButton} type="button" onClick={() => { setPhase("boot"); void loadStatus({ foreground: true }); }}>{zh ? "重新连接" : "Reconnect"}</button></>}<ScrollHint targetRef={statusRef} zh={zh}/></div> : null}
         <footer className={styles.footer}>
           {consent.ready && !consent.blocked && consent.consent === null ? <div className={styles.consent}><span>{zh ? "允许匿名使用统计，帮助我们改善体验？" : "Allow analytics to help us improve your experience?"}</span><button type="button" onClick={() => consent.setConsent("rejected")}>{zh ? "拒绝" : "Decline"}</button><button type="button" onClick={() => consent.setConsent("accepted")}>{zh ? "接受" : "Accept"}</button></div> : <span>{zh ? "为你的打法，找到更多可能。" : "More possibilities for the way you play."}</span>}

@@ -329,7 +329,7 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
             <motion.button type="button" className={styles.primary} disabled={busy} onClick={() => void finish(true)} whileTap={reduce ? undefined : { scale: .985 }}>{busy ? <Loader2 size={18} className={styles.spinner} /> : <ArrowRight size={18} />}{t("先开始球鞋探索", "Start exploring now")}</motion.button>
           </> : <motion.button type="submit" className={styles.primary} disabled={busy} whileTap={reduce ? undefined : { scale: .985 }} transition={{ duration: .12 }}>
             {busy ? <Loader2 size={18} className={styles.spinner} /> : null}
-            {busy ? t("正在保存并确认…", "Saving & confirming…") : step === 3 ? t("保存档案，开启球鞋探索", "Save profile & explore") : t("继续", "Continue")}
+            {busy ? t("正在保存并确认…", "Saving & confirming…") : step === 3 ? t("保存档案，继续", "Save profile & continue") : t("继续", "Continue")}
             {!busy && (step === 3 ? <ArrowRight size={18} /> : <ChevronRight size={18} />)}
           </motion.button>}
           <div className={styles.backRow}>{(step > 0 || onBack) && <button type="button" className={styles.secondary} disabled={busy} onClick={() => step > 0 ? move(step - 1) : onBack?.()}><ArrowLeft size={15} />{t("返回", "Back")}</button>}</div>
