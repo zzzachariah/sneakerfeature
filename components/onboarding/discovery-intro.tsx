@@ -201,7 +201,7 @@ export function DiscoveryIntro({ catalog, selected, onSelect, stats, zh, expande
       </motion.div>}
     </AnimatePresence>
     <motion.div ref={panel} layout transition={transition} className={expanded ? styles.topPanel : styles.heroPanel}>
-    <motion.aside ref={copyPanel} layout transition={transition} className={expanded ? styles.plaque : styles.heroCopy}>
+    <motion.aside ref={copyPanel} role="region" tabIndex={0} aria-label={zh ? "网站介绍与统计" : "About snkrfeature and live statistics"} layout transition={transition} className={expanded ? styles.plaque : styles.heroCopy}>
       <motion.div layout className={styles.brandLine} transition={transition}><BrandLogo compact={expanded || viewport.width <= 620 || viewport.height < 420}/>{expanded ? <span>MEET SNKRFEATURE</span> : null}</motion.div>
       <motion.h1 tabIndex={-1} layout transition={transition} className={styles.title}>{expanded ? (zh ? "从心动的一双，开始。" : "Start with a pair you love.") : <>{zh ? "找到更适合" : "A better pair."}<br/><em>{zh ? "你打法的篮球鞋。" : "For your game."}</em></>}</motion.h1>
       <motion.p layout transition={transition} className={styles.description}>{expanded ? (zh ? "在这面鞋墙上选两双，下一屏一起看它们的差异。" : "Pick any two from the wall. Compare their details next.") : (zh ? "浏览、比较、了解。把关于篮球鞋的信息，变成对你有用的选择。" : "Explore, compare and understand. Find a pair that makes sense for your game.")}</motion.p>

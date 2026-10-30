@@ -335,3 +335,5 @@
 }
 
 @media (max-width: 480px) { .shell[data-phase="auth"] .formStage { padding-inline: 12px; } }
+
+.shell [role="region"]:focus-visible { outline: 2px solid rgb(var(--brand) / .7); outline-offset: -2px; border-radius: 12px; }
