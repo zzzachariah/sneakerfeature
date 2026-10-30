@@ -58,6 +58,14 @@ const summary = summarizeMaintenanceRun(run);
 assert(!("entries" in summary.report));
 assert(!("verification" in summary.report));
 assert.deepEqual(summary.report.counts, run.report.counts);
+// Older catalogue reports and AI reports share an archive without losing category
+// in the compact card payload or counting pending checks as passed.
+assert.equal(run.report.category, undefined);
+const aiRun = catalogueMaintenanceRunSchema.parse({ ...copy(), report: { ...copy().report, category: "ai_api" } });
+assert.equal(summarizeMaintenanceRun(aiRun).report.category, "ai_api");
+assert.equal(groupMaintenanceRuns([run, aiRun]).flatMap((week) => week.runs).length, 1);
+assert(!catalogueMaintenanceRunSchema.safeParse({ ...copy(), report: { ...copy().report, category: "unknown" } }).success);
+assert(!catalogueMaintenanceRunSchema.safeParse({ ...aiRun, report: { ...aiRun.report, counts: { ...aiRun.report.counts, recheckVerified: 2 } } }).success);
 // Exercise the real Supabase data readers through mocked HTTP, rather than checking
 // source text. Separate reads must see a correction without cache invalidation or a
 // new deployment; both the timeline and homepage reader must opt out of fetch cache.
