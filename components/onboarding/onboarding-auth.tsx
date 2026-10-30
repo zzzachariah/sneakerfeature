@@ -255,10 +255,10 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     </div>
       <div className={styles.form}>
       <AnimatePresence initial={false} mode="popLayout">
-        {mode === "signup" ? <motion.div key="signup-fields" className={styles.form} initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -5 }} transition={{ duration: reduce ? .14 : .28, ease: EASE }}>
+        {mode === "signup" ? <motion.div key="signup-fields" className={styles.form} initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -5 }} transition={{ duration: reduce ? .14 : .5, ease: EASE }}>
           {field("username", t("用户名", "Username"), username, setUsername, "text", "username")}
           {field("email", t("邮箱", "Email"), email, setEmail, "email", "email")}
-        </motion.div> : <motion.div key="login-fields" initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? .14 : .28, ease: EASE }}>
+        </motion.div> : <motion.div key="login-fields" initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduce ? .14 : .5, ease: EASE }}>
           {field("identifier", t("邮箱或用户名", "Email or username"), identifier, setIdentifier, "text", "username")}
         </motion.div>}
       </AnimatePresence>

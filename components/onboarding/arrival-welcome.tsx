@@ -73,7 +73,7 @@ export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, o
     return () => cancelAnimationFrame(frame);
   }, [error]);
 
-  return <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduced ? .15 : .55, ease: EASE }} className={styles.root} style={countStyle} lang={zh ? "zh" : "en"} aria-labelledby={`${id}-title`} aria-busy={busy} data-arrival-welcome>
+  return <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: reduced ? .15 : .85, ease: EASE }} className={styles.root} style={countStyle} lang={zh ? "zh" : "en"} aria-labelledby={`${id}-title`} aria-busy={busy} data-arrival-welcome>
     <div ref={scroll} className={styles.scroll} role="region" tabIndex={0} aria-label={t("欢迎与球员信息，可滚动", "Welcome and player details, scrollable")}>
       <div className={styles.content}>
         <header className={styles.heading}>
@@ -83,9 +83,9 @@ export function ArrivalWelcome({ zh, memberNumber, username, pageviews, stale, o
         </header>
 
         <CountReveal runKey={`arrival-${number ?? "pending"}`}>
-          <motion.div className={styles.invitation} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? .15 : .65, ease: EASE }} data-arrival-player>
+          <motion.div className={styles.invitation} initial={reduced ? { opacity: 0 } : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduced ? .15 : .95, ease: EASE }} data-arrival-player>
             <svg className={styles.court} viewBox="0 0 600 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
-              <motion.path d="M25 280V20H575V280M300 20V280M235 280V194H365V280M247 194a53 53 0 1 1 106 0M130 280a170 170 0 0 1 340 0" fill="none" stroke="currentColor" strokeWidth="1.2" vectorEffect="non-scaling-stroke" initial={{ pathLength: reduced ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduced ? 0 : 1.2, ease: EASE }} />
+              <motion.path d="M25 280V20H575V280M300 20V280M235 280V194H365V280M247 194a53 53 0 1 1 106 0M130 280a170 170 0 0 1 340 0" fill="none" stroke="currentColor" strokeWidth="1.2" vectorEffect="non-scaling-stroke" initial={{ pathLength: reduced ? 1 : 0 }} animate={{ pathLength: 1 }} transition={{ duration: reduced ? 0 : 1.6, ease: EASE }} />
               <circle cx="300" cy="262" r="7" fill="none" stroke="currentColor" strokeWidth="1.2" vectorEffect="non-scaling-stroke" />
             </svg>
             <div className={styles.passTop}><span className={styles.playerIntroduction}>{zh ? <>你是 <span className={styles.wordmark}>snkrfeature</span> 的</> : <><span className={styles.wordmark}>snkrfeature</span> player</>}</span><span className={styles.passType}>PLAYER ENTRY</span></div>

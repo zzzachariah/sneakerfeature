@@ -61,10 +61,10 @@
 .wordmark {
   outline: none;
   margin: 0;
-  font-size: clamp(42px, 9.5vw, 112px);
+  font-size: clamp(32px, 8.2vw, 100px);
   font-weight: 570;
   line-height: 1.06;
-  letter-spacing: -.075em;
+  letter-spacing: -.065em;
   white-space: nowrap;
 }
 
@@ -206,7 +206,7 @@
 @media (max-width: 600px) {
   .emblem { width: 100px; height: 59px; margin-bottom: 14px; }
   .emblem > div { transform: scale(2.85); }
-  .wordmark { font-size: clamp(42px, 11.2vw, 67px); }
+  .wordmark { font-size: clamp(28px, 8.2vw, 54px); }
   .tagline { margin-top: 17px; }
   .community { margin-top: 32px; }
   .figure { min-width: 100px; }

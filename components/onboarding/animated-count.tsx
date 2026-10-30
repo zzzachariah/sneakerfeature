@@ -6,10 +6,11 @@ import styles from "./animated-count.module.css";
 
 const CountProgress = createContext(1);
 /** All figures in a group use one clock and reach their real values together. */
-export function CountReveal({ children, runKey }: { children: ReactNode; runKey: string | number }) {
+export function CountReveal({ children, runKey, active = true }: { children: ReactNode; runKey: string | number; active?: boolean }) {
   const reduced = useReducedMotion();
   const [progress, setProgress] = useState(reduced ? 1 : 0);
   useEffect(() => {
+    if (!active) { setProgress(0); return; }
     if (reduced) { setProgress(1); return; }
     let frame = 0;
     let start: number | null = null;
@@ -29,7 +30,7 @@ export function CountReveal({ children, runKey }: { children: ReactNode; runKey:
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [runKey, reduced]);
+  }, [runKey, reduced, active]);
   return <CountProgress.Provider value={progress}>{children}</CountProgress.Provider>;
 }
 

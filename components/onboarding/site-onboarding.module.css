@@ -371,6 +371,26 @@
   .comparisonBody .copy { flex-shrink: 0; }
 }
 
-.formBody:not([hidden]) { animation: onb-form-enter .55s cubic-bezier(.22,1,.36,1) both; }
+.formBody:not([hidden]) { animation: onb-form-enter .85s cubic-bezier(.22,1,.36,1) both; }
 @keyframes onb-form-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .formBody:not([hidden]) { animation: none; } }
+
+/* The opening is a self-contained black stage, regardless of the saved theme. */
+.shell:has([data-testid="onboarding-tour-opening"]) { --bg: 0 0 0; --bg-elev: 20 20 22; --text: 245 245 247; --subtext: 161 161 170; --brand: 245 245 247; --brand-contrast: 0 0 0; background: #000; }
+.shell:has([data-testid="onboarding-tour-opening"]) .topbar > .wordmark { visibility: hidden; }
+.shell:has([data-testid="onboarding-tour-opening"]) .footer > :first-child { visibility: hidden; }
+.shell:has([data-testid="onboarding-tour-opening"]) :is(.logoCompact, .logoHero) img { filter: invert(1); }
+.body:has([data-picker-narrative]) .copy { transition: opacity 1s cubic-bezier(.22,1,.36,1); }
+.body:has([data-picker-narrative][data-explained="false"]) .copy { opacity: 0; visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .body:has([data-picker-narrative]) .copy { transition: none; } }
+
+.shell { transition: background-color .85s ease, color .85s ease; }
+@media (max-width: 850px) and (min-height: 601px) {
+  .body:has([data-picker-narrative]) { transition: grid-template-rows 1s cubic-bezier(.22,1,.36,1), gap 1s cubic-bezier(.22,1,.36,1); }
+  .body:has([data-picker-narrative][data-explained="false"]) { grid-template-rows: minmax(0, 0px) minmax(0, 1fr); row-gap: 0; }
+  .body:has([data-picker-narrative][data-explained="false"]) .copy { padding: 0; }
+}
+@media (max-width: 850px) and (max-height: 600px) {
+  .body:has([data-picker-narrative][data-explained="false"]) .copy { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .shell, .body:has([data-picker-narrative]) { transition: none; } }
