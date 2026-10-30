@@ -1,10 +1,13 @@
-.stage { position: relative; min-width: 0; height: auto; overflow: clip; align-self: start; padding: 25px; border: 1px solid rgb(var(--text) / .075); border-radius: 32px; color: rgb(var(--text)); background: linear-gradient(155deg, rgb(var(--bg-elev)), rgb(var(--surface))); box-shadow: 0 20px 64px rgb(var(--shadow) / .045); isolation: isolate; }
+.stage { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; max-height: 100%; overflow: hidden; align-self: stretch; padding: 16px; border: 1px solid rgb(var(--text) / .075); border-radius: 32px; color: rgb(var(--text)); background: linear-gradient(155deg, rgb(var(--bg-elev)), rgb(var(--surface))); box-shadow: 0 20px 64px rgb(var(--shadow) / .045); isolation: isolate; container: story / size; }
 .stage *, .stage *::before, .stage *::after { box-sizing: border-box; }
 .stage button, .stage a, .stage summary, .stage input, .stage textarea { -webkit-tap-highlight-color: transparent; }
 .stage button:focus-visible, .stage a:focus-visible, .stage summary:focus-visible, .stage input:focus-visible, .stage textarea:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 4px; }
 .stage button:disabled { cursor: not-allowed; opacity: .42; }
-.sceneTop { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 24px; color: rgb(var(--subtext)); font: 500 9px/1.5 var(--font-geist-mono), monospace; letter-spacing: .13em; }
-.scene { display: flex; min-width: 0; flex-direction: column; gap: 20px; }
+.sceneTop { display: flex; flex: none; justify-content: space-between; gap: 12px; padding-bottom: 9px; color: rgb(var(--subtext)); font: 500 9px/1.5 var(--font-geist-mono), monospace; letter-spacing: .13em; }
+.scene { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 12px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; padding: 4px 7px 12px 4px; scroll-padding-block: 12px; }
+.scene:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 3px; border-radius: 8px; }
+.scene > * { flex-shrink: 0; }
+.scene > :last-child[data-scroll-hint] { margin-top: -12px; }
 .scene h3, .scene h4, .scene p { margin: 0; }
 .sectionHeading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .sectionHeading > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -102,14 +105,14 @@
 .previewFacts p { min-width: 0; color: rgb(var(--subtext)); font-size: 11px; line-height: 1.75; overflow-wrap: anywhere; }
 .previewFacts p > strong { display: block; margin-bottom: 6px; color: rgb(var(--text)); font-size: 11px; font-weight: 500; }
 .previewFacts p > span { display: block; margin-bottom: 3px; color: rgb(var(--text) / .7); font-size: 10px; }
-.emptySelection { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; min-height: 350px; text-align: center; }
+.emptySelection { display: flex; flex: 1; min-height: 0; flex-direction: column; align-items: center; justify-content: safe center; gap: 18px; overflow-y: auto; text-align: center; }
 .emptySelection > svg { color: rgb(var(--brand)); }
 .emptySelection > strong { font-size: 17px; }
 .emptySelection button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 8px 15px; border: 1px solid rgb(var(--text) / .12); border-radius: 22px; color: rgb(var(--text)); background: rgb(var(--bg)); cursor: pointer; }
 @media (max-width: 600px) {
-  .stage { padding: 20px 17px; border-radius: 25px; }
-  .scene { gap: 18px; }
-  .sceneTop { padding-bottom: 20px; font-size: 8px; }
+  .stage { padding: 14px 12px; border-radius: 25px; }
+  .scene { gap: 16px; }
+  .sceneTop { padding-bottom: 10px; font-size: 8px; }
   .sectionHeading { align-items: flex-start; }
   .sectionHeading h3 { font-size: 16px; }
   .sectionHeading > div { gap: 7px; }
@@ -163,3 +166,77 @@
 .questionnaireToggle.teachingTarget { border-radius: 7px; }
 @media (max-width: 600px) { .teachingNote { min-height: 38px; font-size: 10px; } }
 @media (prefers-reduced-motion: reduce) { .teachingProgress i, .teachingTarget { transition: none; } }
+
+/* The first view contains the actual controls; only supporting evidence grows. */
+.comparisonOverview { display: grid; grid-template-columns: minmax(130px, .75fr) minmax(0, 1.6fr); gap: 12px; align-items: center; }
+.comparisonOverview > .selectedPair { grid-template-columns: 1fr; gap: 8px; }
+.comparisonOverview .shoeCard { display: grid; grid-template-columns: 68px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; align-items: center; column-gap: 5px; padding: 8px; min-height: 90px; border-radius: 15px; }
+.comparisonOverview .shoeIndex { top: 6px; left: 7px; font-size: 8px; }
+.comparisonOverview .productImage { grid-column: 1; grid-row: 1 / 3; width: 68px; height: 70px; margin: 0; }
+.comparisonOverview .shoeIdentity { grid-column: 2; gap: 3px; }
+.comparisonOverview .shoeIdentity > span { font-size: 8px; letter-spacing: .04em; }
+.comparisonOverview .shoeIdentity strong { font-size: 11px; line-height: 1.4; }
+.comparisonOverview .detailLink { grid-column: 2; min-height: 24px; font-size: 9px; }
+.comparisonOverview .radarSection { min-width: 0; padding: 0; border-top: 0; }
+.comparisonOverview .radarSection > .subheading { margin-bottom: 5px; gap: 3px 8px; }
+.comparisonOverview .subheading strong { font-size: 11px; }
+.comparisonOverview .subheading > span { font-size: 9px; }
+.radarDisplay > div { display: grid; grid-template-columns: minmax(0, 220px) minmax(60px, 1fr); align-items: center; column-gap: 5px; }
+.radarDisplay > div > svg { grid-column: 1; grid-row: 1 / 3; width: 100%; max-width: 220px; height: auto; }
+.radarDisplay > div > svg text { font-size: 16px; letter-spacing: .03em; }
+.radarDisplay > div > div { grid-column: 2; display: flex; flex-direction: column; gap: 6px; margin-top: 0; align-items: stretch; }
+.radarDisplay > div > div button { min-width: 0; min-height: 36px; justify-content: flex-start; gap: 4px; padding: 5px 6px; border-radius: 12px; }
+.radarDisplay > div > div button svg { width: 13px; flex-shrink: 0; }
+.radarDisplay > div > div button span { min-width: 0; font-size: 9px; line-height: 1.35; overflow-wrap: anywhere; }
+.radarDisplay > div > p { grid-column: 2; margin-top: 5px; font-size: 9px; line-height: 1.45; text-align: left; }
+.stage[data-story-step="1"] .sectionHeading h3 { font-size: 16px; }
+.stage[data-story-step="1"] .sectionHeading .textButton { min-height: 30px; }
+.stage[data-story-step="1"] .dimensionTabs { gap: 5px; }
+.stage[data-story-step="1"] .dimensionTabs button { min-height: 30px; padding: 5px; font-size: 10px; }
+.stage[data-story-step="2"] .profileMark { width: 44px; min-height: 44px; gap: 3px; border-radius: 13px; }
+.stage[data-story-step="2"] .profileMark svg { width: 17px; height: 17px; }
+.stage[data-story-step="2"] .profileMark span { font-size: 8px; }
+.stage[data-story-step="2"] .profileHeading { gap: 10px; }
+.stage[data-story-step="2"] .profileHeading h3 { font-size: 17px; }
+.stage[data-story-step="2"] .profileHeading p { margin-top: 3px; font-size: 11px; line-height: 1.5; }
+.stage[data-story-step="2"] .positionField legend { margin-bottom: 6px; font-size: 11px; }
+.stage[data-story-step="2"] .positionGrid button { min-height: 48px; padding: 6px 3px; gap: 4px; border-radius: 10px; }
+.stage[data-story-step="2"] .positionGrid strong { font-size: 13px; }
+.stage[data-story-step="2"] .positionGrid span { font-size: 9px; }
+.stage[data-story-step="2"] .focusSection { padding-top: 10px; }
+.stage[data-story-step="2"] .focusSection > .subheading { margin-bottom: 7px; }
+.stage[data-story-step="2"] .focusSection > div:nth-child(2) { gap: 6px; }
+.stage[data-story-step="2"] .focusSection > div:nth-child(2) > button { flex-direction: row; min-height: 44px; gap: 5px; padding: 7px 5px; border-radius: 11px; }
+.stage[data-story-step="2"] .focusSection > div:nth-child(2) > button > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.stage[data-story-step="2"] .focusSection > div:nth-child(2) > button > span:first-of-type { font-size: 11px; line-height: 1.3; }
+.stage[data-story-step="2"] .priorityOrder { min-height: 22px; margin-top: 6px; }
+.stage[data-story-step="2"] .teachingNote, .stage[data-story-step="3"] .teachingNote { min-height: 25px; font-size: 10px; line-height: 1.45; }
+.stage[data-story-step="3"] .pickerHeading h3 { font-size: 17px; }
+.stage[data-story-step="3"] .pickerHeading p { margin-top: 3px; font-size: 11px; line-height: 1.5; }
+.stage[data-story-step="3"] .pickerIcon { width: 36px; height: 36px; border-radius: 12px; }
+.stage[data-story-step="3"] .previewTag { padding: 4px 8px; }
+.stage[data-story-step="3"] .exampleChips { gap: 6px; }
+.stage[data-story-step="3"] .exampleChips button { min-height: 32px; padding: 6px 9px; font-size: 10px; }
+.stage[data-story-step="3"] .composer { padding: 12px; border-radius: 18px; }
+.stage[data-story-step="3"] .composer label { margin-bottom: 5px; }
+.stage[data-story-step="3"] .composer textarea { height: 80px; min-height: 72px; max-height: 180px; font-size: 16px; line-height: 1.5; }
+.stage[data-story-step="3"] .composerBottom { padding-top: 5px; }
+@container story (max-width: 460px) {
+  .comparisonOverview { grid-template-columns: 1fr; gap: 8px; }
+  .comparisonOverview > .selectedPair { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
+  .comparisonOverview .shoeCard { grid-template-columns: 48px minmax(0,1fr); min-height: 74px; padding: 6px; }
+  .comparisonOverview .productImage { width: 48px; height: 56px; }
+  .comparisonOverview .shoeIdentity strong { font-size: 10px; }
+  .comparisonOverview .shoeIdentity > span { font-size: 8px; }
+  .radarDisplay > div { grid-template-columns: minmax(0, 205px) minmax(70px, 1fr); }
+  .radarDisplay > div > svg { max-width: 205px; }
+  .scene { gap: 10px; }
+  .stage[data-story-step="1"] .sectionHeading h3 { font-size: 14px; }
+}
+@container story (max-height: 460px) {
+  .scene { gap: 9px; }
+  .sceneTop { padding-bottom: 6px; }
+  .radarDisplay > div { grid-template-columns: minmax(0, 205px) minmax(60px, 1fr); }
+  .radarDisplay > div > svg { max-width: 205px; }
+  .stage[data-story-step="2"] .profileHeading p { line-height: 1.4; }
+}

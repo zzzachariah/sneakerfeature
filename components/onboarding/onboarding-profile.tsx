@@ -10,6 +10,7 @@ import { HEIGHT_MAX, HEIGHT_MIN, POSITIONS, SKILL_LEVELS, WEIGHT_MAX, WEIGHT_MIN
 import { DIM_KEYS, isValidFocus, type DimKey, type RatingFocus } from "@/lib/star-rating";
 import { personaSchema } from "@/lib/validation/schemas";
 import { onboardingRequest } from "./form-utils";
+import { ScrollHint } from "./scroll-hint";
 import styles from "./onboarding-forms.module.css";
 
 export type OnboardingProfileProps = { onComplete: () => void; onBack?: () => void };
@@ -60,6 +61,8 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
   const [baseConfirmed, setBaseConfirmed] = useState(false);
   const busyRef = useRef(false);
   const stageHeading = useRef<HTMLHeadingElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
   const didChangeStep = useRef(false);
   const loadGeneration = useRef(0);
   const accountRef = useRef(userId);
@@ -67,6 +70,19 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
   const completedRef = useRef(false);
 
   const stepNames = [t("球员身份", "Your game"), t("身体信息", "Your build"), t("选鞋偏好", "Your priorities"), t("确认档案", "Ready to play")];
+
+  function revealField(target: HTMLElement | null) {
+    const panel = scrollRef.current;
+    if (!panel || !target || !panel.getClientRects().length) return;
+    const bounds = panel.getBoundingClientRect();
+    const field = target.getBoundingClientRect();
+    if (field.top < bounds.top + 8) panel.scrollTop += field.top - bounds.top - 8;
+    else if (field.bottom > bounds.bottom - 8) panel.scrollTop += field.bottom - bounds.bottom + 8;
+  }
+
+  useEffect(() => {
+    if (message) revealField(feedbackRef.current);
+  }, [message]);
 
   async function loadSaved() {
     const generation = ++loadGeneration.current;
@@ -115,7 +131,11 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
 
   useEffect(() => {
     if (!didChangeStep.current) return;
-    const timer = window.setTimeout(() => stageHeading.current?.focus({ preventScroll: true }), reduce ? 150 : 320);
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    const timer = window.setTimeout(() => {
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      stageHeading.current?.focus({ preventScroll: true });
+    }, reduce ? 150 : 320);
     return () => window.clearTimeout(timer);
   }, [step, reduce]);
 
@@ -141,6 +161,13 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
     }
     if (step === 2 && picks.length !== 0 && picks.length !== 3) next.picks = t("按顺序选满 3 项，或暂不设置偏好。", "Pick three in order, or continue without preferences.");
     setErrors(next);
+    const firstError = Object.keys(next)[0];
+    if (firstError) requestAnimationFrame(() => {
+      const group = scrollRef.current?.querySelector<HTMLElement>(`[data-profile-field="${firstError}"]`) ?? null;
+      const target = group?.querySelector<HTMLElement>("input, button") ?? group;
+      target?.focus({ preventScroll: true });
+      revealField(target);
+    });
     return !Object.keys(next).length;
   }
 
@@ -216,28 +243,29 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
       <h2 id={`${id}-title`} className={styles.title}>{t("先认识球场上的你。", "Let’s meet the player.")}</h2>
       <p className={styles.description}>{t("几项真实信息，让选鞋更有依据。之后随时可以修改。", "A few details give your shoe choices more context. You can edit them anytime.")}</p>
     </div>
-    {loading ? <div className={`${styles.feedback} ${styles.notice}`} role="status"><Loader2 size={16} className={styles.spinner} /><span>{t("正在读取你的球员档案…", "Checking your player profile…")}</span></div> : loadFailed ? <div>
-      <div className={styles.feedback} role="alert"><AlertCircle size={16} /><span>{t("未能读取档案。请重试，避免覆盖已有信息。", "Your profile couldn’t be loaded. Retry before making changes to existing details.")}</span></div>
-      <button type="button" className={styles.primary} style={{ marginTop: 16 }} onClick={() => void loadSaved()}>{t("重新读取", "Try again")}</button>
+    {loading ? <div ref={scrollRef} className={styles.formScroll}><div className={`${styles.feedback} ${styles.notice}`} role="status"><Loader2 size={16} className={styles.spinner} /><span>{t("正在读取你的球员档案…", "Checking your player profile…")}</span></div><ScrollHint targetRef={scrollRef} zh={zh} /></div> : loadFailed ? <div className={styles.panelForm}>
+      <div ref={scrollRef} className={styles.formScroll}><div className={styles.feedback} role="alert"><AlertCircle size={16} /><span>{t("未能读取档案。请重试，避免覆盖已有信息。", "Your profile couldn’t be loaded. Retry before making changes to existing details.")}</span></div><ScrollHint targetRef={scrollRef} zh={zh} /></div>
+      <div className={styles.formActions}><button type="button" className={styles.primary} onClick={() => void loadSaved()}>{t("重新读取", "Try again")}</button></div>
     </div> : <>
       <div className={styles.steps} aria-hidden="true">{stepNames.map((_, index) => <span key={index} className={styles.stepMark} data-done={index <= step} />)}</div>
       <div className={styles.stepCaption}><span>{stepNames[step]}</span><span>{step + 1} / 4</span></div>
+      <form className={styles.panelForm} noValidate onSubmit={(event) => { event.preventDefault(); if (busyRef.current) return; if (step < 3) { if (validateStep()) move(step + 1); } else void finish(); }}>
+        <div ref={scrollRef} className={styles.formScroll} onFocusCapture={(event) => { if (event.target !== stageHeading.current && event.target.matches(":focus-visible")) revealField(event.target); }}>
       <motion.div layout className={styles.identityCard} transition={{ duration: reduce ? .14 : .3, ease: EASE }}>
         <motion.div className={styles.avatar} layoutId={`${id}-player-mark`}><UserRound size={25} strokeWidth={1.4} /></motion.div>
         <div style={{ minWidth: 0 }}><div className={styles.identityName}>{username || t("你的球员档案", "Your player profile")}</div><div className={styles.identityDetail}>{positions.length ? positions.join(" / ") : t("你的打法，由你定义", "Your game, in your own terms")}{skill ? ` · ${SKILL_TEXT[skill][zh ? 0 : 1]}` : ""}</div></div>
       </motion.div>
-      <form noValidate onSubmit={(event) => { event.preventDefault(); if (busyRef.current) return; if (step < 3) { if (validateStep()) move(step + 1); } else void finish(); }}>
         <AnimatePresence initial={false} mode="wait" custom={direction}>
           <motion.div key={step} custom={direction} initial={{ opacity: 0, x: reduce ? 0 : direction * 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: reduce ? 0 : direction * -12 }} transition={{ duration: reduce ? .14 : .28, ease: EASE }}>
             <h3 ref={stageHeading} tabIndex={-1} className="sr-only">{stepNames[step]}</h3>
             {step === 0 && <div className={styles.stack}>
-              <fieldset className={styles.fieldGroup} aria-describedby={errors.positions ? `${id}-positions-error` : undefined}>
+              <fieldset className={styles.fieldGroup} data-profile-field="positions" aria-invalid={Boolean(errors.positions)} aria-describedby={errors.positions ? `${id}-positions-error` : undefined}>
                 <legend className={styles.legend}>{t("你常打什么位置？", "Where do you play?")} <span className={styles.optional}>{t("选择 1–2 项", "Choose 1–2")}</span></legend>
                 <div className={styles.positions}>{POSITIONS.map((position) => <motion.button key={position} type="button" className={styles.position} data-selected={positions.includes(position)} aria-pressed={positions.includes(position)} onClick={() => togglePosition(position)} whileTap={reduce ? undefined : { scale: .97 }}>
                   <strong>{position}</strong><span>{POSITION_TEXT[position][zh ? 0 : 1]}</span>
                 </motion.button>)}</div>{error("positions")}
               </fieldset>
-              <fieldset className={styles.fieldGroup} aria-describedby={errors.skill ? `${id}-skill-error` : undefined}>
+              <fieldset className={styles.fieldGroup} data-profile-field="skill" aria-invalid={Boolean(errors.skill)} aria-describedby={errors.skill ? `${id}-skill-error` : undefined}>
                 <legend className={styles.legend}>{t("你目前的篮球水平", "Your current level")}</legend>
                 <div className={styles.choiceGrid}>{SKILL_LEVELS.map((value) => <button key={value} type="button" className={styles.choice} data-selected={skill === value} aria-pressed={skill === value} onClick={() => { setSkill(value); setErrors((e) => ({ ...e, skill: "" })); }}>
                   <span className={styles.choiceDot}>{skill === value && <Check size={11} />}</span><span className={styles.choiceText}>{SKILL_TEXT[value][zh ? 0 : 1]}<span className={styles.choiceHelp}>{SKILL_TEXT[value][zh ? 2 : 3]}</span></span>
@@ -248,18 +276,18 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
               <div className={styles.measurements}>{([
                 ["height", t("身高", "Height"), height, setHeight, "cm", HEIGHT_MIN, HEIGHT_MAX],
                 ["weight", t("体重", "Weight"), weight, setWeight, "kg", WEIGHT_MIN, WEIGHT_MAX]
-              ] as const).map(([key, label, value, setter, unit, min, max]) => <div key={key}>
+              ] as const).map(([key, label, value, setter, unit, min, max]) => <div key={key} data-profile-field={key}>
                 <div className={styles.field}><input id={`${id}-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" value={value} onChange={(event) => { setter(event.target.value); setErrors((e) => ({ ...e, [key]: "" })); }} autoComplete="off" placeholder=" " aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `${id}-${key}-error` : `${id}-${key}-hint`} className={`${styles.input} ${styles.unitInput}`} />
                   <label htmlFor={`${id}-${key}`} className={styles.label}>{label}</label><span className={styles.unit}>{unit}</span>
                 </div>{error(key)}<p id={`${id}-${key}-hint`} className={styles.hint}>{min}–{max} {unit}</p>
               </div>)}</div>
-              <fieldset className={styles.fieldGroup} aria-describedby={`${id}-flat-foot-help`}>
+              <fieldset className={styles.fieldGroup} data-profile-field="flatFoot" aria-invalid={Boolean(errors.flatFoot)} aria-describedby={`${id}-flat-foot-help${errors.flatFoot ? ` ${id}-flatFoot-error` : ""}`}>
                 <legend className={styles.legend}>{t("你有扁平足吗？", "Do you have flat feet?")}</legend>
                 <div className={styles.choiceGrid}>{[false, true].map((value) => <button key={String(value)} type="button" className={styles.choice} data-selected={flatFoot === value} aria-pressed={flatFoot === value} onClick={() => { setFlatFoot(value); setErrors((e) => ({ ...e, flatFoot: "" })); }}><span className={styles.choiceDot}>{flatFoot === value && <Check size={11} />}</span><span className={styles.choiceText}>{value ? t("有", "Yes") : t("没有", "No")}</span></button>)}</div>
                 <p id={`${id}-flat-foot-help`} className={styles.hint}>{t("根据你已了解的自身情况填写，用于选鞋参考。", "Use what you already know about your feet. This adds context to your shoe choices.")}</p>{error("flatFoot")}
               </fieldset>
             </div>}
-            {step === 2 && <fieldset className={styles.fieldGroup}>
+            {step === 2 && <fieldset className={styles.fieldGroup} data-profile-field="picks" aria-invalid={Boolean(errors.picks)} aria-describedby={errors.picks ? `${id}-picks-error` : undefined}>
               <legend className={styles.legend}>{t("选鞋时，你最看重什么？", "What matters most in a shoe?")} <span className={styles.optional}>{t("可选", "Optional")}</span></legend>
               <p className={styles.hint} style={{ margin: "-4px 0 16px" }}>{t("按重要程度依次选择 3 项。也可以以后再选。", "Choose three, starting with your top priority. Or leave this for later.")}</p>
               <div className={styles.choiceGrid}>{DIM_KEYS.map((key) => { const rank = picks.indexOf(key); return <button key={key} type="button" className={styles.choice} data-selected={rank >= 0} aria-pressed={rank >= 0} aria-label={`${DIM_TEXT[key][zh ? 0 : 1]}${rank >= 0 ? `, ${t("优先级", "priority")} ${rank + 1}` : ""}`} onClick={() => togglePick(key)}>
@@ -278,8 +306,10 @@ export function OnboardingProfile({ onComplete, onBack }: OnboardingProfileProps
             </div>}
           </motion.div>
         </AnimatePresence>
+          {message && <div ref={feedbackRef} className={`${styles.feedback} ${styles.profileFeedback} ${partial ? styles.notice : ""}`} role="status">{partial ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}<span>{message}</span></div>}
+          <ScrollHint targetRef={scrollRef} zh={zh} />
+        </div>
         <div className={styles.profileActions}>
-          {message && <div className={`${styles.feedback} ${partial ? styles.notice : ""}`} role="status">{partial ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}<span>{message}</span></div>}
           {partial && baseConfirmed ? <>
             <motion.button type="button" className={styles.primary} disabled={busy} onClick={() => void finish(true)} whileTap={reduce ? undefined : { scale: .985 }}>{busy ? <Loader2 size={18} className={styles.spinner} /> : <ArrowRight size={18} />}{t("先开始球鞋探索", "Start exploring now")}</motion.button>
             <button type="button" className={styles.secondary} disabled={busy} onClick={() => void finish()}>{t("重试保存偏好", "Retry saving priorities")}</button>

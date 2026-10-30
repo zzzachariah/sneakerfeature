@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, ArrowUp, Check, CircleHelp, GitCompareArrows, La
 import { useAuthState } from "@/components/auth/auth-state-provider";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { EASE } from "@/lib/motion/constants";
+import { ScrollHint } from "./scroll-hint";
 import styles from "./ai-onboarding.module.css";
 
 type Status = "skipped" | "completed";
@@ -82,6 +83,7 @@ export function AiOnboarding({ ready, busy, autoBlocked = false, onActiveChange 
   const id = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const ownerRef = useRef<string | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const openedForRef = useRef<string | null>(null);
@@ -391,7 +393,7 @@ export function AiOnboarding({ ready, busy, autoBlocked = false, onActiveChange 
                       <div className={styles.eyebrow}><Sparkles size={14} />{zh ? "AI 选鞋指南" : "SMART PICKER GUIDE"}</div>
                       <button type="button" className={styles.skip} onClick={() => finish("skipped")} disabled={phase !== "open"}>{zh ? "跳过" : "Skip"}<X size={14} /></button>
                     </header>
-                    <div className={styles.scrollBody}>
+                    <div ref={scrollRef} className={styles.scrollBody}>
                       <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                         <motion.div key={step} custom={direction} initial={reduced ? { opacity: 0 } : { opacity: 0, x: direction * 24, y: 6 }} animate={{ opacity: 1, x: 0, y: 0 }} exit={reduced ? { opacity: 0 } : { opacity: 0, x: direction * -18, y: -4 }} transition={{ duration: reduced ? 0.16 : 0.48, ease: EASE }} className={styles.stepBody}>
                           <p className={styles.chapter}>{zh ? ["认识 AI 选鞋", "描述你的需求", "找到起点", "理解推荐", "开始探索"][step] : ["MEET YOUR PICKER", "YOUR NEEDS", "A STARTING POINT", "YOUR SHORTLIST", "READY WHEN YOU ARE"][step]}</p>
@@ -400,6 +402,7 @@ export function AiOnboarding({ ready, busy, autoBlocked = false, onActiveChange 
                           <DemoScene key={`${step}-${demoKey}`} step={step} zh={zh} reduced={reduced} realResult={step === 3 && Boolean(anchor)} />
                         </motion.div>
                       </AnimatePresence>
+                      <ScrollHint targetRef={scrollRef} zh={zh}/>
                     </div>
                     <footer className={styles.footer}>
                       <div className={styles.progress} aria-label={zh ? `第 ${step + 1} 步，共 5 步` : `Step ${step + 1} of 5`}>

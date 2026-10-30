@@ -13,6 +13,7 @@ import { POSITIONS, type Position } from "@/lib/persona/types";
 import type { Shoe as CatalogShoe, ShoeSpec } from "@/lib/types";
 import styles from "./site-onboarding.module.css";
 import interactive from "./site-interactive-stories.module.css";
+import { ScrollHint } from "./scroll-hint";
 
 export type StoryShoe = { name: string; brand: string; image: string | null; slug: string; shoe: CatalogShoe };
 export type StoryCatalog = { shoes: StoryShoe[]; shoeCount: number | null; brandCount: number | null };
@@ -134,7 +135,7 @@ function OnboardingRadar({ shoes, active }: { shoes: CatalogShoe[]; active: bool
   // Keep the site's existing 220ms delay / 720ms draw-in. The chart itself must
   // enter the viewport: a tall intro scene can be visible well before its radar.
   const { ref, inView } = useInView<HTMLDivElement>(.15, { repeat: true });
-  return <div ref={ref} data-testid="onboarding-radar" data-active={active && inView}><CompareRadar shoes={shoes} active={active && inView}/></div>;
+  return <div ref={ref} className={interactive.radarDisplay} data-testid="onboarding-radar" data-active={active && inView}><CompareRadar shoes={shoes} active={active && inView}/></div>;
 }
 
 function TeachingNote({ cue, labels, zh, reduced }: { cue: number | null; labels: string[]; zh: boolean; reduced: boolean }) {
@@ -145,9 +146,15 @@ function TeachingNote({ cue, labels, zh, reduced }: { cue: number | null; labels
   </div>;
 }
 
-const StoryScene = forwardRef<HTMLDivElement, { children: ReactNode; reduced: boolean }>(function StoryScene({ children, reduced }, ref) {
+const StoryScene = forwardRef<HTMLDivElement, { children: ReactNode; reduced: boolean; label: string; zh: boolean }>(function StoryScene({ children, reduced, label, zh }, ref) {
   const present = useIsPresent();
-  return <motion.div ref={ref} className={interactive.scene} inert={!present} aria-hidden={!present} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .55, ease }}>{children}</motion.div>;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const setRef = useCallback((node: HTMLDivElement | null) => {
+    scrollRef.current = node;
+    if (typeof ref === "function") ref(node);
+    else if (ref) ref.current = node;
+  }, [ref]);
+  return <motion.div ref={setRef} className={interactive.scene} data-onboarding-story-scroll role="region" aria-label={label} tabIndex={0} inert={!present} aria-hidden={!present} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .55, ease }}>{children}<ScrollHint targetRef={scrollRef} zh={zh}/></motion.div>;
 });
 
 export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, introDemoRunKey = 0 }: {
@@ -250,7 +257,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
     { label: zh ? "从我的打法出发" : "Start with my game", text: zh ? `我${positions.length ? `打${positionText}` : "经常打篮球"}，最看重${picks.length ? picks.map(key => dimensionLabel(key, true)).join("、") : "抓地和稳定"}。请结合 ${pairNames} 的资料帮我理解取舍，资料不足时请说明。` : `I ${positions.length ? `play ${positionText}` : "play basketball regularly"} and care most about ${picks.length ? picks.map(key => dimensionLabel(key, false)).join(", ") : "traction and stability"}. Help me understand the trade-offs between ${pairNames}, and note any missing evidence.` }
   ];
 
-  return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-teaching-phase={cue ?? "quiet"} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
+  return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-story-step={step} data-teaching-phase={cue ?? "quiet"} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
     {step === 0 ? <div className={styles.heroScene}>
       <div className={styles.heroHalo} aria-hidden="true"/>
       <motion.div layoutId={reduced || !primary ? undefined : `sf-shoe-${primary.slug}`} className={styles.heroShoe} initial={reduced ? false : { y: 25, rotate: -12 }} animate={{ y: 0, rotate: reduced ? 0 : -6 }} transition={{ ...transition, duration: reduced ? .15 : 1.1 }}><ShoeImage shoe={primary} className={styles.shoeImage}/></motion.div>
@@ -258,19 +265,19 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
     </div> : !havePair ? <div className={interactive.emptySelection}><GitCompareArrows size={28}/><strong>{zh ? "先选两双，体验真实对比。" : "Pick two shoes to try a real comparison."}</strong><button type="button" onClick={onChangeSelection}>{zh ? "回到球鞋墙" : "Back to the shoe wall"}<ArrowUpRight size={16}/></button></div> : <>
       <div className={interactive.sceneTop}><span>{step === 1 ? "SIDE BY SIDE" : step === 2 ? "YOUR GAME, YOUR PRIORITIES" : "SMART PICKER"}</span><span>{String(step + 1).padStart(2, "0")} / 04</span></div>
       <AnimatePresence initial={false} mode="popLayout">
-        {step === 1 && <StoryScene key="comparison" reduced={reduced}>
+        {step === 1 && <StoryScene key="comparison" reduced={reduced} zh={zh} label={zh ? "球鞋对比演示" : "Shoe comparison preview"}>
           <div className={interactive.sectionHeading}><div><GitCompareArrows size={18}/><h3>{zh ? "你选的两双，放在一起看。" : "Your two picks. Side by side."}</h3></div><button type="button" className={interactive.textButton} onClick={onChangeSelection}><SlidersHorizontal size={14}/>{zh ? "修改选择" : "Change picks"}</button></div>
-          <SelectedPair shoes={shoes} zh={zh} reduced={reduced}/>
+          <div className={interactive.comparisonOverview}><SelectedPair shoes={shoes} zh={zh} reduced={reduced}/>
           <div className={interactive.radarSection} data-testid="onboarding-real-comparison">
             <div className={interactive.subheading}><strong>{zh ? "六维性能资料" : "Six dimensions of performance"}</strong><span>{zh ? "与站内对比工具一致" : "The same comparison used on the site"}</span></div>
             {shoes.every(shoe => hasCompletePerformance(shoe.shoe)) ? <OnboardingRadar shoes={shoes.map(shoe => shoe.shoe)} active={visible && inView && step === 1}/> : <ComparisonEvidenceTable shoes={shoes.map(shoe => shoe.shoe)}/>}
-          </div>
+          </div></div>
           <div className={interactive.dimensionTabs} aria-label={zh ? "查看真实性能资料" : "Explore recorded performance"}>{DIM_KEYS.map(key => <button type="button" key={key} aria-pressed={dimension === key} onClick={() => setDimension(key)}>{dimensionLabel(key, zh)}</button>)}</div>
           <FieldComparison shoes={shoes} dimension={dimension} zh={zh} reduced={reduced}/>
           <ConstructionDisclosure shoes={shoes} zh={zh} reduced={reduced}/>
           <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "资料参考，并非本站实测；缺少依据的项目不会补分。" : "Reference information, not our own testing. Missing evidence is never filled with a score."}</p>
         </StoryScene>}
-        {step === 2 && <StoryScene key="profile" reduced={reduced}>
+        {step === 2 && <StoryScene key="profile" reduced={reduced} zh={zh} label={zh ? "球员档案演示" : "Player profile preview"}>
           <div className={interactive.profileHeading}><motion.div className={interactive.profileMark} layoutId={reduced ? undefined : "sf-player-card"} transition={transition}><UserRound size={23}/><span>{positions.length ? positions.join(" / ") : "YOU"}</span></motion.div><div><h3>{zh ? "先从你的打法开始。" : "Start with your game."}</h3><p>{zh ? "试选你的位置和关注重点，看看资料怎样变得更好读。" : "Try your positions and priorities, then see the details that matter to you."}</p></div></div>
           <TeachingNote cue={cue} zh={zh} reduced={reduced} labels={zh ? ["先选常打的位置，最多两个。", "再按顺序点选你最在意的三项。", "在下方，读你关注的真实鞋款资料。"] : ["Start with up to two on-court positions.", "Then choose three priorities, in order.", "Read the documented details that matter to you."]}/>
           <fieldset className={`${interactive.positionField} ${interactive.teachingTarget}`} data-teaching-target="positions" data-teaching={cue === 0}><legend>{zh ? "场上位置" : "On-court position"}<span>{zh ? "可选 1–2 个" : "Choose up to two"}</span></legend><div className={interactive.positionGrid}>{POSITIONS.map(position => <button type="button" key={position} aria-pressed={positions.includes(position)} onClick={() => togglePosition(position)}><strong>{position}</strong><span>{POSITION_NAMES[position][zh ? 0 : 1]}</span>{positions.includes(position) && <Check size={12}/>}</button>)}</div></fieldset>
@@ -278,7 +285,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
           <div className={`${interactive.focusPreview} ${interactive.teachingTarget}`} data-teaching-target="profile-evidence" data-teaching={cue === 2}><div className={interactive.subheading}><strong>{picks.length ? (zh ? `优先看：${dimensionLabel(focus, zh)}` : `Look first: ${dimensionLabel(focus, zh)}`) : (zh ? "先看看抓地资料" : "A first look at traction")}</strong><span>{zh ? "仍然是你选的两双" : "Still your two selected shoes"}</span></div><SelectedPair shoes={shoes} zh={zh} reduced={reduced} compact/><FieldComparison shoes={shoes} dimension={focus} zh={zh} reduced={reduced}/></div>
           <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "这里只临时试选，不会保存。注册后再把你的位置和偏好加入正式球员档案。" : "This is a temporary preview and will not be saved. Add your positions and priorities to your player profile after signing up."}</p>
         </StoryScene>}
-        {step === 3 && <StoryScene key="picker" reduced={reduced}>
+        {step === 3 && <StoryScene key="picker" reduced={reduced} zh={zh} label={zh ? "AI 选鞋演示" : "Smart Picker preview"}>
           <div className={interactive.pickerHeading}><span className={interactive.pickerIcon}><Sparkles size={21}/></span><div><h3>Smart Picker</h3><p>{zh ? "把需求说清楚，让选鞋有方向。" : "Put your needs into words."}</p></div><motion.div className={interactive.identityBadge} layoutId={reduced ? undefined : "sf-player-card"} transition={transition}><UserRound size={12}/><span>{positions.length ? positions.join(" / ") : (zh ? "你的打法" : "Your game")}</span></motion.div></div>
           <div className={interactive.previewTag}>{zh ? "交互预览 · 注册后才能正式询问 AI" : "Interactive preview · Sign up to ask AI"}</div>
           <TeachingNote cue={cue} zh={zh} reduced={reduced} labels={zh ? ["先说出你的打法、场地和需求。", "还没想好？这里可以帮你整理需求。", "下方是所选两双的真实资料预览。"] : ["Describe your game, your court and your needs.", "Need a starting point? Try the questionnaire here.", "Below are the documented facts for your two picks."]}/>

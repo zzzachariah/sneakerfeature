@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { AlertCircle, ArrowRight, Check, Eye, EyeOff, Loader2, LockKeyhole } from "lucide-react";
@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { EASE } from "@/lib/motion/constants";
 import { authSchema } from "@/lib/validation/schemas";
 import { onboardingRequest, onboardingTimeout, OnboardingRequestError } from "./form-utils";
+import { ScrollHint } from "./scroll-hint";
 import styles from "./onboarding-forms.module.css";
 
 type Mode = "signup" | "login";
@@ -51,7 +52,22 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
   const busyRef = useRef(false);
   const humanCheck = useRef<HumanCheckHandle>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const feedbackRef = useRef<HTMLDivElement>(null);
   const configured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
+  function revealField(target: HTMLElement | null) {
+    const panel = scrollRef.current;
+    if (!panel || !target || !panel.getClientRects().length) return;
+    const bounds = panel.getBoundingClientRect();
+    const field = target.getBoundingClientRect();
+    if (field.top < bounds.top + 8) panel.scrollTop += field.top - bounds.top - 8;
+    else if (field.bottom > bounds.bottom - 8) panel.scrollTop += field.bottom - bounds.bottom + 8;
+  }
+
+  useEffect(() => {
+    if (message) revealField(feedbackRef.current);
+  }, [message]);
 
   function selectMode(next: Mode) {
     if (busyRef.current || next === mode) return;
@@ -63,10 +79,16 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     setRecovery(false);
     setToken("");
     humanCheck.current?.reset();
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }
 
   function fieldError(field: Fields, value: string) {
     setErrors((current) => ({ ...current, [field]: value }));
+    if (value) requestAnimationFrame(() => {
+      const target = formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']") ?? null;
+      target?.focus({ preventScroll: true });
+      revealField(target?.closest<HTMLElement>("[data-form-field]") ?? target);
+    });
   }
 
   function recoverLogin(reason: string) {
@@ -92,7 +114,11 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     if (!token || token === "demo-token") next.verification = t("请完成下方的人机验证。", "Complete the verification below.");
     setErrors(next);
     if (Object.keys(next).length) {
-      requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>("[aria-invalid='true']")?.focus());
+      requestAnimationFrame(() => {
+        const target = formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']") ?? null;
+        target?.focus({ preventScroll: true });
+        revealField(target?.closest<HTMLElement>("[data-form-field]") ?? target);
+      });
       return false;
     }
     return true;
@@ -172,7 +198,7 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     const error = errors[name];
     const isPassword = name === "password";
     const inputId = `${id}-${name}`;
-    return <div className={styles.fieldWrap}>
+    return <div className={styles.fieldWrap} data-form-field>
       <div className={styles.field}>
         <input id={inputId} name={name} value={value} onChange={(event) => { setValue(event.target.value); if (error) fieldError(name, ""); }}
           type={isPassword ? (showPassword ? "text" : "password") : type} autoComplete={autoComplete}
@@ -200,7 +226,9 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
         <span className={styles.tabLabel}>{item === "signup" ? t("创建账号", "Create account") : t("已有账号", "Sign in")}</span>
       </button>)}
     </div>
-    <form ref={formRef} className={styles.form} onSubmit={submit} noValidate aria-busy={busy}>
+    <form ref={formRef} className={styles.panelForm} onSubmit={submit} noValidate aria-busy={busy}>
+      <div ref={scrollRef} className={styles.formScroll} onFocusCapture={(event) => { if (event.target.matches(":focus-visible")) revealField(event.target); }}>
+      <div className={styles.form}>
       <AnimatePresence initial={false} mode="popLayout">
         {mode === "signup" ? <motion.div key="signup-fields" className={styles.form} initial={{ opacity: 0, y: reduce ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduce ? 0 : -5 }} transition={{ duration: reduce ? .14 : .28, ease: EASE }}>
           {field("username", t("用户名", "Username"), username, setUsername, "text", "username")}
@@ -211,28 +239,33 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
       </AnimatePresence>
       {field("password", t("密码", "Password"), password, setPassword, "password", mode === "signup" ? "new-password" : "current-password")}
       {mode === "login" && <Link href="/forgot-password" target="_blank" rel="noopener noreferrer" className={styles.forgot}>{t("忘记密码？", "Forgot password?")}</Link>}
-      {mode === "signup" && <div>
+      {mode === "signup" && <div data-form-field>
         <label className={styles.consent}>
           <input type="checkbox" checked={agreed} onChange={(event) => { setAgreed(event.target.checked); fieldError("agreement", ""); }} disabled={busy} aria-invalid={Boolean(errors.agreement)} aria-describedby={errors.agreement ? `${id}-agreement-error` : undefined} />
           <span>{t("我已阅读并同意", "I agree to the")} <Link href="/terms" target="_blank" rel="noopener noreferrer" className={styles.link}>{t("服务条款", "Terms of Use")}</Link> {t("和", "and")} <Link href="/privacy" target="_blank" rel="noopener noreferrer" className={styles.link}>{t("隐私政策", "Privacy Policy")}</Link>{zh ? "。" : "."}</span>
         </label>
         {errors.agreement && <p id={`${id}-agreement-error`} className={styles.fieldError}>{errors.agreement}</p>}
       </div>}
-      <div className={styles.verification}>
+      <div className={styles.verification} data-form-field tabIndex={-1} aria-invalid={Boolean(errors.verification)} aria-describedby={errors.verification ? `${id}-verification-error` : undefined}>
         {configured ? <HumanCheck key={mode} ref={humanCheck} action={mode === "signup" ? "register" : "login"} onToken={setToken} /> : <div className={styles.feedback} role="status"><AlertCircle size={16} /><span>{t("账号服务暂不可用，请稍后重试。", "Account setup is temporarily unavailable. Please try again later.")}</span></div>}
-        {errors.verification && <p className={styles.fieldError} role="alert">{errors.verification}</p>}
+        {errors.verification && <p id={`${id}-verification-error`} className={styles.fieldError} role="alert">{errors.verification}</p>}
       </div>
       <AnimatePresence initial={false}>
-        {message && <motion.div key={message} className={`${styles.feedback} ${recovery ? styles.notice : ""}`} role="status" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: reduce ? .14 : .22, ease: EASE }}>
+        {message && <motion.div ref={feedbackRef} key={message} className={`${styles.feedback} ${recovery ? styles.notice : ""}`} role="status" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} onAnimationComplete={() => revealField(feedbackRef.current)} transition={{ duration: reduce ? .14 : .22, ease: EASE }}>
           {recovery ? <Check size={16} /> : <AlertCircle size={16} />}<span>{message}</span>
         </motion.div>}
       </AnimatePresence>
+      </div>
+      <ScrollHint targetRef={scrollRef} zh={zh} />
+      </div>
+      <div className={styles.formActions}>
       <motion.button type="submit" className={styles.primary} disabled={busy || !configured} whileTap={reduce ? undefined : { scale: .985 }} transition={{ duration: .12 }}>
         {busy ? <Loader2 size={18} className={styles.spinner} /> : null}
         {busy ? t(mode === "signup" ? "正在创建账号…" : "正在登录…", mode === "signup" ? "Creating your account…" : "Signing in…") : mode === "signup" ? t("创建账号，继续", "Create account & continue") : t("登录，继续", "Sign in & continue")}
         {!busy && <ArrowRight size={18} />}
       </motion.button>
+      <p className={styles.footerNote}><LockKeyhole size={12} />{t("表单不会将密码保存在设备上。", "This form never stores your password on this device.")}</p>
+      </div>
     </form>
-    <p className={styles.footerNote}><LockKeyhole size={12} />{t("表单不会将密码保存在设备上。", "This form never stores your password on this device.")}</p>
   </section>;
 }
