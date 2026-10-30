@@ -3,7 +3,7 @@ import OpenAI from "openai";
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { getPublicShoes } from "@/lib/data/shoes";
-import { createPackyClientForModel, PACKY_MODEL } from "@/lib/ai/packy-client";
+import { createPackyClientForModel, HAIKU_MODEL, PACKY_MODEL, resolvedKeyEnvName } from "@/lib/ai/packy-client";
 import { recommendOnboardingShoes, matchShoeByName } from "@/lib/ai/recommend";
 import { demoCandidateShoes } from "@/lib/ai/demo-evidence";
 import { startDeadline } from "@/lib/ai/budget";
@@ -38,7 +38,7 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
   const shoes = demoCandidateShoes(await getPublicShoes(),input.shoeIds);
   const selected = input.shoeIds.map(id => shoes.find(shoe => shoe.id === id));
   if (selected.some(shoe => !shoe)) throw new OnboardingError("invalid_shoes", "Choose two available shoes from the wall.", 400);
-  const model = PACKY_MODEL;
+  const model = resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? HAIKU_MODEL : PACKY_MODEL;
   const client = createPackyClientForModel(model);
   if (!client) throw new OnboardingError("unavailable", "The AI demo is temporarily unavailable.", 503, true);
   const prompt = demoPrompt(input, selected.map(shoe => shoe!.shoe_name));
