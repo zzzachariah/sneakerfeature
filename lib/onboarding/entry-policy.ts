@@ -4,6 +4,8 @@ export type EntryStatus = {
   userId: string | null;
   requiresOnboarding: boolean;
   stage: "welcome" | "profile" | "complete" | null;
+  /** Read from the authenticated, persisted persona; undefined means not verified. */
+  profileReady?: boolean;
 };
 export type EntryPhase = "checking" | "intro" | "auth" | "welcome" | "profile" | "complete";
 
@@ -25,7 +27,12 @@ export function resolveEntryPhase(identity: EntryIdentity, status: EntryStatus, 
   if (status.userId !== expectedUser) return "checking";
   if (!status.userId) return seenIntro ? "auth" : "intro";
   if (!status.requiresOnboarding) return "complete";
-  return status.stage === "profile" ? "profile" : "welcome";
+  // New registrations go straight into the profile. Persisted `profile` now
+  // marks the last welcome as pending, but older clients entered that stage
+  // before saving anything. Verify the actual persona before showing arrival.
+  if (status.stage !== "profile") return "profile";
+  if (status.profileReady === undefined) return "checking";
+  return status.profileReady ? "welcome" : "profile";
 }
 
 export function failedEntryPhase(identity: EntryIdentity, seenIntro: boolean, foreground: boolean): EntryPhase | "error" {

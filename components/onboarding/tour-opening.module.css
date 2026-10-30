@@ -1,0 +1,234 @@
+.opening {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  color: rgb(var(--text));
+  font-family: var(--font-geist-sans), "PingFang SC", sans-serif;
+}
+
+.scroll {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-width: 0;
+  min-height: 0;
+  padding-inline: clamp(20px, 5vw, 72px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scroll-padding-block: 24px 44px;
+}
+
+.scroll:focus-visible {
+  outline: 2px solid rgb(var(--brand) / .65);
+  outline-offset: -4px;
+  border-radius: 12px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  width: min(100%, 920px);
+  margin: auto;
+  padding-block: clamp(20px, 3vh, 40px) 0;
+  text-align: center;
+}
+
+.identity { width: 100%; }
+
+.emblem {
+  width: 125px;
+  height: 73px;
+  margin: 0 auto 10px;
+}
+
+/* Keep the existing artwork crop intact; scale its entire, nonshrinking box. */
+.emblem > div {
+  flex: 0 0 auto;
+  margin: 0;
+  transform: scale(3.5);
+  transform-origin: top left;
+}
+
+.wordmark {
+  outline: none;
+  margin: 0;
+  font-size: clamp(42px, 9.5vw, 112px);
+  font-weight: 570;
+  line-height: 1.06;
+  letter-spacing: -.075em;
+  white-space: nowrap;
+}
+
+.tagline {
+  margin: 18px 0 0;
+  font-size: clamp(16px, 1.75vw, 21px);
+  font-weight: 420;
+  line-height: 1.6;
+  letter-spacing: -.025em;
+  text-wrap: balance;
+  color: rgb(var(--subtext));
+}
+
+.tagline:lang(zh) { letter-spacing: .035em; }
+
+.community { margin-top: 36px; max-width: 100%; }
+
+.figures {
+  display: flex;
+  justify-content: center;
+  gap: clamp(28px, 5vw, 64px);
+  margin: 0;
+}
+
+.figure {
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 7px;
+  min-width: 90px;
+}
+
+.figure + .figure::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: calc(clamp(28px, 5vw, 64px) / -2);
+  width: 1px;
+  background: rgb(var(--text) / .12);
+}
+
+.figure dt {
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgb(var(--subtext));
+}
+
+.figure dd {
+  margin: 0;
+  font-size: clamp(30px, 3.1vw, 38px);
+  font-weight: 450;
+  line-height: 1;
+  letter-spacing: -.055em;
+  font-variant-numeric: tabular-nums;
+}
+
+.notice {
+  max-width: 380px;
+  margin: 13px auto 0;
+  color: rgb(var(--subtext));
+  font-size: 11px;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 18px;
+  padding: 24px 20px 36px;
+}
+
+.languages {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid rgb(var(--text) / .09);
+  border-radius: 99px;
+  background: rgb(var(--text) / .025);
+}
+
+.languages button {
+  min-height: 44px;
+  min-width: 74px;
+  border: 0;
+  border-radius: 99px;
+  padding: 7px 15px;
+  background: transparent;
+  color: rgb(var(--subtext));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: background .2s var(--ease), color .2s var(--ease), box-shadow .2s var(--ease);
+}
+
+.languages button[aria-pressed="true"] {
+  background: rgb(var(--bg-elev));
+  color: rgb(var(--text));
+  box-shadow: 0 1px 4px rgb(var(--shadow) / .07);
+}
+
+.languages button:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 3px; }
+
+.start {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  gap: 28px;
+  min-height: 52px;
+  max-width: 100%;
+  margin: 0;
+  padding: 15px 25px;
+  border: 0;
+  border-radius: 99px;
+  background: rgb(var(--brand));
+  color: rgb(var(--brand-contrast));
+  box-shadow: 0 6px 20px rgb(var(--brand) / .12);
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: box-shadow .24s var(--ease);
+}
+
+.start:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 5px; }
+.start svg { flex-shrink: 0; }
+
+@media (hover: hover) {
+  .start:hover { box-shadow: 0 8px 24px rgb(var(--brand) / .22); }
+}
+
+@media (max-width: 600px) {
+  .emblem { width: 100px; height: 59px; margin-bottom: 14px; }
+  .emblem > div { transform: scale(2.85); }
+  .wordmark { font-size: clamp(42px, 11.2vw, 67px); }
+  .tagline { margin-top: 17px; }
+  .community { margin-top: 32px; }
+  .figure { min-width: 100px; }
+}
+
+@media (min-width: 601px) and (max-height: 760px) {
+  .emblem { width: 100px; height: 59px; margin-bottom: 8px; }
+  .emblem > div { transform: scale(2.85); }
+  .wordmark { font-size: clamp(58px, 8vw, 90px); }
+  .tagline { margin-top: 12px; }
+  .community { margin-top: 26px; }
+  .actions { padding-top: 20px; }
+}
+
+@media (max-height: 500px) {
+  .actions { flex-direction: row; justify-content: center; gap: 8px; padding: 12px 16px 18px; }
+  .languages { gap: 2px; }
+  .languages button { min-width: 54px; padding-inline: 10px; font-size: 11px; }
+  .start { min-height: 48px; padding: 12px; gap: 10px; font-size: 13px; }
+  .content { padding-top: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start, .languages button { transition: none; }
+}
