@@ -377,7 +377,9 @@
 
 /* The opening is a self-contained black stage, regardless of the saved theme. */
 .shell:has([data-testid="onboarding-tour-opening"]) { --bg: 0 0 0; --bg-elev: 20 20 22; --text: 245 245 247; --subtext: 161 161 170; --brand: 245 245 247; --brand-contrast: 0 0 0; background: #000; }
-.shell:has([data-testid="onboarding-tour-opening"]) .topbar > .wordmark { visibility: hidden; }
+.shell:has([data-testid="onboarding-tour-opening"]) .topbar { justify-content: flex-end; }
+.shell:has([data-testid="onboarding-tour-opening"]) .topbar > .wordmark { display: none; }
+.shell:has([data-testid="onboarding-tour-opening"]) .languageLabel { display: inline; }
 .shell:has([data-testid="onboarding-tour-opening"]) .footer > :first-child { visibility: hidden; }
 .shell:has([data-testid="onboarding-tour-opening"]) :is(.logoCompact, .logoHero) img { filter: invert(1); }
 .body:has([data-picker-narrative]) .copy { transition: opacity 1s cubic-bezier(.22,1,.36,1); }
