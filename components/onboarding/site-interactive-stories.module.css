@@ -7,6 +7,15 @@
 .scene { display: flex; flex: 1; min-width: 0; min-height: 0; flex-direction: column; gap: 12px; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; padding: 4px 7px 36px 4px; scroll-padding-block: 16px 40px; }
 .scene:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 3px; border-radius: 8px; }
 .scene > * { flex-shrink: 0; min-width: 0; max-width: 100%; }
+.comparisonDetails { display: flex; flex-direction: column; gap: 12px; }
+/* Shoes remain the visual anchors. Copy, radar, then controls get their own beat. */
+.stage[data-comparison-phase="moving"] :is(.sceneTop, .sectionHeading, .shoeIndex, .shoeIdentity, .detailLink) { opacity: 0; }
+.stage[data-comparison-phase="copy"] :is(.sceneTop, .sectionHeading, .shoeIndex, .shoeIdentity, .detailLink) { animation: comparison-reveal .9s cubic-bezier(.22, 1, .36, 1) both; }
+.stage:is([data-comparison-phase="moving"], [data-comparison-phase="copy"]) .radarSection { opacity: 0; }
+.stage[data-comparison-phase="radar"] .radarSection { animation: comparison-reveal .75s cubic-bezier(.22, 1, .36, 1) both; }
+.stage:is([data-comparison-phase="moving"], [data-comparison-phase="copy"], [data-comparison-phase="radar"]) :is(.comparisonDetails, [data-scroll-hint]) { opacity: 0; }
+.stage[data-comparison-phase="details"] :is(.comparisonDetails, [data-scroll-hint]) { animation: comparison-reveal .65s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes comparison-reveal { from { opacity: 0; } to { opacity: 1; } }
 .scene > :last-child[data-scroll-hint] { margin-top: 0; margin-bottom: -24px; }
 .scene h3, .scene p, .scene label { overflow-wrap: anywhere; }
 .scene h3, .scene h4, .scene p { margin: 0; }
@@ -240,4 +249,23 @@
   .radarDisplay > div { grid-template-columns: minmax(0, 205px) minmax(60px, 1fr); }
   .radarDisplay > div > svg { max-width: 205px; }
   .stage[data-story-step="2"] .profileHeading p { line-height: 1.4; }
+}
+
+@media (max-height: 600px) {
+  .stage[data-story-step="1"] { padding: 10px; border-radius: 22px; }
+  .stage[data-story-step="1"] .sceneTop { padding-bottom: 4px; }
+  .stage[data-story-step="1"] .sectionHeading h3 { font-size: 12px; }
+  .stage[data-story-step="1"] .scene { gap: 6px; }
+  .comparisonOverview .shoeCard { min-height: 64px; grid-template-columns: 44px minmax(0, 1fr); padding: 5px; }
+  .comparisonOverview .productImage { width: 44px; height: 50px; }
+  .comparisonOverview .shoeIdentity strong { font-size: 10px; }
+  .comparisonOverview .radarDisplay > div { grid-template-columns: minmax(0, 145px) minmax(50px, 1fr); }
+  .comparisonOverview .radarDisplay > div > svg { max-width: 145px; }
+  .comparisonOverview .radarDisplay > div > p { font-size: 8px; }
+}
+@media (max-height: 600px) {
+  .stage[data-story-step="1"] [data-scroll-hint] { position: absolute; inset: auto 12px 9px auto; width: auto; margin: 0; }
+  .stage[data-story-step="1"] [data-scroll-hint]::before { display: none; }
+  .stage[data-story-step="1"] [data-scroll-hint] > span { left: auto; right: 0; bottom: 0; transform: none; padding: 3px; border-radius: 50%; }
+  .stage[data-story-step="1"] [data-scroll-hint] > span > span { display: none; }
 }
