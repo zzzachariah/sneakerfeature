@@ -272,7 +272,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
           <div className={interactive.comparisonOverview}><SelectedPair shoes={shoes} zh={zh} reduced={reduced} shared={false}/>
           <div className={interactive.radarSection} data-testid="onboarding-real-comparison">
             <div className={interactive.subheading}><strong>{zh ? "六维性能资料" : "Six dimensions of performance"}</strong><span>{zh ? "与站内对比工具一致" : "The same comparison used on the site"}</span></div>
-            {shoes.every(shoe => hasCompletePerformance(shoe.shoe)) ? <OnboardingRadar shoes={shoes.map(shoe => shoe.shoe)} active={visible && inView && step === 1 && ["rest", "radar", "details"].includes(comparisonPhase)}/> : <ComparisonEvidenceTable shoes={shoes.map(shoe => shoe.shoe)}/>}
+            {shoes.every(shoe => hasCompletePerformance(shoe.shoe)) ? <OnboardingRadar shoes={shoes.map(shoe => shoe.shoe)} active={visible && inView && step === 1 && ["rest", "radar", "copy", "details"].includes(comparisonPhase)}/> : <ComparisonEvidenceTable shoes={shoes.map(shoe => shoe.shoe)}/>}
           </div></div>
           <div className={interactive.comparisonDetails}><div className={interactive.dimensionTabs} aria-label={zh ? "查看真实性能资料" : "Explore recorded performance"}>{DIM_KEYS.map(key => <button type="button" key={key} aria-pressed={dimension === key} onClick={() => setDimension(key)}>{dimensionLabel(key, zh)}</button>)}</div>
           <FieldComparison shoes={shoes} dimension={dimension} zh={zh} reduced={reduced}/>
