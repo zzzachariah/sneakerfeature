@@ -38,6 +38,7 @@ export const catalogueUpdateEntrySchema = z.object({
 
 export const catalogueUpdateReportSchema = z.object({
   version: z.literal(1),
+  category: z.enum(["catalogue", "ai_api"]).optional(),
   title: localizedTextSchema,
   summary: localizedTextSchema,
   counts: z.object({
@@ -89,7 +90,7 @@ export type CatalogueUpdateEntry = z.infer<typeof catalogueUpdateEntrySchema>;
 export type CatalogueUpdateReport = z.infer<typeof catalogueUpdateReportSchema>;
 export type CatalogueMaintenanceRun = z.infer<typeof catalogueMaintenanceRunSchema>;
 export type CatalogueRunSummary = Omit<CatalogueMaintenanceRun, "report"> & {
-  report: Pick<CatalogueUpdateReport, "title" | "summary" | "counts">;
+  report: Pick<CatalogueUpdateReport, "title" | "summary" | "counts" | "category">;
 };
 export type CatalogueUpdatesResult = {
   state: "ready" | "unavailable";
@@ -120,5 +121,5 @@ export function groupMaintenanceRuns<T extends CatalogueRunSummary>(runs: T[]) {
 
 export function summarizeMaintenanceRun(run: CatalogueMaintenanceRun): CatalogueRunSummary {
   return { id: run.id, scheduled_for: run.scheduled_for, completed_at: run.completed_at, status: run.status,
-    report: { title: run.report.title, summary: run.report.summary, counts: run.report.counts } };
+    report: { ...(run.report.category ? { category: run.report.category } : {}), title: run.report.title, summary: run.report.summary, counts: run.report.counts } };
 }
