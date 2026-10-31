@@ -8,6 +8,7 @@ import { type DemoInput, type DemoStage, type DemoEvent, type DemoSnapshot } fro
 import { ProfileSelections } from "./profile-selections";
 import { usePickerDemo } from "./use-picker-demo";
 import { useNarrativeScroll } from "./use-narrative-scroll";
+import { usePickerPlayback } from "./use-picker-playback";
 import { ScrollHint } from "./scroll-hint";
 import type { StoryShoe } from "./site-stories";
 import styles from "./picker-narrative.module.css";
@@ -85,9 +86,11 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const stageRef=useRef<HTMLDivElement>(null),stageWindowRef=useRef<HTMLDivElement>(null),sourceViewportRef=useRef<HTMLDivElement>(null),navRef=useRef<HTMLElement>(null);
   const scroll=useNarrativeScroll(reduced);
   const scrollDetail=useNarrativeScroll(reduced);
-  const scrollSources=useNarrativeScroll(reduced);
+  const playback=usePickerPlayback(snapshot,posting,following&&!history);
+  const requestRef=useRef<HTMLElement>(null);
+  const playbackDone=playback.phase==="done";
   useEffect(()=>{
-    if(snapshot.status!=="complete"){setFolded(false);setResultReady(false);return;}
+    if(snapshot.status!=="complete"||!playbackDone){setFolded(false);setResultReady(false);return;}
     if(reduced){setFolded(true);setResultReady(true);return;}
     let stopped=false;let timer:ReturnType<typeof setTimeout>;
     void (followingRef.current ? scroll(sourcesRef.current,false,100) : Promise.resolve(false)).then(()=>{
@@ -96,7 +99,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
       timer=setTimeout(()=>{if(!stopped)setResultReady(true);},1250);
     });
     return()=>{stopped=true;clearTimeout(timer);};
-  },[snapshot.status,reduced,scroll]);
+  },[snapshot.status,playbackDone,reduced,scroll]);
   useEffect(()=>{if(reduced){setBeat(2);return;}const a=setTimeout(()=>setBeat(1),800),b=setTimeout(()=>setBeat(2),1700);return()=>{clearTimeout(a);clearTimeout(b);};},[reduced]);
   useEffect(()=>{if(!snapshot.startedAt)return;if(snapshot.status!=="running"){setElapsed(Math.max(0,Math.floor((Date.parse(snapshot.finishedAt??snapshot.events.at(-1)?.at??snapshot.startedAt)-Date.parse(snapshot.startedAt))/1000)));return;}const update=()=>setElapsed(Math.max(0,Math.floor((Date.now()-Date.parse(snapshot.startedAt!))/1000)));update();const timer=setInterval(update,1000);return()=>clearInterval(timer);},[snapshot.status,snapshot.startedAt,snapshot.finishedAt,snapshot.events]);
   useEffect(()=>{if(snapshot.status==="failed")void scroll(failureRef.current,false,350);},[snapshot.status,scroll]);
@@ -104,7 +107,9 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const context=snapshot.input??input;
   const interestShoes=snapshot.interests??shoes;
   const prompt=context?(zh?"请根据这些选择，为我推荐两双篮球鞋，告诉我理由和需要权衡的地方。":"Find two basketball shoes for these choices, with the reasons and trade-offs."):"";
-  const latest=snapshot.events.at(-1)?.stage??"catalog",active=history??latest;
+  const latest=snapshot.events.at(-1)?.stage??"catalog";
+  const presented=stages.includes(playback.phase as DemoStage)?playback.phase as DemoStage:latest;
+  const active=history??presented;
   const observed=stages.filter(stage=>snapshot.events.some(e=>e.stage===stage));
   const events=snapshot.events.filter(e=>e.stage===active);
   const candidates=snapshot.events.findLast(e=>e.candidates?.length)?.candidates??[];
@@ -114,45 +119,41 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const sourceCount=new Set(snapshot.events.flatMap(e=>e.sources??[]).map(s=>s.url)).size;
   const began=snapshot.status!=="idle"||posting;
   const duration=reduced?0:.85;
-  const lastEvent=snapshot.events.at(-1);
-  const activityKey=[latest,lastEvent?.query,lastEvent?.state,sourceCount,candidates.length].join(":");
-  const hasNewEvidence=latest==="research"&&Boolean(lastEvent?.sources?.length);
+  const presenting=began&&!playbackDone&&snapshot.status!=="failed";
   useEffect(()=>{
-    if(snapshot.status!=="running")return;
+    if(!presenting)return;
     const panel=progressRef.current?.closest("[data-onboarding-story-scroll], [data-onboarding-content]");
-    const pause=()=>{setFollowing(false);setHistory(current=>current??latest);};
+    const pause=()=>{setFollowing(false);};
     const key=(event:Event)=>{if(["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes((event as KeyboardEvent).key))pause();};
-    panel?.addEventListener("wheel",pause,{passive:true});
-    panel?.addEventListener("touchstart",pause,{passive:true});
-    panel?.addEventListener("keydown",key);
+    panel?.addEventListener("wheel",pause,{passive:true}); panel?.addEventListener("touchstart",pause,{passive:true}); panel?.addEventListener("keydown",key);
     return()=>{panel?.removeEventListener("wheel",pause);panel?.removeEventListener("touchstart",pause);panel?.removeEventListener("keydown",key);};
-  },[snapshot.status,latest]);
+  },[presenting]);
   useEffect(()=>{
-    if(!following||history||snapshot.status!=="running")return;
-    // Follow actual milestones, not the elapsed timer or each network poll.
-    // Scene entry can still be laying out when a saved running request arrives.
-    // Let it settle before measuring, including the reduced-motion entry path.
-    const move=window.setTimeout(()=>{
-      if(!followingRef.current)return;
-      const compact=(progressRef.current?.closest<HTMLElement>("[data-onboarding-story-scroll]")?.clientHeight??0)<380;
-      void scroll(hasNewEvidence?sourcesRef.current:compact?stageWindowRef.current:progressRef.current);
-    },750);
+    if(!following||history||!presenting)return;
+    let stopped=false;
     const timer=window.setTimeout(()=>{
-      if(!followingRef.current)return;
-      const detail=stageRef.current?.querySelector<HTMLElement>("[data-progress-item]:last-child");
-      if(detail)void scrollDetail(detail,"end");
-      const source=sourceViewportRef.current?.querySelector<HTMLElement>("[data-source-item]:last-child");
-      if(hasNewEvidence&&source)void scrollSources(source,"end");
-    },reduced?0:650);
-    return()=>{window.clearTimeout(timer);window.clearTimeout(move);};
-  },[activityKey,hasNewEvidence,following,history,snapshot.status,reduced,scroll,scrollDetail,scrollSources]);
+      const compact=(progressRef.current?.closest<HTMLElement>("[data-onboarding-story-scroll]")?.clientHeight??0)<380;
+      const target=playback.phase==="request"?requestRef.current:playback.phase==="sources"?sourcesRef.current:compact?stageWindowRef.current:progressRef.current;
+      void scroll(target,false,0,1600).then(()=>{
+        if(stopped)return;
+        const inner=playback.phase==="sources"?sourceViewportRef.current:stageRef.current;
+        if(inner)inner.scrollTo({top:0,behavior:"instant"});
+      });
+    },750);
+    // Read the first part before gently panning long content to its end.
+    const pan=window.setTimeout(()=>{
+      const inner=playback.phase==="sources"?sourceViewportRef.current:stageRef.current;
+      if(inner&&playback.phase!=="request")void scrollDetail(inner,"end",0,4500);
+    },3800);
+    return()=>{stopped=true;window.clearTimeout(timer);window.clearTimeout(pan);};
+  },[playback.phase,following,history,presenting,scroll,scrollDetail]);
   useEffect(()=>{
     const nav=navRef.current,button=nav?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if(nav&&button&&nav.scrollWidth>nav.clientWidth)nav.scrollTo({left:button.offsetLeft-nav.offsetLeft-(nav.clientWidth-button.clientWidth)/2,behavior:reduced?"instant":"smooth"});
   },[active,reduced]);
   const followLive=()=>{setHistory(null);setFollowing(true);};
-  const progress=began?<motion.section ref={progressRef} id={progressId} inert={resultReady&&!showHistory} aria-hidden={resultReady&&!showHistory} initial={false} animate={{height:resultReady&&!showHistory?0:"auto",opacity:resultReady&&!showHistory?0:1,paddingTop:resultReady&&!showHistory?0:22}} transition={{duration:reduced?0:.8,ease:EASE}} style={{overflow:resultReady&&!showHistory?"hidden":undefined}} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
-      <div className={styles.progressHeader}><span>{snapshot.status==="running"||posting?<><i/>{zh?"正在：":"NOW: "}{labels[latest][zh?0:1]}</>:snapshot.status==="complete"?<><Check size={13}/>{zh?"本次查询记录":"RESEARCH RECORD"}</>:<>{zh?"本次未完成":"NOT COMPLETED"}</>}</span><div className={styles.progressActions}><time>{elapsed}s</time>{resultReady&&<button type="button" onClick={()=>{setShowHistory(false);void scroll(resultRef.current,false,850);}}>{zh?"收起过程":"Close details"}</button>}</div></div>
+  const progress=began?<motion.section ref={progressRef} data-playback-phase={playback.phase} id={progressId} inert={resultReady&&!showHistory} aria-hidden={resultReady&&!showHistory} initial={false} animate={{height:resultReady&&!showHistory?0:"auto",opacity:resultReady&&!showHistory?0:1,paddingTop:resultReady&&!showHistory?0:22}} transition={{duration:reduced?0:.8,ease:EASE}} style={{overflow:resultReady&&!showHistory?"hidden":undefined}} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
+      <div className={styles.progressHeader}><span>{snapshot.status==="running"||posting?<><i/>{zh?"正在展示：":"VIEWING: "}{labels[active][zh?0:1]}</>:snapshot.status==="complete"?<><Check size={13}/>{zh?"本次查询记录":"RESEARCH RECORD"}</>:<>{zh?"本次未完成":"NOT COMPLETED"}</>}</span><div className={styles.progressActions}><time>{elapsed}s</time>{resultReady&&<button type="button" onClick={()=>{setShowHistory(false);void scroll(resultRef.current,false,850);}}>{zh?"收起过程":"Close details"}</button>}</div></div>
       <div className={styles.workbench}>
         <nav ref={navRef} aria-label={zh?"工作阶段":"Activity stages"}>{stages.map((stage,i)=><button type="button" key={stage} disabled={!observed.includes(stage)} aria-pressed={active===stage} aria-current={stage===latest?"step":undefined} onClick={()=>{setHistory(stage);setFollowing(false);}}><span>{String(i+1).padStart(2,"0")}</span>{labels[stage][zh?0:1]}{observed.includes(stage)&&(stage!==latest||snapshot.status==="complete")?<Check size={12}/>:null}</button>)}</nav>
         <div ref={stageWindowRef} className={styles.stageWindow} data-activity-window><AnimatePresence initial={false} mode="wait"><motion.div ref={stageRef} key={active} className={styles.stage} data-narrative-scroll data-current-stage={active} tabIndex={0} role="region" aria-label={labels[active][zh?0:1]} initial={reduced?{opacity:0}:{opacity:0,x:35}} animate={{opacity:1,x:0}} exit={reduced?{opacity:0}:{opacity:0,x:-35}} transition={{duration:reduced?.1:.55,ease:EASE}}>
@@ -161,13 +162,13 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
           <ScrollHint targetRef={stageRef} zh={zh} compact/>
         </motion.div></AnimatePresence></div>
       </div>
-      {snapshot.status==="running"&&<div className={styles.followBar} data-live-follow={following&&!history}><button type="button" onClick={followLive} disabled={snapshot.status!=="running"||following&&!history}>{following&&!history?(zh?"正在跟随实时进度":"Following live activity"):(zh?"跟随实时进度":"Follow live activity")}<ArrowRight size={12}/></button></div>}
+      {presenting&&<div className={styles.followBar} data-live-follow={following&&!history}><button type="button" onClick={()=>following&&!history?setFollowing(false):followLive()}>{following&&!history?(zh?"暂停自动浏览":"Pause walkthrough"):(zh?"继续自动浏览":"Resume walkthrough")}<ArrowRight size={12}/></button>{snapshot.status==="complete"&&<button type="button" onClick={()=>{setHistory(null);setFollowing(true);playback.finish();}}>{zh?"直接看推荐":"View picks now"}<ArrowRight size={12}/></button>}</div>}
       <p className={styles.liveNote} role="status">{connection==="offline"?(zh?"连接暂时中断，正在恢复真实进度。已完成的资料不会清空。":"Connection interrupted. Reconnecting without clearing completed research."):snapshot.status==="running"&&elapsed>25?(zh?"这次仍在处理中。你可以继续注册，完成后在首页接着看。":"Still working. You can continue signing up and find the result on the homepage."):null}</p>
     </motion.section>:null;
   const selectHistory=(stage:DemoStage)=>{setHistory(stage);setFollowing(false);setShowHistory(true);void scroll(progressRef.current,false,850);};
-  return <div className={styles.picker} data-picker-narrative data-explained="true" data-demo-status={snapshot.status}>
+  return <div className={styles.picker} data-picker-narrative data-explained="true" data-demo-status={snapshot.status} data-playback-phase={playback.phase}>
     <motion.div className={styles.introduction} initial={false} animate={{opacity:beat>=1?1:0,y:beat>=1?0:8}} transition={{duration}}><span><Sparkles size={16}/>Smart Picker</span><h3>{zh?"从你的打法，找到下一双。":"Your game becomes the brief."}</h3></motion.div>
-    <motion.section className={styles.request} layout transition={{duration,ease:EASE}} data-picker-request>
+    <motion.section ref={requestRef} className={styles.request} layout transition={{duration,ease:EASE}} data-picker-request>
       {context&&<ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part={began?"positions":"all"}/>}
       <motion.div initial={false} animate={{opacity:beat>=1?1:0,height:beat>=1?"auto":0}} transition={{duration,ease:EASE}}>
         <div className={styles.interests}><small>{zh?"从这两双开始了解你":"YOUR STARTING POINT"}</small><div>{interestShoes.map(s=><span key={s.slug}>

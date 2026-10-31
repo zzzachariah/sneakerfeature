@@ -118,7 +118,7 @@
 .progressHeader { min-height:46px; padding-bottom:14px; }
 .progressHeader > span { min-width:0; line-height:1.5; }
 .progressHeader time { flex-shrink:0; }
-.followBar { height:44px; display:flex; align-items:center; justify-content:flex-end; }
+.followBar { gap:16px; min-height:44px; display:flex; align-items:center; justify-content:flex-end; }
 .followBar button { display:inline-flex; gap:8px; align-items:center; min-height:44px; border:0; background:none; color:rgb(var(--brand)); font-size:10px; cursor:pointer; }
 .followBar button:disabled { opacity:.65; color:rgb(var(--subtext)); cursor:default; }
 .progress > .liveNote { height:40px; overflow-y:auto; scrollbar-width:thin; margin-top:0 !important; }

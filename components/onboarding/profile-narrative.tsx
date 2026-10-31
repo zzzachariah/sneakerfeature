@@ -7,6 +7,7 @@ import { PlaystyleDimGrid } from "@/components/preferences/playstyle-dim-grid";
 import { POSITIONS, type Position } from "@/lib/persona/types";
 import { type DimKey } from "@/lib/star-rating";
 import { EASE } from "@/lib/motion/constants";
+import { useProfilePairJourney } from "./use-profile-pair-journey";
 import { useNarrativeScroll } from "./use-narrative-scroll";
 import styles from "./site-interactive-stories.module.css";
 import narrative from "./story-narrative.module.css";
@@ -30,7 +31,8 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
   const scroll = useNarrativeScroll(reduced);
   const readyPositions = positions.length === 2;
   const readyEvidence = readyPositions && picks.length === 3;
-  const showEvidence = readyEvidence && entranceReady;
+  const journey = useProfilePairJourney(readyEvidence && entranceReady, reduced);
+  const showEvidence = journey.atEvidence;
   const [index, setIndex] = useState(0);
   const [manual, setManual] = useState(false);
   const [reading, setReading] = useState(false);
@@ -43,14 +45,14 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
   }, [readyPositions, scroll, reduced, entranceReady]);
   useEffect(() => {
     setIndex(0); setManual(false); setReading(false);
-    if (!readyEvidence || !entranceReady) return;
+    if (!readyEvidence || !entranceReady || !journey.landed) return;
     let disposed = false;
-    void scroll(evidenceRef.current, "end", 950).then(arrived => { if (!disposed) setReading(arrived); });
+    void scroll(evidenceRef.current, "end", 3200, 1600).then(arrived => { if (!disposed) setReading(arrived); });
     return () => { disposed = true; };
-  }, [readyEvidence, pickKey, reduced, scroll, entranceReady]);
+  }, [readyEvidence, pickKey, reduced, scroll, entranceReady, journey.landed]);
   useEffect(() => {
     if (!reading || manual || reduced || index >= 2) return;
-    const timer = window.setTimeout(() => { if (!document.hidden) setIndex(value => value + 1); }, 3600);
+    const timer = window.setTimeout(() => { if (!document.hidden) setIndex(value => value + 1); }, 6500);
     const stop = () => setManual(true);
     const panel = evidenceRef.current?.closest("[data-onboarding-story-scroll]");
     panel?.addEventListener("wheel", stop, { passive: true });
@@ -66,7 +68,7 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
 
   const entrance = (stage: number) => ({ initial: false as const, animate: { opacity: openingBeat >= stage ? 1 : 0, y: openingBeat >= stage ? 0 : 12 }, transition: { duration: reduced ? 0 : .85, ease: EASE } });
   return <div className={narrative.profile} data-profile-narrative data-profile-beat={openingBeat} data-profile-stage={readyEvidence ? "evidence" : readyPositions ? "priorities" : "positions"}>
-    {!showEvidence && <motion.div layoutId="sf-intro-profile-pair" transition={{duration:reduced?0:1,ease:EASE}}>{pair}</motion.div>}
+    {!showEvidence && <div ref={journey.origin}>{pair}</div>}
     <motion.div {...entrance(1)} className={styles.profileHeading}>
       <div className={styles.profileMark}><UserRound size={23}/><span>{positions.length ? positions.join(" / ") : "YOU"}</span></div>
       <div><h3>{zh ? "先从你的打法开始。" : "Start with your game."}</h3><p>{zh ? "每个选择，都让下一步更贴近你。" : "Each choice brings the next step closer to your game."}</p></div>
@@ -85,9 +87,9 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
         <PlaystyleDimGrid picks={picks} onToggle={onFocus}/>
         <div className={styles.priorityOrder} aria-live="polite">{picks.length ? picks.map((key, i) => <motion.span key={key} layoutId={reduced ? undefined : `sf-intro-priority-${key}`}><b>{i + 1}</b>{label(key)}</motion.span>) : <span>{zh ? "从你最在意的一项开始。" : "Start with what matters most to you."}</span>}</div>
       </motion.section>}
-      {showEvidence && <motion.div key="evidence" ref={evidenceRef} className={`${styles.focusPreview} ${narrative.evidence}`} data-profile-evidence initial={reduced ? false : { opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .95, ease: EASE }}>
+      {showEvidence && <motion.div key="evidence" ref={evidenceRef} className={`${styles.focusPreview} ${narrative.evidence}`} data-profile-evidence data-pair-landed={journey.landed} initial={false} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .95, ease: EASE }}>
         <div className={styles.subheading}><strong>{zh ? "现在，从你的关注点看这两双。" : "Your priorities. Your two picks."}</strong><span>{zh ? "按你选择的顺序逐项了解" : "In the order you chose"}</span></div>
-        <motion.div layoutId="sf-intro-profile-pair" transition={{duration:reduced?0:1,ease:EASE}}>{pair}</motion.div>
+        <div ref={journey.target} className={narrative.pairDestination}>{pair}</div>
         <div className={`${styles.dimensionTabs} ${narrative.readingTabs}`} aria-label={zh ? "你的三个优先项" : "Your three priorities"}>{picks.map((key, i) => <button key={key} type="button" aria-pressed={focus === key} onClick={() => { setManual(true); setIndex(i); }}><span>{String(i + 1).padStart(2, "0")}</span>{label(key)}</button>)}</div>
         <AnimatePresence mode="wait" initial={false}><motion.h4 key={focus} className={narrative.readingTitle} initial={reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .4 }}>{zh ? `看一看：${label(focus)}` : `A closer look: ${label(focus)}`}</motion.h4></AnimatePresence>
         {comparison(focus)}

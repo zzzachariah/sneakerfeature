@@ -31,3 +31,9 @@
 .explained svg { flex-shrink: 0; color: rgb(var(--brand)); }
 @media (max-width:600px) { .profile, .picker, .pickerContents { gap: 18px; } .demoResponse h3 { font-size: 18px; } }
 @media (prefers-reduced-motion: reduce) { .priorities > div:nth-child(2) > button { animation: none; } }
+
+.evidence > * { transition:opacity .9s ease; }
+.evidence[data-pair-landed=false] > * { opacity:0; pointer-events:none; }
+.evidence > .pairDestination { opacity:1; transition:none; }
+.evidence[data-pair-landed=false] .pairDestination { visibility:hidden; }
+@media(prefers-reduced-motion:reduce) { .evidence > * {transition:none;} }
