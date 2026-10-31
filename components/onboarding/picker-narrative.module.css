@@ -104,7 +104,7 @@
 .catalogSources { display:flex;flex-wrap:wrap;gap:12px;margin-top:12px; }
 .catalogSources a {display:flex;align-items:center;gap:7px;font-size:12px;}
 .progress[hidden] { display:none; }
-.historyToggle { align-self:flex-start;min-height:44px;background:none;border:0;padding:0;color:rgb(var(--subtext));font-size:11px;cursor:pointer; }
+
 
 .answer { display:flex;flex-direction:column;gap:24px;min-width:0;scroll-margin-top:14px; }
 .answer:empty { display:none; }
@@ -125,3 +125,28 @@
 .sourceViewport { position:relative; height:clamp(170px,38cqh,244px); min-width:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-gutter:stable; padding:2px 5px 28px 2px; }
 .sourceViewport[data-folded=true] { height:auto; max-height:244px; }
 .stage > [data-scroll-hint], .sourceViewport > [data-scroll-hint] { margin-bottom:-22px; }
+
+/* Completed activity remains a readable route into the recommendations. */
+.processRecap { container-type:inline-size; margin-bottom:24px; padding:18px 0 22px; border-block:1px solid rgb(var(--text)/.12); }
+.recapHeading { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:6px 12px; margin-bottom:16px; }
+.recapHeading > span { font-size:13px; font-weight:550; letter-spacing:-.02em; }
+.recapHeading > small { font-size:10px; color:rgb(var(--subtext)); }
+.recapSteps { display:grid; gap:22px; list-style:none; padding:0; margin:0; }
+.recapSteps li { position:relative; min-width:0; }
+.recapSteps button { display:flex; flex-direction:column; align-items:flex-start; gap:7px; width:100%; min-height:90px; padding:8px 3px; background:none; border:0; color:rgb(var(--text)); cursor:pointer; text-align:left; border-radius:6px; transition:background .25s ease; }
+.recapSteps button:hover,.recapSteps button[aria-expanded=true] { background:rgb(var(--brand)/.065); }
+.recapNumber { color:rgb(var(--brand)); font:10px/1.2 var(--font-geist-mono),monospace; }
+.recapSteps strong { font-size:11px; font-weight:550; line-height:1.5; }
+.recapSteps small { color:rgb(var(--subtext)); font-size:10px; line-height:1.6; }
+.recapArrow { position:absolute; top:38px; right:-18px; color:rgb(var(--subtext)); }
+.progressActions { display:flex; align-items:center; gap:12px; flex-shrink:0; }
+.progressActions button { min-height:44px; padding:0; border:0; background:none; color:rgb(var(--brand)); font-size:10px; cursor:pointer; }
+.results > .progress { margin-bottom:24px; border-top:0; }
+.results > .progress[aria-hidden=true] { margin-bottom:0; }
+@container (max-width:440px) {
+  .recapSteps { grid-template-columns:minmax(0,1fr) !important; gap:14px; }
+  .recapSteps button { display:grid; grid-template-columns:22px minmax(0,1fr) auto; gap:8px; align-items:center; min-height:44px; padding:7px 3px; }
+  .recapSteps small { max-width:100px; text-align:right; }
+  .recapArrow { top:auto; bottom:-14px; right:auto; left:7px; transform:rotate(90deg); }
+}
+@media(prefers-reduced-motion:reduce) { .recapSteps button {transition:none;} }
