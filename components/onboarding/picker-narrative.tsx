@@ -44,7 +44,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const [following,setFollowing]=useState(true);
   const followingRef=useRef(following);
   followingRef.current=following;
-  const stageRef=useRef<HTMLDivElement>(null),sourceViewportRef=useRef<HTMLDivElement>(null),navRef=useRef<HTMLElement>(null);
+  const stageRef=useRef<HTMLDivElement>(null),stageWindowRef=useRef<HTMLDivElement>(null),sourceViewportRef=useRef<HTMLDivElement>(null),navRef=useRef<HTMLElement>(null);
   const scroll=useNarrativeScroll(reduced);
   const scrollDetail=useNarrativeScroll(reduced);
   const scrollSources=useNarrativeScroll(reduced);
@@ -92,7 +92,13 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   useEffect(()=>{
     if(!following||history||snapshot.status!=="running")return;
     // Follow actual milestones, not the elapsed timer or each network poll.
-    void scroll(hasNewEvidence?sourcesRef.current:progressRef.current,false,250);
+    // Scene entry can still be laying out when a saved running request arrives.
+    // Let it settle before measuring, including the reduced-motion entry path.
+    const move=window.setTimeout(()=>{
+      if(!followingRef.current)return;
+      const compact=(progressRef.current?.closest<HTMLElement>("[data-onboarding-story-scroll]")?.clientHeight??0)<380;
+      void scroll(hasNewEvidence?sourcesRef.current:compact?stageWindowRef.current:progressRef.current);
+    },750);
     const timer=window.setTimeout(()=>{
       if(!followingRef.current)return;
       const detail=stageRef.current?.querySelector<HTMLElement>("[data-progress-item]:last-child");
@@ -100,13 +106,13 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
       const source=sourceViewportRef.current?.querySelector<HTMLElement>("[data-source-item]:last-child");
       if(hasNewEvidence&&source)void scrollSources(source,"end");
     },reduced?0:650);
-    return()=>window.clearTimeout(timer);
+    return()=>{window.clearTimeout(timer);window.clearTimeout(move);};
   },[activityKey,hasNewEvidence,following,history,snapshot.status,reduced,scroll,scrollDetail,scrollSources]);
   useEffect(()=>{
     const nav=navRef.current,button=nav?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if(nav&&button&&nav.scrollWidth>nav.clientWidth)nav.scrollTo({left:button.offsetLeft-nav.offsetLeft-(nav.clientWidth-button.clientWidth)/2,behavior:reduced?"instant":"smooth"});
   },[active,reduced]);
-  const followLive=()=>{setHistory(null);setFollowing(true);void scroll(progressRef.current,false);};
+  const followLive=()=>{setHistory(null);setFollowing(true);};
   return <div className={styles.picker} data-picker-narrative data-explained="true" data-demo-status={snapshot.status}>
     <motion.div className={styles.introduction} initial={false} animate={{opacity:beat>=1?1:0,y:beat>=1?0:8}} transition={{duration}}><span><Sparkles size={16}/>Smart Picker</span><h3>{zh?"从你的打法，找到下一双。":"Your game becomes the brief."}</h3></motion.div>
     <motion.section className={styles.request} layout transition={{duration,ease:EASE}} data-picker-request>
@@ -121,14 +127,14 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
         <small className={styles.disclosure}>{snapshot.status==="complete"?(zh?"你的两双，已经准备好":"Your picks are ready"):(zh?"仅使用这些选择与公开球鞋资料":"AI uses only these choices and public shoe information")}</small>
       </motion.div>
     </motion.section>
-    <motion.section layout ref={progressRef} className={styles.answer} data-picker-answer transition={{duration:reduced?0:1.15,ease:EASE}}>
+    <motion.section layout="position" className={styles.answer} data-picker-answer transition={{duration:reduced?0:1.15,ease:EASE}}>
     {began&&!resultReady&&context&&<motion.div layout className={styles.answerPriorities} data-answer-priorities transition={{duration:reduced?0:1.15,ease:EASE}}><ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part="priorities"/></motion.div>}
     {resultReady&&<button type="button" className={styles.historyToggle} onClick={()=>setShowHistory(v=>!v)} aria-expanded={showHistory}>{zh?"查看这次选鞋过程":"Revisit this search"}</button>}
-    {began&&<motion.section inert={resultReady&&!showHistory} aria-hidden={resultReady&&!showHistory} initial={false} animate={{height:resultReady&&!showHistory?0:"auto",opacity:resultReady&&!showHistory?0:1,paddingTop:resultReady&&!showHistory?0:22}} transition={{duration:reduced?0:.8,ease:EASE}} style={{overflow:resultReady&&!showHistory?"hidden":undefined}} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
+    {began&&<motion.section ref={progressRef} inert={resultReady&&!showHistory} aria-hidden={resultReady&&!showHistory} initial={false} animate={{height:resultReady&&!showHistory?0:"auto",opacity:resultReady&&!showHistory?0:1,paddingTop:resultReady&&!showHistory?0:22}} transition={{duration:reduced?0:.8,ease:EASE}} style={{overflow:resultReady&&!showHistory?"hidden":undefined}} className={styles.progress} data-picker-progress aria-label={zh?"真实处理进度":"Live activity"}>
       <div className={styles.progressHeader}><span>{snapshot.status==="running"||posting?<><i/>{zh?"正在：":"NOW: "}{labels[latest][zh?0:1]}</>:snapshot.status==="complete"?<><Check size={13}/>{zh?"本次查询记录":"RESEARCH RECORD"}</>:<>{zh?"本次未完成":"NOT COMPLETED"}</>}</span><time>{elapsed}s</time></div>
       <div className={styles.workbench}>
         <nav ref={navRef} aria-label={zh?"工作阶段":"Activity stages"}>{stages.map((stage,i)=><button type="button" key={stage} disabled={!observed.includes(stage)} aria-pressed={active===stage} aria-current={stage===latest?"step":undefined} onClick={()=>{setHistory(stage);setFollowing(false);}}><span>{String(i+1).padStart(2,"0")}</span>{labels[stage][zh?0:1]}{observed.includes(stage)&&(stage!==latest||snapshot.status==="complete")?<Check size={12}/>:null}</button>)}</nav>
-        <div className={styles.stageWindow} data-activity-window><AnimatePresence initial={false} mode="wait"><motion.div ref={stageRef} key={active} className={styles.stage} data-narrative-scroll data-current-stage={active} tabIndex={0} role="region" aria-label={labels[active][zh?0:1]} initial={reduced?{opacity:0}:{opacity:0,x:35}} animate={{opacity:1,x:0}} exit={reduced?{opacity:0}:{opacity:0,x:-35}} transition={{duration:reduced?.1:.55,ease:EASE}}>
+        <div ref={stageWindowRef} className={styles.stageWindow} data-activity-window><AnimatePresence initial={false} mode="wait"><motion.div ref={stageRef} key={active} className={styles.stage} data-narrative-scroll data-current-stage={active} tabIndex={0} role="region" aria-label={labels[active][zh?0:1]} initial={reduced?{opacity:0}:{opacity:0,x:35}} animate={{opacity:1,x:0}} exit={reduced?{opacity:0}:{opacity:0,x:-35}} transition={{duration:reduced?.1:.55,ease:EASE}}>
           <span className={styles.stageLabel}>{labels[active][zh?0:1]}</span>
           {active==="catalog"?<><strong className={styles.figure}>{events[0]?.catalogCount??"—"}</strong><p>{zh?"双已读取的目录球鞋。以你的位置和有序偏好作为筛选条件。":"catalog shoes loaded, with your positions and ordered priorities as context."}</p></>:active==="shortlist"?<>{candidates.length?<div className={styles.candidates}>{candidates.map(c=><span key={c.slug}><Check size={13}/>{c.name}</span>)}</div>:<p>{zh?"模型正在读取目录，选择值得进一步核对的球鞋。候选返回后会显示在这里。":"The model is reading the catalog. Its actual candidates will appear here when returned."}</p>}</>:active==="research"?<SourceList events={events} zh={zh}/>:<><div className={styles.evidenceCounts}><strong>{candidates.length}<small>{zh?"双候选":"candidates"}</small></strong><strong>{sourceCount}<small>{zh?"个找到的来源":"sources found"}</small></strong></div><p>{snapshot.status==="complete"?(zh?"推荐已根据这些资料生成，理由和取舍在下方。":"The recommendations are ready below, with fit and trade-offs based on this evidence."):snapshot.status==="failed"?null:(zh?"模型正在结合这些资料整理推荐、匹配理由和取舍。":"The model is using this evidence to prepare the recommendations, fit and trade-offs.")}</p>{!sourceCount&&<p>{zh?"没有可用的外部搜索结果；如能完成，将明确仅依据站内目录。":"No external results are available; any completed answer will be identified as catalog-based."}</p>}</>}
           <ScrollHint targetRef={stageRef} zh={zh} compact/>
