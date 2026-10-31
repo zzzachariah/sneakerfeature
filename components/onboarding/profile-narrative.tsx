@@ -30,6 +30,7 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
   const scroll = useNarrativeScroll(reduced);
   const readyPositions = positions.length === 2;
   const readyEvidence = readyPositions && picks.length === 3;
+  const showEvidence = readyEvidence && entranceReady;
   const [index, setIndex] = useState(0);
   const [manual, setManual] = useState(false);
   const [reading, setReading] = useState(false);
@@ -65,7 +66,7 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
 
   const entrance = (stage: number) => ({ initial: false as const, animate: { opacity: openingBeat >= stage ? 1 : 0, y: openingBeat >= stage ? 0 : 12 }, transition: { duration: reduced ? 0 : .85, ease: EASE } });
   return <div className={narrative.profile} data-profile-narrative data-profile-beat={openingBeat} data-profile-stage={readyEvidence ? "evidence" : readyPositions ? "priorities" : "positions"}>
-    {!readyEvidence && <motion.div layoutId="sf-intro-profile-pair" transition={{duration:reduced?0:1,ease:EASE}}>{pair}</motion.div>}
+    {!showEvidence && <motion.div layoutId="sf-intro-profile-pair" transition={{duration:reduced?0:1,ease:EASE}}>{pair}</motion.div>}
     <motion.div {...entrance(1)} className={styles.profileHeading}>
       <div className={styles.profileMark}><UserRound size={23}/><span>{positions.length ? positions.join(" / ") : "YOU"}</span></div>
       <div><h3>{zh ? "先从你的打法开始。" : "Start with your game."}</h3><p>{zh ? "每个选择，都让下一步更贴近你。" : "Each choice brings the next step closer to your game."}</p></div>
@@ -79,12 +80,12 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
       </div>
     </motion.fieldset>
     <AnimatePresence initial={false}>
-      {readyPositions && <motion.section ref={prioritiesRef} key="priorities" className={`${styles.focusSection} ${narrative.priorities}`} data-profile-priorities initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: reduced ? 0 : .8, ease: EASE }}>
+      {readyPositions && entranceReady && <motion.section ref={prioritiesRef} key="priorities" className={`${styles.focusSection} ${narrative.priorities}`} data-profile-priorities initial={reduced ? false : { height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: reduced ? 0 : .8, ease: EASE }}>
         <div className={styles.subheading}><strong>{zh ? "你最在意什么？" : "What matters most?"}</strong><span>{zh ? "依次选 3 项 · 顺序就是优先级" : "Pick three in priority order"}</span></div>
         <PlaystyleDimGrid picks={picks} onToggle={onFocus}/>
         <div className={styles.priorityOrder} aria-live="polite">{picks.length ? picks.map((key, i) => <motion.span key={key} layoutId={reduced ? undefined : `sf-intro-priority-${key}`}><b>{i + 1}</b>{label(key)}</motion.span>) : <span>{zh ? "从你最在意的一项开始。" : "Start with what matters most to you."}</span>}</div>
       </motion.section>}
-      {readyEvidence && <motion.div key="evidence" ref={evidenceRef} className={`${styles.focusPreview} ${narrative.evidence}`} data-profile-evidence initial={reduced ? false : { opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .95, ease: EASE }}>
+      {showEvidence && <motion.div key="evidence" ref={evidenceRef} className={`${styles.focusPreview} ${narrative.evidence}`} data-profile-evidence initial={reduced ? false : { opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? 0 : .95, ease: EASE }}>
         <div className={styles.subheading}><strong>{zh ? "现在，从你的关注点看这两双。" : "Your priorities. Your two picks."}</strong><span>{zh ? "按你选择的顺序逐项了解" : "In the order you chose"}</span></div>
         <motion.div layoutId="sf-intro-profile-pair" transition={{duration:reduced?0:1,ease:EASE}}>{pair}</motion.div>
         <div className={`${styles.dimensionTabs} ${narrative.readingTabs}`} aria-label={zh ? "你的三个优先项" : "Your three priorities"}>{picks.map((key, i) => <button key={key} type="button" aria-pressed={focus === key} onClick={() => { setManual(true); setIndex(i); }}><span>{String(i + 1).padStart(2, "0")}</span>{label(key)}</button>)}</div>
