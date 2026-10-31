@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {applyRecommendationTranslation, recommendationText, matchesPickerLanguage} from '../lib/onboarding/picker-language';
+import type {DemoShoe} from '../lib/onboarding/picker-demo-contract';
+const shoes:DemoShoe[]=[{id:'one',slug:'shoe-one',name:'AE 1',brand:'adidas',image:'/one.png',reason:'A stable platform.',pros:['Good grip'],cons:['Heavy'],references:[{title:'Original source',url:'https://example.com/review'}]}];
+const zh=applyRecommendationTranslation(shoes,['稳定的平台。','抓地表现好。','偏重。'],'zh');
+assert.deepEqual(recommendationText(zh),['稳定的平台。','抓地表现好。','偏重。']);
+assert.deepEqual(zh[0].references,shoes[0].references);assert.equal(zh[0].id,shoes[0].id);assert.equal(zh[0].name,'AE 1');assert.equal(shoes[0].reason,'A stable platform.');
+assert.throws(()=>applyRecommendationTranslation(shoes,['稳定的平台。'],'zh'));
+assert.throws(()=>applyRecommendationTranslation(shoes,['稳定的平台。','Good grip','Heavy'],'zh'));
+assert.throws(()=>applyRecommendationTranslation(shoes,['稳定的平台。','Good grip','Heavy'],'en'));
+assert.equal(matchesPickerLanguage('AE 1 的平台更稳定。','zh'),true);
+assert.deepEqual(recommendationText(applyRecommendationTranslation(zh,recommendationText(shoes),'en')),recommendationText(shoes));
+console.log('PASS recommendation localization in both directions, partial/wrong-language rejection, original identities/citations and immutable source.');

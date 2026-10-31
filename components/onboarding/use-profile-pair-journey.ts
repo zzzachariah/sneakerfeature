@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNarrativeScroll } from "./use-narrative-scroll";
 
-/** One owner for the shoes: scroll first, then move measured image copies. */
+/** A single moving overlay follows the final destination while the panel scrolls. */
 export function useProfilePairJourney(ready: boolean, reduced: boolean) {
   const origin = useRef<HTMLDivElement>(null), target = useRef<HTMLDivElement>(null);
   const [atEvidence, setAtEvidence] = useState(false), [landed, setLanded] = useState(false);
@@ -51,15 +51,19 @@ export function useProfilePairJourney(ready: boolean, reduced: boolean) {
       setAtEvidence(true);
       await frame(); await frame();
       if(stopped)return;
-      // Keep the copies still while the form settles at the evidence section.
-      if(!await scroll(target.current,false,450,1800)||stopped){settle();return;}
+      // Measure the final viewport destination before scrolling. Images and panel
+      // now move together, with no stationary hold between the two animations.
+      const targetTop=target.current!.getBoundingClientRect().top;
+      const finalScroll=Math.max(0,Math.min(panel.scrollHeight-panel.clientHeight,panel.scrollTop+targetTop-panel.getBoundingClientRect().top-12));
+      const scrollDelta=finalScroll-panel.scrollTop;
+      const movement=scroll(target.current,false,0,1900).then(ok=>{if(!ok)settle();});
       const destinations=Array.from(target.current?.querySelectorAll<HTMLImageElement>("[data-comparison-target] img")??[]);
       if(destinations.length!==2){settle();return;}
-      await Promise.all(copies.map(({copy,from},i)=>{
+      await Promise.all([movement,...copies.map(({copy,from},i)=>{
         const to=destinations[i].getBoundingClientRect();
-        const animation=copy.animate([{transform:"translate(0,0) scale(1,1)"},{transform:`translate(${to.left-from.left}px,${to.top-from.top}px) scale(${to.width/from.width},${to.height/from.height})`}],{duration:1900,easing:"cubic-bezier(.45,0,.2,1)",fill:"forwards"});
+        const animation=copy.animate([{transform:"translate(0,0) scale(1,1)"},{transform:`translate(${to.left-from.left}px,${to.top-from.top-scrollDelta}px) scale(${to.width/from.width},${to.height/from.height})`}],{duration:1900,easing:"cubic-bezier(.45,0,.2,1)",fill:"forwards"});
         animations.push(animation);return animation.finished;
-      }));
+      })]);
       settle();
     })().catch(settle);
     return()=>{
