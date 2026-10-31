@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useNarrativeScroll } from "./use-narrative-scroll";
 
 export type ComparisonPhase = "rest" | "preparing" | "dimming" | "moving" | "shoes" | "radar" | "copy" | "details";
+export type ShoeDestination = "comparison" | "profile";
 const EASE = "cubic-bezier(.4, 0, .2, 1)";
 const TIMES = { dim: 900, travel: 1600, shoes: 900, radar: 1150, copy: 900, details: 650 };
 
@@ -19,9 +21,11 @@ function imageRect(image: HTMLImageElement) {
 type Run = { abort: AbortController; arrive: () => void; cleanup: () => void };
 
 export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
-  root: RefObject<HTMLDivElement | null>; enabled: boolean; reduced: boolean | null; onArrive: () => void;
+  root: RefObject<HTMLDivElement | null>; enabled: boolean; reduced: boolean | null; onArrive: (destination: ShoeDestination) => void;
 }) {
   const [phase, setPhase] = useState<ComparisonPhase>("rest");
+  const [destination, setDestination] = useState<ShoeDestination>("comparison");
+  const scroll = useNarrativeScroll(Boolean(reduced));
   const run = useRef<Run | null>(null);
   const wasBusy = useRef(false);
   const latest = useRef({ enabled, reduced, onArrive });
@@ -63,12 +67,13 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
     };
   }, [cancel]);
 
-  const start = useCallback(() => {
+  const start = useCallback((destination: ShoeDestination = "comparison") => {
     if (run.current || !latest.current.enabled) return;
     const shell = root.current;
-    const sources = Array.from(shell?.querySelectorAll<HTMLImageElement>("img[data-comparison-source]") ?? []);
+    const sources = Array.from(shell?.querySelectorAll<HTMLImageElement>(destination === "profile" ? '[data-story-step="1"] [data-comparison-target] img' : "img[data-comparison-source]") ?? []);
+    setDestination(destination);
     if (!shell || sources.length !== 2 || latest.current.reduced || window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof Element.prototype.animate !== "function") {
-      latest.current.onArrive();
+      latest.current.onArrive(destination);
       return;
     }
     const abort = new AbortController();
@@ -78,7 +83,7 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
     let arrived = false;
     const current: Run = {
       abort,
-      arrive: () => { if (!arrived) { arrived = true; latest.current.onArrive(); } },
+      arrive: () => { if (!arrived) { arrived = true; latest.current.onArrive(destination); } },
       cleanup: () => {
         animations.forEach(animation => animation.cancel());
         animations.clear();
@@ -111,6 +116,10 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
     };
 
     void (async () => {
+      // The comparison may be scrolled to its specifications. Rejoin the real
+      // pair before isolating it, instead of flying in clones from offscreen.
+      if (destination === "profile") await scroll(sources[0], true);
+      guard();
       // A quick Next click may arrive while the wall-to-selection flight is
       // still landing. Let that real image finish before taking ownership.
       const began = performance.now();
@@ -118,6 +127,7 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
       guard();
       overlay = document.createElement("div");
       overlay.dataset.comparisonOverlay = "true";
+      overlay.dataset.shoeDestination = destination;
       overlay.setAttribute("aria-hidden", "true");
       Object.assign(overlay.style, { position: "fixed", inset: "0", zIndex: "160", overflow: "hidden", pointerEvents: "auto" });
       const veil = document.createElement("div");
@@ -131,10 +141,11 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
         image.removeAttribute("data-comparison-source");
         image.removeAttribute("data-shoe-landing");
         image.alt = "";
-        image.dataset.comparisonFlight = source.dataset.comparisonSource;
+        const slug = source.dataset.comparisonSource ?? source.parentElement?.dataset.comparisonTarget;
+        image.dataset.comparisonFlight = slug;
         Object.assign(image.style, { position: "absolute", left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px`, maxWidth: "none", margin: "0", objectFit: "contain", transformOrigin: "0 0", filter: getComputedStyle(source).filter, willChange: "transform" });
         overlay!.appendChild(image);
-        return { image, source, from };
+        return { image, source, from, slug };
       });
       document.body.appendChild(overlay);
       sources.forEach(hide);
@@ -144,9 +155,9 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
       setPhase("moving");
       await frame();
       await frame();
-      const targets = Array.from(shell.querySelectorAll<HTMLImageElement>("[data-comparison-target] img"));
-      const journeys = flights.map(({ image, source, from }) => {
-        const target = targets.find(node => node.parentElement?.dataset.comparisonTarget === source.dataset.comparisonSource);
+      const targets = Array.from(shell.querySelectorAll<HTMLImageElement>(destination === "profile" ? "[data-profile-narrative] [data-comparison-target] img" : "[data-comparison-target] img"));
+      const journeys = flights.map(({ image, from, slug }) => {
+        const target = targets.find(node => node.parentElement?.dataset.comparisonTarget === slug);
         if (!target) throw new Error("Comparison image unavailable");
         const to = imageRect(target);
         if (!to.width || !to.height) throw new Error("Comparison image has no layout");
@@ -159,8 +170,10 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
       // Transfer ownership at the measured landing positions, then start the
       // site's existing radar drawing. It has not played behind the curtain.
       current.cleanup();
-      setPhase("radar");
-      await hold(TIMES.radar);
+      if (destination === "comparison") {
+        setPhase("radar");
+        await hold(TIMES.radar);
+      }
       setPhase("copy");
       await hold(TIMES.copy);
       setPhase("details");
@@ -172,7 +185,7 @@ export function useComparisonEntrance({ root, enabled, reduced, onArrive }: {
     })().catch(() => {
       if (run.current === current) cancel(true);
     });
-  }, [root, cancel]);
+  }, [root, cancel, scroll]);
 
-  return { phase, busy: phase !== "rest", start, cancel };
+  return { phase, destination, busy: phase !== "rest", start, cancel };
 }

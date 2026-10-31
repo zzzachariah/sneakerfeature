@@ -153,7 +153,7 @@ const StoryScene = forwardRef<HTMLDivElement, { children: ReactNode; reduced: bo
   return <motion.div ref={setRef} className={interactive.scene} data-onboarding-story-scroll role="region" aria-label={label} tabIndex={0} inert={!present} aria-hidden={!present} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduced ? .15 : .55, ease }}>{children}<ScrollHint targetRef={scrollRef} zh={zh}/></motion.div>;
 });
 
-export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, positions, picks, onPositions, onPicks, profileExit, onProfileExit, introDemoRunKey = 0, comparisonPhase = "rest" }: {
+export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection, positions, picks, onPositions, onPicks, profileExit, onProfileExit, introDemoRunKey = 0, comparisonPhase = "rest", profilePhase = "rest" }: {
   step: number;
   positions: Position[]; picks: DimKey[]; onPositions: (value: Position[]) => void; onPicks: (value: DimKey[]) => void;
   profileExit: boolean; onProfileExit: (completed: boolean) => void;
@@ -163,6 +163,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
   onChangeSelection?: () => void;
   introDemoRunKey?: number;
   comparisonPhase?: ComparisonPhase;
+  profilePhase?: ComparisonPhase;
 }) {
   const reduced = Boolean(useReducedMotion());
   const stageRef = useRef<HTMLDivElement>(null);
@@ -231,7 +232,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
   const togglePosition = (position: Position) => onPositions(positions.includes(position) ? positions.filter(p => p !== position) : positions.length < 2 ? [...positions, position] : positions);
   const toggleFocus = (key: DimKey) => onPicks(picks.includes(key) ? picks.filter(p => p !== key) : picks.length < 3 ? [...picks, key] : picks);
 
-  return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-story-step={step} data-comparison-phase={comparisonPhase} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
+  return <div ref={stageRef} className={step === 0 ? styles.storyStage : interactive.stage} data-testid={`onboarding-scene-${step}`} data-story-step={step} data-comparison-phase={comparisonPhase} data-profile-phase={profilePhase} onPointerDownCapture={takeControl} onFocusCapture={takeControl}>
     {step === 0 ? <div className={styles.heroScene}>
       <div className={styles.heroHalo} aria-hidden="true"/>
       <motion.div layoutId={reduced || !primary ? undefined : `sf-shoe-${primary.slug}`} className={styles.heroShoe} initial={reduced ? false : { y: 25, rotate: -12 }} animate={{ y: 0, rotate: reduced ? 0 : -6 }} transition={{ ...transition, duration: reduced ? .15 : 1.1 }}><ShoeImage shoe={primary} className={styles.shoeImage}/></motion.div>
@@ -252,7 +253,7 @@ export function SiteStory({ step, catalog, zh, selectedShoes, onChangeSelection,
           <p className={interactive.evidenceNote}><Info size={14}/>{zh ? "资料参考，并非本站实测；缺少依据的项目不会补分。" : "Reference information, not our own testing. Missing evidence is never filled with a score."}</p></div>
         </StoryScene>}
         {step === 2 && <StoryScene key="profile" reduced={reduced} zh={zh} label={zh ? "球员档案演示" : "Player profile preview"}>
-          <AnimatePresence mode="popLayout" initial={false}>{handoff ? <motion.div key="handoff" className={pickerStyles.handoff} initial={{opacity:0}} animate={{opacity:1}} transition={{duration:reduced?0:.8}}><ProfileSelections positions={positions} picks={picks} zh={zh} reduced={reduced}/></motion.div> : <motion.div key="profile-fields" exit={{opacity:0}} transition={{duration:reduced?0:.8}}><ProfileNarrative zh={zh} reduced={reduced} positions={positions} picks={picks} onPosition={togglePosition} onFocus={toggleFocus} label={key => dimensionLabel(key, zh)} pair={<SelectedPair shoes={shoes} zh={zh} reduced={reduced} compact/>} comparison={key => <FieldComparison shoes={shoes} dimension={key} zh={zh} reduced={reduced}/>}/></motion.div>}</AnimatePresence>
+          <AnimatePresence mode="popLayout" initial={false}>{handoff ? <motion.div key="handoff" className={pickerStyles.handoff} initial={{opacity:0}} animate={{opacity:1}} transition={{duration:reduced?0:.8}}><ProfileSelections positions={positions} picks={picks} zh={zh} reduced={reduced}/></motion.div> : <motion.div key="profile-fields" exit={{opacity:0}} transition={{duration:reduced?0:.8}}><ProfileNarrative entranceReady={["rest", "copy", "details"].includes(profilePhase)} zh={zh} reduced={reduced} positions={positions} picks={picks} onPosition={togglePosition} onFocus={toggleFocus} label={key => dimensionLabel(key, zh)} pair={<SelectedPair shoes={shoes} zh={zh} reduced={reduced} compact shared={profilePhase === "rest"}/>} comparison={key => <FieldComparison shoes={shoes} dimension={key} zh={zh} reduced={reduced}/>}/></motion.div>}</AnimatePresence>
         </StoryScene>}
         {step === 3 && <StoryScene key="picker" reduced={reduced} zh={zh} label={zh ? "AI 选鞋演示" : "Smart Picker preview"}>
           <PickerNarrative zh={zh} reduced={reduced} input={positions.length===2 && picks.length===3 ? {positions,priorities:picks,shoeIds:shoes.map(s=>s.shoe.id),lang:zh?"zh":"en"}:null} shoes={shoes} onBack={() => onProfileExit(false)}/>
