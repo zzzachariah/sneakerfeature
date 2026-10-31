@@ -28,13 +28,14 @@
 .progressHeader i { width:5px; height:5px; background:rgb(var(--brand)); border-radius:50%; animation:breathe 2s ease-in-out infinite; }
 .progressHeader time { color:rgb(var(--subtext)); font-variant-numeric:tabular-nums; }
 .workbench { display:grid; grid-template-columns:minmax(110px,.72fr) minmax(0,1.7fr); gap:24px; }
-.workbench nav { display:flex; flex-direction:column; gap:2px; }
-.workbench nav button { display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 0; border:0; background:transparent; text-align:left; font-size:11px; line-height:1.5; color:rgb(var(--subtext)); cursor:pointer; }
+.workbench nav { position:relative; display:flex; flex-direction:column; gap:2px; min-width:0; }
+.workbench nav button { flex-shrink:0; display:flex; align-items:center; gap:8px; min-height:44px; padding:8px 0; border:0; background:transparent; text-align:left; font-size:11px; line-height:1.5; color:rgb(var(--subtext)); cursor:pointer; }
 .workbench nav button[aria-pressed=true] { color:rgb(var(--text)); }
 .workbench nav button > span { color:rgb(var(--brand)); font:9px var(--font-geist-mono),monospace; }
 .workbench nav button > svg { flex-shrink:0; margin-left:auto; }
-.stageWindow { overflow:hidden; min-width:0; border-left:1px solid rgb(var(--text)/.12); padding-left:20px; }
-.stage { min-height:150px; padding:8px 0; }
+.stageWindow { position:relative; height:clamp(176px,42cqh,264px); min-width:0; overflow:hidden; border-left:1px solid rgb(var(--text)/.12); }
+.stage { position:absolute; inset:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-gutter:stable; padding:8px 8px 32px 20px; overflow-wrap:anywhere; }
+.stage:focus-visible,.sourceViewport:focus-visible { outline:2px solid rgb(var(--brand)); outline-offset:-2px; }
 .stageLabel { display:block; font-size:12px; margin-bottom:18px; }
 .figure { display:block; font:400 52px/1.1 var(--font-geist-mono),monospace; letter-spacing:-.07em; margin-bottom:14px; }
 .candidates { display:flex; flex-direction:column; gap:13px; }
@@ -87,7 +88,7 @@
 .spinner { animation:spin 1.3s linear infinite; }
 @keyframes spin {to{transform:rotate(360deg)}}
 @keyframes breathe {50%{opacity:.3}}
-@media(max-width:600px) { .workbench {grid-template-columns:1fr;gap:14px;} .workbench nav {flex-direction:row;flex-wrap:wrap;column-gap:16px;} .workbench nav button {font-size:10px;} .stageWindow {padding-left:14px;} .resultGrid {gap:20px;} .resultGrid h4 {font-size:18px;} .picker {gap:24px;} .prompt {font-size:13px;} .homeCard {right:16px;bottom:calc(80px + env(safe-area-inset-bottom));padding:20px;} }
+@media(max-width:600px) { .workbench {grid-template-columns:1fr;gap:14px;} .workbench nav {flex-direction:row;flex-wrap:nowrap;gap:16px;overflow-x:auto;scrollbar-width:none;height:46px;} .workbench nav button {white-space:nowrap;} .workbench nav button {font-size:10px;} .stage {padding-left:14px;} .resultGrid {gap:20px;} .resultGrid h4 {font-size:18px;} .picker {gap:24px;} .prompt {font-size:13px;} .homeCard {right:16px;bottom:calc(80px + env(safe-area-inset-bottom));padding:20px;} }
 @media(max-width:380px) { .resultGrid {grid-template-columns:1fr;} .resultImage {max-height:170px;} }
 @media(prefers-reduced-motion:reduce) { .spinner,.progressHeader i {animation:none;} }
 .sources { padding-block:10px; min-width:0; }
@@ -112,3 +113,15 @@
 .answerPriorities + .progress { border-top:0;padding-top:0; }
 
 .results .answerPriorities { margin-bottom:24px; }
+
+/* Stable reading geometry; only the content slides, never the stage edges. */
+.progressHeader { min-height:46px; padding-bottom:14px; }
+.progressHeader > span { min-width:0; line-height:1.5; }
+.progressHeader time { flex-shrink:0; }
+.followBar { height:44px; display:flex; align-items:center; justify-content:flex-end; }
+.followBar button { display:inline-flex; gap:8px; align-items:center; min-height:44px; border:0; background:none; color:rgb(var(--brand)); font-size:10px; cursor:pointer; }
+.followBar button:disabled { opacity:.65; color:rgb(var(--subtext)); cursor:default; }
+.progress > .liveNote { height:40px; overflow-y:auto; scrollbar-width:thin; margin-top:0 !important; }
+.sourceViewport { position:relative; height:clamp(170px,38cqh,244px); min-width:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-gutter:stable; padding:2px 5px 28px 2px; }
+.sourceViewport[data-folded=true] { height:auto; max-height:244px; }
+.stage > [data-scroll-hint], .sourceViewport > [data-scroll-hint] { margin-bottom:-22px; }

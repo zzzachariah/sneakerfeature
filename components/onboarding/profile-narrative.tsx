@@ -12,17 +12,19 @@ import styles from "./site-interactive-stories.module.css";
 import narrative from "./story-narrative.module.css";
 
 const names: Record<Position, [string, string]> = { PG: ["控球后卫", "Point guard"], SG: ["得分后卫", "Shooting guard"], SF: ["小前锋", "Small forward"], PF: ["大前锋", "Power forward"], C: ["中锋", "Center"] };
-export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, onFocus, label, pair, comparison }: {
+export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, onFocus, label, pair, comparison, entranceReady = true }: {
+  entranceReady?: boolean;
   zh: boolean; reduced: boolean; positions: Position[]; picks: DimKey[];
   onPosition: (position: Position) => void; onFocus: (key: DimKey) => void;
   label: (key: DimKey) => string; pair: ReactNode; comparison: (key: DimKey) => ReactNode;
 }) {
   const [openingBeat, setOpeningBeat] = useState(reduced ? 3 : 0);
   useEffect(() => {
+    if (!entranceReady) { setOpeningBeat(0); return; }
     if (reduced) { setOpeningBeat(3); return; }
     const timers = [650, 1250, 2400].map((at, i) => window.setTimeout(() => setOpeningBeat(i + 1), at));
     return () => timers.forEach(window.clearTimeout);
-  }, [reduced]);
+  }, [reduced, entranceReady]);
   const prioritiesRef = useRef<HTMLElement>(null);
   const evidenceRef = useRef<HTMLDivElement>(null);
   const scroll = useNarrativeScroll(reduced);
@@ -35,16 +37,16 @@ export function ProfileNarrative({ zh, reduced, positions, picks, onPosition, on
   const focus = picks[Math.min(index, picks.length - 1)] ?? "traction";
 
   useEffect(() => {
-    if (!readyPositions) return;
+    if (!readyPositions || !entranceReady) return;
     void scroll(prioritiesRef.current, false, 850);
-  }, [readyPositions, scroll, reduced]);
+  }, [readyPositions, scroll, reduced, entranceReady]);
   useEffect(() => {
     setIndex(0); setManual(false); setReading(false);
-    if (!readyEvidence) return;
+    if (!readyEvidence || !entranceReady) return;
     let disposed = false;
     void scroll(evidenceRef.current, "end", 950).then(arrived => { if (!disposed) setReading(arrived); });
     return () => { disposed = true; };
-  }, [readyEvidence, pickKey, reduced, scroll]);
+  }, [readyEvidence, pickKey, reduced, scroll, entranceReady]);
   useEffect(() => {
     if (!reading || manual || reduced || index >= 2) return;
     const timer = window.setTimeout(() => { if (!document.hidden) setIndex(value => value + 1); }, 3600);

@@ -273,3 +273,8 @@
 /* Anchor a small cue at the panel edge; never paint a veil over its contents. */
 .scene > :last-child[data-scroll-hint] { position: absolute; inset: auto 18px 8px auto; width: auto; margin: 0; }
 .scene > :last-child[data-scroll-hint] > span { bottom: 0; }
+
+.stage[data-profile-phase="moving"] :is(.shoeIndex, .shoeIdentity) { opacity: 0; }
+.stage[data-profile-phase="shoes"] :is(.shoeIndex, .shoeIdentity) { animation: comparison-reveal .9s cubic-bezier(.22,1,.36,1) both; }
+.stage:is([data-profile-phase="moving"], [data-profile-phase="shoes"], [data-profile-phase="copy"]) :is(.sceneTop, [data-scroll-hint]) { opacity: 0; }
+.stage[data-profile-phase="details"] :is(.sceneTop, [data-scroll-hint]) { animation: comparison-reveal .65s cubic-bezier(.22,1,.36,1) both; }

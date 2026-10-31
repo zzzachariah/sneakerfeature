@@ -139,9 +139,9 @@ function FlightPreview({ snapshot }: { snapshot?: HTMLElement }) {
 }
 
 /** The fading shell must release the page before nested layout exits settle. */
-function OnboardingShell({ children, shellRef, label, phase, reduced, comparisonPhase }: {
+function OnboardingShell({ children, shellRef, label, phase, reduced, comparisonPhase, profilePhase }: {
   children: ReactNode; shellRef: RefObject<HTMLDivElement | null>;
-  label: string; phase: string; reduced: boolean | null; comparisonPhase: ComparisonPhase;
+  label: string; phase: string; reduced: boolean | null; comparisonPhase: ComparisonPhase; profilePhase: ComparisonPhase;
 }) {
   const present = useIsPresent();
   const [visibleFrame, setVisibleFrame] = useState<{ height: number; top: number } | null>(null);
@@ -169,9 +169,9 @@ function OnboardingShell({ children, shellRef, label, phase, reduced, comparison
   }, []);
   return <motion.div ref={shellRef} className={styles.shell}
     role={present ? "dialog" : undefined} aria-modal={present ? true : undefined} aria-label={label}
-    inert={!present || comparisonPhase !== "rest"} aria-busy={comparisonPhase !== "rest" || undefined} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
+    inert={!present || comparisonPhase !== "rest" || profilePhase !== "rest"} aria-busy={comparisonPhase !== "rest" || profilePhase !== "rest" || undefined} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: !reduced && phase === "welcome" ? .99 : 1, transition: { duration: reduced ? .15 : phase === "welcome" ? 1 : .35, ease: EASE } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
-    data-testid="site-onboarding" data-comparison-phase={comparisonPhase} data-phase={phase} data-exiting={!present || undefined}>
+    data-testid="site-onboarding" data-comparison-phase={comparisonPhase} data-profile-phase={profilePhase} data-phase={phase} data-exiting={!present || undefined}>
     {children}
   </motion.div>;
 }
@@ -252,11 +252,11 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const showingIntro = showing && (replay || phase === "intro");
   const comparison = useComparisonEntrance({
     root: shellRef, enabled: showingIntro && tourStarted, reduced,
-    onArrive: () => {
+    onArrive: (destination) => {
       storyRef.current?.scrollTo({ top: 0, behavior: "instant" });
       copyRef.current?.scrollTo({ top: 0, behavior: "instant" });
       setDirection(1);
-      setStep(1);
+      setStep(destination === "profile" ? 2 : 1);
     }
   });
   const cancelComparison = comparison.cancel;
@@ -564,7 +564,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setStatus(null); setBusy(false); setAuthMounted(false); setProfileMounted(false); setPhase("auth"); setError("");
     router.refresh();
   }
-  function changeStep(next: number) { if (comparison.busy || flight || profileExit || (next > 0 && selectedShoes.length < 2)) return; if (step === 2 && next === 3 && introPositions.length === 2 && introPicks.length === 3) { setProfileExit(true); return; } if (step === 0 && next === 1) { comparison.start(); return; } storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
+  function changeStep(next: number) { if (comparison.busy || flight || profileExit || (next > 0 && selectedShoes.length < 2)) return; if (step === 2 && next === 3 && introPositions.length === 2 && introPicks.length === 3) { setProfileExit(true); return; } if (step === 0 && next === 1) { comparison.start(); return; } if (step === 1 && next === 2) { comparison.start("profile"); return; } storyRef.current?.scrollTo({ top: 0, behavior: "instant" }); copyRef.current?.scrollTo({ top: 0, behavior: "instant" }); setDirection(next > step ? 1 : -1); setStep(Math.max(0, Math.min(3, next))); }
   function openReplay() { setProfileExit(false); cancelComparison(); setStep(0); setTourStarted(false); setWallExpanded(false); setDirection(1); setIntroDemoRunKey((current) => current + 1); setReplay(true); }
   useEffect(() => { rememberIntroShoes(selectedShoes); }, [selectedShoes]);
   function selectShoe(shoe: StoryShoe) { setSelectedShoes((current) => current.some((item) => item.slug === shoe.slug) ? current.filter((item) => item.slug !== shoe.slug) : current.length < 2 ? [...current, shoe] : current); }
@@ -587,7 +587,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   </CountReveal>;
 
   const shell = showing ? (
-    <OnboardingShell key="site-onboarding" shellRef={shellRef} label={zh ? "snkrfeature 新手体验" : "Welcome to snkrfeature"} phase={showingIntro ? "intro" : phase} reduced={reduced} comparisonPhase={comparison.phase}>
+    <OnboardingShell key="site-onboarding" shellRef={shellRef} label={zh ? "snkrfeature 新手体验" : "Welcome to snkrfeature"} phase={showingIntro ? "intro" : phase} reduced={reduced} comparisonPhase={comparison.destination === "comparison" ? comparison.phase : "rest"} profilePhase={comparison.destination === "profile" ? comparison.phase : "rest"}>
         <header className={styles.topbar}>
           <div className={styles.wordmark}>{phase !== "boot" && phase !== "error" && (!showingIntro || step > 0) ? <BrandLogo compact/> : <span className={styles.wordmarkDot}/>}<span>snkrfeature</span></div>
           <div className={styles.headerActions}><button className={styles.quietButton} type="button" onClick={() => requestLocaleChange(zh ? "en" : "zh")} aria-label={zh ? "Switch to English" : "切换中文"}><Languages size={15}/><span className={styles.languageLabel}>{zh ? "EN" : "中文"}</span></button>
@@ -628,7 +628,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 </AnimatePresence>
                 <ScrollHint targetRef={copyRef} zh={zh}/>
               </div>
-              <SiteStory positions={introPositions} picks={introPicks} onPositions={setIntroPositions} onPicks={setIntroPicks} profileExit={profileExit} onProfileExit={completeProfileExit} comparisonPhase={comparison.phase} step={step} catalog={catalog} zh={zh} selectedShoes={selectedShoes} introDemoRunKey={introDemoRunKey} onChangeSelection={() => changeStep(0)}/><div className={styles.compactBodyHint}><ScrollHint targetRef={storyRef} zh={zh}/></div></>}
+              <SiteStory positions={introPositions} picks={introPicks} onPositions={setIntroPositions} onPicks={setIntroPicks} profileExit={profileExit} onProfileExit={completeProfileExit} comparisonPhase={comparison.destination === "comparison" ? comparison.phase : "rest"} profilePhase={comparison.destination === "profile" ? comparison.phase : "rest"} step={step} catalog={catalog} zh={zh} selectedShoes={selectedShoes} introDemoRunKey={introDemoRunKey} onChangeSelection={() => changeStep(0)}/><div className={styles.compactBodyHint}><ScrollHint targetRef={storyRef} zh={zh}/></div></>}
             </motion.div>
             <div className={styles.controls}>
               <nav className={styles.steps} aria-label={zh ? "介绍步骤" : "Introduction steps"}>{[0, 1, 2, 3].map((n) => <button key={n} className={styles.stepDot} type="button" aria-current={step === n ? "step" : undefined} aria-label={(zh ? "第 " : "Step ") + (n + 1)} onClick={() => changeStep(n)} disabled={profileExit || !!flight || (n > 0 && selectedShoes.length < 2)}/>)}</nav>

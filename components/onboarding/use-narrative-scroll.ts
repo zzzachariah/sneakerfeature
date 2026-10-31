@@ -34,7 +34,9 @@ export function useNarrativeScroll(reduced: boolean) {
       document.addEventListener("keydown", stop);
       document.addEventListener("visibilitychange", stop);
       timer = window.setTimeout(() => {
-        let panel = target.closest<HTMLElement>("[data-onboarding-story-scroll]");
+        const inner = target.closest<HTMLElement>("[data-narrative-scroll]");
+        if (inner && inner.scrollHeight <= inner.clientHeight + 2) { finish(true); return; }
+        let panel = inner ?? target.closest<HTMLElement>("[data-onboarding-story-scroll]");
         if (!panel || !/auto|scroll/.test(getComputedStyle(panel).overflowY) || panel.scrollHeight <= panel.clientHeight + 2) panel = target.closest<HTMLElement>("[data-onboarding-content]");
         if (!panel) { finish(true); return; }
         const scroller = panel;

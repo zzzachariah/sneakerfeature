@@ -375,13 +375,11 @@
 @keyframes onb-form-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 @media (prefers-reduced-motion: reduce) { .formBody:not([hidden]) { animation: none; } }
 
-/* The opening is a self-contained black stage, regardless of the saved theme. */
-.shell:has([data-testid="onboarding-tour-opening"]) { --bg: 0 0 0; --bg-elev: 20 20 22; --text: 245 245 247; --subtext: 161 161 170; --brand: 245 245 247; --brand-contrast: 0 0 0; background: #000; }
+/* Preserve the sequential opening while inheriting the resolved site theme. */
 .shell:has([data-testid="onboarding-tour-opening"]) .topbar { justify-content: flex-end; }
 .shell:has([data-testid="onboarding-tour-opening"]) .topbar > .wordmark { display: none; }
 .shell:has([data-testid="onboarding-tour-opening"]) .languageLabel { display: inline; }
 .shell:has([data-testid="onboarding-tour-opening"]) .footer > :first-child { visibility: hidden; }
-.shell:has([data-testid="onboarding-tour-opening"]) :is(.logoCompact, .logoHero) img { filter: invert(1); }
 .body:has([data-picker-narrative]) .copy { transition: opacity 1s cubic-bezier(.22,1,.36,1); }
 .body:has([data-picker-narrative][data-explained="false"]) .copy { opacity: 0; visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .body:has([data-picker-narrative]) .copy { transition: none; } }
@@ -412,3 +410,9 @@
 @media (min-width:600px) and (max-width:850px) and (max-height:600px) {
   .body:has([data-story-step="2"], [data-story-step="3"]) {grid-template-columns:minmax(0,.65fr) minmax(0,1.35fr);grid-template-rows:minmax(0,1fr);}
 }
+
+/* The selected shoes stay present while the rest of the profile scene arrives. */
+.shell:is([data-profile-phase="moving"], [data-profile-phase="shoes"], [data-profile-phase="copy"]) :is(.topbar, .footer, .controls, .compactBodyHint) { opacity: 0; }
+.shell:is([data-profile-phase="moving"], [data-profile-phase="shoes"]) .copy { opacity: 0; }
+.shell[data-profile-phase="copy"] .copy { animation: comparison-copy .9s cubic-bezier(.22,1,.36,1) both; }
+.shell[data-profile-phase="details"] :is(.topbar, .footer, .controls, .compactBodyHint) { animation: comparison-copy .65s cubic-bezier(.22,1,.36,1) both; }
