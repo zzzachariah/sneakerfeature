@@ -8,7 +8,7 @@ import { type DemoInput, type DemoStage, type DemoEvent, type DemoSnapshot } fro
 import { ProfileSelections } from "./profile-selections";
 import { usePickerDemo } from "./use-picker-demo";
 import { useNarrativeScroll } from "./use-narrative-scroll";
-import { playbackContentKey, playbackDuration, usePickerPlayback } from "./use-picker-playback";
+import { playbackContentKey, usePickerPlayback } from "./use-picker-playback";
 import { ScrollHint } from "./scroll-hint";
 import type { StoryShoe } from "./site-stories";
 import styles from "./picker-narrative.module.css";
@@ -22,6 +22,7 @@ function failure(code:string|undefined,zh:boolean) {
     provider_unavailable:["模型服务暂时无法响应，这次没有生成推荐。","The model service could not respond. No recommendations were generated."],
     demo_busy:["演示名额暂时已满。你可以先完成注册，稍后在 Smart Picker 继续。","The demo is at capacity. You can finish signing up and use Smart Picker later."],
     network:["连接中断，正在核对服务器是否已经完成。无需重新提交。","The connection was interrupted. We’re checking whether the server finished; no need to submit again."],
+    language_unavailable:["推荐文案暂时无法转换为所选语言，原推荐已保留。请重试。","The recommendations are saved, but translation is temporarily unavailable. Please retry."],
     unavailable:["这次 AI 请求未能完成。已有查询记录会保留，你仍可继续注册。","This AI request could not finish. Completed searches are retained, and you can continue signing up."]
   };
   return (messages[code||"unavailable"]||messages.unavailable)[zh?0:1];
@@ -72,7 +73,7 @@ function ProcessRecap({snapshot, zh, reduced, detailId, active, onSelect}: {
   </motion.section>;
 }
 export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;reduced:boolean;input:DemoInput|null;shoes:StoryShoe[];onBack:()=>void}) {
-  const {snapshot,connection,posting,run}=usePickerDemo();
+  const {snapshot,connection,posting,run,refresh}=usePickerDemo();
   const progressId=useId();
   const [beat,setBeat]=useState(reduced?2:0);
   const [history,setHistory]=useState<DemoStage|null>(null);
@@ -121,10 +122,12 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const duration=reduced?0:.85;
   const presenting=began&&!playbackDone&&snapshot.status!=="failed";
   const playbackContent=playbackContentKey(playback.phase,snapshot);
-  const panDuration=Math.max(4500,playbackDuration(playback.phase,snapshot)-5000);
+  const panDuration=playback.phase==="research"?Math.min(40000,Math.max(4500,events.map(e=>e.query??"").join(" ").length*28)):4500;
+  const markReady=useRef(playback.markReady); markReady.current=playback.markReady;
+  const processVisible=playback.phase!=="request";
   useEffect(()=>{
     if(!presenting)return;
-    const panel=progressRef.current?.closest("[data-onboarding-story-scroll], [data-onboarding-content]");
+    const panel=requestRef.current?.closest("[data-onboarding-story-scroll], [data-onboarding-content]");
     const pause=()=>{setFollowing(false);};
     const visibility=()=>{if(document.hidden)pause();};
     const key=(event:Event)=>{if(["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes((event as KeyboardEvent).key))pause();};
@@ -147,7 +150,8 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
     // Read the first part before gently panning long content to its end.
     const pan=window.setTimeout(()=>{
       const inner=playback.phase==="sources"?sourceViewportRef.current:stageRef.current;
-      if(inner&&playback.phase!=="request")void scrollDetail(inner,"end",0,panDuration);
+      const movement=playback.phase==="request"?scroll(requestRef.current,"end",0,1600):inner?scrollDetail(inner,"end",0,panDuration):Promise.resolve(true);
+      void movement.then(arrived=>{if(!stopped&&arrived)markReady.current();});
     },3800);
     return()=>{stopped=true;window.clearTimeout(timer);window.clearTimeout(pan);void scroll(null);void scrollDetail(null);};
   },[playback.phase,playbackContent,panDuration,following,history,presenting,scroll,scrollDetail]);
@@ -173,7 +177,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   return <div className={styles.picker} data-picker-narrative data-explained="true" data-demo-status={snapshot.status} data-playback-phase={playback.phase}>
     <motion.div className={styles.introduction} initial={false} animate={{opacity:beat>=1?1:0,y:beat>=1?0:8}} transition={{duration}}><span><Sparkles size={16}/>Smart Picker</span><h3>{zh?"从你的打法，找到下一双。":"Your game becomes the brief."}</h3></motion.div>
     <motion.section ref={requestRef} className={styles.request} layout transition={{duration,ease:EASE}} data-picker-request>
-      {context&&<ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part={began?"positions":"all"}/>}
+      {context&&<ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part={began&&processVisible?"positions":"all"}/>}
       <motion.div initial={false} animate={{opacity:beat>=1?1:0,height:beat>=1?"auto":0}} transition={{duration,ease:EASE}}>
         <div className={styles.interests}><small>{zh?"从这两双开始了解你":"YOUR STARTING POINT"}</small><div>{interestShoes.map(s=><span key={s.slug}>
           <motion.div layoutId={reduced?undefined:`sf-shoe-${s.slug}`} transition={{duration:1.15,ease:EASE}}>{s.image&&/* eslint-disable-next-line @next/next/no-img-element */<img src={s.image} alt=""/>}</motion.div>{s.name}</span>)}</div></div>
@@ -181,17 +185,18 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
       </motion.div>
       <motion.div initial={false} animate={{opacity:beat>=2?1:0}} transition={{duration}} inert={beat<2}>
         {!began&&<button className={styles.primary} disabled={posting||connection==="loading"} type="button" onClick={()=>input?void run(input):onBack()}>{input?(zh?"用我的选择，推荐两双":"Find two for my game"):(zh?"回到球员档案":"Back to my profile")}<ArrowRight size={16}/></button>}
-        <small className={styles.disclosure}>{snapshot.status==="complete"?(zh?"你的两双，已经准备好":"Your picks are ready"):(zh?"仅使用这些选择与公开球鞋资料":"AI uses only these choices and public shoe information")}</small>
+        <small className={styles.disclosure}>{connection==="loading"?(zh?"正在载入所选语言的推荐…":"Loading recommendations in your language…"):snapshot.status==="complete"?(zh?"你的两双，已经准备好":"Your picks are ready"):(zh?"仅使用这些选择与公开球鞋资料":"AI uses only these choices and public shoe information")}</small>
       </motion.div>
     </motion.section>
+    {began&&!processVisible&&<button type="button" className={styles.secondary} onClick={()=>setFollowing(v=>!v)}>{following?(zh?"暂停自动浏览":"Pause walkthrough"):(zh?"继续自动浏览":"Resume walkthrough")}</button>}
     <motion.section layout="position" className={styles.answer} data-picker-answer transition={{duration:reduced?0:1.15,ease:EASE}}>
-    {began&&!resultReady&&context&&<motion.div layout className={styles.answerPriorities} data-answer-priorities transition={{duration:reduced?0:1.15,ease:EASE}}><ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part="priorities"/></motion.div>}
-    {!resultReady&&progress}
-    {(allSources.length>0 || snapshot.status==="complete")&&<motion.section ref={sourcesRef} layout className={styles.sources} data-source-fold={folded} transition={{duration:reduced?0:1,ease:EASE}} aria-label={zh?"资料来源":"Sources"}>
+    {began&&processVisible&&!resultReady&&context&&<motion.div layout className={styles.answerPriorities} data-answer-priorities transition={{duration:reduced?0:1.15,ease:EASE}}><ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part="priorities"/></motion.div>}
+    {!resultReady&&processVisible&&progress}
+    {(playback.phase==="sources"||playbackDone)&&(allSources.length>0 || snapshot.status==="complete")&&<motion.section ref={sourcesRef} layout className={styles.sources} data-source-fold={folded} transition={{duration:reduced?0:1,ease:EASE}} aria-label={zh?"资料来源":"Sources"}>
       <span>{zh?"资料来源":"SOURCES"}</span><div ref={sourceViewportRef} className={styles.sourceViewport} data-narrative-scroll data-folded={folded} tabIndex={0} role="region" aria-label={zh?"找到的资料":"Retrieved evidence"}><motion.div layout className={styles.sourceCards} transition={{duration:reduced?0:1,ease:EASE}}><AnimatePresence initial={false} mode="popLayout">{displayedSources.map(source=><motion.a layout data-source-item key={source.url} href={source.url} target="_blank" rel="noopener noreferrer" initial={reduced?false:{opacity:0,y:14,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:reduced?0:-10,scale:reduced?1:.96}} transition={{duration:reduced?.1:.75,ease:EASE}}><span>{new URL(source.url).hostname.replace(/^www\./,"")}</span><strong>{source.title}</strong><ExternalLink size={12}/></motion.a>)}</AnimatePresence></motion.div><ScrollHint targetRef={sourceViewportRef} zh={zh} compact/></div>
       {folded&&!displayedSources.length&&<motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{duration}}><p>{zh?"本次推荐依据站内球鞋资料。":"These recommendations draw on the site’s shoe records."}</p><div className={styles.catalogSources}>{snapshot.shoes?.map(s=><a key={s.id} href={`/shoes/${s.slug}`} target="_blank" rel="noopener noreferrer">{s.name}<ExternalLink size={11}/></a>)}</div></motion.div>}
     </motion.section>}
-    {snapshot.status==="failed"&&<div ref={failureRef} className={styles.failure} role="alert"><strong>{zh?"这次没能完成，原因是：":"This run could not finish:"}</strong><p>{failure(snapshot.error,zh)}</p>{snapshot.retryable&&input&&<button type="button" className={styles.secondary} disabled={posting} onClick={()=>void run(input)}><RotateCcw size={14}/>{zh?"重试这次演示":"Retry this demo"}</button>}<small>{zh?"也可以继续创建账号，进入网站自由浏览。":"You can also create your account and explore the site."}</small></div>}
+    {snapshot.status==="failed"&&<div ref={failureRef} className={styles.failure} role="alert"><strong>{zh?"这次没能完成，原因是：":"This run could not finish:"}</strong><p>{failure(snapshot.error,zh)}</p>{snapshot.error==="language_unavailable"&&<button type="button" className={styles.secondary} onClick={()=>void refresh()}>{zh?"重试翻译":"Retry translation"}</button>}{snapshot.retryable&&input&&<button type="button" className={styles.secondary} disabled={posting} onClick={()=>void run(input)}><RotateCcw size={14}/>{zh?"重试这次演示":"Retry this demo"}</button>}<small>{zh?"也可以继续创建账号，进入网站自由浏览。":"You can also create your account and explore the site."}</small></div>}
     {resultReady&&snapshot.status==="complete"&&snapshot.shoes?.length===2&&<section ref={resultRef} className={styles.results} data-picker-results><ProcessRecap snapshot={snapshot} zh={zh} reduced={reduced} detailId={progressId} active={showHistory?active:null} onSelect={selectHistory}/>{progress}{context&&<motion.div layout className={styles.answerPriorities} data-answer-priorities transition={{duration:reduced?0:1.15,ease:EASE}}><ProfileSelections positions={context.positions} picks={context.priorities} zh={zh} reduced={reduced} part="priorities"/></motion.div>}<motion.div className={styles.resultHeading} initial={reduced?false:{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:reduced?0:.7,delay:reduced?0:.65,ease:EASE}}><span><Check size={14}/>{zh?"为你的打法找到两双":"TWO PICKS FOR YOUR GAME"}</span><h3>{zh?"推荐有理由，也有取舍。":"The fit. And the trade-offs."}</h3></motion.div>
       {!sourceCount&&<p className={styles.liveNote}>{zh?"本次外部查询没有可用结果，推荐仅依据站内目录；未进行实物测试。":"External research was unavailable. These picks use the site catalog only, not hands-on testing."}</p>}
       <div className={styles.resultGrid}>{snapshot.shoes.map((shoe,i)=><motion.article key={shoe.id} initial={reduced?false:{opacity:0,y:28}} animate={{opacity:1,y:0}} transition={{duration:reduced?0:1,delay:reduced?0:1.15+i*.25,ease:EASE}}>

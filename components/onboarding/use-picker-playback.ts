@@ -5,13 +5,8 @@ import type { DemoSnapshot, DemoStage } from "@/lib/onboarding/picker-demo-contr
 
 export type PlaybackPhase = "request" | DemoStage | "sources" | "done";
 const sequence: DemoStage[] = ["catalog", "shortlist", "research", "writing"];
-const minimum: Record<PlaybackPhase, number> = {request: 5000, catalog: 9000, shortlist: 9000, research: 12000, writing: 9000, sources: 10000, done: 0};
-/** Presentation time is independent of server speed. Never invent a stage. */
-export function playbackDuration(phase: PlaybackPhase, snapshot: DemoSnapshot) {
-  if (phase !== "research") return minimum[phase];
-  const queries = [...new Set(snapshot.events.filter(e => e.stage === "research" && e.query).map(e => e.query!))];
-  return Math.min(45000, Math.max(minimum.research, queries.join(" ").length * 32 + 5000));
-}
+/** Reading time starts only after the section has arrived and finished panning. */
+export function playbackDuration() { return 5000; }
 export function playbackContentKey(phase: PlaybackPhase, snapshot: DemoSnapshot) {
   return JSON.stringify(snapshot.events.filter(e => e.stage === phase).map(e => [e.query, e.state, e.candidates, e.catalogCount, e.sources]));
 }
@@ -25,6 +20,7 @@ export function nextPlaybackPhase(phase: PlaybackPhase, snapshot: DemoSnapshot):
 }
 export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, playing: boolean) {
   const [phase, setPhase] = useState<PlaybackPhase>("request");
+  const ready = useRef("");
   const engaged = useRef(false), identity = useRef<string | undefined>(undefined);
   const latest = useRef({snapshot, playing});
   latest.current = {snapshot, playing};
@@ -49,10 +45,11 @@ export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, play
       const key = playbackContentKey(phase, current);
       // A late query/result gets its own reading interval; polling timestamps do not.
       if (key !== content) { content = key; read = 0; }
+      if (ready.current !== `${phase}|${key}`) return;
       read += delta;
-      if (read >= playbackDuration(phase, current)) setPhase(nextPlaybackPhase(phase, current));
+      if (read >= playbackDuration()) setPhase(nextPlaybackPhase(phase, current));
     }, 200);
     return () => window.clearInterval(timer);
   }, [phase]);
-  return {phase, finish: () => setPhase("done")};
+  return {phase, markReady: () => { ready.current = `${phase}|${playbackContentKey(phase,snapshot)}`; }, finish: () => setPhase("done")};
 }
