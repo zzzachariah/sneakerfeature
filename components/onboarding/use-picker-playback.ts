@@ -10,7 +10,10 @@ const minimum: Record<PlaybackPhase, number> = {request: 5000, catalog: 9000, sh
 export function playbackDuration(phase: PlaybackPhase, snapshot: DemoSnapshot) {
   if (phase !== "research") return minimum[phase];
   const queries = [...new Set(snapshot.events.filter(e => e.stage === "research" && e.query).map(e => e.query!))];
-  return Math.min(22000, Math.max(minimum.research, queries.join(" ").length * 24 + 5000));
+  return Math.min(45000, Math.max(minimum.research, queries.join(" ").length * 32 + 5000));
+}
+export function playbackContentKey(phase: PlaybackPhase, snapshot: DemoSnapshot) {
+  return JSON.stringify(snapshot.events.filter(e => e.stage === phase).map(e => [e.query, e.state, e.candidates, e.catalogCount, e.sources]));
 }
 export function nextPlaybackPhase(phase: PlaybackPhase, snapshot: DemoSnapshot): PlaybackPhase {
   const observed = sequence.filter(stage => snapshot.events.some(e => e.stage === stage));
@@ -43,7 +46,7 @@ export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, play
       const now = performance.now(), delta = Math.min(now - previous, 300); previous = now;
       const {snapshot: current, playing: enabled} = latest.current;
       if (!engaged.current || !enabled || document.hidden || phase === "done" || current.status === "failed") return;
-      const key = JSON.stringify(current.events.filter(e => e.stage === phase).map(e => [e.query, e.state, e.candidates, e.catalogCount, e.sources]));
+      const key = playbackContentKey(phase, current);
       // A late query/result gets its own reading interval; polling timestamps do not.
       if (key !== content) { content = key; read = 0; }
       read += delta;

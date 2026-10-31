@@ -8,7 +8,7 @@ import { type DemoInput, type DemoStage, type DemoEvent, type DemoSnapshot } fro
 import { ProfileSelections } from "./profile-selections";
 import { usePickerDemo } from "./use-picker-demo";
 import { useNarrativeScroll } from "./use-narrative-scroll";
-import { usePickerPlayback } from "./use-picker-playback";
+import { playbackContentKey, playbackDuration, usePickerPlayback } from "./use-picker-playback";
 import { ScrollHint } from "./scroll-hint";
 import type { StoryShoe } from "./site-stories";
 import styles from "./picker-narrative.module.css";
@@ -120,13 +120,17 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const began=snapshot.status!=="idle"||posting;
   const duration=reduced?0:.85;
   const presenting=began&&!playbackDone&&snapshot.status!=="failed";
+  const playbackContent=playbackContentKey(playback.phase,snapshot);
+  const panDuration=Math.max(4500,playbackDuration(playback.phase,snapshot)-5000);
   useEffect(()=>{
     if(!presenting)return;
     const panel=progressRef.current?.closest("[data-onboarding-story-scroll], [data-onboarding-content]");
     const pause=()=>{setFollowing(false);};
+    const visibility=()=>{if(document.hidden)pause();};
     const key=(event:Event)=>{if(["ArrowUp","ArrowDown","PageUp","PageDown","Home","End"," "].includes((event as KeyboardEvent).key))pause();};
     panel?.addEventListener("wheel",pause,{passive:true}); panel?.addEventListener("touchstart",pause,{passive:true}); panel?.addEventListener("keydown",key);
-    return()=>{panel?.removeEventListener("wheel",pause);panel?.removeEventListener("touchstart",pause);panel?.removeEventListener("keydown",key);};
+    document.addEventListener("visibilitychange",visibility);
+    return()=>{panel?.removeEventListener("wheel",pause);panel?.removeEventListener("touchstart",pause);panel?.removeEventListener("keydown",key);document.removeEventListener("visibilitychange",visibility);};
   },[presenting]);
   useEffect(()=>{
     if(!following||history||!presenting)return;
@@ -143,10 +147,10 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
     // Read the first part before gently panning long content to its end.
     const pan=window.setTimeout(()=>{
       const inner=playback.phase==="sources"?sourceViewportRef.current:stageRef.current;
-      if(inner&&playback.phase!=="request")void scrollDetail(inner,"end",0,4500);
+      if(inner&&playback.phase!=="request")void scrollDetail(inner,"end",0,panDuration);
     },3800);
-    return()=>{stopped=true;window.clearTimeout(timer);window.clearTimeout(pan);};
-  },[playback.phase,following,history,presenting,scroll,scrollDetail]);
+    return()=>{stopped=true;window.clearTimeout(timer);window.clearTimeout(pan);void scroll(null);void scrollDetail(null);};
+  },[playback.phase,playbackContent,panDuration,following,history,presenting,scroll,scrollDetail]);
   useEffect(()=>{
     const nav=navRef.current,button=nav?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if(nav&&button&&nav.scrollWidth>nav.clientWidth)nav.scrollTo({left:button.offsetLeft-nav.offsetLeft-(nav.clientWidth-button.clientWidth)/2,behavior:reduced?"instant":"smooth"});
