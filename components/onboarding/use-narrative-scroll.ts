@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef } from "react";
 export function useNarrativeScroll(reduced: boolean) {
   const cancel = useRef<() => void>(() => {});
   useEffect(() => () => cancel.current(), []);
-  return useCallback((target: HTMLElement | null, align: boolean | "end" = false, delay = 0): Promise<boolean> => {
+  return useCallback((target: HTMLElement | null, align: boolean | "end" = false, delay = 0, duration = 1100): Promise<boolean> => {
     cancel.current();
     if (!target || document.hidden) return Promise.resolve(false);
     const boundary = target.closest<HTMLElement>("[data-onboarding-content]") ?? target;
@@ -47,7 +47,7 @@ export function useNarrativeScroll(reduced: boolean) {
         if (reduced || Math.abs(to - from) < 2) { scroller.scrollTop = to; finish(true); return; }
         const tick = (now: number) => {
           start ||= now;
-          const t = Math.min(1, (now - start) / 1100);
+          const t = Math.min(1, (now - start) / duration);
           const eased = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
           scroller.scrollTop = from + ((align === "end" ? destination() : to) - from) * eased;
           if (t < 1) frame = requestAnimationFrame(tick);
