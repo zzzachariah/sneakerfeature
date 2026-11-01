@@ -39,7 +39,7 @@
     "test:imgly:browser": "node scripts/test-imgly-browser.mjs",
     "vendor:imgly:check": "node vendor/imgly-background-removal/scripts/build.mjs --check",
     "test:onboarding-wall": "tsx scripts/test-onboarding-wall.mts",
-    "test:onboarding-picker": "tsx scripts/test-onboarding-picker.mts && tsx scripts/test-picker-playback.mts"
+    "test:onboarding-picker": "tsx scripts/test-onboarding-picker.mts && tsx scripts/test-picker-playback.mts && tsx scripts/test-picker-language.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

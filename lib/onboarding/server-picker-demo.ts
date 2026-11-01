@@ -1,4 +1,5 @@
 import "server-only";
+import { localizePickerShoes } from "./server-picker-language";
 import OpenAI from "openai";
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
@@ -74,7 +75,7 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
       void persist("running").catch(() => {});
     };
     try {
-      const result = await recommendOnboardingShoes(client,{shoes,history:[],currentInput:prompt,count:2,model,deadline},progress);
+      const result = await recommendOnboardingShoes(client,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model,deadline},progress);
       const allowed = new Set(current.events.flatMap(e => e.sources ?? []).map(s => s.url));
       const used = new Set<string>();
       const recommendations: DemoShoe[] = (result?.recommendations ?? []).flatMap(rec => {
@@ -84,7 +85,7 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
         return [{id:shoe.id,slug:shoe.slug,name:shoe.shoe_name,brand:shoe.brand,image:shoe.image_url ?? null,reason:rec.reason.slice(0,2400),pros:rec.pros.slice(0,3),cons:rec.cons.slice(0,3),references:safeReferences(rec.references).filter(ref => allowed.has(ref.url))}];
       }).slice(0,2);
       if (recommendations.length !== 2) throw new Error("incomplete");
-      current = {...current,shoes:recommendations,finishedAt:new Date().toISOString()};
+      current = {...current,shoes:await localizePickerShoes(recommendations,input.lang),finishedAt:new Date().toISOString()};
       await persist("complete");
     } catch (cause) {
       const code = Date.now()>=deadline.at-2000 || (cause instanceof Error && /timeout|timed out/i.test(cause.message)) ? "timeout" : cause instanceof OpenAI.APIError ? cause.status===429?"provider_busy":"provider_unavailable" : cause instanceof Error && cause.message==="incomplete" ? "incomplete" : "unavailable";

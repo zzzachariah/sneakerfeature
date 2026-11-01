@@ -47,11 +47,13 @@ const {HAIKU_MODEL,PACKY_MODEL}=await import('../lib/ai/packy-client.ts');
 const savedKeys={t:process.env.TAVILY_API_KEY,b:process.env.BOCHA_API_KEY};
 delete process.env.TAVILY_API_KEY;delete process.env.BOCHA_API_KEY;
 let completionCalls=0;
+let expectedLanguage="en";
 const demoRecs=['Test Guard One','Test Guard Two'].map(name=>({name,reason:'For "traction", stability and fit: supported fixture evidence.',pros:['A documented strength'],cons:['A documented trade-off'],references:[]}));
 const mockClient={chat:{completions:{create:async(params:any)=>{
  completionCalls++;
  async function* chunks(){
   if(completionCalls===1){yield {choices:[{delta:{content:JSON.stringify({candidates:demoRecs.map(r=>r.name),backups:[]})},finish_reason:'stop'}]};return;}
+  assert.ok(params.messages.map((m:any)=>m.content).join(" ").includes(expectedLanguage==="zh"?"全程用中文":"EVERYTHING you produce must be in English"));
   if(params.model===PACKY_MODEL){assert.equal(params.response_format.type,'json_object');yield {choices:[{delta:{content:JSON.stringify({recommendations:demoRecs})},finish_reason:'stop'}]};return;}
   assert.equal(params.tool_choice.function.name,'recommend_shoes');
   assert.equal(params.tools[0].function.parameters.properties.recommendations.maxItems,2);
@@ -61,9 +63,10 @@ const mockClient={chat:{completions:{create:async(params:any)=>{
  }
  return chunks();
 }}}};
-try{for(const model of [HAIKU_MODEL,PACKY_MODEL]){
+try{for(const replyLanguage of ["zh","en"] as const)for(const model of [HAIKU_MODEL,PACKY_MODEL]){
+ expectedLanguage=replyLanguage;
  completionCalls=0;
- const result=await recommendOnboardingShoes(mockClient as any,{shoes:demoRecs.map((r,i)=>({id:'fixture-'+i,shoe_name:r.name,slug:'fixture-'+i,brand:'Test',spec:{traction:'good',stability:'stable',fit:'snug'}})) as any,history:[],currentInput:'PG / SG, traction, stability and fit. Recommend two basketball shoes.',count:2,model});
+ const result=await recommendOnboardingShoes(mockClient as any,{shoes:demoRecs.map((r,i)=>({id:'fixture-'+i,shoe_name:r.name,slug:'fixture-'+i,brand:'Test',spec:{traction:'good',stability:'stable',fit:'snug'}})) as any,history:[],currentInput:'PG / SG, traction, stability and fit. Recommend two basketball shoes.',count:2,model,replyLanguage});
  assert.deepEqual(result?.recommendations.map(r=>r.name),demoRecs.map(r=>r.name));
  assert.equal(result?.recommendations[0].reason,demoRecs[0].reason);
  assert.equal(completionCalls,2,'one shortlist and one structured final answer');

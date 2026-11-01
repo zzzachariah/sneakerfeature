@@ -1,3 +1,4 @@
+import { localizePickerSnapshot } from "@/lib/onboarding/server-picker-language";
 import { after } from "next/server";
 import { demoInputSchema } from "@/lib/onboarding/picker-demo-contract";
 import { demoVisitor, readDemo, reserveDemo } from "@/lib/onboarding/server-picker-demo";
@@ -5,7 +6,7 @@ import { onboardingJson, onboardingError, OnboardingError, requireSameOrigin, re
 export const dynamic = "force-dynamic";
 export const maxDuration = 180;
 export async function GET(request: Request) {
-  try { const {visitor} = await demoVisitor(request); return onboardingJson(await readDemo(visitor)); }
+  try { const {visitor} = await demoVisitor(request); const lang = new URL(request.url).searchParams.get("lang"); const snapshot = await readDemo(visitor); try { return onboardingJson(lang === "zh" || lang === "en" ? await localizePickerSnapshot(snapshot,lang) : snapshot); } catch { throw new OnboardingError("language_unavailable","Recommendation translation is temporarily unavailable.",503,true); } }
   catch(error) { return onboardingError(error); }
 }
 export async function POST(request: Request) {
