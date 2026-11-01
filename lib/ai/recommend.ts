@@ -1978,6 +1978,7 @@ async function candidateEvidencePipeline(
           deadline
         );
       } catch (err) {
+        if (opts.onboardingDemo) throw err;
         console.warn("[ai/chat] candidate commit failed", { msg: err instanceof Error ? err.message.slice(0, 160) : "unknown" });
         break rounds;
       }

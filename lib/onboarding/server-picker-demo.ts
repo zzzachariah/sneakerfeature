@@ -1,6 +1,6 @@
 import "server-only";
 import { localizePickerShoes } from "./server-picker-language";
-import { recoverPickerRun, pickerFailureDiagnostic } from "./picker-recovery";
+import { recoverPickerRun, pickerFailureDiagnostic, PickerResultError } from "./picker-recovery";
 import OpenAI from "openai";
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
@@ -78,8 +78,20 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
     try {
       const backupModel = model === HAIKU_MODEL ? PACKY_MODEL : HAIKU_MODEL;
       const backupClient = backupModel === HAIKU_MODEL && !resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? null : createPackyClientForModel(backupModel);
-      const recommend = (target: OpenAI, targetModel: string) => recommendOnboardingShoes(target,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model:targetModel,deadline},progress);
-      const result = await recoverPickerRun({
+      const recommend = async (target: OpenAI, targetModel: string) => {
+        const result = await recommendOnboardingShoes(target,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model:targetModel,deadline},progress);
+        const allowed = new Set(current.events.flatMap(e => e.sources ?? []).map(s => s.url));
+        const used = new Set<string>();
+        const recommendations: DemoShoe[] = (result?.recommendations ?? []).flatMap(rec => {
+          const shoe = matchShoeByName(rec.name, shoes);
+          if (!shoe || used.has(shoe.id) || !rec.reason.trim() || !rec.pros.length || !rec.cons.length) return [];
+          used.add(shoe.id);
+          return [{id:shoe.id,slug:shoe.slug,name:shoe.shoe_name,brand:shoe.brand,image:shoe.image_url ?? null,reason:rec.reason.slice(0,2400),pros:rec.pros.slice(0,3),cons:rec.cons.slice(0,3),references:safeReferences(rec.references).filter(ref => allowed.has(ref.url))}];
+        }).slice(0,2);
+        if (recommendations.length !== 2) throw new PickerResultError();
+        return recommendations;
+      };
+      const recommendations = await recoverPickerRun({
         primary: () => recommend(client,model), backup: backupClient ? () => recommend(backupClient,backupModel) : null, deadline,
         onFailure: (error,backup) => console.warn("[onboarding/demo] Model attempt failed", {model:backup?backupModel:model,stage:current.events.at(-1)?.stage,...pickerFailureDiagnostic(error)}),
         onRecovery: async () => {
@@ -87,15 +99,6 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
           await persist("running");
         },
       });
-      const allowed = new Set(current.events.flatMap(e => e.sources ?? []).map(s => s.url));
-      const used = new Set<string>();
-      const recommendations: DemoShoe[] = (result?.recommendations ?? []).flatMap(rec => {
-        const shoe = matchShoeByName(rec.name, shoes);
-        if (!shoe || used.has(shoe.id) || !rec.reason.trim() || !rec.pros.length || !rec.cons.length) return [];
-        used.add(shoe.id);
-        return [{id:shoe.id,slug:shoe.slug,name:shoe.shoe_name,brand:shoe.brand,image:shoe.image_url ?? null,reason:rec.reason.slice(0,2400),pros:rec.pros.slice(0,3),cons:rec.cons.slice(0,3),references:safeReferences(rec.references).filter(ref => allowed.has(ref.url))}];
-      }).slice(0,2);
-      if (recommendations.length !== 2) throw new Error("incomplete");
       current = {...current,shoes:await localizePickerShoes(recommendations,input.lang),finishedAt:new Date().toISOString()};
       await persist("complete");
     } catch (cause) {

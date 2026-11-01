@@ -77,3 +77,14 @@ assert.equal(demoSourceMatches('Wade 808 5',{title:'Way of Wade 808 5 Ultra V2 R
 assert.equal(demoSourceMatches('Wade 808 5',{title:'Way of Wade 808 5 Review',snippet:'Basketball shoe performance',url:'https://example.com/wade-808-5'}),true);
 assert.equal(demoSourceMatches('Wade 808 5 Ultra V2',{title:'Way of Wade 808 5 Ultra V2 Review',snippet:'Basketball shoe performance',url:'https://example.com/wade-808-5-ultra-v2'}),true);
 console.log('PASS review evidence cannot silently substitute Ultra/V2 for the selected base model.');
+
+// A final-generation provider error must reach the demo recovery boundary,
+// rather than being silently converted to an empty recommendation.
+const finalFailure = new Error("fixture final-generation failure");
+completionCalls=0;
+const failedFinalClient={chat:{completions:{create:async(params:any)=>{
+ if(completionCalls===0)return mockClient.chat.completions.create(params);
+ throw finalFailure;
+}}}};
+await assert.rejects(()=>recommendOnboardingShoes(failedFinalClient as any,{shoes:demoRecs.map((r,i)=>({id:'fixture-'+i,shoe_name:r.name,slug:'fixture-'+i,brand:'Test',spec:{traction:'good',stability:'stable',fit:'snug'}})) as any,history:[],currentInput:'PG / SG, traction, stability and fit.',count:2,model:HAIKU_MODEL,replyLanguage:'en'}),error=>error===finalFailure);
+console.log('PASS final-generation errors reach the onboarding recovery boundary.');
