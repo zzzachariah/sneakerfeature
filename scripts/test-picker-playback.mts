@@ -8,7 +8,16 @@ assert.deepEqual(path,['catalog','shortlist','research','writing','sources','don
 assert.equal(nextPlaybackPhase('catalog',{status:'running',events:[snapshot.events[0]]}),'catalog');
 assert.equal(nextPlaybackPhase('catalog',{status:'complete',events:[snapshot.events[0],snapshot.events[3]]}),'writing');
 assert.equal(nextPlaybackPhase('request',{status:'running',events:[]}),'request');
-assert.equal(playbackDuration(),5000);
+assert.equal(playbackDuration('request',snapshot),1500);
+assert.equal(playbackDuration('catalog',snapshot),2000);
+assert.equal(playbackDuration('writing',snapshot),2000);
+assert.equal(playbackDuration('sources',snapshot),3000);
+const compactResearch:DemoSnapshot={...snapshot,events:[{...snapshot.events[2],query:'Fit review',state:'ok'}]};
+assert.equal(playbackDuration('research',compactResearch),2000);
+assert.equal(playbackDuration('research',{...snapshot,events:[...compactResearch.events,{...snapshot.events[2],query:'Bounce review'}]}),3000);
+assert.equal(playbackDuration('research',{...snapshot,events:[{...snapshot.events[2],query:'Long review '.repeat(30)}]}),3000);
+assert.equal(playbackDuration('research',{...snapshot,events:[...compactResearch.events,...compactResearch.events]}),2000,'polling/duplicate events do not inflate reading time');
+assert.equal(playbackDuration('shortlist',{...snapshot,events:[{...snapshot.events[1],candidates:Array.from({length:4},(_,i)=>({name:`Shoe ${i}`,slug:`shoe-${i}`}))}]}),3000);
 assert.equal(playbackContentKey('catalog',snapshot),playbackContentKey('catalog',{...snapshot,events:snapshot.events.map(e=>({...e,at:'2026-10-31T00:01:00Z',id:e.id+10}))}));
 assert.notEqual(playbackContentKey('research',snapshot),playbackContentKey('research',{...snapshot,events:[{...snapshot.events[2],query:'Newly arrived evidence'}]}));
-console.log('PASS fast completed snapshots retain every observed stage; missing stages are not invented; each fully presented section gets five seconds of reading time.');
+console.log('PASS fast completed snapshots retain every observed stage; missing stages are not invented; activity dwell scales from two to three seconds; request and Sources use shorter bounded windows.');

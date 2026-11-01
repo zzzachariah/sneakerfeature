@@ -94,10 +94,10 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
     if(snapshot.status!=="complete"||!playbackDone){setFolded(false);setResultReady(false);return;}
     if(reduced){setFolded(true);setResultReady(true);return;}
     let stopped=false;let timer:ReturnType<typeof setTimeout>;
-    void (followingRef.current ? scroll(sourcesRef.current,false,100) : Promise.resolve(false)).then(()=>{
+    void (followingRef.current ? scroll(sourcesRef.current,false,0,450) : Promise.resolve(false)).then(()=>{
       if(stopped)return;
       setFolded(true);
-      timer=setTimeout(()=>{if(!stopped)setResultReady(true);},1250);
+      timer=setTimeout(()=>{if(!stopped)setResultReady(true);},650);
     });
     return()=>{stopped=true;clearTimeout(timer);};
   },[snapshot.status,playbackDone,reduced,scroll]);
@@ -122,7 +122,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const duration=reduced?0:.85;
   const presenting=began&&!playbackDone&&snapshot.status!=="failed";
   const playbackContent=playbackContentKey(playback.phase,snapshot);
-  const panDuration=playback.phase==="research"?Math.min(40000,Math.max(4500,events.map(e=>e.query??"").join(" ").length*28)):4500;
+  const panDuration=playback.phase==="sources"?1500:playback.phase==="research"?1300:900;
   const markReady=useRef(playback.markReady); markReady.current=playback.markReady;
   const markMoving=useRef(playback.markMoving);markMoving.current=playback.markMoving;
   const processVisible=playback.phase!=="request";
@@ -140,22 +140,21 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
     if(!following||history||!presenting)return;
     markMoving.current();
     let stopped=false;
-    const timer=window.setTimeout(()=>{
+    // Sources scrolls and reads inside a single three-second window, instead
+    // of adding another full dwell after the pan has finished.
+    const sources=playback.phase==="sources";
+    if(sources)markReady.current();
+    const timer=window.setTimeout(async()=>{
       const compact=(progressRef.current?.closest<HTMLElement>("[data-onboarding-story-scroll]")?.clientHeight??0)<380;
       const target=playback.phase==="request"?requestRef.current:playback.phase==="sources"?sourcesRef.current:compact?stageWindowRef.current:progressRef.current;
-      void scroll(target,false,0,1600).then(()=>{
-        if(stopped)return;
-        const inner=playback.phase==="sources"?sourceViewportRef.current:stageRef.current;
-        if(inner)inner.scrollTo({top:0,behavior:"instant"});
-      });
-    },750);
-    // Read the first part before gently panning long content to its end.
-    const pan=window.setTimeout(()=>{
-      const inner=playback.phase==="sources"?sourceViewportRef.current:stageRef.current;
-      const movement=playback.phase==="request"?scroll(requestRef.current,"end",0,1600):inner?scrollDetail(inner,"end",0,panDuration):Promise.resolve(true);
-      void movement.then(arrived=>{if(!stopped&&arrived)markReady.current();});
-    },3800);
-    return()=>{stopped=true;window.clearTimeout(timer);window.clearTimeout(pan);void scroll(null);void scrollDetail(null);};
+      const arrived=await scroll(target,false,0,650);
+      if(stopped||!arrived)return;
+      const inner=sources?sourceViewportRef.current:stageRef.current;
+      if(inner)inner.scrollTo({top:0,behavior:"instant"});
+      const panned=await (playback.phase==="request"?scroll(requestRef.current,"end",150,700):inner?scrollDetail(inner,"end",200,panDuration):Promise.resolve(true));
+      if(!stopped&&panned&&!sources)markReady.current();
+    },200);
+    return()=>{stopped=true;window.clearTimeout(timer);void scroll(null);void scrollDetail(null);};
   },[playback.phase,playbackContent,panDuration,following,history,presenting,scroll,scrollDetail]);
   useEffect(()=>{
     const nav=navRef.current,button=nav?.querySelector<HTMLElement>('[aria-pressed="true"]');
