@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import type OpenAIType from 'openai';
 // Match the application's CommonJS resolution under tsx; the SDK has separate ESM classes.
 const OpenAI = createRequire(import.meta.url)('openai').default as typeof OpenAIType;
-import { recoverPickerRun, pickerFailureDiagnostic } from '../lib/onboarding/picker-recovery.ts';
+import { recoverPickerRun, pickerFailureDiagnostic, PickerResultError } from '../lib/onboarding/picker-recovery.ts';
 
 const error = (status: number) => new OpenAI.APIError(status, {message:'PRIVATE PROVIDER BODY'}, 'PRIVATE PROVIDER BODY', new Headers());
 const attempts: string[] = [];
@@ -25,3 +25,7 @@ assert.equal(await invoke(async()=>{throw new OpenAI.APIConnectionError({message
 assert.deepEqual(pickerFailureDiagnostic(primaryError),{httpStatus:503,category:'provider'});
 assert.ok(!JSON.stringify(pickerFailureDiagnostic(primaryError)).includes('PRIVATE'));
 console.log('PASS bounded model recovery, terminal failure, nonretryable errors, time budget, and safe diagnostics.');
+
+assert.equal(await invoke(async()=>{throw new PickerResultError();},async()=> "validated second result"),"validated second result");
+assert.deepEqual(pickerFailureDiagnostic(new PickerResultError()),{httpStatus:null,category:"invalid_result"});
+console.log("PASS malformed/partial model output can recover without retrying unrelated application errors.");

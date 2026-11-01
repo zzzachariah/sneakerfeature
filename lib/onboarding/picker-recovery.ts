@@ -1,8 +1,12 @@
 import OpenAI from "openai";
 import { hasBudget, type Deadline } from "@/lib/ai/budget";
 
+export class PickerResultError extends Error {
+  constructor() { super("incomplete"); this.name = "PickerResultError"; }
+}
+
 export function recoverablePickerError(error: unknown) {
-  return error instanceof OpenAI.APIError && (error.status === undefined ||
+  return error instanceof PickerResultError || error instanceof OpenAI.APIError && (error.status === undefined ||
     [408, 409, 429].includes(error.status) || error.status >= 500);
 }
 
@@ -28,6 +32,6 @@ export function pickerFailureDiagnostic(error: unknown) {
     httpStatus: error instanceof OpenAI.APIError ? error.status ?? null : null,
     category: error instanceof OpenAI.APIConnectionTimeoutError ? "timeout" :
       error instanceof OpenAI.APIConnectionError ? "connection" :
-      error instanceof OpenAI.APIError ? "provider" : "application",
+      error instanceof OpenAI.APIError ? "provider" : error instanceof PickerResultError ? "invalid_result" : "application",
   };
 }
