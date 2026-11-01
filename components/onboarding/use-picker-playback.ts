@@ -20,7 +20,7 @@ export function nextPlaybackPhase(phase: PlaybackPhase, snapshot: DemoSnapshot):
 }
 export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, playing: boolean) {
   const [phase, setPhase] = useState<PlaybackPhase>("request");
-  const ready = useRef("");
+  const ready = useRef(""), read = useRef(0);
   const engaged = useRef(false), identity = useRef<string | undefined>(undefined);
   const latest = useRef({snapshot, playing});
   latest.current = {snapshot, playing};
@@ -37,19 +37,20 @@ export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, play
     }
   }, [posting, snapshot.status, snapshot.startedAt]);
   useEffect(() => {
-    let read = 0, previous = performance.now(), content = "";
+    read.current=0;
+    let previous = performance.now(), content = "";
     const timer = window.setInterval(() => {
       const now = performance.now(), delta = Math.min(now - previous, 300); previous = now;
       const {snapshot: current, playing: enabled} = latest.current;
-      if (!engaged.current || !enabled || document.hidden || phase === "done" || current.status === "failed") return;
+      if (!engaged.current || !enabled || document.hidden || phase === "done" || (current.status === "failed" || current.status === "idle")) return;
       const key = playbackContentKey(phase, current);
       // A late query/result gets its own reading interval; polling timestamps do not.
-      if (key !== content) { content = key; read = 0; }
+      if (key !== content) { content = key; read.current = 0; }
       if (ready.current !== `${phase}|${key}`) return;
-      read += delta;
-      if (read >= playbackDuration()) setPhase(nextPlaybackPhase(phase, current));
+      read.current += delta;
+      if (read.current >= playbackDuration()) setPhase(nextPlaybackPhase(phase, current));
     }, 200);
     return () => window.clearInterval(timer);
   }, [phase]);
-  return {phase, markReady: () => { ready.current = `${phase}|${playbackContentKey(phase,snapshot)}`; }, finish: () => setPhase("done")};
+  return {phase, markMoving: () => {ready.current="";read.current=0;}, markReady: () => { read.current=0; ready.current = `${phase}|${playbackContentKey(phase,snapshot)}`; }, finish: () => setPhase("done")};
 }

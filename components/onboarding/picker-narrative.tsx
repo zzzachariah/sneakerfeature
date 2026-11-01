@@ -124,6 +124,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   const playbackContent=playbackContentKey(playback.phase,snapshot);
   const panDuration=playback.phase==="research"?Math.min(40000,Math.max(4500,events.map(e=>e.query??"").join(" ").length*28)):4500;
   const markReady=useRef(playback.markReady); markReady.current=playback.markReady;
+  const markMoving=useRef(playback.markMoving);markMoving.current=playback.markMoving;
   const processVisible=playback.phase!=="request";
   useEffect(()=>{
     if(!presenting)return;
@@ -137,6 +138,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
   },[presenting]);
   useEffect(()=>{
     if(!following||history||!presenting)return;
+    markMoving.current();
     let stopped=false;
     const timer=window.setTimeout(()=>{
       const compact=(progressRef.current?.closest<HTMLElement>("[data-onboarding-story-scroll]")?.clientHeight??0)<380;

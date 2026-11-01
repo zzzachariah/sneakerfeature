@@ -11,3 +11,6 @@ assert.throws(()=>applyRecommendationTranslation(shoes,['稳定的平台。','Go
 assert.equal(matchesPickerLanguage('AE 1 的平台更稳定。','zh'),true);
 assert.deepEqual(recommendationText(applyRecommendationTranslation(zh,recommendationText(shoes),'en')),recommendationText(shoes));
 console.log('PASS recommendation localization in both directions, partial/wrong-language rejection, original identities/citations and immutable source.');
+
+assert.equal(matchesPickerLanguage('驭帅 offers a stable platform.','en',['驭帅']),true);
+assert.equal(matchesPickerLanguage('驭帅 offers a stable platform.','zh',['驭帅']),false);
