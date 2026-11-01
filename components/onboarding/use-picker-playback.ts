@@ -5,8 +5,16 @@ import type { DemoSnapshot, DemoStage } from "@/lib/onboarding/picker-demo-contr
 
 export type PlaybackPhase = "request" | DemoStage | "sources" | "done";
 const sequence: DemoStage[] = ["catalog", "shortlist", "research", "writing"];
-/** Reading time starts only after the section has arrived and finished panning. */
-export function playbackDuration() { return 5000; }
+/** Activity dwell follows motion; Sources uses one shared scroll/read window. */
+export function playbackDuration(phase: PlaybackPhase, snapshot: DemoSnapshot) {
+  if (phase === "request") return 1500;
+  if (phase === "sources") return 3000;
+  const events = snapshot.events.filter(event => event.stage === phase);
+  const candidates = events.findLast(event => event.candidates)?.candidates ?? [];
+  const queries = Array.from(new Map(events.filter(event => event.query).map(event => [event.query, event])).values());
+  const text = queries.map(event => [event.query, ...(event.sources ?? []).map(source => source.title)].join(" ")).join(" ");
+  return candidates.length > 3 || queries.length > 1 || text.length > 180 ? 3000 : 2000;
+}
 export function playbackContentKey(phase: PlaybackPhase, snapshot: DemoSnapshot) {
   return JSON.stringify(snapshot.events.filter(e => e.stage === phase).map(e => [e.query, e.state, e.candidates, e.catalogCount, e.sources]));
 }
@@ -48,7 +56,7 @@ export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, play
       if (key !== content) { content = key; read.current = 0; }
       if (ready.current !== `${phase}|${key}`) return;
       read.current += delta;
-      if (read.current >= playbackDuration()) setPhase(nextPlaybackPhase(phase, current));
+      if (read.current >= playbackDuration(phase, current)) setPhase(nextPlaybackPhase(phase, current));
     }, 200);
     return () => window.clearInterval(timer);
   }, [phase]);
