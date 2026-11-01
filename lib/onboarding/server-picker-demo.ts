@@ -1,5 +1,6 @@
 import "server-only";
 import { localizePickerShoes } from "./server-picker-language";
+import { recoverPickerRun, pickerFailureDiagnostic } from "./picker-recovery";
 import OpenAI from "openai";
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
@@ -75,7 +76,17 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
       void persist("running").catch(() => {});
     };
     try {
-      const result = await recommendOnboardingShoes(client,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model,deadline},progress);
+      const backupModel = model === HAIKU_MODEL ? PACKY_MODEL : HAIKU_MODEL;
+      const backupClient = backupModel === HAIKU_MODEL && !resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? null : createPackyClientForModel(backupModel);
+      const recommend = (target: OpenAI, targetModel: string) => recommendOnboardingShoes(target,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model:targetModel,deadline},progress);
+      const result = await recoverPickerRun({
+        primary: () => recommend(client,model), backup: backupClient ? () => recommend(backupClient,backupModel) : null, deadline,
+        onFailure: (error,backup) => console.warn("[onboarding/demo] Model attempt failed", {model:backup?backupModel:model,stage:current.events.at(-1)?.stage,...pickerFailureDiagnostic(error)}),
+        onRecovery: async () => {
+          current = {...current,events:[...current.events,{id:current.events.length,at:new Date().toISOString(),stage:current.events.at(-1)?.stage??"catalog",kind:"recovery"}]};
+          await persist("running");
+        },
+      });
       const allowed = new Set(current.events.flatMap(e => e.sources ?? []).map(s => s.url));
       const used = new Set<string>();
       const recommendations: DemoShoe[] = (result?.recommendations ?? []).flatMap(rec => {
@@ -88,6 +99,7 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
       current = {...current,shoes:await localizePickerShoes(recommendations,input.lang),finishedAt:new Date().toISOString()};
       await persist("complete");
     } catch (cause) {
+      console.error("[onboarding/demo] Run did not complete", {stage:current.events.at(-1)?.stage,...pickerFailureDiagnostic(cause)});
       const code = Date.now()>=deadline.at-2000 || (cause instanceof Error && /timeout|timed out/i.test(cause.message)) ? "timeout" : cause instanceof OpenAI.APIError ? cause.status===429?"provider_busy":"provider_unavailable" : cause instanceof Error && cause.message==="incomplete" ? "incomplete" : "unavailable";
       current = {...current,error:code,finishedAt:new Date().toISOString()};
       await persist("failed").catch(() => {console.error("[onboarding/demo] Could not persist completion");});

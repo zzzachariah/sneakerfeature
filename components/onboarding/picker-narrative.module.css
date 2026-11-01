@@ -150,3 +150,6 @@
   .recapArrow { top:auto; bottom:-14px; right:auto; left:7px; transform:rotate(90deg); }
 }
 @media(prefers-reduced-motion:reduce) { .recapSteps button {transition:none;} }
+
+.failureHistory { margin-top:20px; border-top:1px solid rgb(var(--text)/.12); padding-top:16px; }
+.failureHistory summary { cursor:pointer; color:rgb(var(--subtext)); font-size:12px; min-height:44px; }

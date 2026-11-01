@@ -20,7 +20,7 @@ export function demoPrompt(input: DemoInput, names: string[]) {
 }
 export type DemoStage = "catalog" | "shortlist" | "research" | "writing";
 export type DemoEvent = {
-  id: number; at: string; stage: DemoStage; kind: "status" | "candidates" | "search";
+  id: number; at: string; stage: DemoStage; kind: "status" | "candidates" | "search" | "recovery";
   candidates?: {name: string; slug: string}[]; catalogCount?: number;
   query?: string; state?: "start" | "ok" | "fail"; resultCount?: number; cached?: boolean; sources?: WebReference[];
 };
