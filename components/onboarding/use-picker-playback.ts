@@ -20,7 +20,7 @@ export function playbackContentKey(phase: PlaybackPhase, snapshot: DemoSnapshot)
 }
 export function nextPlaybackPhase(phase: PlaybackPhase, snapshot: DemoSnapshot): PlaybackPhase {
   const observed = sequence.filter(stage => snapshot.events.some(e => e.stage === stage));
-  if (phase === "request") return observed[0] ?? phase;
+  if (phase === "request") return observed[0] ?? (snapshot.status === "complete" ? "sources" : phase);
   if (phase === "sources") return "done";
   if (phase === "done") return phase;
   const next = observed.find(stage => sequence.indexOf(stage) > sequence.indexOf(phase));
@@ -33,14 +33,15 @@ export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, play
   const latest = useRef({snapshot, playing});
   latest.current = {snapshot, playing};
   useEffect(() => {
-    if (posting || snapshot.status === "running") {
+    // A completed response is data for the walkthrough, not permission to skip it.
+    // This also starts playback when the very first GET returns a saved result.
+    if (posting || snapshot.status === "running" || snapshot.status === "complete") {
       if (!engaged.current || (snapshot.startedAt && identity.current && identity.current !== snapshot.startedAt)) {
         setPhase("request");
       }
       engaged.current = true;
       if (snapshot.startedAt) identity.current = snapshot.startedAt;
-    } else if (snapshot.status === "failed" || (snapshot.status === "complete" && !engaged.current)) {
-      // Reopening a saved result does not replay the entire waiting sequence.
+    } else if (snapshot.status === "failed") {
       setPhase("done");
     }
   }, [posting, snapshot.status, snapshot.startedAt]);
@@ -60,5 +61,5 @@ export function usePickerPlayback(snapshot: DemoSnapshot, posting: boolean, play
     }, 200);
     return () => window.clearInterval(timer);
   }, [phase]);
-  return {phase, markMoving: () => {ready.current="";read.current=0;}, markReady: () => { read.current=0; ready.current = `${phase}|${playbackContentKey(phase,snapshot)}`; }, finish: () => setPhase("done")};
+  return {phase, markMoving: () => {ready.current="";read.current=0;}, markReady: () => { read.current=0; ready.current = `${phase}|${playbackContentKey(phase,snapshot)}`; }};
 }

@@ -8,6 +8,8 @@ assert.deepEqual(path,['catalog','shortlist','research','writing','sources','don
 assert.equal(nextPlaybackPhase('catalog',{status:'running',events:[snapshot.events[0]]}),'catalog');
 assert.equal(nextPlaybackPhase('catalog',{status:'complete',events:[snapshot.events[0],snapshot.events[3]]}),'writing');
 assert.equal(nextPlaybackPhase('request',{status:'running',events:[]}),'request');
+assert.equal(nextPlaybackPhase('request',{status:'complete',events:[]}),'sources','legacy saved results with no recorded stages still show question and sources without inventing work');
+assert.equal(nextPlaybackPhase('request',snapshot),'catalog','a completed snapshot starts with its first recorded stage');
 assert.equal(playbackDuration('request',snapshot),1500);
 assert.equal(playbackDuration('catalog',snapshot),2000);
 assert.equal(playbackDuration('writing',snapshot),2000);
