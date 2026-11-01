@@ -137,7 +137,8 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
     return()=>{panel?.removeEventListener("wheel",pause);panel?.removeEventListener("touchstart",pause);panel?.removeEventListener("keydown",key);document.removeEventListener("visibilitychange",visibility);};
   },[presenting]);
   useEffect(()=>{
-    if(!following||history||!presenting)return;
+    // Saved results can arrive before the question's entrance animation finishes.
+    if(!following||history||!presenting||(playback.phase==="request"&&beat<2))return;
     markMoving.current();
     let stopped=false;
     // Sources scrolls and reads inside a single three-second window, instead
@@ -155,7 +156,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
       if(!stopped&&panned&&!sources)markReady.current();
     },200);
     return()=>{stopped=true;window.clearTimeout(timer);void scroll(null);void scrollDetail(null);};
-  },[playback.phase,playbackContent,panDuration,following,history,presenting,scroll,scrollDetail]);
+  },[playback.phase,playbackContent,panDuration,following,history,presenting,beat,scroll,scrollDetail]);
   useEffect(()=>{
     const nav=navRef.current,button=nav?.querySelector<HTMLElement>('[aria-pressed="true"]');
     if(nav&&button&&nav.scrollWidth>nav.clientWidth)nav.scrollTo({left:button.offsetLeft-nav.offsetLeft-(nav.clientWidth-button.clientWidth)/2,behavior:reduced?"instant":"smooth"});
@@ -171,7 +172,7 @@ export function PickerNarrative({zh,reduced,input,shoes,onBack}:{zh:boolean;redu
           <ScrollHint targetRef={stageRef} zh={zh} compact/>
         </motion.div></AnimatePresence></div>
       </div>
-      {presenting&&<div className={styles.followBar} data-live-follow={following&&!history}><button type="button" onClick={()=>following&&!history?setFollowing(false):followLive()}>{following&&!history?(zh?"暂停自动浏览":"Pause walkthrough"):(zh?"继续自动浏览":"Resume walkthrough")}<ArrowRight size={12}/></button>{snapshot.status==="complete"&&<button type="button" onClick={()=>{setHistory(null);setFollowing(true);playback.finish();}}>{zh?"直接看推荐":"View picks now"}<ArrowRight size={12}/></button>}</div>}
+      {presenting&&<div className={styles.followBar} data-live-follow={following&&!history}><button type="button" onClick={()=>following&&!history?setFollowing(false):followLive()}>{following&&!history?(zh?"暂停自动浏览":"Pause walkthrough"):(zh?"继续自动浏览":"Resume walkthrough")}<ArrowRight size={12}/></button></div>}
       <p className={styles.liveNote} role="status">{snapshot.status==="running"&&snapshot.events.some(e=>e.kind==="recovery")?(zh?"第一次模型请求未能给出完整结果，已切换备用模型重新处理你的选择。":"The first model request could not finish. A backup model is working on the same choices."):connection==="offline"?(zh?"连接暂时中断，正在恢复真实进度。已完成的资料不会清空。":"Connection interrupted. Reconnecting without clearing completed research."):snapshot.status==="running"&&elapsed>25?(zh?"这次仍在处理中。你可以继续注册，完成后在首页接着看。":"Still working. You can continue signing up and find the result on the homepage."):null}</p>
     </motion.section>:null;
   const selectHistory=(stage:DemoStage)=>{setHistory(stage);setFollowing(false);setShowHistory(true);void scroll(progressRef.current,false,850);};
