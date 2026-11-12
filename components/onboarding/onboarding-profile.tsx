@@ -8,6 +8,8 @@ import { useAuthState } from "@/components/auth/auth-state-provider";
 import { EASE } from "@/lib/motion/constants";
 import { HEIGHT_MAX, HEIGHT_MIN, POSITIONS, SKILL_LEVELS, WEIGHT_MAX, WEIGHT_MIN, isValidPersona, type Persona, type Position, type SkillLevel } from "@/lib/persona/types";
 import { DIM_KEYS, isValidFocus, type DimKey, type RatingFocus } from "@/lib/star-rating";
+import { ProfileMeasurements } from "@/components/preferences/profile-measurements";
+import { editMeasurement, formatBuild, inRange, measurementDraft } from "@/lib/persona/measurements";
 import { personaSchema } from "@/lib/validation/schemas";
 import { onboardingRequest } from "./form-utils";
 import { ScrollHint, useFormScroll } from "./scroll-hint";
@@ -48,8 +50,7 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
   const [direction, setDirection] = useState(1);
   const [positions, setPositions] = useState<Position[]>([]);
   const [skill, setSkill] = useState<SkillLevel | null>(null);
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
+  const [build, setBuild] = useState(() => measurementDraft());
   const [flatFoot, setFlatFoot] = useState<boolean | null>(null);
   const [picks, setPicks] = useState<DimKey[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -110,8 +111,7 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
       if (result.persona) {
         setPositions(result.persona.positions);
         setSkill(result.persona.skill_level);
-        setHeight(String(result.persona.height_cm));
-        setWeight(String(result.persona.weight_kg));
+        setBuild(measurementDraft(result.persona.height_cm, result.persona.weight_kg));
         setFlatFoot(result.persona.flat_foot);
         setBaseConfirmed(true);
       }
@@ -129,7 +129,7 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
 
   useEffect(() => {
     // Drafts are held only in memory and never shared across signed-in accounts.
-    setPositions([...new Set(initialPositions)].filter(p => POSITIONS.includes(p)).slice(0,2)); setSkill(null); setHeight(""); setWeight(""); setFlatFoot(null); setPicks([...new Set(initialPicks)].filter(p => DIM_KEYS.includes(p)).slice(0,3));
+    setPositions([...new Set(initialPositions)].filter(p => POSITIONS.includes(p)).slice(0,2)); setSkill(null); setBuild(measurementDraft()); setFlatFoot(null); setPicks([...new Set(initialPicks)].filter(p => DIM_KEYS.includes(p)).slice(0,3));
     setStep(0); setErrors({}); setMessage(""); setPartial(false); setBaseConfirmed(false);
     completedRef.current = false;
     void loadSaved();
@@ -164,9 +164,8 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
       if (!skill) next.skill = t("选择与你目前最接近的水平。", "Choose the level that best describes you.");
     }
     if (step === 1) {
-      const h = Number(height); const w = Number(weight);
-      if (!height || !Number.isInteger(h) || h < HEIGHT_MIN || h > HEIGHT_MAX) next.height = t(`填写 ${HEIGHT_MIN}–${HEIGHT_MAX} cm 之间的整数。`, `Enter a whole number from ${HEIGHT_MIN}–${HEIGHT_MAX} cm.`);
-      if (!weight || !Number.isInteger(w) || w < WEIGHT_MIN || w > WEIGHT_MAX) next.weight = t(`填写 ${WEIGHT_MIN}–${WEIGHT_MAX} kg 之间的整数。`, `Enter a whole number from ${WEIGHT_MIN}–${WEIGHT_MAX} kg.`);
+      if (!inRange(build.cm, HEIGHT_MIN, HEIGHT_MAX)) next.height = t("请填写有效身高。", "Please enter a valid height.");
+      if (!inRange(build.kg, WEIGHT_MIN, WEIGHT_MAX)) next.weight = t("请填写有效体重。", "Please enter a valid weight.");
       if (flatFoot === null) next.flatFoot = t("请选择符合你情况的选项。", "Select the option that applies to you.");
     }
     if (step === 2 && picks.length !== 0 && picks.length !== 3) next.picks = t("按顺序选满 3 项，或暂不设置偏好。", "Pick three in order, or continue without preferences.");
@@ -183,7 +182,7 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
 
   const draft = (): Persona | null => {
     if (skill === null || flatFoot === null) return null;
-    const parsed = personaSchema.safeParse({ positions, skill_level: skill, flat_foot: flatFoot, height_cm: height, weight_kg: weight });
+    const parsed = personaSchema.safeParse({ positions, skill_level: skill, flat_foot: flatFoot, height_cm: build.cm, weight_kg: build.kg });
     return parsed.success ? parsed.data : null;
   };
 
@@ -286,14 +285,10 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
               </fieldset>
             </div>}
             {step === 1 && <div className={styles.stack}>
-              <div className={styles.measurements}>{([
-                ["height", t("身高", "Height"), height, setHeight, "cm", HEIGHT_MIN, HEIGHT_MAX],
-                ["weight", t("体重", "Weight"), weight, setWeight, "kg", WEIGHT_MIN, WEIGHT_MAX]
-              ] as const).map(([key, label, value, setter, unit, min, max]) => <div key={key} data-profile-field={key}>
-                <div className={styles.field}><input id={`${id}-${key}`} name={key} type="text" inputMode="numeric" pattern="[0-9]*" value={value} onChange={(event) => { setter(event.target.value); setErrors((e) => ({ ...e, [key]: "" })); }} autoComplete="off" placeholder=" " aria-invalid={Boolean(errors[key])} aria-describedby={errors[key] ? `${id}-${key}-error` : `${id}-${key}-hint`} className={`${styles.input} ${styles.unitInput}`} />
-                  <label htmlFor={`${id}-${key}`} className={styles.label}>{label}</label><span className={styles.unit}>{unit}</span>
-                </div>{error(key)}<p id={`${id}-${key}-hint`} className={styles.hint}>{min}–{max} {unit}</p>
-              </div>)}</div>
+              <ProfileMeasurements value={build} errors={errors} onChange={(field, value) => {
+                setBuild(previous => editMeasurement(previous, field, value));
+                setErrors(previous => ({ ...previous, [field === "kg" || field === "lb" ? "weight" : "height"]: "" }));
+              }} />
               <fieldset className={styles.fieldGroup} data-profile-field="flatFoot" aria-invalid={Boolean(errors.flatFoot)} aria-describedby={`${id}-flat-foot-help${errors.flatFoot ? ` ${id}-flatFoot-error` : ""}`}>
                 <legend className={styles.legend}>{t("你有扁平足吗？", "Do you have flat feet?")}</legend>
                 <div className={styles.choiceGrid}>{[false, true].map((value) => <button key={String(value)} type="button" className={styles.choice} data-selected={flatFoot === value} aria-pressed={flatFoot === value} onClick={() => { setFlatFoot(value); setErrors((e) => ({ ...e, flatFoot: "" })); }}><span className={styles.choiceDot}>{flatFoot === value && <Check size={11} />}</span><span className={styles.choiceText}>{value ? t("有", "Yes") : t("没有", "No")}</span></button>)}</div>
@@ -311,7 +306,7 @@ export function OnboardingProfile({ onComplete, onBack, initialPositions = [], i
               <dl className={styles.review}>
                 <div className={styles.reviewRow}><dt>{t("位置", "Position")}</dt><dd>{positions.join(" / ")}</dd></div>
                 <div className={styles.reviewRow}><dt>{t("水平", "Level")}</dt><dd>{skill ? SKILL_TEXT[skill][zh ? 0 : 1] : "—"}</dd></div>
-                <div className={styles.reviewRow}><dt>{t("身体信息", "Build")}</dt><dd>{height} cm · {weight} kg</dd></div>
+                <div className={styles.reviewRow}><dt>{t("身体信息", "Build")}</dt><dd>{formatBuild(Number(build.cm), Number(build.kg))}</dd></div>
                 <div className={styles.reviewRow}><dt>{t("扁平足", "Flat feet")}</dt><dd>{flatFoot === null ? "—" : flatFoot ? t("有", "Yes") : t("没有", "No")}</dd></div>
                 <div className={styles.reviewRow}><dt>{t("选鞋偏好", "Priorities")}</dt><dd>{picks.length ? picks.map((key) => DIM_TEXT[key][zh ? 0 : 1]).join(" → ") : t("以后再设置", "Set later")}</dd></div>
               </dl>

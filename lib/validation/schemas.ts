@@ -90,8 +90,8 @@ export const personaSchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, "Duplicate positions are not allowed."),
   skill_level: z.enum(SKILL_LEVELS),
   flat_foot: z.boolean(),
-  height_cm: z.coerce.number().int().min(HEIGHT_MIN).max(HEIGHT_MAX),
-  weight_kg: z.coerce.number().int().min(WEIGHT_MIN).max(WEIGHT_MAX),
+  height_cm: z.coerce.number().min(HEIGHT_MIN).max(HEIGHT_MAX),
+  weight_kg: z.coerce.number().min(WEIGHT_MIN).max(WEIGHT_MAX),
   // Pro deep-questionnaire injury history. Optional so pre-existing personas
   // (and free members' saves) keep validating; tier gating happens in the route.
   injuries: z

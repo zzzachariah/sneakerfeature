@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Check, Footprints, Info, X } from "lucide-react";
+import { ProfileMeasurements } from "@/components/preferences/profile-measurements";
+import { editMeasurement, footDimension, inRange, measurementDraft } from "@/lib/persona/measurements";
 import { PlaystyleDimGrid } from "@/components/preferences/playstyle-dim-grid";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
@@ -66,8 +68,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
   const [skill, setSkill] = useState<SkillLevel>("amateur");
   const [flatFoot, setFlatFoot] = useState(false);
   const [injuryPicks, setInjuryPicks] = useState<InjuryKey[]>([]);
-  const [heightStr, setHeightStr] = useState("");
-  const [weightStr, setWeightStr] = useState("");
+  const [build, setBuild] = useState(() => measurementDraft());
   const [playstylePicks, setPlaystylePicks] = useState<DimKey[]>([]);
   const [showFlatFootHelp, setShowFlatFootHelp] = useState(false);
   const [pendingClose, setPendingClose] = useState(false);
@@ -102,8 +103,7 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
       setSkill(persona ? persona.skill_level : "amateur");
       setFlatFoot(persona ? persona.flat_foot : false);
       setInjuryPicks(persona?.injuries ?? []);
-      setHeightStr(persona ? String(persona.height_cm) : "");
-      setWeightStr(persona ? String(persona.weight_kg) : "");
+      setBuild(measurementDraft(persona?.height_cm, persona?.weight_kg));
       setPlaystylePicks(focus ? [focus.primary, focus.secondary, focus.tertiary] : []);
       setShowFlatFootHelp(false);
       setPendingClose(false);
@@ -149,13 +149,11 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
       setLocalError(translate("Pick at least one position."));
       return;
     }
-    const height = parseInt(heightStr, 10);
-    const weight = parseInt(weightStr, 10);
-    if (!Number.isFinite(height) || height < HEIGHT_MIN || height > HEIGHT_MAX) {
+    if (!inRange(build.cm, HEIGHT_MIN, HEIGHT_MAX)) {
       setLocalError(translate("Please enter a valid height."));
       return;
     }
-    if (!Number.isFinite(weight) || weight < WEIGHT_MIN || weight > WEIGHT_MAX) {
+    if (!inRange(build.kg, WEIGHT_MIN, WEIGHT_MAX)) {
       setLocalError(translate("Please enter a valid weight."));
       return;
     }
@@ -168,8 +166,8 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
       positions: picks,
       skill_level: skill,
       flat_foot: flatFoot,
-      height_cm: height,
-      weight_kg: weight,
+      height_cm: Number(build.cm),
+      weight_kg: Number(build.kg),
       // Only paid tiers carry the deep questionnaire; the server strips it
       // anyway, this just keeps the client honest.
       ...(injuriesUnlocked ? { injuries: injuryPicks } : {})
@@ -340,40 +338,10 @@ export function PersonaModal({ open, onClose }: { open: boolean; onClose: () => 
             />
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="space-y-1">
-              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
-                {translate("Height (cm)")}
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={HEIGHT_MIN}
-                max={HEIGHT_MAX}
-                value={heightStr}
-                onChange={(e) => setHeightStr(e.target.value)}
-                disabled={busy}
-                placeholder="180"
-                className="w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3 py-2 text-sm outline-none transition focus:border-[rgb(var(--text)/0.5)] disabled:opacity-50"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium uppercase tracking-[0.18em] soft-text">
-                {translate("Weight (kg)")}
-              </label>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={WEIGHT_MIN}
-                max={WEIGHT_MAX}
-                value={weightStr}
-                onChange={(e) => setWeightStr(e.target.value)}
-                disabled={busy}
-                placeholder="75"
-                className="w-full rounded-lg border border-[rgb(var(--glass-stroke-soft)/0.55)] bg-[rgb(var(--surface)/0.7)] px-3 py-2 text-sm outline-none transition focus:border-[rgb(var(--text)/0.5)] disabled:opacity-50"
-              />
-            </div>
-          </div>
+          <ProfileMeasurements value={build} disabled={busy} onChange={(field, value) => {
+            setBuild(previous => editMeasurement(previous, field, value));
+            setLocalError(null);
+          }} />
 
           <InjurySection
             picks={injuryPicks}
@@ -504,9 +472,9 @@ function FootTypeSection({
         </div>
         {profile.foot_length_mm > 0 && (
           <span className="num-display text-[0.7rem] soft-text">
-            ~{(profile.foot_length_mm / 10).toFixed(1)} cm
-            {profile.foot_width_mm != null && (
-              <> · ~{(profile.foot_width_mm / 10).toFixed(1)} cm</>
+            {translate("Length")} ≈ {footDimension(profile.foot_length_mm)}
+            {profile.foot_width_mm != null && profile.foot_width_mm > 0 && (
+              <span className="block">{translate("Width")} ≈ {footDimension(profile.foot_width_mm)}</span>
             )}
           </span>
         )}
