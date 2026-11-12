@@ -15,10 +15,8 @@ type ShoeImageProps = {
   /** Eager-load above-the-fold images (maps to next/image `priority`). */
   priority?: boolean;
   /**
-   * The mid-tone "stage" backdrop + hairline border behind the cut-out. On by
-   * default (contrast for very light/dark shoes on list/compare tiles). Pass
-   * `false` when the image already sits on its own clean card — e.g. the detail
-   * hero — so it isn't a grey box nested inside a white card.
+   * Adds a contrast backdrop and border behind the cut-out. Compare cards
+   * supply their own surface, so their image stays transparent by default.
    */
   stage?: boolean;
 };
@@ -76,7 +74,7 @@ function canOptimize(src: string): boolean {
   }
 }
 
-export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "", interactive = false, priority = false, stage = true }: ShoeImageProps) {
+export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", className = "", interactive = false, priority = false, stage = variant !== "compare" }: ShoeImageProps) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const trimmedSrc = src?.trim() ?? "";
@@ -135,7 +133,7 @@ export function ShoeImage({ src, alt, fallbackLabel, variant = "thumbnail", clas
           />
         )
       ) : (
-        <div className="flex h-full w-full items-center justify-center bg-[rgb(var(--bg-elev)/0.72)] px-2 text-center">
+        <div className={cn("flex h-full w-full items-center justify-center px-2 text-center", stage && "bg-[rgb(var(--bg-elev)/0.72)]")}>
           <span className="text-[11px] font-medium uppercase tracking-[0.08em] soft-text">{fallbackLabel}</span>
         </div>
       )}
