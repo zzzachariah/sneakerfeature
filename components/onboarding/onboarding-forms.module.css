@@ -78,9 +78,6 @@
 .choiceDot { width: 16px; height: 16px; flex: 0 0 16px; border: 1px solid rgb(var(--text) / .2); border-radius: 50%; display: grid; place-items: center; }
 .choice[data-selected="true"] .choiceDot { border-color: rgb(var(--brand)); background: rgb(var(--brand)); color: rgb(var(--brand-contrast)); }
 .stack { display: grid; gap: 26px; }
-.measurements { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.unit { position: absolute; right: 16px; top: 27px; color: rgb(var(--subtext)); font-size: 13px; }
-.unitInput { padding-right: 48px; font-variant-numeric: tabular-nums; }
 .rank { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 8px; background: rgb(var(--text) / .05); font-size: 12px; font-variant-numeric: tabular-nums; }
 .choice[data-selected="true"] .rank { background: rgb(var(--brand)); color: rgb(var(--brand-contrast)); }
 .profileActions { display: grid; gap: 4px; }

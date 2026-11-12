@@ -1,5 +1,6 @@
 "use client";
 
+import { formatBuild } from "@/lib/persona/measurements";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Shuffle } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
@@ -3348,7 +3349,7 @@ export function PersonaAvatar({ persona, dimmed = false, onClick, size = "md", l
 
         <div className={`num-display ${size === "sm" ? "text-[0.62rem]" : "text-[0.72rem]"} soft-text`}>
           {persona
-            ? `${persona.height_cm} ${translate("cm")} · ${persona.weight_kg} ${translate("kg")}`
+            ? formatBuild(persona.height_cm, persona.weight_kg)
             : emptyLabel}
         </div>
 

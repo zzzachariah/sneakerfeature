@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { editMeasurement, formatBuild, measurementDraft, usHeight } from "../lib/persona/measurements";
 import {
   authSchema, blockUserSchema, closetAddSchema, closetUpdateSchema, closetWearSchema,
   commentSchema, deleteCommentSchema, deleteComparisonSchema, personaSchema,
@@ -55,6 +56,28 @@ assert.equal(personaSchema.safeParse({ ...persona, positions: ["PG", "PG"] }).su
 assert.equal(personaSchema.safeParse({ ...persona, injuries: ["knee", "knee"] }).success, false);
 assert.equal(personaSchema.safeParse({ ...persona, height_cm: 139 }).success, false);
 assert.equal(personaSchema.safeParse({ ...persona, weight_kg: 161 }).success, false);
+
+// US entries use the same storage contract. Editing one field must preserve
+// the other, including exact metric values from previously saved profiles.
+let build = measurementDraft(180, 75);
+assert.equal(editMeasurement(build, "lb", "180").cm, "180");
+build = editMeasurement(build, "feet", "6");
+build = editMeasurement(build, "inches", "2");
+build = editMeasurement(build, "lb", "180");
+const persisted = personaSchema.parse({ ...persona, height_cm: build.cm, weight_kg: build.kg });
+assert.equal(persisted.height_cm, 187.96);
+assert.equal(persisted.weight_kg, 81.65);
+assert.deepEqual(measurementDraft(persisted.height_cm, persisted.weight_kg), build);
+assert.equal(formatBuild(187.96, 81.65), "188 cm (6′ 2″) · 81.7 kg (180 lb)");
+assert.equal(usHeight(182.87), "6′ 0″");
+assert.equal(editMeasurement(build, "inches", "12").cm, "");
+assert.equal(editMeasurement(build, "feet", "").cm, "");
+assert.equal(editMeasurement(build, "lb", "").kg, "");
+for (const [cm, kg] of [[140, 35], [230, 160]]) {
+  const edge = measurementDraft(cm, kg);
+  assert.equal(editMeasurement(edge, "inches", edge.inches).cm, String(cm));
+  assert.equal(editMeasurement(edge, "lb", edge.lb).kg, String(kg));
+}
 
 const ratings = { shoeId: storedIds[0], cushioning_feel: 0.5, court_feel: 5, bounce: 2.5, stability: 3, traction: 4.5, fit: 4 };
 assert.deepEqual(ratingUpsertSchema.parse(ratings), ratings);

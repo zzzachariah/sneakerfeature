@@ -1,5 +1,6 @@
 "use client";
 
+import { formatBuild, usHeight, usWeight } from "@/lib/persona/measurements";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -102,13 +103,8 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   // Unit system for the build step — basketball's audience is split between
   // metric and imperial, and cm/kg-only was a real usability gap.
   const [units, setUnits] = useState<"metric" | "imperial">("metric");
-  const fmtH = (cm: number) => {
-    if (units === "metric") return `${cm} cm`;
-    const inches = cm / 2.54;
-    const ft = Math.floor(inches / 12);
-    return `${ft}'${Math.round(inches - ft * 12)}"`;
-  };
-  const fmtW = (kg: number) => (units === "metric" ? `${kg} kg` : `${Math.round(kg * 2.20462)} lb`);
+  const fmtH = (cm: number) => units === "metric" ? `${cm} cm` : usHeight(cm);
+  const fmtW = (kg: number) => units === "metric" ? `${kg} kg` : usWeight(kg);
   const [priority, setPriority] = useState<MetricKey | null>(null);
 
   const personaInput = useMemo<Persona | null>(() => {
@@ -144,7 +140,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
   const priorityLabel = priority ? PRIORITY_OPTIONS.find((o) => o.key === priority)?.label ?? null : null;
 
   const savedSummary = savedPersona
-    ? `${savedPersona.positions.join(" / ")} · ${translate(SKILL_LEVEL_LABEL[savedPersona.skill_level])} · ${savedPersona.height_cm}cm · ${savedPersona.weight_kg}kg`
+    ? `${savedPersona.positions.join(" / ")} · ${translate(SKILL_LEVEL_LABEL[savedPersona.skill_level])} · ${formatBuild(savedPersona.height_cm, savedPersona.weight_kg)}`
     : "";
 
   return (
@@ -186,7 +182,7 @@ export function QuickPickerClient({ shoes }: { shoes: Shoe[] }) {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[0.92rem] font-semibold">{translate("Use my saved profile")}</span>
-                  <span className="num-display block truncate text-[0.8rem] soft-text">{savedSummary}</span>
+                  <span className="num-display block text-[0.8rem] leading-snug soft-text">{savedSummary}</span>
                 </span>
                 <ArrowRight className="h-5 w-5 shrink-0 text-[rgb(var(--brand))]" />
               </button>
