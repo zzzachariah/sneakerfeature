@@ -2,8 +2,14 @@
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from "framer-motion";
+import { DUR, EASE, SPRING } from "@/lib/motion/constants";
 
 export type CodeInputStatus = "idle" | "error" | "success";
+/**
+ * Matches the surrounding form: "mono" = the standalone auth pages
+ * (monochrome FloatingInput look), "brand" = first-visit onboarding (brand focus).
+ */
+export type CodeInputVariant = "mono" | "brand";
 
 export type CodeInputHandle = {
   focus: () => void;
@@ -19,18 +25,21 @@ type Props = {
   status?: CodeInputStatus;
   disabled?: boolean;
   label?: string;
+  variant?: CodeInputVariant;
 };
 
-const SPRING = { type: "spring", stiffness: 520, damping: 30, mass: 0.6 } as const;
+/** Per-box entrance / success-ripple offset; close to <Stagger>'s 0.05s gap. */
+const STEP = 0.04;
 
 /**
  * One box per digit. Typing advances, Backspace steps back, arrows move,
  * pasting (or iOS/Android one-time-code autofill) fills every box at once.
- * Animations: digits pop in, the focused box lifts with a brand ring, boxes
- * ripple green on success and the row shakes on error. Reduced motion is honored.
+ * Motion uses the shared tokens in lib/motion/constants (EASE / DUR / SPRING) and
+ * box styling mirrors the site's inputs (see .otp-* in globals.css), so it reads
+ * as part of the same system. Reduced motion is honored.
  */
 export const CodeInput = forwardRef<CodeInputHandle, Props>(function CodeInput(
-  { length = 8, value, onChange, onComplete, status = "idle", disabled, label = "Verification code" },
+  { length = 8, value, onChange, onComplete, status = "idle", disabled, label = "Verification code", variant = "mono" },
   ref
 ) {
   const reduce = useReducedMotion();
@@ -57,7 +66,11 @@ export const CodeInput = forwardRef<CodeInputHandle, Props>(function CodeInput(
     clear: () => {
       valueRef.current = "";
       onChange("");
-      requestAnimationFrame(() => focusAt(0));
+      // Only reclaim focus if it is still inside this code input.
+      const inside = inputs.current.some((el) => el && el === document.activeElement);
+      requestAnimationFrame(() => {
+        if (inside || !document.activeElement || document.activeElement === document.body) focusAt(0);
+      });
     }
   }), [focusAt, length, onChange, value.length]);
 
@@ -65,7 +78,8 @@ export const CodeInput = forwardRef<CodeInputHandle, Props>(function CodeInput(
   useEffect(() => {
     if (status !== "error") return;
     if (reduce) return;
-    void row.start({ x: [0, -10, 9, -7, 5, -2, 0], transition: { duration: 0.45, ease: "easeOut" } });
+    // A short, low-amplitude nudge — enough to register, not a cartoon wobble.
+    void row.start({ x: [0, -6, 5, -3, 2, 0], transition: { duration: DUR.cin * 0.8, ease: EASE } });
   }, [status, reduce, row]);
 
   function commit(next: string, focusIndex: number) {
@@ -139,7 +153,13 @@ export const CodeInput = forwardRef<CodeInputHandle, Props>(function CodeInput(
       return;
     }
     setFocused(i);
-    requestAnimationFrame(() => inputs.current[i]?.select());
+    // select() can pull focus in Chromium, so only select if this box still has
+    // it — otherwise a deferred select would steal focus back from wherever the
+    // user moved (another field, or a second code input).
+    requestAnimationFrame(() => {
+      const el = inputs.current[i];
+      if (el && document.activeElement === el) el.select();
+    });
   }
 
   const half = length % 2 === 0 && length >= 6 ? length / 2 : -1;
@@ -149,70 +169,41 @@ export const CodeInput = forwardRef<CodeInputHandle, Props>(function CodeInput(
       animate={row}
       role="group"
       aria-label={label}
-      className="flex w-full items-center justify-center gap-1.5 sm:gap-2"
+      data-variant={variant}
+      className="otp-row flex w-full items-center justify-center gap-1.5 sm:gap-2"
     >
       {digits.map((digit, i) => {
         const isActive = focused === i && !disabled;
-        const tone =
-          status === "error"
-            ? "rgb(var(--error))"
-            : status === "success"
-              ? "rgb(var(--success))"
-              : isActive
-                ? "rgb(var(--brand))"
-                : digit
-                  ? "rgb(var(--text) / 0.35)"
-                  : "rgb(var(--text) / 0.14)";
+        const state =
+          status === "error" ? "error" : status === "success" ? "success" : isActive ? "active" : digit ? "filled" : "empty";
         return (
           <div key={i} className="contents">
-            {i === half && (
-              <span aria-hidden className="mx-0.5 h-0.5 w-2 shrink-0 rounded-full bg-[rgb(var(--text)/0.25)] sm:mx-1 sm:w-3" />
-            )}
+            {i === half && <span aria-hidden className="otp-sep" />}
             <motion.div
-              className="relative aspect-[4/5] min-w-0 flex-1 basis-0"
+              className="otp-cell relative aspect-[4/5] min-w-0 flex-1 basis-0"
               style={{ maxWidth: 52 }}
-              initial={reduce ? false : { opacity: 0, y: 10 }}
+              initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{
                 opacity: 1,
-                y: isActive && !reduce ? -2 : 0,
-                scale: status === "success" && !reduce ? [1, 1.08, 1] : 1
+                y: 0,
+                scale: status === "success" && !reduce ? [1, 1.05, 1] : 1
               }}
-              transition={
-                status === "success"
-                  ? { duration: 0.35, delay: reduce ? 0 : i * 0.04, ease: "easeOut" }
-                  : { ...SPRING, delay: reduce ? 0 : i * 0.03 }
-              }
+              transition={{ duration: DUR.slow, ease: EASE, delay: reduce ? 0 : i * STEP }}
             >
-              {/* Border + glow use CSS transitions: theme colors are CSS variables,
-                  which the browser interpolates but framer-motion cannot. */}
-              <div
-                aria-hidden
-                className="otp-box absolute inset-0 rounded-xl"
-                style={{
-                  borderWidth: 1.5,
-                  borderStyle: "solid",
-                  background: "rgb(var(--surface))",
-                  borderColor: tone,
-                  boxShadow: isActive
-                    ? "0 0 0 4px rgb(var(--brand) / 0.18), 0 6px 18px rgb(var(--brand) / 0.12)"
-                    : status === "error"
-                      ? "0 0 0 3px rgb(var(--error) / 0.15), 0 0 0 0 rgb(var(--error) / 0)"
-                      : status === "success"
-                        ? "0 0 0 3px rgb(var(--success) / 0.18), 0 0 0 0 rgb(var(--success) / 0)"
-                        : "0 0 0 0 rgb(var(--brand) / 0), 0 0 0 0 rgb(var(--brand) / 0)"
-                }}
-              />
+              {/* Border / ring / fill live in CSS (.otp-box[data-state]): the theme
+                  colors are CSS variables, which CSS transitions interpolate. */}
+              <div aria-hidden className="otp-box absolute inset-0" data-state={state} />
               {!digit && isActive && <span aria-hidden className="otp-caret" />}
               <AnimatePresence mode="popLayout" initial={false}>
                 {digit && (
                   <motion.span
                     key={`${i}-${digit}`}
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 flex items-center justify-center text-[clamp(1.1rem,4.8vw,1.65rem)] font-semibold tabular-nums text-[rgb(var(--text))]"
-                    initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.4, y: 6 }}
+                    className="pointer-events-none absolute inset-0 flex items-center justify-center text-[clamp(1.1rem,4.8vw,1.6rem)] font-semibold tabular-nums tracking-[-0.01em] text-[rgb(var(--text))]"
+                    initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: 4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.6, y: -6 }}
-                    transition={SPRING}
+                    exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.85, transition: { duration: DUR.fast, ease: EASE } }}
+                    transition={reduce ? { duration: DUR.fast } : SPRING}
                   >
                     <span className="otp-digit">{digit}</span>
                   </motion.span>
@@ -236,7 +227,7 @@ export const CodeInput = forwardRef<CodeInputHandle, Props>(function CodeInput(
                 maxLength={length}
                 aria-label={`${label} digit ${i + 1} of ${length}`}
                 aria-invalid={status === "error" || undefined}
-                className="absolute inset-0 h-full w-full cursor-text rounded-xl bg-transparent text-center text-transparent caret-transparent outline-none selection:bg-transparent disabled:cursor-not-allowed"
+                className="otp-input absolute inset-0 h-full w-full cursor-text bg-transparent text-center text-transparent caret-transparent outline-none selection:bg-transparent disabled:cursor-not-allowed"
               />
             </motion.div>
           </div>

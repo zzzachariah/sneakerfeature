@@ -5,7 +5,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeedbackMessage } from "@/components/ui/feedback-message";
-import { CodeInput, type CodeInputHandle, type CodeInputStatus } from "@/components/auth/code-input";
+import { CodeInput, type CodeInputHandle, type CodeInputStatus, type CodeInputVariant } from "@/components/auth/code-input";
+import { DUR, EASE, SPRING, SPRING_POP } from "@/lib/motion/constants";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 
@@ -15,16 +16,17 @@ type Props = {
   next?: string;
   onVerified: () => void | Promise<void>;
   onBack?: () => void;
+  /** Visual family of the surrounding form; see CodeInputVariant. */
+  variant?: CodeInputVariant;
 };
 
 const RESEND_COOLDOWN_S = 60;
 /** Must match Supabase Auth → Email OTP length. */
 export const VERIFICATION_CODE_LENGTH = 8;
-const EASE = [0.22, 1, 0.36, 1] as const;
 
 // Second step of signup (and of signing in to an unverified account): enter the
 // emailed code, or tap the link in the same email. Verifying signs the person in.
-export function EmailVerifyStep({ email, next, onVerified, onBack }: Props) {
+export function EmailVerifyStep({ email, next, onVerified, onBack, variant = "mono" }: Props) {
   const { locale } = useLocale();
   const t = (zh: string, en: string) => (locale === "zh" ? zh : en);
   const reduce = useReducedMotion();
@@ -133,34 +135,46 @@ export function EmailVerifyStep({ email, next, onVerified, onBack }: Props) {
       className="space-y-5"
       initial={reduce ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE }}
+      transition={{ duration: DUR.slow, ease: EASE }}
     >
       <div className="flex items-start gap-3">
         <motion.span
           className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-          style={{ background: done ? "rgb(var(--success) / 0.14)" : "rgb(var(--brand) / 0.12)" }}
-          initial={reduce ? false : { scale: 0.6, rotate: -12 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", stiffness: 420, damping: 18 }}
+          style={{
+            // Brand tint only in the brand-accented onboarding flow; the standalone
+            // auth pages stay monochrome like the rest of their form.
+            background: done
+              ? "rgb(var(--success) / 0.14)"
+              : variant === "brand"
+                ? "rgb(var(--brand) / 0.12)"
+                : "rgb(var(--text) / 0.06)",
+            transition: "background-color var(--dur-base) var(--ease)"
+          }}
+          initial={reduce ? false : { scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={reduce ? { duration: DUR.base } : SPRING}
         >
           {/* Re-keyed so the icon pops in fresh when it swaps to the check. */}
           <motion.span
             key={done ? "ok" : "mail"}
             className="flex"
-            initial={reduce ? false : { scale: 0, rotate: -35 }}
-            animate={{ scale: 1, rotate: 0 }}
-            transition={{ type: "spring", stiffness: 520, damping: 18 }}
+            initial={reduce ? false : { scale: 0.4, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={reduce ? { duration: DUR.base } : SPRING_POP}
           >
             {done ? (
               <Check className="h-[18px] w-[18px] text-[rgb(var(--success))]" aria-hidden />
             ) : (
-              <MailCheck className="h-[18px] w-[18px] text-[rgb(var(--brand))]" aria-hidden />
+              <MailCheck
+                className={`h-[18px] w-[18px] ${variant === "brand" ? "text-[rgb(var(--brand))]" : "text-[rgb(var(--text))]"}`}
+                aria-hidden
+              />
             )}
           </motion.span>
         </motion.span>
         <p className="text-sm soft-text">
           {t(`我们已向 `, `We sent an ${VERIFICATION_CODE_LENGTH}-digit code and a verification link to `)}
-          <strong className="break-all text-[rgb(var(--text))]">{email}</strong>
+          <strong className="text-[rgb(var(--text))] [overflow-wrap:anywhere]">{email}</strong>
           {t(` 发送了 ${VERIFICATION_CODE_LENGTH} 位验证码和验证链接。输入验证码，或直接点击邮件中的链接。`, ". Enter the code, or tap the link in that email.")}
         </p>
       </div>
@@ -172,11 +186,16 @@ export function EmailVerifyStep({ email, next, onVerified, onBack }: Props) {
         onChange={handleChange}
         onComplete={(full) => void verify(full)}
         status={status}
+        variant={variant}
         disabled={busy || done}
         label={t("验证码", "Verification code")}
       />
 
-      <Button type="submit" className="h-11 w-full" disabled={busy || done || code.length !== VERIFICATION_CODE_LENGTH}>
+      <Button
+        type="submit"
+        variant={variant === "brand" ? "brand" : undefined}
+        className={variant === "brand" ? "min-h-[52px] w-full rounded-2xl text-base font-medium" : "h-11 w-full"}
+        disabled={busy || done || code.length !== VERIFICATION_CODE_LENGTH}>
         <span className="inline-flex items-center gap-2">
           {busy && !done && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
           {done ? t("已验证", "Verified") : busy ? t("验证中…", "Verifying…") : t("验证并继续", "Verify and continue")}
@@ -190,7 +209,7 @@ export function EmailVerifyStep({ email, next, onVerified, onBack }: Props) {
             initial={reduce ? { opacity: 0 } : { opacity: 0, y: 6, height: 0 }}
             animate={{ opacity: 1, y: 0, height: "auto" }}
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: -4, height: 0 }}
-            transition={{ duration: 0.22, ease: EASE }}
+            transition={{ duration: DUR.base, ease: EASE }}
           >
             <FeedbackMessage message={message} isError={isError} />
           </motion.div>

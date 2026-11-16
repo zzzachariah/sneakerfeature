@@ -252,7 +252,7 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
       <h2 id={`${id}-title`} className={styles.title}>{mode === "signup" ? t("让每一次选鞋，\n更懂你。", "Make your next pair personal.") : t("回到你的球场。", "Back to your game.")}</h2>
     </div>
     {pendingEmail ? <div className={styles.panelForm}>
-      <EmailVerifyStep email={pendingEmail} onBack={() => setPendingEmail(null)} onVerified={() => onAuthenticated()} />
+      <EmailVerifyStep email={pendingEmail} variant="brand" onBack={() => setPendingEmail(null)} onVerified={() => onAuthenticated()} />
     </div> :
     <form ref={formRef} className={styles.panelForm} onSubmit={submit} noValidate aria-busy={busy}>
       <div ref={scrollRef} className={styles.formScroll} role={short ? undefined : "region"} tabIndex={short ? undefined : 0} aria-label={short ? undefined : t("账号信息，可滚动", "Account details, scrollable")} onFocusCapture={(event) => { if (event.target !== event.currentTarget && event.target.matches(":focus-visible")) revealField(event.target); }}>
