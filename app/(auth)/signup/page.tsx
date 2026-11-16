@@ -157,7 +157,7 @@ export default function SignupPage() {
         body: JSON.stringify({ ...form, verificationToken, next: redirectTarget })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ ok: false, message: `Server returned a non-JSON response` }));
       devLog("api response", data);
 
       if (!res.ok || !data.ok) {
@@ -165,7 +165,9 @@ export default function SignupPage() {
         // retry with the same one would fail — issue a fresh challenge.
         humanCheckRef.current?.reset();
         setError(true);
-        setMessage(data.message ?? "Sign up failed.");
+        setMessage(
+          `${data.message ?? "Sign up failed."} (HTTP ${res.status}${data.code ? ` · ${data.code}` : ""}${data.detail ? ` · ${data.detail}` : ""})`
+        );
         return;
       }
 

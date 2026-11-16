@@ -212,14 +212,13 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
       } else if (/incorrect|invalid login|invalid.*credentials/i.test(raw)) {
         fieldError("password", t("登录信息不匹配，请检查后重试。", "Those details don’t match. Check and try again."));
       } else if (/verification|turnstile|human/i.test(raw)) {
-        fieldError("verification", t("验证已失效，请重新完成验证后重试。", "Verification expired. Complete a fresh check and retry."));
-      } else if (error instanceof OnboardingRequestError && error.status >= 500) {
-        // A server-side failure, not the person's connection: say so plainly.
-        setMessage(error.payload.code === "registration_unavailable"
-          ? t("注册暂时不可用，请稍后再试。", "Sign-up is temporarily unavailable. Please try again later.")
-          : t("服务器暂时无法完成请求，请稍后再试。", "Our server couldn’t finish that request. Please try again shortly."));
+        fieldError("verification", `${t("验证未通过，请重新完成验证后重试。", "Verification failed. Complete a fresh check and retry.")} (${raw})`);
       } else {
-        setMessage(t("暂时无法完成请求。输入已保留，请检查网络后重试。若刚才已注册成功，可切换登录继续。", "We couldn’t finish that request. Your entries are kept; check your connection and retry. If your account was just created, switch to sign in."));
+        // Show exactly what went wrong so it can be reported.
+        const parts = error instanceof OnboardingRequestError
+          ? [`HTTP ${error.status}`, raw, typeof error.payload.code === "string" ? error.payload.code : "", typeof error.payload.detail === "string" ? error.payload.detail : ""]
+          : [error instanceof Error ? error.name : "Error", raw];
+        setMessage(`${t("出错了：", "Error: ")}${parts.filter(Boolean).join(" · ") || t("未知错误", "unknown error")}`);
       }
     } finally {
       busyRef.current = false;
