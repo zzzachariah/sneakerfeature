@@ -2,86 +2,76 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { resendConfigured } from "@/lib/email/resend";
+import { startSignup } from "@/lib/auth/email-verification";
 
 const registerSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters."),
-  email: z.string().email("Enter a valid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
-  verificationToken: z.string().min(1, "Please complete human verification.")
+  username: z.string().trim().min(3, "Username must be at least 3 characters.").max(32, "Username must be 32 characters or fewer."),
+  email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters.").max(256),
+  verificationToken: z.string().min(1, "Please complete human verification."),
+  next: z.string().max(512).optional()
 });
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const AUTH_TIMEOUT_MS = 10000;
+// The SAME response whether the email is new or already registered, so signup
+// cannot be used to discover who has an account. An existing owner receives a
+// "you already have an account" notice instead of a code.
+const CHECK_EMAIL = {
+  ok: true,
+  verificationRequired: true,
+  message: "Check your email for a verification code."
+};
 
-function devLog(step: string, payload?: unknown) {
-  if (process.env.NODE_ENV !== "production") {
-    console.info(`[{}] ${step}`.replace("{}","signup-api"), payload ?? "");
-  }
-}
-
-async function withTimeout<T>(promiseLike: PromiseLike<T>, ms = AUTH_TIMEOUT_MS): Promise<T> {
-  return await Promise.race([
-    Promise.resolve(promiseLike),
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("timeout")), ms))
-  ]);
+function safeNext(next: string | undefined): string | null {
+  if (!next || !next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) return null;
+  return next;
 }
 
 export async function POST(request: Request) {
-  let accountCreated = false;
-  try {
-    devLog("request received");
-    const body = await request.json();
-    const parsed = registerSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
-    }
-
-    const verified = await verifyTurnstileToken(parsed.data.verificationToken);
-    devLog("human verification done", verified);
-    if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
-
-    const supabase = createAdminClient();
-    if (!supabase) return NextResponse.json({ ok: false, message: "Registration is temporarily unavailable. Please try again later." }, { status: 503 });
-
-    const usernameTaken = await withTimeout<{ data: { id?: string } | null }>(supabase.from("profiles").select("id").eq("username", parsed.data.username).maybeSingle());
-    if (usernameTaken.data) return NextResponse.json({ ok: false, message: "That username is already taken." }, { status: 409 });
-
-    const { data, error } = await withTimeout(supabase.auth.admin.createUser({
-      email: parsed.data.email,
-      password: parsed.data.password,
-      email_confirm: true,
-      user_metadata: { username: parsed.data.username }
-    }));
-
-    if (error || !data.user) {
-      return NextResponse.json({ ok: false, message: error?.message ?? "Could not create account." }, { status: 400 });
-    }
-    accountCreated = true;
-
-    let profileError: { message: string } | null = null;
-    for (let i = 0; i < 3; i++) {
-      const res = await withTimeout<{ error: { message: string } | null }>(supabase.from("profiles").upsert(
-        { id: data.user.id, username: parsed.data.username, email: parsed.data.email, role: "user" },
-        { onConflict: "id" }
-      ));
-      profileError = res.error as { message: string } | null;
-      if (!profileError) break;
-      await wait(150 * (i + 1));
-    }
-
-    if (profileError) {
-      return NextResponse.json({ ok: false, accountCreated: true, message: "Your account was created, but profile setup could not finish. Sign in to continue setup." }, { status: 500 });
-    }
-
-    devLog("response returned", { ok: true });
-    return NextResponse.json({ ok: true, message: "Registration successful. You can now sign in." });
-  } catch (error) {
-    devLog("route failed", error);
-    return NextResponse.json({
-      ok: false, accountCreated,
-      message: accountCreated
-        ? "Your account was created, but setup could not finish. Sign in to continue."
-        : "Signup request timed out or failed. Please try again."
-    }, { status: 500 });
+  const body = await request.json().catch(() => null);
+  const parsed = registerSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
+
+  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
+  if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
+
+  const admin = createAdminClient();
+  if (!admin || !resendConfigured()) {
+    return NextResponse.json(
+      { ok: false, message: "Registration is temporarily unavailable. Please try again later." },
+      { status: 503 }
+    );
+  }
+
+  const { username, email, password } = parsed.data;
+
+  // Usernames are public (shown on comments), so reporting a clash leaks nothing new.
+  const { data: taken } = await admin.from("profiles").select("id, email").eq("username", username).maybeSingle();
+  if (taken && taken.email?.toLowerCase() !== email) {
+    return NextResponse.json({ ok: false, message: "That username is already taken." }, { status: 409 });
+  }
+
+  const result = await startSignup(admin, { email, password, username, next: safeNext(parsed.data.next) });
+  if (result.status === "error") {
+    console.error("[register] start signup failed", result.message);
+    return NextResponse.json(
+      { ok: false, message: "Could not start signup. Please try again." },
+      { status: 500 }
+    );
+  }
+  if (result.status === "existing_verified") return NextResponse.json(CHECK_EMAIL);
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .upsert({ id: result.userId, username, email, role: "user" }, { onConflict: "id" });
+  if (profileError) {
+    console.error("[register] profile upsert failed", profileError.message);
+    // The auth user is unconfirmed and unusable; drop it so a retry starts clean.
+    await admin.auth.admin.deleteUser(result.userId);
+    return NextResponse.json({ ok: false, message: "Could not start signup. Please try again." }, { status: 500 });
+  }
+
+  return NextResponse.json(CHECK_EMAIL);
 }

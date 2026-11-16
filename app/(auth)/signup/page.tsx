@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { AuthShell } from "@/components/auth/auth-shell";
-import { createClient } from "@/lib/supabase/client";
+import { EmailVerifyStep } from "@/components/auth/email-verify-step";
 import { useLocale } from "@/components/i18n/locale-provider";
 
 const CLIENT_TIMEOUT_MS = 12000;
@@ -102,6 +102,7 @@ export default function SignupPage() {
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const humanCheckRef = useRef<HumanCheckHandle>(null);
   const tilt = useTiltHandlers();
   const router = useRouter();
@@ -153,7 +154,7 @@ export default function SignupPage() {
       const res = await fetchWithTimeout("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, verificationToken })
+        body: JSON.stringify({ ...form, verificationToken, next: redirectTarget })
       });
 
       const data = await res.json();
@@ -168,32 +169,10 @@ export default function SignupPage() {
         return;
       }
 
-      const supabase = createClient();
-      if (supabase) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: form.email,
-          password: form.password
-        });
-
-        devLog(
-          "supabase sign-in completed",
-          signInError ? { error: signInError.message } : { ok: true }
-        );
-
-        if (signInError) {
-          humanCheckRef.current?.reset();
-          setError(true);
-          setMessage(`Account created, but auto-login failed: ${signInError.message}`);
-          return;
-        }
-      }
-
-      setMessage("Account created successfully. Redirecting...");
-      devLog("navigation start", { target: redirectTarget });
-      if (pathname !== redirectTarget) {
-        router.push(redirectTarget);
-        router.refresh();
-      }
+      // The account stays inactive until the emailed code or link is used.
+      humanCheckRef.current?.reset();
+      setForm((p) => ({ ...p, password: "" }));
+      setPendingEmail(form.email.trim().toLowerCase());
     } catch {
       humanCheckRef.current?.reset();
       setError(true);
@@ -213,6 +192,23 @@ export default function SignupPage() {
         accentWord="sneakerfeature"
         subheading="Create an account to submit shoe data, keep your saved compares, and join on-court discussions."
       >
+        {pendingEmail ? (
+          <div className="glass-card mx-auto w-full max-w-md space-y-5 p-5 md:p-8">
+            <div className="space-y-1.5">
+              <p className="auth-eyebrow">{translate("sign up")}</p>
+              <h2 className="text-[28px] font-semibold tracking-[-0.02em]">{translate("Verify your email")}</h2>
+            </div>
+            <EmailVerifyStep
+              email={pendingEmail}
+              next={redirectTarget}
+              onBack={() => setPendingEmail(null)}
+              onVerified={() => {
+                if (pathname !== redirectTarget) router.push(redirectTarget);
+                router.refresh();
+              }}
+            />
+          </div>
+        ) : (
         <motion.form
           onSubmit={onSubmit}
           onPointerMove={tilt.onMove}
@@ -349,6 +345,7 @@ export default function SignupPage() {
             </Link>
           </motion.p>
         </motion.form>
+        )}
       </AuthShell>
     </>
   );

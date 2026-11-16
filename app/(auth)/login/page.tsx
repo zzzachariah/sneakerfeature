@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { FloatingInput } from "@/components/ui/floating-input";
 import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { EmailVerifyStep } from "@/components/auth/email-verify-step";
 import { createClient } from "@/lib/supabase/client";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { LAST_PATH_KEY } from "@/components/auth/route-memory";
@@ -108,6 +109,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const humanCheckRef = useRef<HumanCheckHandle>(null);
   const tilt = useTiltHandlers();
 
@@ -115,6 +117,7 @@ export default function LoginPage() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next");
+  const verifyFailed = searchParams.get("verify") === "failed";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -140,6 +143,19 @@ export default function LoginPage() {
 
       const data = await res.json();
       devLog("api response", data);
+
+      if (data.code === "email_unconfirmed" && typeof data.email === "string") {
+        humanCheckRef.current?.reset();
+        setPassword("");
+        // Send a fresh code; the old one may have expired.
+        void fetch("/api/auth/resend-verification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: data.email })
+        }).catch(() => undefined);
+        setPendingEmail(data.email);
+        return;
+      }
 
       if (!res.ok || !data.ok) {
         // The server already consumed the single-use verification token, so a
@@ -204,6 +220,20 @@ export default function LoginPage() {
       accentWord="sneakerfeature"
       subheading="Sign in to write reviews, save compares, and keep your index synced across devices."
     >
+      {pendingEmail ? (
+        <div className="glass-card mx-auto w-full max-w-md space-y-5 p-5 md:p-8">
+          <h2 className="text-[28px] font-semibold tracking-[-0.02em]">{translate("Verify your email")}</h2>
+          <EmailVerifyStep
+            email={pendingEmail}
+            onBack={() => setPendingEmail(null)}
+            onVerified={() => {
+              const target = normalizeRedirectTarget(nextPath ?? readLastPath());
+              router.replace(target);
+              router.refresh();
+            }}
+          />
+        </div>
+      ) : (
       <form
         onSubmit={onSubmit}
         onPointerMove={tilt.onMove}
@@ -294,7 +324,14 @@ export default function LoginPage() {
             {translate("Sign up")}
           </Link>
         </Reveal>
+        {verifyFailed && !message && (
+          <FeedbackMessage
+            message={translate("That verification link is invalid or has expired. Sign in to get a new code.")}
+            isError
+          />
+        )}
       </form>
+      )}
     </AuthShell>
   );
 }

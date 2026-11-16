@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   if (!email.includes("@")) {
     const { data: profile } = await adminClient.from("profiles").select("email, role").eq("username", email).maybeSingle();
     if (!profile || profile.role !== "admin") {
-      return NextResponse.json({ ok: false, message: "No such admin account." }, { status: 403 });
+      return NextResponse.json({ ok: false, message: "Invalid admin credentials." }, { status: 401 });
     }
     email = profile.email;
   }
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
   if (!profile || profile.role !== "admin") {
     await supabase.auth.signOut();
     // Return a fresh response with NO cookies so no session leaks to the client
-    return NextResponse.json({ ok: false, message: "No such admin account." }, { status: 403 });
+    return NextResponse.json({ ok: false, message: "Invalid admin credentials." }, { status: 401 });
   }
 
   await adminClient.from("admin_audit_logs").insert({
