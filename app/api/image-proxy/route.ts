@@ -9,6 +9,9 @@ const hits = new Map<string, { count: number; resetAt: number }>();
 
 function rateLimited(ip: string): boolean {
   const now = Date.now();
+  if (hits.size > 10_000) {
+    for (const [key, value] of hits) if (now > value.resetAt) hits.delete(key);
+  }
   const entry = hits.get(ip);
   if (!entry || now > entry.resetAt) {
     hits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });

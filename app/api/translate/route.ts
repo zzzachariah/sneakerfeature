@@ -1,7 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
+// Bounded: keys are caller-supplied text (up to MAX_TEXT_LENGTH), so an
+// unbounded Map grows for the lifetime of the server instance. Map keeps
+// insertion order, so evicting the first key drops the oldest entry.
+const MAX_CACHE_ENTRIES = 5_000;
 const translationCache = new Map<string, string>();
+function cacheSet(key: string, value: string) {
+  if (translationCache.has(key)) translationCache.delete(key);
+  translationCache.set(key, value);
+  while (translationCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = translationCache.keys().next().value;
+    if (oldest === undefined) break;
+    translationCache.delete(oldest);
+  }
+}
 const DEFAULT_LOCALE = "zh";
 function parseAndValidateLibreUrl(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -45,6 +58,9 @@ const hits = new Map<string, { count: number; resetAt: number }>();
 
 function rateLimited(ip: string): boolean {
   const now = Date.now();
+  if (hits.size > 10_000) {
+    for (const [key, value] of hits) if (now > value.resetAt) hits.delete(key);
+  }
   const entry = hits.get(ip);
   if (!entry || now > entry.resetAt) {
     hits.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
@@ -311,12 +327,12 @@ export async function POST(request: NextRequest) {
 
       translatedUnit = applyProperNounOverrides(unit, translatedUnit, target);
 
-      translationCache.set(unitCacheKey, translatedUnit);
+      cacheSet(unitCacheKey, translatedUnit);
       translatedUnits.push(translatedUnit);
     }
 
     const mergedTranslation = translatedUnits.join(" ").replace(/\s+([,.!?;:])/g, "$1").trim();
-    translationCache.set(cacheKey, mergedTranslation || text);
+    cacheSet(cacheKey, mergedTranslation || text);
     return NextResponse.json({
       translatedText: mergedTranslation || text,
       cached: false,

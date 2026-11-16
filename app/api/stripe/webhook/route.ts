@@ -49,7 +49,11 @@ export async function POST(request: Request) {
       // the membership and reconcile the payment row.
       const charge = event.data.object as Stripe.Charge;
       const pi = paymentIntentId(charge.payment_intent);
-      if (pi) {
+      // charge.refunded fires for PARTIAL refunds too (e.g. a goodwill credit).
+      // Only a full refund should revoke the membership.
+      if (!charge.refunded) {
+        console.log(`[stripe/webhook] charge.refunded ${pi ?? "?"} partial (${charge.amount_refunded}/${charge.amount}) -> ignored`);
+      } else if (pi) {
         const outcome = await handleExternalRefund(pi, {
           status: "refunded",
           refundId: charge.refunds?.data?.[0]?.id ?? null

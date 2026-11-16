@@ -46,7 +46,10 @@ export async function GET(request: Request) {
     .select("user_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
     .eq("shoe_id", shoeId);
 
-  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("[ratings] list failed", error);
+    return NextResponse.json({ ok: false, message: "Could not load ratings." }, { status: 400 });
+  }
 
   const all = (rows ?? []) as DimRow[];
   const count = all.length;
@@ -87,7 +90,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = ratingUpsertSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -140,7 +143,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const body = await request.json();
+  const body = await request.json().catch(() => null);
   const parsed = ratingDeleteSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json(
@@ -167,7 +170,10 @@ export async function DELETE(request: Request) {
     .eq("shoe_id", parsed.data.shoeId)
     .eq("user_id", user.id);
 
-  if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+  if (error) {
+    console.error("[ratings] delete failed", error);
+    return NextResponse.json({ ok: false, message: "Could not clear rating." }, { status: 400 });
+  }
 
   invalidateRatingViews();
   return NextResponse.json({ ok: true, message: "Rating cleared." });

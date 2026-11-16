@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isAuthCookieName } from "@/lib/auth-cookie";
 
 function isPublicPath(pathname: string) {
   return (
@@ -38,9 +39,10 @@ function isAuthPage(pathname: string) {
 }
 
 function hasAuthCookie(request: NextRequest) {
-  return request.cookies
-    .getAll()
-    .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+  // Supabase SSR splits large sessions into `-auth-token.0`, `.1`, ... cookies;
+  // a plain endsWith("-auth-token") check missed those and bounced signed-in
+  // users back to /login.
+  return request.cookies.getAll().some((c) => isAuthCookieName(c.name));
 }
 
 // API paths that legitimately receive cross-origin POSTs (webhooks / cron

@@ -41,11 +41,11 @@ function verifySignature(secret: string, id: string, timestamp: string, signatur
   if (!id || !timestamp || !signatureHeader) return false;
 
   // Anti-replay: reject timestamps more than 5 minutes from now.
+  // A missing/non-numeric timestamp must fail closed, not skip the check.
   const ts = Number(timestamp);
-  if (Number.isFinite(ts)) {
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - ts) > 60 * 5) return false;
-  }
+  if (!Number.isFinite(ts)) return false;
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > 60 * 5) return false;
 
   // Secret looks like "v1,whsec_<base64>"; the signing key is the base64 part.
   const marker = secret.indexOf("whsec_");
