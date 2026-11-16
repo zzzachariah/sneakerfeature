@@ -34,16 +34,24 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
-  if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
-
+  // Check server configuration BEFORE spending the single-use Turnstile token,
+  // so a misconfigured deploy is reported clearly instead of as a failed check.
   const admin = createAdminClient();
   if (!admin || !resendConfigured()) {
+    console.error("[register] unavailable:", !admin ? "SUPABASE_SERVICE_ROLE_KEY missing" : "RESEND_API_KEY missing");
     return NextResponse.json(
-      { ok: false, message: "Registration is temporarily unavailable. Please try again later." },
+      {
+        ok: false,
+        code: "registration_unavailable",
+        message: "Registration is temporarily unavailable. Please try again later.",
+        detail: !admin ? "SUPABASE_SERVICE_ROLE_KEY missing" : "RESEND_API_KEY missing"
+      },
       { status: 503 }
     );
   }
+
+  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
+  if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
 
   const { username, email, password } = parsed.data;
 
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
   if (result.status === "error") {
     console.error("[register] start signup failed", result.message);
     return NextResponse.json(
-      { ok: false, message: "Could not start signup. Please try again." },
+      { ok: false, code: "signup_failed", message: "Could not start signup. Please try again.", detail: result.message },
       { status: 500 }
     );
   }
@@ -70,7 +78,10 @@ export async function POST(request: Request) {
     console.error("[register] profile upsert failed", profileError.message);
     // The auth user is unconfirmed and unusable; drop it so a retry starts clean.
     await admin.auth.admin.deleteUser(result.userId);
-    return NextResponse.json({ ok: false, message: "Could not start signup. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, code: "profile_failed", message: "Could not start signup. Please try again.", detail: profileError.message },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json(CHECK_EMAIL);
