@@ -128,7 +128,7 @@ export async function handleExternalRefund(
     .select("session_id, user_id, status")
     .eq("payment_intent_id", paymentIntentId)
     .maybeSingle();
-  const row = data as { session_id: string; user_id: string; status: string } | null;
+  const row = data as { session_id: string; user_id: string | null; status: string } | null;
   if (!row) return "not_found";
   if (row.status === "refunded" || row.status === "disputed") return "already";
 
@@ -141,6 +141,9 @@ export async function handleExternalRefund(
       updated_at: new Date().toISOString()
     })
     .eq("session_id", row.session_id);
+
+  // user_id is NULL once the buyer deleted their account: nothing to revoke.
+  if (!row.user_id) return "handled";
 
   await revokeSubscription(row.user_id, {
     actorAdminId: null,
