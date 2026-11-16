@@ -45,11 +45,20 @@ The following baseline protections are in place:
 - HTTPS-only with HSTS preload-eligible policy (`next.config.ts`).
 - Security headers: `X-Content-Type-Options`, `X-Frame-Options`,
   `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`.
+- Enforced, nonce-based Content-Security-Policy generated per request
+  (`middleware.ts`, `lib/security/csp.ts`).
+- Signup requires email verification (emailed code or one-tap link, sent via
+  Resend). Login, admin login and signup return non-enumerating messages.
+- Individual ratings and comment votes are readable only by their owner;
+  public pages use aggregate functions.
+- User-uploaded photos are re-encoded (EXIF/GPS stripped) and held in a
+  private bucket until an admin approves them.
 - CSRF: cross-origin mutating requests to `/api/*` are rejected at the
   edge (`middleware.ts`); webhook/cron endpoints verify their own
   signatures.
-- Auth: Cloudflare Turnstile on login / signup / password reset; Supabase
-  session cookies are HttpOnly + SameSite.
+- Auth: Cloudflare Turnstile on login / signup / password reset (fails closed
+  in production if `TURNSTILE_SECRET_KEY` is missing); Supabase session
+  cookies are HttpOnly + SameSite.
 - Database: Row Level Security enabled on every user-data table
   (`db/migrations/`). Service-role key is server-only.
 - Image proxy: outbound fetches restricted to an allowlist of hosts

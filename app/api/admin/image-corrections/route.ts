@@ -3,6 +3,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { requireAdminApi } from "@/lib/admin/route-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PENDING_CORRECTIONS_BUCKET, PUBLIC_IMAGES_BUCKET } from "@/lib/images/sanitize-upload";
 
 const schema = z.object({
   id: z.guid("Invalid correction id."),
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Service role is not configured." }, { status: 500 });
   }
 
-  const parsed = schema.safeParse(await request.json());
+  const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
@@ -57,7 +58,31 @@ export async function POST(request: Request) {
       .eq("id", correction.id);
 
     if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+    // A rejected private upload has no further use; don't retain the photo.
+    if (correction.storage_bucket === PENDING_CORRECTIONS_BUCKET) {
+      await db.storage.from(PENDING_CORRECTIONS_BUCKET).remove([correction.storage_path]);
+    }
     return NextResponse.json({ ok: true, message: "Correction rejected." });
+  }
+
+  // Promote a privately held upload into the public bucket before publishing.
+  let storagePath: string = correction.storage_path;
+  let publicUrl: string | null = correction.public_url;
+  if (correction.storage_bucket === PENDING_CORRECTIONS_BUCKET) {
+    const { data: blob, error: downloadError } = await db.storage
+      .from(PENDING_CORRECTIONS_BUCKET)
+      .download(correction.storage_path);
+    if (downloadError || !blob) {
+      return NextResponse.json({ ok: false, message: "Could not read the submitted image." }, { status: 500 });
+    }
+    storagePath = `corrections/${correction.storage_path}`;
+    const { error: copyError } = await db.storage
+      .from(PUBLIC_IMAGES_BUCKET)
+      .upload(storagePath, blob, { upsert: true, contentType: blob.type || "image/webp" });
+    if (copyError) {
+      return NextResponse.json({ ok: false, message: `Could not publish the image: ${copyError.message}` }, { status: 500 });
+    }
+    publicUrl = db.storage.from(PUBLIC_IMAGES_BUCKET).getPublicUrl(storagePath).data.publicUrl;
   }
 
   // approve — demote the current approved image, then add the user's image as
@@ -74,8 +99,8 @@ export async function POST(request: Request) {
 
   const { error: insertError } = await db.from("shoe_images").insert({
     shoe_id: correction.shoe_id,
-    storage_path: correction.storage_path,
-    public_url: correction.public_url,
+    storage_path: storagePath,
+    public_url: publicUrl,
     status: "approved",
     provider: "user_correction",
     created_by: correction.user_id,
@@ -88,11 +113,22 @@ export async function POST(request: Request) {
 
   const { error: markError } = await db
     .from("image_corrections")
-    .update({ status: "approved", reviewed_by: user.id, reviewed_at: nowIso })
+    .update({
+      status: "approved",
+      reviewed_by: user.id,
+      reviewed_at: nowIso,
+      storage_bucket: PUBLIC_IMAGES_BUCKET,
+      storage_path: storagePath,
+      public_url: publicUrl
+    })
     .eq("id", correction.id);
 
   if (markError) {
     return NextResponse.json({ ok: false, message: markError.message }, { status: 400 });
+  }
+
+  if (correction.storage_bucket === PENDING_CORRECTIONS_BUCKET) {
+    await db.storage.from(PENDING_CORRECTIONS_BUCKET).remove([correction.storage_path]);
   }
 
   revalidateTag("shoes");

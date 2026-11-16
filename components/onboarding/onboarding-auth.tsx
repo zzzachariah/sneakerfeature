@@ -7,6 +7,7 @@ import { AlertCircle, ArrowRight, Check, Eye, EyeOff, Loader2, LockKeyhole } fro
 import { z } from "zod";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { HumanCheck, type HumanCheckHandle } from "@/components/ui/human-check";
+import { EmailVerifyStep } from "@/components/auth/email-verify-step";
 import { createClient } from "@/lib/supabase/client";
 import { EASE } from "@/lib/motion/constants";
 import { authSchema } from "@/lib/validation/schemas";
@@ -49,6 +50,7 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
   const [message, setMessage] = useState("");
   const [recovery, setRecovery] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const busyRef = useRef(false);
   const humanCheck = useRef<HumanCheckHandle>(null);
   const verificationRef = useRef<HTMLDivElement>(null);
@@ -153,7 +155,6 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     setBusy(true);
     setMessage("");
     setRecovery(false);
-    let didCreate = false;
     try {
       const client = createClient();
       if (!client) throw new Error("Authentication is unavailable.");
@@ -165,12 +166,12 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
           body: JSON.stringify({ username: username.trim(), email: email.trim(), password, verificationToken: token })
         });
         if (/demo mode/i.test(registration.message || "")) throw new Error("Authentication is unavailable.");
-        didCreate = true;
-        const result = await onboardingTimeout(client.auth.signInWithPassword({ email: email.trim(), password }));
-        if (result.error || !result.data.session) {
-          recoverLogin(t("账号已创建。请完成验证并登录，继续建立你的档案。", "Your account is created. Verify and sign in to continue your setup."));
-          return;
-        }
+        // The account stays inactive until the emailed code or link is used.
+        setPassword("");
+        humanCheck.current?.reset();
+        setToken("");
+        setPendingEmail(email.trim().toLowerCase());
+        return;
       } else {
         const parsed = authSchema.safeParse({ identifier: identifier.trim(), password, verificationToken: token });
         if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || "Invalid sign-in details.");
@@ -197,13 +198,18 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
       setToken("");
       const raw = error instanceof Error ? error.message : "";
       const knownCreated = error instanceof OnboardingRequestError && Boolean(error.payload.accountCreated || error.payload.account_created);
-      if (mode === "signup" && (didCreate || knownCreated || /account created.*profile/i.test(raw))) {
+      if (error instanceof OnboardingRequestError && error.payload.code === "email_unconfirmed" && typeof error.payload.email === "string") {
+        const unverified = error.payload.email;
+        setPassword("");
+        void fetch("/api/auth/resend-verification", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: unverified }) }).catch(() => undefined);
+        setPendingEmail(unverified);
+      } else if (mode === "signup" && (knownCreated || /account created.*profile/i.test(raw))) {
         recoverLogin(t("账号已创建，但设置尚未完成。请登录以继续，无需再次注册。", "Your account was created, but setup is unfinished. Sign in to continue; you don’t need to register again."));
       } else if (/username.*taken/i.test(raw)) {
         fieldError("username", t("这个用户名已被使用，请换一个。", "This username is taken. Try another."));
       } else if (/already.*registered|already.*exists|already.*email/i.test(raw)) {
         setMessage(t("这个邮箱已有账号。切换到登录即可继续。", "An account already uses this email. Switch to sign in to continue."));
-      } else if (/incorrect password|invalid login|invalid.*credentials/i.test(raw)) {
+      } else if (/incorrect|invalid login|invalid.*credentials/i.test(raw)) {
         fieldError("password", t("登录信息不匹配，请检查后重试。", "Those details don’t match. Check and try again."));
       } else if (/verification|turnstile|human/i.test(raw)) {
         fieldError("verification", t("验证已失效，请重新完成验证后重试。", "Verification expired. Complete a fresh check and retry."));
@@ -241,6 +247,9 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
     <div className={styles.heading}>
       <h2 id={`${id}-title`} className={styles.title}>{mode === "signup" ? t("让每一次选鞋，\n更懂你。", "Make your next pair personal.") : t("回到你的球场。", "Back to your game.")}</h2>
     </div>
+    {pendingEmail ? <div className={styles.panelForm}>
+      <EmailVerifyStep email={pendingEmail} onBack={() => setPendingEmail(null)} onVerified={() => onAuthenticated()} />
+    </div> :
     <form ref={formRef} className={styles.panelForm} onSubmit={submit} noValidate aria-busy={busy}>
       <div ref={scrollRef} className={styles.formScroll} role={short ? undefined : "region"} tabIndex={short ? undefined : 0} aria-label={short ? undefined : t("账号信息，可滚动", "Account details, scrollable")} onFocusCapture={(event) => { if (event.target !== event.currentTarget && event.target.matches(":focus-visible")) revealField(event.target); }}>
       <div className={styles.scrollIntro}>
@@ -291,7 +300,7 @@ export function OnboardingAuth({ onAuthenticated, initialMode = "signup", onMode
         {!busy && <ArrowRight size={18} />}
       </motion.button>
       </div>
-    </form>
+    </form>}
     </div>
   </section>;
 }

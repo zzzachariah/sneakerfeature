@@ -9,6 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import Script from "next/script";
+import { useNonce } from "@/components/security/nonce-context";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Button } from "@/components/ui/button";
@@ -177,6 +178,7 @@ export function VercelAnalyticsGate() {
 
 export function AnalyticsGate() {
   const { consent, blocked } = useCookieConsent();
+  const nonce = useNonce();
   const gaId = process.env.NEXT_PUBLIC_GOOGLE_ADS_ID;
 
   // Never load the cookie-setting Google scripts inside the iOS app.
@@ -184,8 +186,8 @@ export function AnalyticsGate() {
 
   return (
     <>
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" />
-      <Script id="google-ads-gtag" strategy="afterInteractive">
+      <Script src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} strategy="afterInteractive" nonce={nonce} />
+      <Script id="google-ads-gtag" strategy="afterInteractive" nonce={nonce}>
         {`
           window.dataLayer = window.dataLayer || [];
           function gtag(){dataLayer.push(arguments);}

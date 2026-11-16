@@ -1,4 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isAuthCookieName } from "@/lib/auth-cookie";
+import { buildCsp, createNonce } from "@/lib/security/csp";
 
 function isPublicPath(pathname: string) {
   return (
@@ -38,9 +40,10 @@ function isAuthPage(pathname: string) {
 }
 
 function hasAuthCookie(request: NextRequest) {
-  return request.cookies
-    .getAll()
-    .some((c) => c.name.startsWith("sb-") && c.name.endsWith("-auth-token"));
+  // Supabase SSR splits large sessions into `-auth-token.0`, `.1`, ... cookies;
+  // a plain endsWith("-auth-token") check missed those and bounced signed-in
+  // users back to /login.
+  return request.cookies.getAll().some((c) => isAuthCookieName(c.name));
 }
 
 // API paths that legitimately receive cross-origin POSTs (webhooks / cron
@@ -107,9 +110,20 @@ export function middleware(request: NextRequest) {
     return NextResponse.next({ request });
   }
 
-  if (isPublicPath(pathname)) {
-    return NextResponse.next({ request });
-  }
+  // Pages: per-request nonce + enforced CSP. The CSP is set on the REQUEST so
+  // Next.js nonces its own scripts, and on the response for the browser.
+  const nonce = createNonce();
+  const csp = buildCsp(nonce);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+  requestHeaders.set("content-security-policy", csp);
+  const withCsp = (response: NextResponse) => {
+    response.headers.set("Content-Security-Policy", csp);
+    return response;
+  };
+  const pass = () => withCsp(NextResponse.next({ request: { headers: requestHeaders } }));
+
+  if (isPublicPath(pathname)) return pass();
 
   const loggedIn = hasAuthCookie(request);
 
@@ -117,7 +131,7 @@ export function middleware(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(redirectUrl);
+    return withCsp(NextResponse.redirect(redirectUrl));
   }
 
   if (loggedIn && isAuthPage(pathname)) {
@@ -131,10 +145,10 @@ export function middleware(request: NextRequest) {
       !nextParam.startsWith("//") &&
       !nextParam.startsWith("/\\");
     const destination = safe ? nextParam : "/dashboard";
-    return NextResponse.redirect(new URL(destination, request.url));
+    return withCsp(NextResponse.redirect(new URL(destination, request.url)));
   }
 
-  return NextResponse.next({ request });
+  return pass();
 }
 
 export const config = {

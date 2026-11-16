@@ -3,6 +3,7 @@
 import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useRef, useState } from "react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import Script from "next/script";
+import { useNonce } from "@/components/security/nonce-context";
 
 // Cloudflare Turnstile human-verification widget. Renders the Cloudflare
 // challenge and hands the resulting token to the form; the protected API route
@@ -41,6 +42,7 @@ type Props = {
 
 export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanCheck({ action, onToken, size = "normal" }, ref) {
   const { translate } = useLocale();
+  const nonce = useNonce();
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const id = useId().replace(/:/g, "");
   const widgetId = useRef<string | null>(null);
@@ -160,6 +162,7 @@ export const HumanCheck = forwardRef<HumanCheckHandle, Props>(function HumanChec
         id="cf-turnstile-script"
         src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
         strategy="afterInteractive"
+        nonce={nonce}
         onLoad={handleScriptLoad}
         onError={() => setFailed(true)}
       />

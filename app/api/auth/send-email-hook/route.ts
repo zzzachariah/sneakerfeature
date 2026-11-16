@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { renderAuthEmail } from "@/lib/email/auth-emails";
+import { sendEmail } from "@/lib/email/resend";
 
 // Supabase Auth "Send Email" hook. When enabled, Supabase POSTs here instead of
 // sending auth emails over SMTP; we render the branded template and send it via
@@ -41,11 +42,11 @@ function verifySignature(secret: string, id: string, timestamp: string, signatur
   if (!id || !timestamp || !signatureHeader) return false;
 
   // Anti-replay: reject timestamps more than 5 minutes from now.
+  // A missing/non-numeric timestamp must fail closed, not skip the check.
   const ts = Number(timestamp);
-  if (Number.isFinite(ts)) {
-    const now = Math.floor(Date.now() / 1000);
-    if (Math.abs(now - ts) > 60 * 5) return false;
-  }
+  if (!Number.isFinite(ts)) return false;
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > 60 * 5) return false;
 
   // Secret looks like "v1,whsec_<base64>"; the signing key is the base64 part.
   const marker = secret.indexOf("whsec_");
@@ -69,7 +70,6 @@ export async function POST(request: Request) {
   const hookSecret = process.env.SEND_EMAIL_HOOK_SECRET;
   const resendKey = process.env.RESEND_API_KEY;
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const from = process.env.EMAIL_FROM || "sneakerfeature <noreply@snkrfeature.com>";
 
   if (!hookSecret || !resendKey || !supabaseUrl) {
     return hookError(500, "Email hook is not configured.");
@@ -110,20 +110,9 @@ export async function POST(request: Request) {
 
   const { subject, html } = renderAuthEmail(data.email_action_type, { actionUrl, token: data.token });
 
-  let res: Response;
-  try {
-    res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from, to: [email], subject, html })
-    });
-  } catch {
-    return hookError(502, "Could not reach the email provider.");
-  }
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    return hookError(502, `Email provider rejected the send (${res.status}). ${detail}`.trim());
+  const sent = await sendEmail({ to: email, subject, html });
+  if (!sent.ok) {
+    return hookError(502, sent.status ? `Email provider rejected the send (${sent.status}). ${sent.detail}`.trim() : sent.detail);
   }
 
   return NextResponse.json({}, { status: 200 });

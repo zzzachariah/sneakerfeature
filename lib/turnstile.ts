@@ -8,9 +8,17 @@ const TURNSTILE_TIMEOUT_MS = 8000;
 
 export async function verifyTurnstileToken(token?: string) {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  // No secret configured (local/dev/demo): accept so the app stays usable.
-  // Production MUST set TURNSTILE_SECRET_KEY — otherwise the gate is open.
-  if (!secret) return { success: true, demo: true };
+  // No secret configured: accept only outside production so local/demo setups
+  // stay usable. In production a missing secret FAILS CLOSED — a deploy that
+  // lost its env var must not silently drop bot protection on login/signup.
+  // ALLOW_INSECURE_NO_TURNSTILE=1 is an explicit escape hatch for self-hosted demos.
+  if (!secret) {
+    if (process.env.NODE_ENV === "production" && process.env.ALLOW_INSECURE_NO_TURNSTILE !== "1") {
+      console.error("[turnstile] TURNSTILE_SECRET_KEY is not set; rejecting verification in production");
+      return { success: false, message: "Verification is temporarily unavailable. Please try again later." };
+    }
+    return { success: true, demo: true };
+  }
   if (!token) return { success: false, message: "Verification token missing." };
 
   const controller = new AbortController();

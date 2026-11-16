@@ -23,6 +23,8 @@ type VoteRow = {
   vote_type: "like" | "dislike";
 };
 
+type VoteTotalRow = { comment_id: string; likes: number | string; dislikes: number | string };
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -92,14 +94,11 @@ export default function DashboardPage() {
         // aggregate vote counts for those comments.  This overlaps with the
         // remaining batch-1 queries and avoids a dedicated second round-trip for
         // the common case (user has commented but voted on few/no other comments).
-        const voteCountersPromise: Promise<{ data: VoteRow[] }> = Promise.resolve(commentsPromise).then(async (res) => {
+        const voteCountersPromise: Promise<{ data: VoteTotalRow[] }> = Promise.resolve(commentsPromise).then(async (res) => {
           const ids = ((res.data ?? []) as CommentWithShoeRow[]).map((c) => c.id);
-          if (ids.length === 0) return { data: [] as VoteRow[] };
-          const result = await sb
-            .from("comment_votes")
-            .select("comment_id, vote_type")
-            .in("comment_id", ids);
-          return { data: (result.data ?? []) as VoteRow[] };
+          if (ids.length === 0) return { data: [] as VoteTotalRow[] };
+          const result = await sb.rpc("comment_vote_totals", { p_comment_ids: ids });
+          return { data: (result.data ?? []) as VoteTotalRow[] };
         });
 
         const [profileRes, commentsRes, submissionsRes, compareRes, votesRes] = await Promise.all([
@@ -146,27 +145,21 @@ export default function DashboardPage() {
                 .in("id", votedOnlyIds)
             : Promise.resolve({ data: [] as CommentWithShoeRow[] }),
           votedOnlyIds.length > 0
-            ? sb
-                .from("comment_votes")
-                .select("comment_id, vote_type")
-                .in("comment_id", votedOnlyIds)
-            : Promise.resolve({ data: [] as VoteRow[] }),
+            ? sb.rpc("comment_vote_totals", { p_comment_ids: votedOnlyIds })
+            : Promise.resolve({ data: [] as VoteTotalRow[] }),
           voteCountersPromise
         ]);
 
         // Merge vote counts from both queries: voteCountersRes covers the user's
         // own comment IDs (fetched early), voteCountersForVotedRes covers any
         // additional comment IDs the user voted on but did not author.
-        const allVoteRows: VoteRow[] = [
+        const allTotals: VoteTotalRow[] = [
           ...(voteCountersRes.data ?? []),
-          ...((voteCountersForVotedRes.data ?? []) as VoteRow[])
+          ...((voteCountersForVotedRes.data ?? []) as VoteTotalRow[])
         ];
         const voteCounts = new Map<string, { likes: number; dislikes: number }>();
-        for (const vote of allVoteRows) {
-          const current = voteCounts.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
-          if (vote.vote_type === "like") current.likes += 1;
-          if (vote.vote_type === "dislike") current.dislikes += 1;
-          voteCounts.set(vote.comment_id, current);
+        for (const row of allTotals) {
+          voteCounts.set(row.comment_id, { likes: Number(row.likes), dislikes: Number(row.dislikes) });
         }
 
         const toDashboardComment = (row: CommentWithShoeRow): DashboardComment => {

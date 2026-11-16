@@ -122,13 +122,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, url: session.url });
   } catch (error) {
+    // Stripe error text can expose account configuration (key mode, product
+    // ids, enabled methods). Log it server-side; show it only to admins.
     console.error("[stripe/checkout] failed", error);
-    // Surface the underlying Stripe reason so config problems (test/live key
-    // mismatch, inactive account, no enabled payment methods) are visible in the
-    // UI. Safe while /subscribe is admin-only (NEXT_PUBLIC_SUBSCRIBE_LIVE unset);
-    // tighten this once checkout is open to the public.
     const detail =
-      error && typeof error === "object" && "message" in error
+      profile.role === "admin" && error && typeof error === "object" && "message" in error
         ? String((error as { message?: unknown }).message ?? "")
         : "";
     return NextResponse.json(

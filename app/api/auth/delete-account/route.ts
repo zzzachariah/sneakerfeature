@@ -3,11 +3,15 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { purgeUserFiles } from "@/lib/account/purge-user-files";
 
 // Permanently deletes the signed-in user's account (App Store Review Guideline
 // 5.1.1(v)). Deleting the auth user cascades to the profile and every
 // user-owned row — comments, votes, submissions, saved comparisons, foot scans,
 // push tokens, … — via the ON DELETE CASCADE foreign keys in db/migrations.
+// Uploaded files are removed first (storage does not cascade). Payment records
+// are retained for accounting/disputes with user_id set to NULL
+// (20261116122000_account_deletion_retention.sql).
 export async function POST(request: Request) {
   let password = "";
   let verificationToken: string | undefined;
@@ -70,9 +74,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Service role key is not configured." }, { status: 400 });
   }
 
+  try {
+    await purgeUserFiles(adminClient, user.id);
+  } catch (err) {
+    // Don't strand the user with an undeletable account over a storage hiccup;
+    // log so the leftovers can be cleaned up.
+    console.error("[delete-account] file purge failed", user.id, (err as Error).message);
+  }
+
   const { error: deleteError } = await adminClient.auth.admin.deleteUser(user.id);
   if (deleteError) {
-    return NextResponse.json({ ok: false, message: deleteError.message }, { status: 400 });
+    console.error("[delete-account] delete failed", user.id, deleteError.message);
+    return NextResponse.json({ ok: false, message: "Could not delete your account. Please contact support." }, { status: 500 });
   }
 
   // Best-effort: clear the now-orphaned session cookies on the server too. The

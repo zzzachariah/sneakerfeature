@@ -4,6 +4,11 @@ import { cookies } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { authSchema } from "@/lib/validation/schemas";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { isEmailConfirmed } from "@/lib/auth/email-verification";
+
+// One message for "no such user" and "wrong password" so the login form can't be
+// used to discover which usernames or emails have accounts.
+const BAD_CREDENTIALS = "Incorrect username/email or password.";
 
 const AUTH_TIMEOUT_MS = 10000;
 
@@ -23,7 +28,7 @@ async function withTimeout<T>(promiseLike: PromiseLike<T>, ms = AUTH_TIMEOUT_MS)
 export async function POST(request: Request) {
   try {
     devLog("request received");
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
     const parsed = authSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
 
@@ -41,12 +46,12 @@ export async function POST(request: Request) {
     if (!email.includes("@")) {
       if (!admin) return NextResponse.json({ ok: false, message: "Server configuration incomplete." }, { status: 500 });
       const profile = await withTimeout<{ data: { email?: string } | null }>(admin.from("profiles").select("email").eq("username", parsed.data.identifier).maybeSingle());
-      if (!profile.data?.email) return NextResponse.json({ ok: false, message: "No account found for that username." }, { status: 404 });
+      if (!profile.data?.email) return NextResponse.json({ ok: false, message: BAD_CREDENTIALS }, { status: 401 });
       email = profile.data.email;
     }
 
     const cookieStore = await cookies();
-    const response = NextResponse.json({ ok: true, message: "Login successful.", resolved_email: email });
+    const response = NextResponse.json({ ok: true });
 
     const supabase = createServerClient(url, anon, {
       cookies: {
@@ -66,10 +71,24 @@ export async function POST(request: Request) {
     devLog("server session result", error ? { error: error.message } : { ok: true });
 
     if (error) {
-      if (error.message.toLowerCase().includes("invalid login credentials")) {
-        return NextResponse.json({ ok: false, message: "Incorrect password. Please try again." }, { status: 401 });
+      if (/email not confirmed/i.test(error.message)) {
+        return NextResponse.json(
+          { ok: false, code: "email_unconfirmed", email, message: "Verify your email to finish signing in." },
+          { status: 403 }
+        );
       }
-      return NextResponse.json({ ok: false, message: error.message }, { status: 400 });
+      if (!/invalid login credentials/i.test(error.message)) devLog("sign-in error", error.message);
+      return NextResponse.json({ ok: false, message: BAD_CREDENTIALS }, { status: 401 });
+    }
+
+    // Defense in depth: even if the project's "Confirm email" setting is off,
+    // an unverified account gets no session from this endpoint.
+    if (!isEmailConfirmed(signInData.user)) {
+      await supabase.auth.signOut().catch(() => undefined);
+      return NextResponse.json(
+        { ok: false, code: "email_unconfirmed", email, message: "Verify your email to finish signing in." },
+        { status: 403 }
+      );
     }
 
     const sessionPayload = signInData.session

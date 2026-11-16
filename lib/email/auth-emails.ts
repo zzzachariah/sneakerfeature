@@ -209,3 +209,43 @@ export function renderAuthEmail(type: string, input: AuthEmailInput): RenderedEm
       });
   }
 }
+
+/**
+ * Signup verification sent by the app itself (not the Supabase hook): carries
+ * BOTH a one-tap confirm link and the one-time code, so the person can finish
+ * on whichever device is easier.
+ */
+export function renderSignupVerification(input: { actionUrl: string; code: string }): RenderedEmail {
+  return {
+    subject: `${input.code} is your ${BRAND} verification code`,
+    html: layout({
+      preheader: `Your ${BRAND} code is ${input.code}. It expires in 60 minutes.`,
+      eyebrow: "Welcome",
+      heading: "Verify your email",
+      content:
+        intro(`Enter this code in ${BRAND} to finish creating your account:`) +
+        codeBlock(input.code) +
+        `<p style="margin:0 0 20px; font-family:${FONT}; font-size:15px; line-height:1.6; color:#3a3a3c; text-align:center;">Or verify with one tap:</p>` +
+        button(input.actionUrl, "Verify email") +
+        fallback(input.actionUrl) +
+        note(`The code and link expire in <strong style="color:#3a3a3c;">60 minutes</strong> and work once. If you didn't sign up for ${BRAND}, ignore this email — no account is activated without it.`)
+    })
+  };
+}
+
+/** Sent when someone tries to sign up with an email that already has a verified account. */
+export function renderExistingAccountNotice(input: { loginUrl: string; resetUrl: string }): RenderedEmail {
+  return {
+    subject: `You already have a ${BRAND} account`,
+    html: layout({
+      preheader: `Someone tried to sign up with this email. You already have an account.`,
+      eyebrow: "Account",
+      heading: "You already have an account",
+      content:
+        intro(`Someone (hopefully you) tried to create a new ${BRAND} account with this email address. You already have one, so nothing was created.`) +
+        button(input.loginUrl, "Sign in") +
+        `<p style="margin:0 0 28px; font-family:${FONT}; font-size:14px; line-height:1.6; color:#3a3a3c; text-align:center;">Forgot your password? <a href="${input.resetUrl}" style="color:#1d1d1f; text-decoration:underline;">Reset it here</a>.</p>` +
+        note(`If this wasn't you, you can ignore this email. Your account is unchanged.`)
+    })
+  };
+}
