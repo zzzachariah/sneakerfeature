@@ -2305,3 +2305,90 @@ html[data-premium="champion"] .shoe-stage {
     border-bottom-color: rgb(var(--brand) / 0.28);
   }
 }
+
+/* Verification code boxes (components/auth/code-input.tsx).
+   Mirrors the site's inputs: "mono" = FloatingInput (standalone auth pages),
+   "brand" = onboarding .input (brand focus ring). Timing uses --dur/--ease. */
+.otp-box {
+  border: 1px solid rgb(var(--glass-stroke-soft) / 0.6);
+  background: rgb(var(--bg-elev) / 0.9);
+  border-radius: 12px;
+  transition:
+    border-color var(--dur-base) var(--ease),
+    box-shadow var(--dur-base) var(--ease),
+    background-color var(--dur-base) var(--ease);
+}
+.otp-cell:hover .otp-box[data-state="empty"],
+.otp-cell:hover .otp-box[data-state="filled"] { border-color: rgb(var(--text) / 0.35); }
+.otp-box[data-state="filled"] { border-color: rgb(var(--text) / 0.28); }
+.otp-box[data-state="active"] {
+  border-color: rgb(var(--text) / 0.6);
+  box-shadow: 0 0 0 3px rgb(var(--text) / 0.12);
+  background: rgb(var(--bg-elev));
+}
+.otp-box[data-state="error"] { border-color: rgb(var(--error)); box-shadow: 0 0 0 3px rgb(var(--error) / 0.11); }
+.otp-box[data-state="success"] { border-color: rgb(var(--success)); box-shadow: 0 0 0 3px rgb(var(--success) / 0.11); }
+
+.otp-row[data-variant="brand"] .otp-box {
+  border-color: rgb(var(--text) / 0.14);
+  background: rgb(var(--bg-elev) / 0.72);
+  border-radius: 15px;
+}
+.otp-row[data-variant="brand"] .otp-cell:hover .otp-box[data-state="empty"],
+.otp-row[data-variant="brand"] .otp-cell:hover .otp-box[data-state="filled"] { border-color: rgb(var(--text) / 0.28); }
+.otp-row[data-variant="brand"] .otp-box[data-state="filled"] { border-color: rgb(var(--text) / 0.24); }
+.otp-row[data-variant="brand"] .otp-box[data-state="active"] {
+  border-color: rgb(var(--brand));
+  box-shadow: 0 0 0 3px rgb(var(--brand) / 0.11);
+  background: rgb(var(--bg-elev));
+}
+.otp-row[data-variant="brand"] .otp-box[data-state="error"] { border-color: rgb(var(--error)); }
+.otp-row[data-variant="brand"] .otp-box[data-state="success"] { border-color: rgb(var(--success)); }
+
+.otp-input { border-radius: 12px; }
+.otp-row[data-variant="brand"] .otp-input { border-radius: 15px; }
+
+.otp-sep {
+  flex-shrink: 0;
+  width: 8px;
+  height: 2px;
+  margin: 0 2px;
+  border-radius: 9999px;
+  background: rgb(var(--text) / 0.22);
+}
+@media (min-width: 640px) { .otp-sep { width: 12px; margin: 0 4px; } }
+
+.otp-caret {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 40%;
+  border-radius: 9999px;
+  background: rgb(var(--text));
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: otp-caret-blink 1.05s steps(1, end) infinite;
+}
+.otp-row[data-variant="brand"] .otp-caret { background: rgb(var(--brand)); }
+@keyframes otp-caret-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .otp-box { transition: none; }
+  .otp-caret { animation: none; }
+}
+/* Center the digit's INK, not its line box: trim the text box to cap height
+   (digits are cap-height glyphs) so flex centering is optically exact. */
+.otp-digit {
+  display: block;
+  line-height: 1;
+}
+@supports (text-box: trim-both cap alphabetic) {
+  .otp-digit { text-box: trim-both cap alphabetic; }
+}
+@supports not (text-box: trim-both cap alphabetic) {
+  /* Older engines: nudge by the measured ascent/descent imbalance. */
+  .otp-digit { transform: translateY(0.03em); }
+}
