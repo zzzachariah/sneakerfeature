@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { PENDING_CORRECTIONS_BUCKET, sanitizeUploadedImage } from "@/lib/images/sanitize-upload";
 
 const MAX_BYTES = 6 * 1024 * 1024; // 6 MB
 const ALLOWED: Record<string, string> = {
@@ -74,36 +75,37 @@ export async function POST(request: Request) {
     );
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
-  if (!supabaseUrl) {
-    return NextResponse.json({ ok: false, message: "Supabase URL is not configured." }, { status: 500 });
-  }
-
   const { data: shoe } = await supabase.from("shoes").select("id").eq("id", shoeId).maybeSingle();
   if (!shoe) {
     return NextResponse.json({ ok: false, message: "Shoe not found." }, { status: 404 });
   }
 
-  const bucket = process.env.SUPABASE_STORAGE_BUCKET ?? "shoe-images";
-  const extension = ALLOWED[file.type];
-  const path = `corrections/${shoeId}/${Date.now()}-${randomUUID()}.${extension}`;
-  const bytes = new Uint8Array(await file.arrayBuffer());
-
-  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, bytes, {
-    upsert: false,
-    contentType: file.type
-  });
-  if (uploadError) {
-    return NextResponse.json({ ok: false, message: `Upload failed: ${uploadError.message}` }, { status: 500 });
+  let image;
+  try {
+    image = await sanitizeUploadedImage(new Uint8Array(await file.arrayBuffer()));
+  } catch {
+    return NextResponse.json({ ok: false, message: "That file could not be read as an image." }, { status: 400 });
   }
 
-  const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
+  // Unreviewed uploads stay private until an admin approves them.
+  const bucket = PENDING_CORRECTIONS_BUCKET;
+  const path = `${shoeId}/${Date.now()}-${randomUUID()}.${image.extension}`;
+
+  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, image.bytes, {
+    upsert: false,
+    contentType: image.contentType
+  });
+  if (uploadError) {
+    console.error("[image-corrections] upload failed", uploadError.message);
+    return NextResponse.json({ ok: false, message: "Upload failed. Please try again." }, { status: 500 });
+  }
 
   const { error: insertError } = await supabase.from("image_corrections").insert({
     shoe_id: shoeId,
     user_id: user.id,
+    storage_bucket: bucket,
     storage_path: path,
-    public_url: publicUrl,
+    public_url: null,
     note: note || null,
     status: "pending"
   });
@@ -111,7 +113,8 @@ export async function POST(request: Request) {
   if (insertError) {
     // Don't leave an orphaned object behind if the row insert failed.
     await supabase.storage.from(bucket).remove([path]);
-    return NextResponse.json({ ok: false, message: `Could not save correction: ${insertError.message}` }, { status: 500 });
+    console.error("[image-corrections] insert failed", insertError.message);
+    return NextResponse.json({ ok: false, message: "Could not save correction. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({

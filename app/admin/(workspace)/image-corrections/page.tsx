@@ -1,5 +1,6 @@
 import { requireAdminPageContext } from "@/lib/admin/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PENDING_CORRECTIONS_BUCKET } from "@/lib/images/sanitize-upload";
 import { ImageCorrectionsClient, type CorrectionRow } from "./image-corrections-client";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function ImageCorrectionsPage() {
   if (db) {
     const { data: rawCorrections } = await db
       .from("image_corrections")
-      .select("id, shoe_id, user_id, public_url, note, created_at")
+      .select("id, shoe_id, user_id, public_url, storage_bucket, storage_path, note, created_at")
       .eq("status", "pending")
       .order("created_at", { ascending: false });
 
@@ -51,6 +52,14 @@ export default async function ImageCorrectionsPage() {
       for (const p of profiles ?? []) usernameById.set(p.id, p.username);
     }
 
+    // Private pending uploads are shown to the admin through short-lived signed URLs.
+    const signedByPath = new Map<string, string>();
+    const privatePaths = list.filter((r) => r.storage_bucket === PENDING_CORRECTIONS_BUCKET).map((r) => r.storage_path);
+    if (privatePaths.length) {
+      const { data: signed } = await db.storage.from(PENDING_CORRECTIONS_BUCKET).createSignedUrls(privatePaths, 60 * 60);
+      for (const s of signed ?? []) if (s.path && s.signedUrl) signedByPath.set(s.path, s.signedUrl);
+    }
+
     corrections = list.map((r) => {
       const shoe = shoeById.get(r.shoe_id);
       return {
@@ -58,7 +67,7 @@ export default async function ImageCorrectionsPage() {
         shoeId: r.shoe_id,
         shoeName: shoe ? `${shoe.brand} ${shoe.shoe_name}` : "Unknown shoe",
         shoeSlug: shoe?.slug ?? null,
-        submittedImageUrl: r.public_url,
+        submittedImageUrl: (r.storage_bucket === PENDING_CORRECTIONS_BUCKET ? signedByPath.get(r.storage_path) : r.public_url) ?? "",
         currentImageUrl: currentImageByShoe.get(r.shoe_id) ?? null,
         note: r.note ?? "",
         submitterUsername: usernameById.get(r.user_id) ?? "unknown",
