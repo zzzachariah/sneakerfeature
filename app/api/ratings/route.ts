@@ -41,25 +41,21 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, count: 0, dimAvgs: null, myDimRatings: null });
   }
 
-  const { data: rows, error } = await supabase
-    .from("shoe_ratings")
-    .select("user_id, cushioning_feel, court_feel, bounce, stability, traction, fit")
-    .eq("shoe_id", shoeId);
-
+  // Aggregates come from a SECURITY DEFINER function: individual ratings (and
+  // who left them) are not readable by other users.
+  const { data: summaryRows, error } = await supabase.rpc("shoe_rating_summary", { p_shoe_id: shoeId });
   if (error) {
-    console.error("[ratings] list failed", error);
+    console.error("[ratings] summary failed", error);
     return NextResponse.json({ ok: false, message: "Could not load ratings." }, { status: 400 });
   }
-
-  const all = (rows ?? []) as DimRow[];
-  const count = all.length;
-  const dimAvgs: Partial<Record<DimKey, number>> | null =
-    count > 0 ? Object.fromEntries(DIM_KEYS.map((k) => [k, 0])) : null;
-  if (dimAvgs) {
-    for (const r of all) {
-      for (const k of DIM_KEYS) dimAvgs[k] = (dimAvgs[k] ?? 0) + Number(r[k] ?? 0);
-    }
-    for (const k of DIM_KEYS) dimAvgs[k] = (dimAvgs[k] ?? 0) / count;
+  const summary = (Array.isArray(summaryRows) ? summaryRows[0] : summaryRows) as
+    | { rating_count: number | string; avgs: Partial<Record<DimKey, number | string>> | null }
+    | undefined;
+  const count = Number(summary?.rating_count ?? 0);
+  let dimAvgs: Partial<Record<DimKey, number>> | null = null;
+  if (count > 0 && summary?.avgs) {
+    dimAvgs = {};
+    for (const k of DIM_KEYS) dimAvgs[k] = Number(summary.avgs[k] ?? 0);
   }
 
   const {
@@ -67,10 +63,15 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   let myDimRatings: Partial<Record<DimKey, number>> | null = null;
   if (user) {
-    const own = all.find((r) => r.user_id === user.id);
+    const { data: own } = await supabase
+      .from("shoe_ratings")
+      .select("cushioning_feel, court_feel, bounce, stability, traction, fit")
+      .eq("shoe_id", shoeId)
+      .eq("user_id", user.id)
+      .maybeSingle();
     if (own) {
       myDimRatings = {};
-      for (const k of DIM_KEYS) myDimRatings[k] = Number(own[k] ?? 0);
+      for (const k of DIM_KEYS) myDimRatings[k] = Number((own as DimRow)[k] ?? 0);
     }
   }
 

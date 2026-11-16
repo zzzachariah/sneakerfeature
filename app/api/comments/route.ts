@@ -86,25 +86,27 @@ export async function GET(request: Request) {
   const myVotes = new Map<string, "like" | "dislike">();
 
   if (commentIds.length > 0) {
-    const { data: votes, error: voteError } = await supabase
-      .from("comment_votes")
-      .select("comment_id, vote_type, user_id")
-      .in("comment_id", commentIds);
+    // Totals via an aggregate function; voter identities are never returned.
+    const { data: totals, error: voteError } = await supabase.rpc("comment_vote_totals", {
+      p_comment_ids: commentIds
+    });
 
     if (voteError) {
       console.error("[comments] vote tally failed", voteError);
       return NextResponse.json({ ok: false, message: "Could not load comments." }, { status: 400 });
     }
 
-    for (const vote of votes ?? []) {
-      const current = votesByComment.get(vote.comment_id) ?? { likes: 0, dislikes: 0 };
-      if (vote.vote_type === "like") current.likes += 1;
-      if (vote.vote_type === "dislike") current.dislikes += 1;
-      votesByComment.set(vote.comment_id, current);
+    for (const row of (totals ?? []) as Array<{ comment_id: string; likes: number | string; dislikes: number | string }>) {
+      votesByComment.set(row.comment_id, { likes: Number(row.likes), dislikes: Number(row.dislikes) });
+    }
 
-      if (user?.id && vote.user_id === user.id) {
-        myVotes.set(vote.comment_id, vote.vote_type);
-      }
+    if (user?.id) {
+      const { data: mine } = await supabase
+        .from("comment_votes")
+        .select("comment_id, vote_type")
+        .eq("user_id", user.id)
+        .in("comment_id", commentIds);
+      for (const vote of mine ?? []) myVotes.set(vote.comment_id, vote.vote_type);
     }
   }
 
