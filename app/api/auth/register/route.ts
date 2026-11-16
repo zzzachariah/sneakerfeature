@@ -34,16 +34,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message }, { status: 400 });
   }
 
-  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
-  if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
-
+  // Check server configuration BEFORE spending the single-use Turnstile token,
+  // so a misconfigured deploy is reported clearly instead of as a failed check.
   const admin = createAdminClient();
   if (!admin || !resendConfigured()) {
+    console.error("[register] unavailable:", !admin ? "SUPABASE_SERVICE_ROLE_KEY missing" : "RESEND_API_KEY missing");
     return NextResponse.json(
-      { ok: false, message: "Registration is temporarily unavailable. Please try again later." },
+      {
+        ok: false,
+        code: "registration_unavailable",
+        message: "Registration is temporarily unavailable. Please try again later."
+      },
       { status: 503 }
     );
   }
+
+  const verified = await verifyTurnstileToken(parsed.data.verificationToken);
+  if (!verified.success) return NextResponse.json({ ok: false, message: verified.message }, { status: 400 });
 
   const { username, email, password } = parsed.data;
 
