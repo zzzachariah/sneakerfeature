@@ -3,7 +3,8 @@ import "./premium-skins.css";
 import "./closet-skins.css";
 import "./smart-picker-skins.css";
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { NonceProvider } from "@/components/security/nonce-context";
 import { GeistSans } from "geist/font/sans";
 import localFont from "next/font/local";
 import { premiumFontVars } from "@/lib/fonts/premium-fonts";
@@ -100,6 +101,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // hydration mismatch that corrupted the DOM and, most visibly, left the Smart
   // Picker's suggestion chips and composer unresponsive.
   const cookieStore = await cookies();
+  // Per-request CSP nonce minted by middleware.ts.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   const localeCookie = cookieStore.get("locale")?.value;
   const initialLocale = localeCookie === "zh" || localeCookie === "en" ? localeCookie : "en";
   // Read the Premium UI skin on the server so the correct structural variant is
@@ -126,10 +129,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="preconnect" href="https://challenges.cloudflare.com" crossOrigin="anonymous" />
       </head>
       <body>
-        <ThemeInitScript />
-        <SkinInitScript />
-        <PremiumSkinInitScript />
-        <MemberThemeInitScript />
+        <ThemeInitScript nonce={nonce} />
+        <SkinInitScript nonce={nonce} />
+        <PremiumSkinInitScript nonce={nonce} />
+        <MemberThemeInitScript nonce={nonce} />
         <GlassFilterDefs />
         <CapacitorBridge />
         <ServiceWorkerRegister />
@@ -138,6 +141,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <LocaleProvider initialLocale={initialLocale}>
           <PremiumSkinProvider initialSkin={initialSkin}>
           <PremiumTierProvider initialTier={initialTier ?? "free"}>
+          <NonceProvider nonce={nonce}>
           <CookieConsentProvider>
             <AuthStateProvider>
               <MemberThemeApplier />
@@ -180,6 +184,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <VercelAnalyticsGate />
             <AnnouncementModal />
           </CookieConsentProvider>
+          </NonceProvider>
           </PremiumTierProvider>
           </PremiumSkinProvider>
         </LocaleProvider>

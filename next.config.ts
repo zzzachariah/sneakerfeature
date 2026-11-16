@@ -1,37 +1,8 @@
 import type { NextConfig } from "next";
 
-// Baseline security headers. Kept deliberately permissive enough not to
-// regress UX: CSP is report-only so violations are surfaced without breaking
-// the app (inline scripts used by ThemeInitScript/SkinInitScript, Vercel
-// Analytics, and framer-motion require a nonce-based enforcement upgrade —
-// see Next.js App Router CSP docs for that migration path). Frames are
-// sameorigin so the in-app Capacitor shell still works.
-//
-// Permitted third-party origins:
-//   - vercel.live / va.vercel-scripts.com  — Vercel Analytics & Speed Insights
-//   - fonts.googleapis.com / fonts.gstatic.com — Google Fonts (if used)
-const CSP_REPORT_ONLY = [
-  "default-src 'self'",
-  // Scripts: allow self + Vercel telemetry; 'unsafe-inline' + 'unsafe-eval'
-  // are needed until inline scripts are migrated to nonces.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://vercel.live",
-  // Styles: allow self + inline (framer-motion injects inline styles)
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  // Fonts
-  "font-src 'self' https://fonts.gstatic.com",
-  // Images: allow self, data URIs, and common CDNs
-  "img-src 'self' data: blob: https:",
-  // Connections: allow self + Vercel Analytics endpoints
-  "connect-src 'self' https://vitals.vercel-insights.com https://va.vercel-scripts.com https://vercel.live",
-  // Frames: sameorigin only (Capacitor shell)
-  "frame-src 'self'",
-  "frame-ancestors 'self'",
-  // Misc
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-].join("; ");
-
+// Baseline security headers. The Content-Security-Policy itself is ENFORCED
+// and nonce-based, so it is generated per request in middleware.ts
+// (lib/security/csp.ts) rather than set statically here.
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -40,10 +11,6 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), display-capture=(), speaker-selection=(), ambient-light-sensor=(), accelerometer=(), gyroscope=(), magnetometer=(), document-domain=(), browsing-topics=()" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" },
   { key: "X-DNS-Prefetch-Control", value: "off" },
-  // Report-only CSP: captures violations without breaking the app.
-  // Migrate to enforced Content-Security-Policy once inline scripts in
-  // ThemeInitScript and SkinInitScript are updated to use nonces.
-  { key: "Content-Security-Policy-Report-Only", value: CSP_REPORT_ONLY },
 ];
 
 const nextConfig: NextConfig = {
