@@ -148,5 +148,34 @@ export function groundedProfilePrompt(message: string, context: ClarificationCon
     const priority = focus ? [focus.primary, focus.secondary, focus.tertiary].filter(Boolean).map(k => DIM_LABELS[k!]).join(" → ") : "";
     const zhLabels = { cushioning_feel: "缓震", court_feel: "场地感", bounce: "回弹", stability: "稳定", traction: "抓地", fit: "包裹" };
     const priorityZh = focus ? [focus.primary, focus.secondary, focus.tertiary].map(k => zhLabels[k]).join(" → ") : "";
-    return { zh: `你的要求是“${message.slice(0, 160)}”${positions ? `，档案位置为 ${positions}` : ""}${priority ? `，保存的重点顺序是 ${priorityZh}` : ""}。按这些需求选鞋，对吗？如有变化，可以补充更正。`, en: `Your request is “${message.slice(0, 160)}”${positions ? `, with saved positions ${positions}` : ""}${priority ? ` and saved priorities ${priority}` : ""}. Should I use these needs, or is there anything to correct?` };
+    const build = (prefix: string, suffix: string, limit: number) => {
+        // Reserve room for the actual saved facts and the confirmation. A long
+        // request must never make the guaranteed question round fail validation.
+        const budget = Math.max(0, Math.min(160, limit - prefix.length - suffix.length));
+        let excerpt = message.slice(0, message.length > budget ? Math.max(0, budget - 1) : budget);
+        if (/[\uD800-\uDBFF]$/.test(excerpt)) excerpt = excerpt.slice(0, -1);
+        if (message.length > budget && budget > 0) excerpt += "…";
+        return `${prefix}${excerpt}${suffix}`.slice(0, limit);
+    };
+    return {
+        zh: build("你的要求是“", `”${positions ? `，档案位置为 ${positions}` : ""}${priority ? `，保存的重点顺序是 ${priorityZh}` : ""}。按这些需求选鞋，对吗？如有变化，可以补充更正。`, 300),
+        en: build("Your request is “", `”${positions ? `, with saved positions ${positions}` : ""}${priority ? ` and saved priorities ${priority}` : ""}. Should I use these needs, or is there anything to correct?`, 450)
+    };
+}
+
+/** Keep the first round usable when the provider cannot produce valid questions.
+ * This uses only the actual request/profile; it never reads or recommends shoes. */
+export function groundedClarificationQuestions(message: string, context: ClarificationContext): z.infer<typeof clarificationQuestionsSchema> {
+    const knownCourt = /室外|外场|室内|木地板|outdoor|indoor/i.test(message);
+    return clarificationQuestionsSchema.parse({
+        intro: { zh: "先确认这几个细节，我会结合你的补充来选鞋。", en: "A few details first, so your recommendations reflect what matters to you." },
+        questions: [
+            { id: "profile", prompt: groundedProfilePrompt(message, context), reason: { zh: "确认档案与这次需求是否一致；本次更正优先。", en: "Confirm the saved profile still fits this request; your corrections take priority." } },
+            { id: "age", prompt: { zh: "只要适合你，较早发布的鞋款也可以考虑吗？", en: "Would you consider older releases if they suit your needs?" }, reason: { zh: "这里指发布年份，不是二手成色；不会默认新款更好。", en: "This means release year, not used condition; newer does not automatically mean better." } },
+            { id: "fit", prompt: { zh: "脚宽、脚背或自带鞋垫方面，有需要特别考虑的地方吗？", en: "Do you have any particular width, instep, heel-fit or insole needs?" }, reason: { zh: "具体鞋款的适配需要查证；有多项需求可以在最后补充。", en: "Exact-model fit needs evidence; add any additional fit concerns in the final note." } },
+            knownCourt
+                ? { id: "budget", prompt: { zh: "你已经说明了场地。预算上，更倾向哪种选择？", en: "You have already described your courts. How should I approach your budget?" }, reason: { zh: "有上限时请补充金额和币种，推荐时会核实具体鞋款价格。", en: "For a limit, add the amount and currency; current model-specific prices will be checked." } }
+                : { id: "court", prompt: { zh: "你主要在哪种场地打球？", en: "Which courts do you play on most often?" }, reason: { zh: "场地会影响抓地与耐磨的取舍。", en: "Court surfaces affect the balance between traction and durability." } }
+        ]
+    });
 }
