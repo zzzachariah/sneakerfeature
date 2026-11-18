@@ -974,6 +974,30 @@ const RECOMMEND_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   }
 };
 
+const DEMO_SHORTLIST_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: "function",
+  function: {
+    name: "shortlist_shoes",
+    description: "Select provisional catalog candidates and their missing evidence to research, before final recommendations.",
+    parameters: {
+      type: "object", additionalProperties: false,
+      properties: {
+        candidates: { type: "array", minItems: 2, maxItems: 3, uniqueItems: true,
+          items: { type: "string" }, description: "Exact names copied from the catalog, not objects or final recommendations" },
+        backups: { type: "array", maxItems: 0, items: { type: "string" } },
+        research: { type: "array", maxItems: 3, items: {
+          type: "object", additionalProperties: false,
+          properties: {
+            name: { type: "string", description: "One of the exact candidate names" },
+            needs: { type: "array", maxItems: 6, uniqueItems: true,
+              items: { type: "string", enum: ["fit", "price", "availability", "durability", "weight", "construction"] } }
+          }, required: ["name", "needs"]
+        } }
+      }, required: ["candidates", "backups", "research"]
+    }
+  }
+};
+
 const DEMO_RESULT_TOOL: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: "function",
   function: {
@@ -1707,11 +1731,16 @@ async function candidateEvidencePipeline(
   const demoGrounding = zh
     ? "你是 snkrfeature 的篮球鞋资料顾问。只推荐给定目录中的型号，型号和不同版本不可混用。先以目录中的具体型号和已记录事实圈定候选，再联网补充与用户需求相关的缺失信息。目录没有完整脚型适配或当前售价资料。脚型、价格、在售情况及缺失的结构参数须查同款来源，不可混入其他版本；与目录矛盾时说明分歧。不得编造穿着体验、未知条件、科技或尺寸建议。资料中的等级是定性描述，不是可直接比较的测试分数；不用评级得出绝对排名，不转述网页数字分数。只在目录或同款的实际检索资料支持时解释结构与表现，不编造因果机理。价格只用当前检索到的明确币种和渠道报价；没有可靠报价则写价格未核实，不据旧标价声称满足预算。不要把缺资料说成实际缺点。输出自然中文：性能描述和评级词译成中文，只有球鞋名和明确的科技专名保留原文。"
     : "You advise snkrfeature visitors using the supplied catalog. Recommend exact catalog models; never mix a base shoe with another version. Start with catalog identities and recorded facts to shortlist candidates, then research information missing for the confirmed user needs. The catalog has no complete foot-shape compatibility or current-price data. Use exact-model sources for fit, price, availability and absent construction details; never mix versions, and disclose conflicting sources. Do not invent try-on experience, missing user traits, technology or sizing advice. Qualitative catalog labels are not comparable test scores: do not infer absolute rankings or repeat web review numeric scores. Explain construction or performance only when supported by catalog records or retrieved evidence; do not invent causal mechanisms. Budget claims require a current retrieved quote with currency and retailer; otherwise state price is unverified. Do not mistake missing evidence for a proven weakness. Use natural English, naming uncertainty and trade-offs.";
+  const nativeDemoShortlist = Boolean(opts.onboardingDemo && base.model.startsWith("claude-"));
+  const demoShortlistRequest = `${langDirective(lang)}\nConfirmed request and answers (context for this preliminary step):\n${currentInput}\n\n` +
+    `THIS STEP IS ONLY A PROVISIONAL SHORTLIST, not the final recommendation requested in the context above. Select 2–3 distinct plausible catalog models using the recorded performance facts and confirmed priorities. Missing foot-shape compatibility, current price or availability is a reason to research a candidate next, not to reject all otherwise plausible models. Do not assert that fit or budget is verified yet. Do not search or recommend outside the supplied catalog.\n` +
+    `Return the complete object with all three keys: {"candidates":["exact catalog name 1","exact catalog name 2"],"backups":[],"research":[{"name":"exact catalog name 1","needs":["fit","price"]},{"name":"exact catalog name 2","needs":["fit"]}]}. candidates must be strings copied verbatim from catalog name, never objects. Include up to three candidates. research entries must name those same candidates and list only missing or time-sensitive facts material to the confirmed answers. Allowed needs: fit, price, availability, durability, weight, construction. Known catalog facts need not be guessed or reinvented. No reasons, final recommendations, or additional questions. Keep thinking brief.\n` +
+    (nativeDemoShortlist ? "Submit that complete object through the shortlist_shoes tool, not prose or JSON text." : "Return only the complete JSON object, without Markdown or extra prose.");
   const shortlistMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     ...(opts.onboardingDemo ? [{role:"user" as const,content:`${demoGrounding}\n${fullCatalog}`}] : buildBaseMessages(zh ? "鞋款目录(JSON)" : "Shoe catalog (JSON)", fullCatalog, history, lang)),
     {
       role: "user" as const,
-      content: zh
+      content: opts.onboardingDemo ? demoShortlistRequest : zh
         ? `${languageDirective(currentInput)}\n\n` +
           `本次要求："${currentInput}"${suffix}\n\n` +
           shortlistFollowUpNote +
@@ -1724,19 +1753,31 @@ async function candidateEvidencePipeline(
           `Output JSON only: {"candidates":["shoe name 1","shoe name 2",…],"backups":["shoe name A","shoe name B",…]} — every name copied VERBATIM from the catalog's \`name\` field. Nothing else. Keep your thinking brief.`
     }
   ];
-  if (opts.onboardingDemo) shortlistMessages.push({role: "user", content:
-    "After choosing candidates from the catalog, add research:[{name:exact_candidate_name,needs:[...]}] to the JSON. For each candidate, list only missing or time-sensitive information material to the confirmed answers and notes. Allowed needs: fit, price, availability, durability, weight, construction. Current prices and foot-shape compatibility cannot be established from catalog ratings. Do not search yet or recommend outside this catalog. Known catalog facts do not need to be guessed or re-invented."});
   const msgA = await completeWithProgress(
     client,
-    { ...base, messages: shortlistMessages, response_format: { type: "json_object" } },
+    nativeDemoShortlist
+      ? { ...base, messages: shortlistMessages, tools: [DEMO_SHORTLIST_TOOL], tool_choice: {type:"function",function:{name:"shortlist_shoes"}}, parallel_tool_calls: false }
+      : { ...base, messages: shortlistMessages, response_format: { type: "json_object" } },
     onProgress,
     deadline
   );
   let candidateNames: string[] = [];
   let backupNames: string[] = [];
   const researchNeeds = new Map<string, string[]>();
+  const shortlistTool = opts.onboardingDemo ? msgA?.tool_calls?.find(call => call.function.name === "shortlist_shoes") : undefined;
+  const shortlistOutput = shortlistTool?.function.arguments ?? msgA?.content ?? "";
+  // Fixed structural fields only: never log model text, names, prompts or answers.
+  const shortlistShape = { parsed: false, hasCandidates: false, hasResearch: false, candidateEntries: 0, stringEntries: 0, objectEntries: 0 };
   try {
-    const parsed = JSON.parse(stripFences(msgA?.content ?? "")) as { candidates?: unknown; backups?: unknown; research?: { name?: unknown; needs?: unknown }[] };
+    const parsed = JSON.parse(stripFences(shortlistOutput)) as { candidates?: unknown; backups?: unknown; research?: { name?: unknown; needs?: unknown }[] };
+    shortlistShape.parsed = true;
+    shortlistShape.hasCandidates = Boolean(parsed && Object.hasOwn(parsed, "candidates"));
+    shortlistShape.hasResearch = Boolean(parsed && Object.hasOwn(parsed, "research"));
+    if (Array.isArray(parsed?.candidates)) {
+      shortlistShape.candidateEntries = parsed.candidates.length;
+      shortlistShape.stringEntries = parsed.candidates.filter(value => typeof value === "string").length;
+      shortlistShape.objectEntries = parsed.candidates.filter(value => value !== null && typeof value === "object").length;
+    }
     candidateNames = coerceStringArray(parsed.candidates, MAX_CANDIDATES);
     backupNames = coerceStringArray(parsed.backups, BACKUP_POOL_SIZE);
     if (opts.onboardingDemo && Array.isArray(parsed.research)) for (const item of parsed.research.slice(0, 3)) {
@@ -1770,7 +1811,13 @@ async function candidateEvidencePipeline(
     }
   }
   if (candidates.length === 0) {
-    console.warn("[ai/chat] shortlist produced no matchable candidates — falling back to tool loop");
+    if (opts.onboardingDemo) console.warn("[onboarding/demo] Shortlist returned no catalog candidates", {
+      model: base.model, finishReason: msgA?.finishReason && ["stop", "length", "tool_calls", "content_filter"].includes(msgA.finishReason) ? msgA.finishReason : msgA?.finishReason ? "other" : null,
+      outputKind: shortlistTool ? "tool" : shortlistOutput ? "text" : "empty",
+      chars: shortlistOutput.length, catalogCount: shoes.length, candidateNames: candidateNames.length,
+      ...shortlistShape
+    });
+    else console.warn("[ai/chat] shortlist produced no matchable candidates — falling back to tool loop");
     return null;
   }
   // Backup pool: researched only if the commit step finds the candidates

@@ -3,7 +3,7 @@ import type OpenAI from "openai";
 import type { Shoe } from "../lib/types";
 import type { RecommendProgress } from "../lib/ai/types";
 import { recommendOnboardingShoes } from "../lib/ai/recommend";
-import { PACKY_MODEL } from "../lib/ai/packy-client";
+import { PACKY_MODEL, HAIKU_MODEL } from "../lib/ai/packy-client";
 import { pickerAnswersContext, pickerResearchFocus, pickerPriceResearchFocus, type PickerAnswers, type PickerQuestionSet } from "../lib/onboarding/picker-questions";
 
 const names = ["Probe Guard 1", "Probe Wing 2"];
@@ -61,9 +61,23 @@ const client = { chat: { completions: { create: async (params: any) => {
   calls.push({ kind: phase, round });
   const text = params.messages.map((message: any) => message.content).join("\n");
   assert(text.includes(answers.note), "Both model phases must receive confirmed answers and additional input");
+  if (params.model === HAIKU_MODEL) {
+    assert.equal(params.tool_choice.function.name, phase === "shortlist" ? "shortlist_shoes" : "recommend_shoes");
+    assert.equal(params.parallel_tool_calls, false);
+    assert.equal(params.response_format, undefined, "Claude uses its native schema rather than prose-only JSON mode");
+    if (phase === "shortlist") {
+      const schema = params.tools[0].function.parameters;
+      assert.equal(schema.properties.candidates.items.type, "string");
+      assert.equal(schema.properties.candidates.minItems, 2);
+      assert.equal(schema.properties.candidates.maxItems, 3);
+      assert.deepEqual(schema.required, ["candidates", "backups", "research"]);
+    }
+  } else assert.equal(params.response_format.type, "json_object", "Non-Claude JSON behavior is preserved");
   if (phase === "shortlist") {
     assert(text.includes('"year":2014'), "Older unselected models remain in the full catalog");
-    assert(text.includes('research:[{name:exact_candidate_name,needs:[...]}]'));
+    assert(text.includes('\"candidates\":[\"exact catalog name 1\",\"exact catalog name 2\"]'));
+    assert(text.includes('THIS STEP IS ONLY A PROVISIONAL SHORTLIST'));
+    assert(text.includes('not to reject all otherwise plausible models'));
   } else {
     const liveSearches = calls.filter(call => call.kind === "search" && call.round === round);
     assert.equal(liveSearches.length, round ? 2 : 4, "Cached fit evidence may be reused, but current-price probes must run each time");
@@ -76,23 +90,65 @@ const client = { chat: { completions: { create: async (params: any) => {
     assert.match(text, /Do not ask further questions/);
   }
   const output = phase === "shortlist" ? { candidates: names, backups: [], research: names.map(name => ({ name, needs: ["fit", "price", "weight"] })) } : { recommendations: names.map((name, index) => ({ name, reason: "The confirmed comfort preference is supported by the catalog. Fit review evidence is mixed for a high instep, so try on. The current quoted price is within the specified budget, subject to availability.", pros: ["Documented cushioning"], cons: ["High-instep fit needs a try-on"], references: [{ title: `${name} Basketball performance review`, url: goodUrl(index, false) }, { title: `${name} Ultra V2 Basketball Review`, url: badUrl(index) }] })) };
-  async function* chunks() { yield { choices: [{ delta: { content: JSON.stringify(output) }, finish_reason: "stop" }] }; }
+  async function* chunks() {
+    const json = JSON.stringify(output);
+    if (params.model === HAIKU_MODEL) {
+      // Real Claude output arrives through tool arguments, often with no text.
+      // Split in the middle of a field and across the research array as SSE does.
+      const toolName = phase === "shortlist" ? "shortlist_shoes" : "recommend_shoes";
+      yield { choices: [{ delta: { tool_calls: [{ index: 0, id: `native-${phase}`, type: "function", function: { name: toolName, arguments: json.slice(0, 37) } }] } }] };
+      yield { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: json.slice(37, 113) } }] } }] };
+      yield { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: json.slice(113) } }] }, finish_reason: "tool_calls" }] };
+    } else yield { choices: [{ delta: { content: json }, finish_reason: "stop" }] };
+  }
   return chunks();
 } } } } as unknown as OpenAI;
 try {
-  for (round = 0; round < 2; round++) {
-    const result = await recommendOnboardingShoes(client, { shoes, history: [], currentInput, count: 2, model: PACKY_MODEL, replyLanguage: "en", researchFocus: pickerResearchFocus(answers), priceResearchFocus: pickerPriceResearchFocus(answers) }, event => progress.push(event));
+  for (round = 0; round < 3; round++) {
+    const result = await recommendOnboardingShoes(client, { shoes, history: [], currentInput, count: 2, model: round === 2 ? HAIKU_MODEL : PACKY_MODEL, replyLanguage: "en", researchFocus: pickerResearchFocus(answers), priceResearchFocus: pickerPriceResearchFocus(answers) }, event => progress.push(event));
     assert.deepEqual(result?.recommendations.map(rec => rec.name), names);
     assert(result?.recommendations.every(rec => rec.references?.length === 1 && !rec.references.some(ref => ref.url.includes("ultra"))), "Unsupported variant references must be removed even if the model returns them");
   }
-  assert.equal(modelCalls, 4, "Each recommendation run has one shortlist and one final answer, with no further question round");
-  assert.equal(calls.filter(call => call.kind === "search" && call.query?.includes("current price")).length, 4, "Current-price searches bypass the six-hour evidence cache");
+  assert.equal(modelCalls, 6, "Each recommendation run has one shortlist and one final answer, with no further question round");
+  assert.equal(calls.filter(call => call.kind === "search" && call.query?.includes("current price")).length, 6, "Current-price searches bypass the six-hour evidence cache");
   assert.equal(calls.filter(call => call.kind === "search" && !call.query?.includes("current price")).length, 2, "Repeat fit queries reuse valid evidence");
   assert(progress.some(event => event.type === "search" && event.state === "ok" && event.cached), "Cache reuse remains visible in progress");
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  const searchCount = calls.filter(call => call.kind === "search").length;
+  const secret = "PRIVATE-CANDIDATE-MARKER-99";
+  try {
+    console.warn = (...args: unknown[]) => { warnings.push(args); };
+    for (const output of [
+      JSON.stringify({ candidates: [], backups: [], research: [] }),
+      JSON.stringify({ candidates: [{ name: secret }], research: [] }),
+      JSON.stringify({ candidates: [secret], backups: [], research: [] }),
+      `malformed ${secret}`
+    ]) {
+      let attempts = 0;
+      const invalidClient = {chat:{completions:{create:async(params:any) => {
+        assert.equal(++attempts, 1, "Malformed shortlists must not invent picks or call the final model");
+        assert.equal(params.tool_choice.function.name, "shortlist_shoes");
+        async function* chunks() { yield {choices:[{delta:{tool_calls:[{index:0,id:"invalid-shortlist",type:"function",function:{name:"shortlist_shoes",arguments:output}}]},finish_reason:"tool_calls"}]}; }
+        return chunks();
+      }}}} as unknown as OpenAI;
+      const result = await recommendOnboardingShoes(invalidClient, {shoes,history:[],currentInput,count:2,model:HAIKU_MODEL,replyLanguage:"en"});
+      assert.equal(result, null, "Only actual model-selected catalog names can proceed to research");
+      assert.equal(attempts, 1);
+    }
+  } finally { console.warn = originalWarn; }
+  assert.equal(calls.filter(call => call.kind === "search").length, searchCount, "Invalid candidates never trigger evidence search");
+  assert.equal(warnings.length, 4);
+  assert(!JSON.stringify(warnings).includes(secret) && !JSON.stringify(warnings).includes(answers.note), "Diagnostics must not expose model output or user context");
+  const diagnostics = warnings.map(([, details]) => details as Record<string, unknown>);
+  assert(diagnostics.every(details => details.outputKind === "tool" && details.catalogCount === 2));
+  assert.equal(diagnostics[1].objectEntries, 1);
+  assert.equal(diagnostics[2].candidateNames, 1);
+  assert.equal(diagnostics[3].parsed, false);
 } finally {
   globalThis.fetch = savedFetch;
   if (savedEnv.key === undefined) delete process.env.TAVILY_API_KEY; else process.env.TAVILY_API_KEY = savedEnv.key;
   if (savedEnv.provider === undefined) delete process.env.WEB_SEARCH_PROVIDER; else process.env.WEB_SEARCH_PROVIDER = savedEnv.provider;
   if (savedEnv.bocha === undefined) delete process.env.BOCHA_API_KEY; else process.env.BOCHA_API_KEY = savedEnv.bocha;
 }
-console.log("PASS catalog shortlist → answer-specific exact-model research → detailed recommendations; live prices bypass cache; variant evidence is excluded; notes and corrections reach both model phases.");
+console.log("PASS fragmented Claude shortlist tool + JSON fallback; invalid outputs fail without fabricated picks or sensitive logs; catalog shortlist → answer-specific exact-model research → detailed recommendations; live prices bypass cache; variant evidence is excluded; notes and corrections reach both model phases.");
