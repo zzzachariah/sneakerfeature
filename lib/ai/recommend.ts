@@ -1,4 +1,5 @@
 import { demoSearchQuery, demoSourceMatches } from "./demo-evidence";
+import { confirmedRecommendationPipeline } from "./confirmed-recommend";
 import OpenAI from "openai";
 import type { Shoe, ShoeSpec, BloggerReview } from "@/lib/types";
 import type { RecommendationItem, RecommendationRaw, RecRadarAxis, WebReference, OnProgress } from "@/lib/ai/types";
@@ -1552,6 +1553,10 @@ export type RecommendOpts = {
   deadline?: Deadline;
   onboardingDemo?: boolean;
   replyLanguage?: "zh" | "en";
+  /** The real Smart Picker has finished its single clarification round. */
+  confirmedPreferences?: boolean;
+  researchFocus?: string;
+  priceResearchFocus?: string;
 };
 
 // Persona / foot-profile context appended to the ask in every pipeline phase.
@@ -2075,6 +2080,16 @@ export async function recommendShoes(
   // a slow reasoning model degrades into "finalize with what we have" instead of
   // running until the platform kills the function (see lib/ai/budget.ts).
   const deadline = opts.deadline ?? startDeadline();
+
+  // Keep the confirmed Smart Picker separate from the original homepage demo
+  // and legacy chat fallbacks. Failures must reach the route's refund boundary.
+  if (opts.confirmedPreferences) {
+    return confirmedRecommendationPipeline(client, opts, {
+      complete: completeWithProgress,
+      catalog: buildCompactCatalog,
+      reviewSearch: cachedWebSearch,
+    }, onProgress, deadline);
+  }
 
   // Candidate-first pipeline is the default whenever web search is available;
   // the legacy multi-strategy path below is the fallback when it can't produce

@@ -1,3 +1,4 @@
+import type { AiClarification } from "./clarification";
 export type AiChatSummary = {
   id: string;
   title: string | null;
@@ -89,6 +90,7 @@ export type ChatStep =
   | { kind: "status"; text: string; done?: boolean };
 
 export type AiChatMessage = {
+  clarification?: AiClarification | null;
   id: string;
   role: "user" | "assistant";
   content: string;

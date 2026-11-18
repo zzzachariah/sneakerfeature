@@ -5,7 +5,9 @@ import { reserveAiRequest } from "@/lib/ai/reservations";
 import { z } from "zod";
 import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getShoes } from "@/lib/data/shoes";
+import { getShoes, getFreshPublicShoes } from "@/lib/data/shoes";
+import { clarificationSubmissionSchema, validateClarificationAnswers, clarificationRecommendationInput, clarificationResearchFocus, clarificationPriceFocus, type AiClarification } from "@/lib/ai/clarification";
+import { readChatClarification, publicClarification, prepareChatClarification, clarificationResponse, type ClarificationRow } from "@/lib/ai/clarification-server";
 import { demoShoes } from "@/lib/data/demo-shoes";
 import { isValidPersona, type Persona } from "@/lib/persona/types";
 import { isFootProfile, type FootProfile } from "@/lib/foot-scan/types";
@@ -57,7 +59,8 @@ const schema = z.object({
   count: z.number().int().min(1).max(MAX_RECOMMENDATIONS),
   // Model chosen in the picker for THIS request. Optional — absent (or not
   // supported by the member's tier) falls back to the saved pref / tier default.
-  model: z.string().max(64).optional()
+  model: z.string().max(64).optional(),
+  clarification: clarificationSubmissionSchema.optional()
 });
 
 type HistoryRow = { role: "user" | "assistant"; content: string; recommendations: RecommendationRaw[] | null };
@@ -80,15 +83,17 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
-  const { chatId, message, count, model: requestedModel } = parsed.data;
+  const { chatId, clarification: answerSubmission } = parsed.data;
+  let { message, count, model: requestedModel } = parsed.data;
+  const displayMessage = message;
 
   // The turn's language, decided ONCE from what the user just typed, then
   // threaded through everything downstream: the per-tier depth suffix, the
   // history annotations, every app-authored reply/error string, and the AI
   // pipeline itself. Follow-ups re-derive it from the newest message, so a user
   // can switch languages mid-thread and the answer follows.
-  const replyLang = detectReplyLang(message);
-  const zhReply = replyLang === "zh";
+  let replyLang = detectReplyLang(message);
+  let zhReply = replyLang === "zh";
 
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ ok: false, message: "Database is not configured." }, { status: 500 });
@@ -97,6 +102,47 @@ export async function POST(request: Request) {
   const { data: chat } = await admin.from("ai_chats").select("id, user_id, title").eq("id", chatId).maybeSingle();
   if (!chat || chat.user_id !== ctx.userId) {
     return NextResponse.json({ ok: false, message: "Chat not found." }, { status: 404 });
+  }
+
+  // Read only the request and the actual account profile before clarification.
+  // The catalog and blogger evidence are deliberately not loaded until answers.
+  const [{ data: historyRows, error: historyError }, { data: profileRow }] = await Promise.all([
+    admin.from("ai_messages").select("role, content, recommendations").eq("chat_id", chatId).order("created_at", { ascending: true }),
+    admin.from("profiles").select("persona, rating_focus").eq("id", ctx.userId).maybeSingle()
+  ]);
+  if (historyError) return NextResponse.json({ok:false,message:"Conversation unavailable."},{status:503});
+  let persona: Persona | null = isValidPersona(profileRow?.persona) ? profileRow.persona : null;
+  let footProfile: FootProfile | null = null;
+  try { const {data:row}=await admin.from("profiles").select("foot_profile").eq("id",ctx.userId).maybeSingle();if(isFootProfile(row?.foot_profile))footProfile=row.foot_profile; } catch { /* Optional legacy column. */ }
+  let focus: RatingFocus | null = isValidFocus(profileRow?.rating_focus) ? profileRow.rating_focus : null;
+  let clarificationRow: ClarificationRow | null;
+  try { clarificationRow = await readChatClarification(admin,chatId,ctx.userId); }
+  catch { return NextResponse.json({ok:false,message:"Preferences are temporarily unavailable."},{status:503}); }
+  const hasRecommendations=(historyRows??[]).some(row=>Array.isArray(row.recommendations)&&row.recommendations.length>0);
+  let confirmedState: AiClarification | null = clarificationRow?.status==="complete"&&clarificationRow.answers?publicClarification(clarificationRow):null;
+  if(answerSubmission){
+    if(!clarificationRow||clarificationRow.id!==answerSubmission.id)return NextResponse.json({ok:false,message:"These questions no longer match this conversation."},{status:409});
+    if(clarificationRow.status!=="awaiting_answers")return NextResponse.json(await clarificationResponse(admin,clarificationRow));
+    try { const state=publicClarification(clarificationRow);confirmedState={...state,answers:validateClarificationAnswers(state.questions,answerSubmission.answers)}; }
+    catch(error){return NextResponse.json({ok:false,message:error instanceof Error?error.message:"Invalid answers."},{status:400});}
+    // Save validated input before balance/catalog checks so recovery keeps it.
+    const savedAnswers = await admin.from("ai_chat_clarifications").update({ answers: confirmedState.answers }).eq("id", clarificationRow.id).eq("user_id", ctx.userId).eq("status", "awaiting_answers");
+    if (savedAnswers.error) return NextResponse.json({ ok: false, message: "Your answers could not be saved. Please retry." }, { status: 503 });
+    message=clarificationRecommendationInput(confirmedState,undefined,clarificationRow.context);
+    count=clarificationRow.requested_count;requestedModel=clarificationRow.model;replyLang=clarificationRow.lang;zhReply=replyLang==="zh";
+  }else if(clarificationRow&&clarificationRow.status!=="complete"&&clarificationRow.status!=="failed"){
+    return NextResponse.json(await clarificationResponse(admin,clarificationRow));
+  }else if(confirmedState&&clarificationRow){
+    message=clarificationRecommendationInput(confirmedState,displayMessage,clarificationRow.context);
+  }
+  // Explicit corrections win over all previously stored scoring/profile hints.
+  if(confirmedState?.answers?.choices.profile==="adjust"){persona=null;footProfile=null;focus=null;}
+  const needsQuestions=!hasRecommendations&&!confirmedState&&!answerSubmission;
+  if (needsQuestions && clarificationRow?.status === "failed") {
+    count = clarificationRow.requested_count;
+    requestedModel = clarificationRow.model;
+    replyLang = clarificationRow.lang;
+    zhReply = replyLang === "zh";
   }
 
   // --- Tiered routing + mixed billing ---------------------------------------
@@ -116,6 +162,19 @@ export async function POST(request: Request) {
     requestedModel && tierSupportsModel(tier, requestedModel)
       ? (requestedModel as ModelId)
       : resolveModelChoice(tier, member.prefs);
+  if(needsQuestions){
+    let actualModel: string;
+    try { actualModel = catalogModel(await getModelCatalog(), model)!.model; }
+    catch { return NextResponse.json({ ok: false, message: "AI model configuration is temporarily unavailable." }, { status: 503 }); }
+    const questionClient=createPackyClientForModel(model, actualModel);
+    if(!questionClient)return NextResponse.json({ok:false,message:"AI questions are temporarily unavailable."},{status:503});
+    try {
+      const result=await prepareChatClarification({db:admin,request,userId:ctx.userId,chatId,message:displayMessage,count:effectiveCount,model,actualModel,lang:replyLang,context:{persona,footProfile,ratingFocus:focus},client:questionClient,existing:clarificationRow});
+      if(result instanceof Response)return result;
+      return NextResponse.json({...result,balance:await getBalance(ctx.userId),unlimited:ctx.isAdmin||cfg.capabilities.baseUnlimited,tier,model});
+    }catch{return NextResponse.json({ok:false,message:"Could not prepare the questions. Please retry."},{status:503});}
+  }
+
   // Metered by the catalog's premium flag, not by "is this the tier's headline
   // model" — so any premium model the member picks comes out of the allowance,
   // not just the one their plan advertises.
@@ -164,33 +223,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: describePackyEnvProblem(report, clientOptionsForModel(model)) }, { status: 503 });
   }
 
-  // Load PRIOR history (before inserting this turn) + catalog + persona in parallel.
-  const [{ data: historyRows }, shoes, { data: profileRow }, reviewsByShoe] = await Promise.all([
-    admin
-      .from("ai_messages")
-      .select("role, content, recommendations")
-      .eq("chat_id", chatId)
-      .order("created_at", { ascending: true }),
-    getShoes(),
-    admin.from("profiles").select("persona, rating_focus").eq("id", ctx.userId).maybeSingle(),
-    getAllBloggerReviews()
-  ]);
-  const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
-  const usingDemo = shoes === demoShoes; // getShoes() returns demoShoes by reference when the DB is empty/unreachable
-  const rawPersona = profileRow?.persona;
-  const persona: Persona | null = isValidPersona(rawPersona) ? rawPersona : null;
-  // Foot profile lives in its own column (added by a later migration). Fetched
-  // separately and tolerantly so the recommender keeps working — with persona
-  // intact — even before that migration is applied.
-  let footProfile: FootProfile | null = null;
-  try {
-    const { data: fpRow } = await admin.from("profiles").select("foot_profile").eq("id", ctx.userId).maybeSingle();
-    if (fpRow && isFootProfile(fpRow.foot_profile)) footProfile = fpRow.foot_profile;
-  } catch {
-    /* column not present yet — ignore */
-  }
-  const rawFocus = profileRow?.rating_focus;
-  const focus: RatingFocus | null = isValidFocus(rawFocus) ? rawFocus : null;
+  let shoes: Awaited<ReturnType<typeof getShoes>>;
+  let reviewsByShoe: Awaited<ReturnType<typeof getAllBloggerReviews>>;
+  try { [shoes,reviewsByShoe]=await Promise.all([confirmedState?getFreshPublicShoes():getShoes(),getAllBloggerReviews()]); }
+  catch { return NextResponse.json({ok:false,message:"The current catalog could not be loaded. Your answers are saved."},{status:503}); }
+  const byId=new Map(shoes.map(shoe=>[shoe.id,shoe]));
+  const usingDemo=shoes===demoShoes;
 
   // Build prior LLM turns; surface previously-recommended shoe names so follow-ups
   // ("第一双太贵了") have context. The same names are collected structurally into
@@ -199,7 +237,7 @@ export async function POST(request: Request) {
   // double down on those or replace them — not to answer from scratch.
   const allPriorNames: string[] = [];
   let lastPriorNames: string[] = [];
-  const history: ChatTurn[] = (historyRows ?? []).map((row) => {
+  const history: ChatTurn[] = (answerSubmission ? [] : historyRows ?? []).map((row) => {
     const r = row as HistoryRow;
     if (r.role === "assistant" && Array.isArray(r.recommendations) && r.recommendations.length) {
       const names = r.recommendations
@@ -221,15 +259,18 @@ export async function POST(request: Request) {
   const reservation = await reserveAiRequest(request, ctx.userId, "chat", billing, effectiveCount);
   if ("error" in reservation) return reservation.error;
 
-  // Persist the user message (after capturing prior history).
-  const { data: userMessage, error: userErr } = await admin
-    .from("ai_messages")
-    .insert({ chat_id: chatId, role: "user", content: message, credits_charged: 0 })
-    .select("id, role, content, recommendations, credits_charged, created_at")
-    .single();
-  if (userErr || !userMessage) {
-    await reservation.refund();
-    return NextResponse.json({ ok: false, message: "Failed to save message." }, { status: 500 });
+  let answerClaimed=false;
+  let userMessage:{id:string};
+  if(answerSubmission&&clarificationRow&&confirmedState?.answers){
+    const answerText=confirmedState.questions.map(q=>`${q.prompt[replyLang]} ${q.options.find(o=>o.value===confirmedState!.answers!.choices[q.id])?.label[replyLang]??""}`).join("\n")+(confirmedState.answers.note?`\n${confirmedState.answers.note}`:"");
+    const claim=await admin.rpc("claim_ai_chat_clarification_answer",{p_id:clarificationRow.id,p_chat_id:chatId,p_user_id:ctx.userId,p_request_id:reservation.id,p_answers:confirmedState.answers,p_content:answerText});
+    if(claim.error||!claim.data){await reservation.refund();return NextResponse.json({ok:false,message:"Your answers could not be submitted. Please retry."},{status:503});}
+    const value=claim.data as {claimed:boolean;row:ClarificationRow};clarificationRow=value.row;
+    if(!value.claimed){await reservation.refund();return NextResponse.json(await clarificationResponse(admin,clarificationRow));}
+    answerClaimed=true;userMessage={id:clarificationRow.answer_message_id!};
+  }else{
+    const {data:user,error}=await admin.from("ai_messages").insert({chat_id:chatId,role:"user",content:displayMessage,credits_charged:0}).select("id").single();
+    if(error||!user){await reservation.refund();return NextResponse.json({ok:false,message:"Failed to save message."},{status:500});}userMessage=user;
   }
 
   // From here on we stream Server-Sent Events: the AI's prose and search
@@ -287,7 +328,11 @@ export async function POST(request: Request) {
               model: actualModel,
               depthSuffix,
               priorRecommendations,
-              deadline
+              deadline,
+              replyLanguage: replyLang,
+              confirmedPreferences: Boolean(confirmedState),
+              researchFocus: confirmedState?clarificationResearchFocus(confirmedState, answerSubmission ? undefined : displayMessage):undefined,
+              priceResearchFocus: confirmedState?clarificationPriceFocus(confirmedState, answerSubmission ? undefined : displayMessage):undefined
             },
             onProgress
           );
@@ -326,7 +371,7 @@ export async function POST(request: Request) {
           seen.add(shoe.id);
           matched.push({
             shoe_id: shoe.id,
-            stars: blendedRecommendationStars(rec.stars, shoe.spec, focus),
+            stars: confirmedState ? rec.stars : blendedRecommendationStars(rec.stars, shoe.spec, focus),
             reason: rec.reason,
             pros: rec.pros,
             cons: rec.cons,
@@ -340,6 +385,7 @@ export async function POST(request: Request) {
 
         // Keep verified partial results; never pad the answer with unrelated shoes.
         const fallbackUsed = validRaw.length === 0;
+        if (confirmedState && fallbackUsed) throw new Error("No verified recommendations were returned");
         if (fallbackUsed) validRaw = pickFallbackShoes({ shoes, query: message, persona, focus, count: effectiveCount });
 
         // Fill only evidence-backed details. Short lists are more honest than filler.
@@ -349,7 +395,7 @@ export async function POST(request: Request) {
           const detail = deriveDetail({
             shoe,
             reviews: reviewsByShoe[raw.shoe_id] ?? [],
-            focus,
+            focus: confirmedState ? null : focus,
             lang: replyLang,
             existing: { reason: raw.reason, pros: raw.pros, cons: raw.cons }
           });
@@ -375,7 +421,7 @@ export async function POST(request: Request) {
           fallbackUsed,
           charge,
           loopExitReason: result.loopExitReason ?? null,
-          raw: result.raw ? result.raw.slice(0, 300) : null,
+          raw: confirmedState ? null : result.raw ? result.raw.slice(0, 300) : null,
           search: sstats
             ? {
                 attempts: sstats.attempts,
@@ -418,10 +464,16 @@ export async function POST(request: Request) {
         // The one question worth asking next, rendered by the client as its own
         // composer box. Suppressed when the answer itself is a fallback (there's
         // nothing grounded to follow up on) or when the model had nothing to ask.
-        const followUp = fallbackUsed ? "" : (result.followUp ?? "").trim();
+        const followUp = fallbackUsed || confirmedState ? "" : (result.followUp ?? "").trim();
 
         const assistantRow = await reservation.complete(chatId, replyText, chargedAmount, validRaw.length ? validRaw : null, followUp || null);
         const newBalance = assistantRow.balance;
+        if (answerClaimed && clarificationRow) {
+          // Settlement is atomic with the reply. Never reopen a settled answer
+          // if this metadata write fails; GET repairs it from the receipt.
+          answerClaimed = false;
+          await admin.from("ai_chat_clarifications").update({ status: "complete", error: null }).eq("id", clarificationRow.id).eq("request_id", reservation.id).eq("status", "answering");
+        }
 
         // Title the chat on the first turn — prefer the AI-summarized title, fall
         // back to a slice of the user message.
@@ -472,6 +524,7 @@ export async function POST(request: Request) {
         });
       } finally {
         await reservation.refund();
+        if(answerClaimed&&clarificationRow)await admin.from("ai_chat_clarifications").update({status:"awaiting_answers",error:"recommendations_unavailable"}).eq("id",clarificationRow.id).eq("request_id",reservation.id).eq("status","answering");
         clearInterval(heartbeat);
         if (!aborted) {
           try {
