@@ -316,7 +316,7 @@ export function ChatConversation({
             <div className={styles.railHeading}><h2>{zh ? "为你挑选" : "Your shortlist"}</h2><span>{resultMessage.recommendations.length} {zh ? "个选择" : "considered options"}</span></div>
             <RecommendationGroup key={resultMessage.clientKey ?? resultMessage.id} recommendations={resultMessage.recommendations} onOpen={openShoe}/>
             <div className={styles.resultActions}>
-              <button type="button" className={styles.textButton} onClick={() => setReport({ requestText: resultRequest, summary: resultMessage.content, recs: resultMessage.recommendations ?? [] })}><Download size={13}/>{translate("Download report")}</button>
+              <button type="button" className={styles.textButton} onClick={() => setReport({ requestText: resultRequest, summary: resultMessage.content, recs: resultMessage.recommendations ?? [] })}><Download size={13}/>{zh ? "报告与分享卡片" : "Report & share card"}</button>
               {!sending && <MessageCost charged={resultMessage.credits_charged} billing={resultMessage.billing} onOpenUsage={openUsage}/>}
             </div>
             </div>

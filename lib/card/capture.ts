@@ -3,17 +3,21 @@ import { CARD_HEIGHT, CARD_WIDTH } from "@/components/card/card-frame";
 const PIXEL_RATIO = 3;
 
 async function waitForImages(node: HTMLElement) {
-  const images = Array.from(node.querySelectorAll("img"));
-  await Promise.all(
-    images.map((img) => {
-      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-      return new Promise<void>((resolve) => {
-        const done = () => resolve();
-        img.addEventListener("load", done, { once: true });
-        img.addEventListener("error", done, { once: true });
-      });
-    })
-  );
+  await Promise.all(Array.from(node.querySelectorAll("img")).map(img => {
+    // A failed image is also complete; waiting for another error event hangs.
+    if (img.complete) return Promise.resolve();
+    return new Promise<void>(resolve => {
+      const done = () => {
+        clearTimeout(timer);
+        img.removeEventListener("load", done);
+        img.removeEventListener("error", done);
+        resolve();
+      };
+      const timer = setTimeout(done, 10000);
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
+    });
+  }));
 }
 
 async function waitForFonts() {
@@ -57,7 +61,9 @@ export async function captureCardToBlob(node: HTMLElement): Promise<Blob> {
   const height = Math.max(CARD_HEIGHT, Math.ceil(node.getBoundingClientRect().height));
   return withTimeout(
     domToBlob(node, {
-      scale: PIXEL_RATIO,
+      // Bound long reports to a 16 MP canvas and a 16,384 px side.
+      // A fixed 3× scale can exceed mobile canvas memory limits.
+      scale: Math.min(PIXEL_RATIO, 16384 / height, Math.sqrt(16000000 / (CARD_WIDTH * height))),
       width: CARD_WIDTH,
       height,
       type: "image/png",
