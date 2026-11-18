@@ -11,9 +11,9 @@
 .headerButton:hover { color: var(--picker-gold); }
 .activityDot { position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; background: var(--picker-gold); border-radius: 50%; }
 .paneFlow { display: contents; }
-.workspace { display: grid; grid-template-columns: minmax(0, 100%) minmax(0, 0%); grid-template-rows: minmax(0, 1fr) auto; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.workspace { display: grid; grid-template-columns: minmax(0, 100fr) minmax(0, 0fr); grid-template-rows: minmax(0, 1fr) auto; flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
 .workspace[data-animate-split="true"] { transition: grid-template-columns 360ms cubic-bezier(.22,1,.36,1); }
-.workspace[data-rail="true"] { grid-template-columns: minmax(0, 35%) minmax(0, 65%); }
+.workspace[data-rail="true"] { grid-template-columns: minmax(310px, 35fr) minmax(0, 65fr); }
 .conversation { grid-column: 1; grid-row: 1; width: 100%; max-width: 780px; min-width: 0; min-height: 0; margin: 0 auto; display: flex; flex-direction: column; padding: 28px 30px 0; }
 .threadTitle { margin: 0 0 20px; color: rgb(var(--subtext)); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .transcript { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 2px 22px; scrollbar-width: thin; scrollbar-color: rgb(var(--text) / .15) transparent; }
@@ -28,7 +28,7 @@
 .followUp { color: rgb(var(--subtext)); font-size: 12px; line-height: 1.6; }
 .followUpChoices { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
 .composerDock { grid-column: 1; grid-row: 2; min-width: 0; width: 100%; max-width: 780px; margin: 0 auto; padding: 20px 30px max(20px, env(safe-area-inset-bottom)); background: rgb(var(--bg)); z-index: 3; }
-.workspace[data-rail="true"] .conversation, .workspace[data-rail="true"] .composerDock { max-width: none; padding-left: clamp(18px, 2.4vw, 38px); padding-right: clamp(18px, 2.4vw, 38px); }
+.workspace[data-rail="true"] .conversation, .workspace[data-rail="true"] .composerDock { max-width: 720px; padding-left: clamp(18px, 2.4vw, 38px); padding-right: clamp(18px, 2.4vw, 38px); }
 .modeLabel { display: inline-flex; align-items: center; gap: 5px; color: var(--picker-gold); font-size: 11px; margin-bottom: 10px; }
 .modeSwitch { display: flex; gap: 9px; justify-content: center; margin-bottom: 20px; }
 .modeSwitch button { display: inline-flex; justify-content: center; align-items: center; gap: 7px; min-width: 105px; padding: 9px 22px; border: 1px solid rgb(var(--text) / .14); border-radius: 999px; background: transparent; color: rgb(var(--subtext)); font-size: 12px; transition: color .2s, background .2s, border-color .2s; }
@@ -154,3 +154,13 @@
   .workspace, .workspace[data-animate-split="true"], .modeSwitch button, .inputBox, .sendButton, .headerButton, .suggestion, .modelOption, .footerButton, .modelTrigger { transition: none; }
   .rail, .modelPopover, .countPopover, .historyPopover, .inlineSkeleton, .conversationSkeleton span, .cardsSkeleton span, .spinner { animation: none; }
 }
+
+@media (min-width: 768px) and (max-height: 750px) {
+  .header { min-height: 48px; padding-block: 5px; }
+  .conversation { padding-top: 18px; }
+  .composerDock { padding-top: 12px; padding-bottom: 12px; }
+  .rail { padding-block: 24px; }
+  .railHeading { margin-bottom: 16px; }
+}
+
+.rail > * { max-width: 1040px; margin-inline: auto; }

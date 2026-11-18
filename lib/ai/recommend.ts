@@ -2208,6 +2208,9 @@ export function enrichRecommendations(
       shoe_name: shoe.shoe_name,
       image_url: shoe.image_url ?? null,
       category: shoe.category ?? null,
+      release_year: shoe.release_year ?? null,
+      player: shoe.player ?? null,
+      weight: shoe.weight ?? null,
       radar: buildRadarAxes(spec),
       tech: {
         forefoot: spec.forefoot_midsole_tech ?? null,

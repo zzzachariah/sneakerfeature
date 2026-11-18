@@ -9,7 +9,7 @@ import { MAX_COMPARE, type RecommendationItem } from "@/lib/ai/types";
 import type { Route } from "next";
 import styles from "./recommendation-shortlist.module.css";
 
-export function RecommendationGroup({ recommendations }: { recommendations: RecommendationItem[] }) {
+export function RecommendationGroup({ recommendations, onOpen }: { recommendations: RecommendationItem[]; onOpen: (rec: RecommendationItem) => void }) {
   const { translate } = useLocale();
   // Default-select the first up-to-5 so the compare button works out of the box;
   // the user can freely change the selection (max 5).
@@ -40,6 +40,7 @@ export function RecommendationGroup({ recommendations }: { recommendations: Reco
               selected={selected.includes(rec.shoe_id)}
               disabled={atLimit}
               onToggle={() => toggle(rec.shoe_id)}
+              onOpen={() => onOpen(rec)}
               featured={i === 0}
             />
           </div>

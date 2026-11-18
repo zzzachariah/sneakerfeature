@@ -46,7 +46,7 @@
     "test:model-catalog": "tsx scripts/test-model-catalog.mts",
     "models:validate": "tsx scripts/validate-model-catalog.mts",
     "test:smart-picker-clarification": "tsx scripts/test-smart-picker-clarification.mts && tsx scripts/test-smart-picker-clarification-db.mts && tsx scripts/test-smart-picker-chat-route.mts && tsx scripts/test-smart-picker-fresh-catalog.mts && tsx scripts/test-confirmed-recommend.mts",
-    "test:unified-picker": "tsx scripts/test-advisor-model-selection.mts && tsx scripts/test-conversation-mode.mts"
+    "test:unified-picker": "tsx scripts/test-advisor-model-selection.mts && tsx scripts/test-conversation-mode.mts && tsx scripts/test-recommendation-detail.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

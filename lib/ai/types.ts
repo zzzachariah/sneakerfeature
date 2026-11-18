@@ -46,6 +46,9 @@ export type RecommendationItem = RecommendationRaw & {
   shoe_name: string;
   image_url: string | null;
   category: string | null;
+  release_year?: number | null;
+  player?: string | null;
+  weight?: string | null;
   // Derived from the catalog at enrich time (not persisted): drives the
   // inline radar on each card and the downloadable report.
   radar: RecRadarAxis[];

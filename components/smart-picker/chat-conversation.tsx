@@ -11,6 +11,7 @@ import { CardPreviewModal } from "@/components/card/card-preview-modal";
 import { CreditsPanel } from "@/components/smart-picker/credits-panel";
 import { MessageCost } from "@/components/smart-picker/message-cost";
 import { MessageInput } from "@/components/smart-picker/message-input";
+import { RecommendationDetail } from "@/components/smart-picker/recommendation-detail";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
 import { ClarificationPanel } from "@/components/smart-picker/clarification-panel";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
@@ -83,6 +84,9 @@ export function ChatConversation({
   const animateRail = useRef(false);
   const viewedRailItem = useRef<string | null>(null);
   const [report, setReport] = useState<{ requestText: string; summary: string; recs: RecommendationItem[] } | null>(null);
+  const [shoeView, setShoeView] = useState<{ turn: string; shoeId: string } | null>(null);
+  const listPosition = useRef<{ turn: string; desktop: number; mobile: number; trigger: HTMLElement | null } | null>(null);
+  const restoreList = useRef(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [usageOpen, setUsageOpen] = useState(false);
   const [prefill, setPrefill] = useState({ text: "", nonce: 0 });
@@ -97,6 +101,10 @@ export function ChatConversation({
   const resultIndex = messages.findLastIndex(item => Boolean(item.recommendations?.length));
   const resultMessage = resultIndex >= 0 ? messages[resultIndex] : null;
   const hasRecommendations = resultMessage !== null;
+  const resultViewKey = `${activeChatId ?? "new"}:${resultMessage?.clientKey ?? resultMessage?.id ?? ""}`;
+  const focusedShoe = !activeClarification && shoeView?.turn === resultViewKey
+    ? resultMessage?.recommendations?.find(rec => rec.shoe_id === shoeView.shoeId) ?? null : null;
+  const focusedShoeId = focusedShoe?.shoe_id ?? null;
   const clarificationComplete = latestClarification?.status === "complete";
   const isEmpty = !modeLocked && !loadingMessages && messages.length === 0;
   const showRail = mode === "find" && !isEmpty && (Boolean(latestClarification?.questions.length) || hasRecommendations);
@@ -165,6 +173,30 @@ export function ChatConversation({
     }
     if (followScroll.current && (!mobile || !showRail)) element.scrollTop = element.scrollHeight;
   }, [messages, sending, loadingMessages, activeClarification, resultMessage, showRail, activeChatId]);
+  useLayoutEffect(() => {
+    const mobile = window.matchMedia("(max-width: 767px)").matches;
+    const rail = railRef.current;
+    const feed = workspaceRef.current;
+    if (focusedShoeId) {
+      if (mobile && rail && feed) feed.scrollTop += rail.getBoundingClientRect().top - feed.getBoundingClientRect().top;
+      else if (rail) rail.scrollTop = 0;
+    } else if (restoreList.current) {
+      restoreList.current = false;
+      const saved = listPosition.current;
+      if (saved?.turn !== resultViewKey) return;
+      if (rail) rail.scrollTop = saved.desktop;
+      if (feed) feed.scrollTop = saved.mobile;
+      saved.trigger?.focus({ preventScroll: true });
+    }
+  }, [focusedShoeId, resultViewKey]);
+  const openShoe = (rec: RecommendationItem) => {
+    listPosition.current = { turn: resultViewKey, desktop: railRef.current?.scrollTop ?? 0, mobile: workspaceRef.current?.scrollTop ?? 0,
+      trigger: document.activeElement instanceof HTMLElement ? document.activeElement : null };
+    followRail.current = false;
+    followScroll.current = false;
+    setShoeView({ turn: resultViewKey, shoeId: rec.shoe_id });
+  };
+  const backToPicks = () => { restoreList.current = true; setShoeView(null); };
   const trackScroll = (element: HTMLDivElement) => {
     followScroll.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
   };
@@ -279,11 +311,14 @@ export function ChatConversation({
         aria-label={activeClarification ? (zh ? "确认选鞋需求" : "Confirm your needs") : (zh ? "推荐结果" : "Your shortlist")}>
         {loadingMessages ? <ConversationSkeleton cards/> : activeClarification ? clarificationPanel
           : resultMessage?.recommendations?.length ? <>
+            {focusedShoe && <RecommendationDetail rec={focusedShoe} onBack={backToPicks}/>}
+            <div hidden={Boolean(focusedShoe)}>
             <div className={styles.railHeading}><h2>{zh ? "为你挑选" : "Your shortlist"}</h2><span>{resultMessage.recommendations.length} {zh ? "个选择" : "considered options"}</span></div>
-            <RecommendationGroup key={resultMessage.clientKey ?? resultMessage.id} recommendations={resultMessage.recommendations}/>
+            <RecommendationGroup key={resultMessage.clientKey ?? resultMessage.id} recommendations={resultMessage.recommendations} onOpen={openShoe}/>
             <div className={styles.resultActions}>
               <button type="button" className={styles.textButton} onClick={() => setReport({ requestText: resultRequest, summary: resultMessage.content, recs: resultMessage.recommendations ?? [] })}><Download size={13}/>{translate("Download report")}</button>
               {!sending && <MessageCost charged={resultMessage.credits_charged} billing={resultMessage.billing} onOpenUsage={openUsage}/>}
+            </div>
             </div>
           </> : <div className={styles.railWaiting}>
             {sending ? <ConversationSkeleton cards/> : <p>{zh ? "推荐结果会显示在这里。" : "Your picks will appear here."}</p>}
