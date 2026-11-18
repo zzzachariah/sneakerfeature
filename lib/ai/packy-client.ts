@@ -1,3 +1,4 @@
+import { catalogModel, type ModelCatalog } from "./model-catalog";
 import OpenAI from "openai";
 import { createPackyFetch } from "./packy-fetch";
 
@@ -21,6 +22,8 @@ function readEnv(names: readonly string[]): string | undefined {
 export type PackyClientOptions = {
   apiKeyEnv?: readonly string[];
   baseURLEnv?: readonly string[];
+  /** Pin a validated upstream model for this entire turn. */
+  modelOverride?: string;
 };
 
 function apiKeyNames(opts?: PackyClientOptions): readonly string[] {
@@ -58,8 +61,8 @@ export function clientOptionsForModel(model: string): PackyClientOptions | undef
   return undefined;
 }
 
-export function createPackyClientForModel(model: string): OpenAI | null {
-  return createPackyClient(clientOptionsForModel(model));
+export function createPackyClientForModel(model: string, actualModel?: string): OpenAI | null {
+  return createPackyClient({ ...clientOptionsForModel(model), modelOverride: actualModel });
 }
 
 export function normalizeBaseURL(raw: string): string {
@@ -212,5 +215,14 @@ export function createPackyClient(opts?: PackyClientOptions): OpenAI | null {
   // 3-minute per-request ceiling (reasoning models legitimately take 1-2 min on
   // a big catalog) and a single retry — the SDK default of 10 min × 2 retries
   // left users staring at a spinner for half an hour when the relay hung.
-  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1, fetch: createPackyFetch() });
+  let snapshot: Promise<ModelCatalog> | undefined;
+  const resolveModel = async (id: string) => {
+    if (opts?.modelOverride) return opts.modelOverride;
+    // Only the three stable selectors are routed; unrelated vision APIs stay independent.
+    const { modelSlot } = await import("./model-catalog");
+    if (!modelSlot(id)) return id;
+    snapshot ??= import("./model-catalog-server").then(m => m.getModelCatalog());
+    return catalogModel(await snapshot, id)!.model;
+  };
+  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1, fetch: createPackyFetch(globalThis.fetch, resolveModel) });
 }
