@@ -17,9 +17,9 @@ export type Duration = "monthly" | "quarterly" | "yearly" | "permanent";
 // cookie: only set for paid tiers, absent means free. Client + server safe.
 export const MEMBER_TIER_COOKIE = "sf-member-tier";
 
-// Model IDs as configured on the packyapi relay. Each paid model uses its own
-// key env var (see packy-client.ts); the ID strings live here so UI and server
-// agree on what each tier runs.
+// Stable legacy selector IDs, NOT upstream model names. Do not rename these:
+// saved preferences and allowance billing depend on them. Runtime names and
+// upstream IDs come from ai/model-catalog (app_settings.ai_model_catalog_v1).
 export const MODEL_IDS = {
   haiku: "claude-haiku-4-5-20251001",
   deepseek: "deepseek-v4-pro",
@@ -49,7 +49,7 @@ export type PickerModelInfo = {
 export const PICKER_MODELS: PickerModelInfo[] = [
   {
     id: MODEL_IDS.haiku,
-    name: "Haiku",
+    name: "Haiku 4.5",
     tagline: "Light and fast for everyday picks",
     taglineZh: "轻量快速，日常选鞋够用",
     symbol: "hare.fill",
@@ -58,7 +58,7 @@ export const PICKER_MODELS: PickerModelInfo[] = [
   },
   {
     id: MODEL_IDS.deepseek,
-    name: "DeepSeek V4",
+    name: "Sonnet 5.5",
     tagline: "Balanced workhorse, unlimited on paid plans",
     taglineZh: "均衡主力，会员不限次数",
     symbol: "bolt.fill",
@@ -67,7 +67,7 @@ export const PICKER_MODELS: PickerModelInfo[] = [
   },
   {
     id: MODEL_IDS.opus,
-    name: "Opus 5",
+    name: "Fable 5.2",
     tagline: "The flagship — deepest reasoning, uses the monthly allowance",
     taglineZh: "顶级旗舰，思考最深，使用月度额度",
     symbol: "crown.fill",
@@ -120,7 +120,7 @@ export type TierCapabilities = {
   baseUnlimited: boolean;
   /**
    * The tier's headline premium model — what it defaults to and advertises.
-   * Both paid tiers run Opus 5, the flagship; they differ in how much of it the
+   * Both paid tiers run the configured flagship; they differ in how much of it the
    * plan buys (`monthlyAllowance`, Max = 5× Pro) and how deep the pipeline runs
    * (`prompt`), not in which model they may pick. Metered from the monthly
    * allowance, as is any other `premium` model the tier can pick

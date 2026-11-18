@@ -7,6 +7,8 @@
 // native Liquid Glass options sheet (UIGlassEffect) via the native-chrome
 // plugin; web and Android get the in-house glass BottomSheet.
 
+import { useModelCatalog } from "@/lib/ai/use-model-catalog";
+import { catalogPickerModels } from "@/lib/ai/model-catalog";
 import { useState } from "react";
 import Link from "next/link";
 import { Check, ChevronDown, Cpu, Crown, Lock, Rabbit, Zap, type LucideIcon } from "lucide-react";
@@ -17,9 +19,7 @@ import { nativeMenuAvailable, presentNativeOptions } from "@/components/native/n
 import { SUBSCRIBE_LIVE } from "@/lib/subscription/flags";
 import {
   MODEL_IDS,
-  PICKER_MODELS,
   isModelId,
-  pickerModelInfo,
   tierSupportsModel,
   type ModelId,
   type Tier
@@ -52,7 +52,9 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
   const zh = locale === "zh";
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const current = model ? pickerModelInfo(model) : null;
+  const catalog = useModelCatalog();
+  const models = catalogPickerModels(catalog);
+  const current = models.find(m => m.id === model) ?? null;
   const CurrentIcon = model ? MODEL_ICONS[model] : Cpu;
   const title = zh ? "选择 AI 模型" : "Choose AI model";
 
@@ -67,7 +69,7 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
     if (nativeMenuAvailable()) {
       // iOS app: real native Liquid Glass sheet with grayed-out locked rows.
       const key = await presentNativeOptions(
-        PICKER_MODELS.map((m) => {
+        models.map((m) => {
           const supported = tierSupportsModel(tier, m.id);
           return {
             key: m.id,
@@ -110,7 +112,7 @@ export function ModelPicker({ tier, model, onSelect }: Props) {
 
       <BottomSheet open={sheetOpen} onClose={() => setSheetOpen(false)} title={title}>
         <div className="flex flex-col gap-2 pb-2">
-          {PICKER_MODELS.map((m) => {
+          {models.map((m) => {
             const supported = tierSupportsModel(tier, m.id);
             const selected = m.id === model;
             const Icon = MODEL_ICONS[m.id];

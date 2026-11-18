@@ -1,3 +1,5 @@
+import { getModelCatalog } from "@/lib/ai/model-catalog-server";
+import { catalogModel } from "@/lib/ai/model-catalog";
 import { NextResponse } from "next/server";
 import { reserveAiRequest } from "@/lib/ai/reservations";
 import { z } from "zod";
@@ -152,7 +154,10 @@ export async function POST(request: Request) {
   const depthSuffix = buildDepthSuffix(cfg.prompt, replyLang);
 
   // Fail fast if the AI provider isn't configured (before persisting anything).
-  const client = createPackyClientForModel(model);
+  let actualModel: string;
+  try { actualModel = catalogModel(await getModelCatalog(), model)!.model; }
+  catch { return NextResponse.json({ ok: false, message: "AI model configuration is temporarily unavailable." }, { status: 503 }); }
+  const client = createPackyClientForModel(model, actualModel);
   if (!client) {
     const report = getPackyEnvReport(clientOptionsForModel(model));
     console.error("[ai/chat] packyapi not configured", { model, apiKey: report.apiKey, baseURL: report.baseURL });
@@ -279,7 +284,7 @@ export async function POST(request: Request) {
               persona,
               footProfile,
               reviewsByShoe,
-              model,
+              model: actualModel,
               depthSuffix,
               priorRecommendations,
               deadline
@@ -287,7 +292,7 @@ export async function POST(request: Request) {
             onProgress
           );
         } catch (error) {
-          console.error("[ai/chat] recommend failed", { model, elapsedMs: Date.now() - startedAt, error });
+          console.error("[ai/chat] recommend failed", { model: actualModel, elapsedMs: Date.now() - startedAt, error });
           // Report the model this request ACTUALLY ran on (`model` may have been
           // downgraded to the base model when the allowance ran out) — the old
           // message hardcoded the shared deepseek id and misattributed every
@@ -361,7 +366,7 @@ export async function POST(request: Request) {
           // at when a turn dies mid-stream: if it approaches `maxDuration` the
           // platform, not the relay, is what ended the request.
           elapsedMs: Date.now() - startedAt,
-          model,
+          model: actualModel,
           size: shoes.length,
           usingDemo,
           hasPersona: persona !== null,
@@ -447,6 +452,7 @@ export async function POST(request: Request) {
           billing,
           tier,
           model,
+          actualModel,
           charge,
           title: chatUpdate.title ?? null,
           fallbackUsed
@@ -456,7 +462,7 @@ export async function POST(request: Request) {
         // malformed catalog row…). The old text was a bare "请求失败，请稍后重试。",
         // which is indistinguishable from a dropped connection and told nobody
         // anything — report what actually broke, like the AI-call path does.
-        console.error("[ai/chat] stream failed", { model, error });
+        console.error("[ai/chat] stream failed", { model: actualModel, error });
         send("error", {
           message: pick(
             replyLang,

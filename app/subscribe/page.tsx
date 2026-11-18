@@ -1,3 +1,4 @@
+import { getModelCatalog } from "@/lib/ai/model-catalog-server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/data/auth";
@@ -50,5 +51,5 @@ export default async function SubscribePage() {
     };
   }
 
-  return <SubscribeClient current={current} />;
+  return <SubscribeClient current={current} initialCatalog={await getModelCatalog()} />;
 }
