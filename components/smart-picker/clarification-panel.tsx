@@ -37,7 +37,7 @@ export function ClarificationPanel({ value, zh, busy, canAfford, onConfirm, onRe
   const [addedNote, setAddedNote] = useState(false);
   const titleId = useId(), noteId = useId();
   const titleRef = useRef<HTMLHeadingElement>(null);
-  const firstFocus = useRef(true);
+  const previousStep = useRef(step);
   const awaiting = value.status === "awaiting_answers";
   const settled = value.status === "complete";
   const question = value.questions[step];
@@ -59,11 +59,20 @@ export function ClarificationPanel({ value, zh, busy, canAfford, onConfirm, onRe
     setAddedNote(true);
   }, [extraNote]);
   useEffect(() => {
-    if (!awaiting) return;
-    // Do not steal focus from a member typing in the main composer when the
-    // questions arrive. Explicit Next/Back moves focus to the new question.
-    if (firstFocus.current) { firstFocus.current = false; return; }
-    const timer = window.setTimeout(() => titleRef.current?.focus({ preventScroll: false }), reduced ? 0 : 240);
+    if (!awaiting || previousStep.current === step) return;
+    previousStep.current = step;
+    // Only explicit Next/Back changes move focus, including in Strict Mode.
+    // Scroll the picker region, never the outer page beneath the fixed navbar.
+    const timer = window.setTimeout(() => {
+      const title = titleRef.current;
+      if (!title) return;
+      title.focus({ preventScroll: true });
+      const mobile = window.matchMedia("(max-width: 767px)").matches;
+      const region = title.closest<HTMLElement>(mobile ? "[data-picker-workspace]" : "[data-picker-rail]");
+      if (!region) return;
+      const offset = title.getBoundingClientRect().top - region.getBoundingClientRect().top;
+      if (offset < 16 || offset > region.clientHeight / 2) region.scrollTop += offset - 24;
+    }, reduced ? 0 : 240);
     return () => window.clearTimeout(timer);
   }, [step, awaiting, reduced]);
   const forward = () => {
@@ -72,18 +81,19 @@ export function ClarificationPanel({ value, zh, busy, canAfford, onConfirm, onRe
     setStep(editing ? value.questions.length : step + 1); setEditing(false);
   };
   const summary = (saved: ClarificationAnswers) => <dl className={styles.summary}>{value.questions.map(item => <div key={item.id}><dt>{item.prompt[lang]}</dt><dd>{item.options.find(option => option.value === saved.choices[item.id])?.label[lang] ?? (zh ? "未选择" : "Not selected")}</dd></div>)}{saved.note && <div><dt>{zh ? "补充信息" : "Additional context"}</dt><dd className={styles.savedNote}>{saved.note}</dd></div>}</dl>;
-  if (settled) return <details className={`${styles.panel} ${styles.settled} sp-followup`} data-chat-clarification="complete"><summary><Check size={14}/>{zh ? "选鞋需求已确认" : "Your preferences, confirmed"}<ChevronDown size={14}/></summary>{summary(value.answers ?? answers)}</details>;
-  if (!awaiting) return <section className={`${styles.panel} sp-followup`} data-chat-clarification={value.status}>
+  if (settled) return <details className={`${styles.panel} ${styles.settled}`} data-chat-clarification="complete"><summary><Check size={14}/>{zh ? "选鞋需求已确认" : "Your preferences, confirmed"}<ChevronDown size={14}/></summary>{summary(value.answers ?? answers)}</details>;
+  if (!awaiting) return <section className={styles.panel} data-chat-clarification={value.status}>
     <div className={styles.status} role="status">{value.status === "failed" ? <RotateCcw size={16}/> : <Loader2 size={16} className={styles.spinner}/>}<div><strong>{value.status === "failed" ? (zh ? "问题暂时未能准备好" : "The questions couldn’t be prepared") : value.status === "answering" ? (zh ? "已确认，正在为你选鞋" : "Confirmed. Finding your shoes…") : (zh ? "先确认几个影响选鞋的细节" : "Checking a few details before your picks…")}</strong><p>{value.status === "failed" ? (zh ? "你的原始要求已保留，可以重试。" : "Your original request is saved. You can retry.") : (zh ? "本轮确认后，将从目录筛选候选，再核对这些型号缺少的资料。" : "After this round, I’ll shortlist catalog models and check the details still missing for those shoes.")}</p></div></div>
     {value.status === "failed" && <button type="button" className={styles.next} disabled={busy} onClick={onRetry}><RotateCcw size={14}/>{zh ? "重新准备问题" : "Retry questions"}</button>}
   </section>;
-  return <section className={`${styles.panel} sp-followup`} data-chat-clarification="awaiting_answers" data-clarification-id={value.id} data-clarification-step={review ? "review" : question.id}>
-    <div className={styles.header}><span>{zh ? "先让推荐更贴合你" : "Let’s get the fit right"}</span><small>{review ? (zh ? "确认" : "Review") : `${String(step + 1).padStart(2, "0")} / ${String(value.questions.length).padStart(2, "0")}`}</small></div>
+  return <section className={styles.panel} data-chat-clarification="awaiting_answers" data-clarification-id={value.id} data-clarification-step={review ? "review" : question.id}>
+    <div className={styles.header}><span>{zh ? "确认选鞋需求" : "A few details"}</span><small>{review ? (zh ? "确认" : "Review") : `${step + 1} / ${value.questions.length}`}</small></div>
     <div className={styles.rail} aria-hidden="true">{value.questions.map((item,index) => <span key={item.id} data-reached={index <= step}/>)}</div>
-    <AnimatePresence initial={false} mode="wait"><motion.div key={review ? "review" : question.id} initial={reduced ? false : { opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: reduced ? 0 : -8 }} transition={{ duration: reduced ? 0 : DUR.base, ease: EASE }}>
-      <h3 ref={titleRef} tabIndex={-1} id={titleId} className={styles.title}>{review ? (zh ? "这些是本次选鞋的依据。" : "Here’s what I’ll use for your picks.") : question.prompt[lang]}</h3>
-      <p className={styles.reason}>{review ? (zh ? `确认后，从完整目录筛选候选鞋，再查证具体型号的贴合、价格等缺失资料，最后推荐 ${value.count} 双。` : `I’ll shortlist from the full catalog, check missing fit, price and other details for those exact models, then recommend ${value.count} ${value.count === 1 ? "shoe" : "shoes"}.`) : question.reason[lang]}</p>
-      {review ? <dl className={styles.review}>{value.questions.map((item,index) => <div key={item.id}><dt>{item.prompt[lang]}</dt><dd>{item.options.find(option => option.value === answers.choices[item.id])?.label[lang]}</dd><button type="button" className={styles.edit} disabled={busy} aria-label={`${zh ? "修改：" : "Edit: "}${item.prompt[lang]}`} onClick={() => { setEditing(true); setStep(index); }}><Pencil size={13}/></button></div>)}</dl> : <fieldset className={styles.options} aria-labelledby={titleId} disabled={busy}>{question.options.map(option => <label key={option.value} className={styles.option} data-selected={answers.choices[question.id] === option.value}><input type="radio" name={`clarification-${value.id}-${question.id}`} value={option.value} checked={answers.choices[question.id] === option.value} onChange={() => setAnswers(current => ({ ...current, choices: { ...current.choices, [question.id]: option.value } }))}/><span className={styles.radio} aria-hidden="true"/><span>{option.label[lang]}</span></label>)}</fieldset>}
+    <AnimatePresence initial={false} mode="wait"><motion.div className={styles.step} key={review ? "review" : question.id} initial={reduced ? false : { opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, transition: { duration: reduced ? 0 : DUR.fast } }} transition={{ duration: reduced ? 0 : DUR.base, ease: EASE }}>
+      <h3 ref={titleRef} tabIndex={-1} id={titleId} className={styles.title}>{review ? (zh ? "这些是本次选鞋的依据。" : "Here’s what I’ll use for your picks.") : question.id === "profile" ? (zh ? "这些需求还准确吗？" : "Are these needs still right?") : question.prompt[lang]}</h3>
+      {!review && question.id === "profile" && <p className={styles.profileContext}>{question.prompt[lang]}</p>}
+      <p className={styles.reason}>{review ? (zh ? `确认后，我会筛选并核对鞋款资料，为你推荐 ${value.count} 双。` : `I’ll shortlist and check the shoe details, then recommend ${value.count} ${value.count === 1 ? "shoe" : "shoes"}.`) : question.reason[lang]}</p>
+      {review ? <dl className={styles.review}>{value.questions.map((item,index) => <div key={item.id}><dt>{item.prompt[lang]}</dt><dd>{item.options.find(option => option.value === answers.choices[item.id])?.label[lang]}</dd><button type="button" className={styles.edit} disabled={busy} aria-label={`${zh ? "修改：" : "Edit: "}${item.prompt[lang]}`} onClick={() => { setEditing(true); setStep(index); }}><Pencil size={13}/></button></div>)}</dl> : <fieldset className={styles.options} aria-labelledby={titleId} disabled={busy}>{question.options.map(option => <label key={option.value} className={styles.option} data-selected={answers.choices[question.id] === option.value}><input type="radio" name={`clarification-${value.id}-${question.id}`} value={option.value} checked={answers.choices[question.id] === option.value} onChange={() => setAnswers(current => ({ ...current, choices: { ...current.choices, [question.id]: option.value } }))}/><span>{option.label[lang]}</span><Check className={styles.choiceCheck} size={15} aria-hidden="true"/></label>)}</fieldset>}
       {showNote && <div className={styles.note}><label htmlFor={noteId}>{review ? (zh ? "有没有其他想补充的？" : "Anything else we should know?") : question.id === "profile" ? (zh ? "想调整什么？" : "What would you change?") : (zh ? "预算上限和币种" : "Your budget and currency")}{review && !noteRequired ? (zh ? "（选填）" : " (optional)") : ""}</label><textarea id={noteId} maxLength={NOTE_LIMIT} required={noteRequired} disabled={busy} value={answers.note} onChange={event => setAnswers(current => ({ ...current, note: event.target.value }))} placeholder={zh ? "例如：以前穿哪双鞋不舒服、脚宽且脚背高、预算 800 元人民币。" : "For example: a shoe that felt uncomfortable, wide feet with a high instep, or a budget of 120 USD."}/><small>{noteRequired ? (zh ? "请补充更正或预算后继续。" : "Add your correction or budget to continue.") : (zh ? "也可以把补充写在下方聊天输入框。" : "You can also add context in the chat box below.")}<span>{answers.note.length}/{NOTE_LIMIT}</span></small></div>}
     </motion.div></AnimatePresence>
     {addedNote && !showNote && <p className={styles.notice} role="status">{zh ? "已加入补充信息，最后一步可以检查或修改。" : "Added to your notes. You can review or edit them in the last step."}</p>}

@@ -27,7 +27,7 @@
     "test:ai-reservations": "tsx scripts/test-ai-reservations.mts",
     "test:rating-summary": "tsx scripts/test-rating-summary.mts",
     "test:product-boundaries": "tsx scripts/test-product-boundaries.mts",
-    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits && npm run test:catalogue-updates && npm run test:dependencies && npm run test:validation-contracts && npm run test:onboarding-vercel && npm run test:onboarding-entry && npm run test:onboarding-wall && npm run test:onboarding-picker && npm run test:private-ratings && npm run test:upload-sanitize && npm run test:account-retention && npm run test:model-catalog && npm run test:smart-picker-clarification",
+    "test:core": "npm run test:deep-link && npm run test:widgets && npm run test:outreach-rules && npm run test:account-permissions && npm run test:scoring && npm run test:recommendations && npm run test:catalog && npm run test:ai-reservations && npm run test:rating-summary && npm run test:product-boundaries && npm run test:credits && npm run test:catalogue-updates && npm run test:dependencies && npm run test:validation-contracts && npm run test:onboarding-vercel && npm run test:onboarding-entry && npm run test:onboarding-wall && npm run test:onboarding-picker && npm run test:private-ratings && npm run test:upload-sanitize && npm run test:account-retention && npm run test:model-catalog && npm run test:smart-picker-clarification && npm run test:unified-picker",
     "test:onboarding-vercel": "tsx scripts/test-onboarding-vercel.mts",
     "test:onboarding-entry": "tsx scripts/test-onboarding-entry.mts",
     "test:credits": "tsx scripts/test-credit-functions.mts",
@@ -45,7 +45,8 @@
     "test:account-retention": "tsx scripts/test-account-retention.mts",
     "test:model-catalog": "tsx scripts/test-model-catalog.mts",
     "models:validate": "tsx scripts/validate-model-catalog.mts",
-    "test:smart-picker-clarification": "tsx scripts/test-smart-picker-clarification.mts && tsx scripts/test-smart-picker-clarification-db.mts && tsx scripts/test-smart-picker-chat-route.mts && tsx scripts/test-smart-picker-fresh-catalog.mts && tsx scripts/test-confirmed-recommend.mts"
+    "test:smart-picker-clarification": "tsx scripts/test-smart-picker-clarification.mts && tsx scripts/test-smart-picker-clarification-db.mts && tsx scripts/test-smart-picker-chat-route.mts && tsx scripts/test-smart-picker-fresh-catalog.mts && tsx scripts/test-confirmed-recommend.mts",
+    "test:unified-picker": "tsx scripts/test-advisor-model-selection.mts && tsx scripts/test-conversation-mode.mts && tsx scripts/test-recommendation-detail.mts"
   },
   "dependencies": {
     "@capacitor/android": "8.5.3",

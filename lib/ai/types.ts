@@ -1,5 +1,7 @@
 import type { AiClarification } from "./clarification";
 export type AiChatSummary = {
+  /** The engine that owns this conversation. Legacy picker rows are Find. */
+  mode?: "chat" | "find";
   id: string;
   title: string | null;
   created_at: string;
@@ -44,6 +46,9 @@ export type RecommendationItem = RecommendationRaw & {
   shoe_name: string;
   image_url: string | null;
   category: string | null;
+  release_year?: number | null;
+  player?: string | null;
+  weight?: string | null;
   // Derived from the catalog at enrich time (not persisted): drives the
   // inline radar on each card and the downloadable report.
   radar: RecRadarAxis[];
@@ -90,6 +95,8 @@ export type ChatStep =
   | { kind: "status"; text: string; done?: boolean };
 
 export type AiChatMessage = {
+  /** Ephemeral render identity, preserved when a streamed message receives its saved id. */
+  clientKey?: string;
   clarification?: AiClarification | null;
   id: string;
   role: "user" | "assistant";

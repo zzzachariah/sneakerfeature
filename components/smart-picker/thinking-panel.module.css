@@ -1,0 +1,18 @@
+.panel { min-width: 0; width: fit-content; max-width: 100%; color: rgb(var(--subtext)); }
+.header { display: flex; align-items: center; gap: 9px; min-height: 44px; max-width: 100%; padding: 5px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+.header[aria-disabled=true] { cursor: default; }
+.header:focus-visible { outline: 2px solid rgb(var(--ring, var(--text)) / .6); outline-offset: 4px; border-radius: 7px; }
+.label { min-width: 0; font-size: 12px; line-height: 1.6; }
+.spinner, .idleIcon, .chevron { flex-shrink: 0; }
+.spinner { animation: picker-progress-spin 1.2s linear infinite; }
+.idleIcon { opacity: .65; }
+.chevron { margin-left: 5px; transition: transform .18s ease; }
+.chevron[data-open=true] { transform: rotate(180deg); }
+.details { max-height: 260px; margin: 5px 0 10px 6px; padding: 4px 10px 3px 14px; overflow-y: auto; overscroll-behavior: contain; border-left: 1px solid rgb(var(--text) / .12); animation: picker-details-enter .16s ease-out; }
+.row { display: flex; align-items: flex-start; gap: 10px; padding: 5px 0; }
+.stepIcon { display: inline-flex; flex-shrink: 0; justify-content: center; width: 14px; margin-top: 4px; opacity: .65; }
+.row[data-failed=true] .stepIcon { color: rgb(var(--error)); opacity: 1; }
+.row p { margin: 0; min-width: 0; font-size: 12px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+@keyframes picker-progress-spin { to { transform: rotate(360deg); } }
+@keyframes picker-details-enter { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .spinner, .details { animation: none; } .chevron { transition: none; } }

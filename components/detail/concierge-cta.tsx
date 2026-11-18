@@ -19,7 +19,7 @@ export function ConciergeCta({ shoeName }: { shoeName: string }) {
   const question = zh
     ? `帮我看看「${shoeName}」适不适合我的打法和脚型，值不值得入？`
     : `Is the "${shoeName}" right for my playstyle and feet — worth buying?`;
-  const href = `/advisor?ask=${encodeURIComponent(question)}` as Route;
+  const href = `/smart-picker?mode=chat&ask=${encodeURIComponent(question)}` as Route;
 
   return (
     <section className="mx-auto mt-4 w-full max-w-3xl px-4 sm:px-6">

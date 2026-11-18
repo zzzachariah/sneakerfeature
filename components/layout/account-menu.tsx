@@ -182,14 +182,14 @@ export function AccountMenu({ className }: { className?: string }) {
                 </Link>
 
                 <Link
-                  href="/advisor"
+                  href="/smart-picker?mode=chat"
                   prefetch={true}
                   role="menuitem"
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-[rgb(var(--text))] transition hover:bg-[rgb(var(--text)/0.07)]"
                 >
                   <Sparkles className="h-4 w-4" />
-                  {translate("AI Advisor")}
+                  {translate("Smart Picker")}
                 </Link>
 
                 {/* Submit gave up its bottom-nav slot to the closet — this is

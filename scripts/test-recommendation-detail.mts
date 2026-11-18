@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { enrichRecommendations } from '../lib/ai/recommend';
+import type { Shoe } from '../lib/types';
+const shoe:Shoe={id:'catalog-shoe',slug:'catalog-shoe',brand:'Catalog brand',shoe_name:'Catalog name',release_year:2023,weight:'340 g (US 9)',player:'Catalog player',category:'Basketball',spec:{forefoot_midsole_tech:'Catalog foam',heel_midsole_tech:'Catalog heel',upper_tech:'Mesh',outsole_tech:'Rubber'}};
+const raw={shoe_id:shoe.id,stars:null,reason:'Original recommendation',pros:[],cons:[]};
+const enriched=enrichRecommendations([raw],new Map([[shoe.id,shoe]]))[0];
+assert.equal(enriched.release_year,2023);assert.equal(enriched.weight,'340 g (US 9)');assert.equal(enriched.player,'Catalog player');
+assert.equal(enriched.tech.forefoot,'Catalog foam');assert.equal(enriched.reason,raw.reason);
+const missing=enrichRecommendations([raw],new Map([[shoe.id,{...shoe,release_year:undefined,weight:undefined,player:undefined,spec:{}}]]))[0];
+assert.equal(missing.release_year,null);assert.equal(missing.weight,null);assert.equal(missing.player,null);assert.equal(missing.tech.forefoot,null);
+assert.deepEqual(enrichRecommendations([raw],new Map()),[]);
+console.log('Inline recommendation details use exact catalog facts and preserve missing data.');

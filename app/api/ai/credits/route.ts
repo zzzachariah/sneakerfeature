@@ -37,5 +37,5 @@ export async function GET() {
   // disabled send button once their leftover free-tier credits ran out.
   const unlimited = ctx.isAdmin || hasUnmeteredBase(tier);
 
-  return NextResponse.json({ ok: true, balance, unlimited, checkin, allowance, tier, model });
+  return NextResponse.json({ ok: true, balance, unlimited, chatUnlimited: ctx.isAdmin, checkin, allowance, tier, model });
 }
