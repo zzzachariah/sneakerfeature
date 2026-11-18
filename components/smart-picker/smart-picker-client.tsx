@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
 import { MAX_CONCURRENT_TURNS, type AiChatMessage, type AiChatSummary, type RecommendationItem } from "@/lib/ai/types";
+import type { AiClarification, ClarificationAnswers } from "@/lib/ai/clarification";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { isModelId, type ModelId, type Tier } from "@/lib/subscription/tiers";
@@ -57,6 +58,8 @@ function statusText(
   switch (d.phase) {
     case "start":
       return "Getting started…";
+    case "clarifying":
+      return "Preparing a few follow-up questions…";
     case "thinking":
       return "Analyzing your request…";
     case "reading":
@@ -332,7 +335,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   }, []);
 
   const handleSend = useCallback(
-    async (message: string, count: number) => {
+    async (message: string, count: number, request?: { clarification?: { id: string; answers: ClarificationAnswers }; model?: string; retryMessageId?: string }) => {
       // The guard is per-conversation: only a turn already running in THIS
       // conversation blocks a send. Another chat generating does not.
       let key = activeChatId ?? NEW_CHAT_KEY;
@@ -357,7 +360,9 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         credits_charged: 0,
         created_at: new Date().toISOString()
       };
-      appendTo(key, tempUser);
+      const preparingQuestions = !request?.clarification && !(threads[key] ?? []).some(item => item.recommendations?.length);
+      if (!request?.retryMessageId) appendTo(key, tempUser);
+      if (request?.clarification) patchThread(key, list => list.map(item => item.clarification?.id === request.clarification!.id ? { ...item, clarification: { ...item.clarification, status: "answering", answers: request.clarification!.answers } } : item));
       // What the Dynamic Island shows while this turn runs.
       lastPromptRef.current = message;
       markStreaming(key, true);
@@ -370,6 +375,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       // instead of appending a second, context-free one.
       let streamingId: string | null = null;
       let sawTerminal = false;
+      let answerSucceeded = false;
+      let needsRecovery = false;
 
       // Every write targets `key`, which follows the turn (not the view) — the
       // user can switch conversations mid-stream and the turn keeps filling in
@@ -419,7 +426,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         const res = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-          body: JSON.stringify({ chatId, message, count, ...(model ? { model } : {}) }),
+          body: JSON.stringify({ chatId, message, count, ...((request?.model ?? model) ? { model: request?.model ?? model } : {}), ...(request?.clarification ? { clarification: request.clarification } : {}) }),
           signal: controller.signal
         });
 
@@ -428,6 +435,22 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         const contentType = res.headers.get("content-type") ?? "";
         if (!contentType.includes("text/event-stream") || !res.body) {
           const data = await res.json().catch(() => null);
+          if (data?.ok && data.clarification && data.assistantMessage) {
+            sawTerminal = true;
+            const saved = [data.userMessage, data.assistantMessage].filter(Boolean) as AiChatMessage[];
+            patchThread(key, list => {
+              const next = list.filter(item => item.id !== tempUser.id);
+              for (const item of saved) { const index = next.findIndex(existing => existing.id === item.id); if (index >= 0) next[index] = item; else next.push(item); }
+              return next;
+            });
+            if (data.assistantMessage.clarification?.status === "complete") {
+              const history = await getJson(`/api/ai/chats/${key}/messages`);
+              if (history?.ok) patchThread(key, () => history.messages as AiChatMessage[]);
+            }
+            void refreshChats();
+            return;
+          }
+          needsRecovery = Boolean(request?.clarification || preparingQuestions);
           if (data?.ok && data.insufficient) {
             setBalance(data.balance);
             patchThread(key, (list) => [
@@ -546,6 +569,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
               }
               case "done": {
                 sawTerminal = true;
+                answerSucceeded = true;
+                if (request?.clarification) patchThread(key, list => list.map(item => item.clarification?.id === request.clarification!.id ? { ...item, clarification: { ...item.clarification, status: "complete", answers: request.clarification!.answers } } : item));
                 const d = data as {
                   assistantMessageId?: string;
                   content?: string;
@@ -586,6 +611,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
               }
               case "error": {
                 sawTerminal = true;
+                needsRecovery = Boolean(request?.clarification);
                 const msg = (data as { message?: string }).message ?? failMsg;
                 patch((m) => ({ ...m, content: msg, steps: undefined, recommendations: null }));
                 break;
@@ -600,6 +626,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         // mid-turn (function timeout, proxy drop). Without this the bubble sat
         // in "thinking" forever with no explanation.
         if (!sawTerminal) {
+          needsRecovery = Boolean(request?.clarification || preparingQuestions);
           patch((m) => ({
             ...m,
             content: m.content || dropMsg,
@@ -610,6 +637,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         // The conversation was deleted mid-turn — its thread is gone, so there
         // is nothing to report into.
         if (controller.signal.aborted) return;
+        needsRecovery = Boolean(request?.clarification || preparingQuestions);
         // Network/transport error. Finish the streaming bubble in place when
         // there is one — appending a second bubble stranded the user's live
         // "thought process" above a message that looked unrelated to it.
@@ -623,6 +651,14 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           appendTo(key, localMessage(failMsg));
         }
       } finally {
+        if (needsRecovery && !answerSucceeded && !controller.signal.aborted && key !== NEW_CHAT_KEY) {
+          const recovered = await getJson(`/api/ai/chats/${key}/messages`);
+          if (recovered?.ok) patchThread(key, list => {
+            const notices = list.filter(item => item.id.startsWith("local-") || (item.id === streamingId && Boolean(item.content)));
+            return [...recovered.messages as AiChatMessage[], ...notices];
+          });
+          else if (request?.retryMessageId) patchThread(key, list => list.map(item => item.clarification && item.clarification.id === request.retryMessageId ? { ...item, clarification: { ...item.clarification, status: "failed" } } : item));
+        }
         markStreaming(key, false);
         if (controllersRef.current.get(key) === controller) controllersRef.current.delete(key);
         // Finished while the user was elsewhere — flag it in history so the
@@ -633,8 +669,33 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         }
       }
     },
-    [activeChatId, refreshChats, zhUI, failMsg, dropMsg, model, appendTo, patchThread, markStreaming]
+    [activeChatId, refreshChats, zhUI, failMsg, dropMsg, model, appendTo, patchThread, markStreaming, threads]
   );
+
+  // Restore a question or recommendation run after a reload or dropped stream.
+  // A live local stream remains authoritative; history polling never overwrites it.
+  const waitingOnServer = messages.some(item => item.clarification?.status === "generating" || item.clarification?.status === "answering");
+  useEffect(() => {
+    if (!activeChatId || sending || !waitingOnServer) return;
+    let stopped = false;
+    const timer = window.setInterval(async () => {
+      if (streamsRef.current.has(activeChatId)) return;
+      const res = await getJson(`/api/ai/chats/${activeChatId}/messages`);
+      if (!stopped && res?.ok && !streamsRef.current.has(activeChatId)) patchThread(activeChatId, () => res.messages as AiChatMessage[]);
+    }, 2500);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [activeChatId, sending, waitingOnServer, patchThread]);
+
+  const handleClarification = useCallback((value: AiClarification, answers: ClarificationAnswers) => {
+    const lang = /[㐀-鿿]/.test(value.originalMessage) ? "zh" : "en";
+    const summary = value.questions.map(question => `${question.prompt[lang]} ${question.options.find(option => option.value === answers.choices[question.id])?.label[lang] ?? ""}`).join("\n");
+    const content = `${summary}${answers.note ? `\n\n${lang === "zh" ? "补充：" : "Additional context: "}${answers.note}` : ""}`;
+    void handleSend(content, value.count, { clarification: { id: value.id, answers }, model: value.model });
+  }, [handleSend]);
+  const retryClarification = useCallback((value: AiClarification) => {
+    patchThread(activeChatId ?? NEW_CHAT_KEY, list => list.map(item => item.clarification?.id === value.id ? { ...item, clarification: { ...item.clarification, status: "generating" } } : item));
+    void handleSend(value.originalMessage, value.count, { model: value.model, retryMessageId: value.id });
+  }, [handleSend, activeChatId, patchThread]);
 
   return (
     <div className="slide-viewport-h flex overflow-hidden">
@@ -676,7 +737,9 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         unseenChatIds={unseenChatIds}
         activeTitle={chats.find((c) => c.id === activeChatId)?.title ?? null}
         onClaimCheckin={handleClaimCheckin}
-        onSend={handleSend}
+        onSend={(text, count) => { void handleSend(text, count); }}
+        onClarification={handleClarification}
+        onRetryClarification={retryClarification}
         onSelectChat={handleSelect}
         onNewChat={handleNewChat}
       />

@@ -19,7 +19,9 @@ type Props = {
   tier: Tier;
   model: ModelId | null;
   onSelectModel: (id: ModelId) => void;
-  onSend: (message: string, count: number) => void;
+  onSend: (message: string, count: number) => boolean | void;
+  freePreparation?: boolean;
+  pendingClarification?: boolean;
   /**
    * Mirrors the effective ×N up to the parent. The follow-up composer sends
    * straight into the same conversation and must bill at the same count the
@@ -44,8 +46,8 @@ const COMPOSER_H = {
   wide: { rest: 40, max: 128 },
 };
 
-export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, model, onSelectModel, onSend, onCountChange, prefillText, prefillNonce = 0 }: Props) {
-  const { translate } = useLocale();
+export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, model, onSelectModel, onSend, freePreparation = false, pendingClarification = false, onCountChange, prefillText, prefillNonce = 0 }: Props) {
+  const { translate, locale } = useLocale();
   const [text, setText] = useState("");
   // String state so the user can clear "1" and retype — enforce range only on blur.
   const [countStr, setCountStr] = useState("3");
@@ -80,7 +82,7 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
   // the tier as well as the flag so a stale/absent `unlimited` can never lock a
   // paying member out of the composer.
   const metered = !unlimited && !hasUnmeteredBase(tier);
-  const insufficient = metered && balance < count;
+  const insufficient = !freePreparation && metered && balance < count;
   const canSend = text.trim().length > 0 && !sending;
   const isReady = canSend && !insufficient && !atTurnLimit;
 
@@ -106,7 +108,7 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
 
   const submit = () => {
     if (!isReady) return;
-    onSend(text.trim(), count);
+    if (onSend(text.trim(), count) === false) return;
     setText("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   };
@@ -170,7 +172,7 @@ export function MessageInput({ balance, unlimited, sending, atTurnLimit, tier, m
           onChange={(e) => { setText(e.target.value); growTextarea(); }}
           onKeyDown={onKeyDown}
           rows={1}
-          placeholder={translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
+          placeholder={pendingClarification ? (locale === "zh" ? "也可以在这里补充需求，加入本次选鞋…" : "Add any extra context to your picks here…") : translate("Describe what you're looking for (e.g. responsive cushioning for a guard)…")}
           style={{ fontSize: "16px", lineHeight: "1.5" }}
           className="min-h-[3.5rem] flex-1 resize-none bg-transparent py-4 outline-none placeholder:text-[rgb(var(--subtext)/0.45)] sm:min-h-[2.5rem] sm:py-2"
         />

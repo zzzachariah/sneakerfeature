@@ -1,4 +1,6 @@
 "use client";
+import { useModelCatalog } from "@/lib/ai/use-model-catalog";
+import { catalogModelName, type ModelCatalog } from "@/lib/ai/model-catalog";
 
 import { useRef, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
@@ -11,7 +13,6 @@ import {
   CURRENCY,
   priceFor,
   monthlyEquivalent,
-  pickerModelInfo,
   type ModelId,
   type Tier,
   type Duration
@@ -121,25 +122,15 @@ type BenefitRow = {
   maxEn: string;
 };
 
-// Display name for a model id, straight from the picker catalog, so the
-// comparison table can't advertise a model the Smart Picker no longer runs.
-const modelName = (id: ModelId | null): string | null => (id ? (pickerModelInfo(id)?.name ?? id) : null);
-
-// "<base> + <premium>" for a paid tier. Both paid tiers run the same pair —
-// they differ in monthly allowance and pipeline depth, not in model access.
-function tierModels(tier: Exclude<Tier, "free">): string {
-  const cfg = TIERS[tier];
-  const premium = modelName(cfg.capabilities.premiumModel);
-  return [modelName(cfg.baseModel), premium].filter(Boolean).join(" + ");
-}
-
-const BENEFIT_ROWS: BenefitRow[] = [
+function benefitRows(modelName: (id: ModelId | null) => string | null): BenefitRow[] {
+  const tierModels = (tier: "pro" | "max") => [modelName(TIERS[tier].baseModel), modelName(TIERS[tier].capabilities.premiumModel)].filter(Boolean).join(" + ");
+  return [
   {
     icon: Gauge,
     label: "AI 模型",
     labelEn: "AI model",
-    free: "Haiku · 轻量",
-    freeEn: "Haiku · light",
+    free: `${modelName(TIERS.free.baseModel)} · 轻量`,
+    freeEn: `${modelName(TIERS.free.baseModel)} · light`,
     pro: tierModels("pro"),
     proEn: tierModels("pro"),
     max: `${tierModels("max")} · 深度模式`,
@@ -163,8 +154,12 @@ const BENEFIT_ROWS: BenefitRow[] = [
   { icon: Palette, label: "皮肤 · 徽章 · 个性化", labelEn: "Skins · badge · personalization", free: "—", freeEn: "—", pro: "✓", proEn: "✓", max: "✓ 深度", maxEn: "✓ Deep" },
   { icon: Crown, label: "优先级 · 抢先体验", labelEn: "Priority · early access", free: "—", freeEn: "—", pro: "—", proEn: "—", max: "✓", maxEn: "✓" }
 ];
+}
 
-export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
+export function SubscribeClient({ current, initialCatalog }: { current: SubscribeCurrent; initialCatalog: ModelCatalog }) {
+  const catalog = useModelCatalog(initialCatalog);
+  const modelName = (id: ModelId | null) => catalogModelName(catalog, id);
+  const rows = benefitRows(modelName);
   const { locale } = useLocale();
   const zh = locale === "zh";
   const t = (z: string, e: string) => (zh ? z : e);
@@ -684,7 +679,7 @@ export function SubscribeClient({ current }: { current: SubscribeCurrent }) {
               </tr>
             </thead>
             <tbody>
-              {BENEFIT_ROWS.map((r) => {
+              {rows.map((r) => {
                 const Icon = r.icon;
                 return (
                   <tr key={r.label} className="border-b border-[rgb(var(--muted)/0.2)] last:border-0">

@@ -14,6 +14,7 @@ import { MessageInput } from "@/components/smart-picker/message-input";
 import { ProfileTip } from "@/components/smart-picker/profile-tip";
 import { PromptQuestionnaire } from "@/components/smart-picker/prompt-questionnaire";
 import { RecommendationGroup } from "@/components/smart-picker/recommendation-group";
+import { ClarificationPanel } from "@/components/smart-picker/clarification-panel";
 import { ThinkingPanel } from "@/components/smart-picker/thinking-panel";
 import { CheckinBadge } from "@/components/smart-picker/checkin-badge";
 import { ChatActivityDot } from "@/components/smart-picker/chat-activity-dot";
@@ -22,6 +23,8 @@ import { SneakerLoader } from "@/components/ui/sneaker-loader";
 import { AiOnboarding } from "@/components/onboarding/ai-onboarding";
 import { isCjkInput } from "@/lib/i18n/detect-cjk";
 import type { AiChatMessage, AiChatSummary, RecommendationItem } from "@/lib/ai/types";
+import type { AiClarification, ClarificationAnswers } from "@/lib/ai/clarification";
+import { hasUnmeteredBase } from "@/lib/subscription/tiers";
 import type { CheckinStatus } from "@/lib/ai/checkin";
 import type { ModelId, Tier } from "@/lib/subscription/tiers";
 
@@ -51,6 +54,8 @@ type Props = {
   activeTitle: string | null;
   onClaimCheckin: () => Promise<void>;
   onSend: (message: string, count: number) => void;
+  onClarification: (value: AiClarification, answers: ClarificationAnswers) => void;
+  onRetryClarification: (value: AiClarification) => void;
   onSelectChat: (id: string) => void;
   onNewChat: () => void;
 };
@@ -78,6 +83,8 @@ export function ChatConversation({
   activeTitle,
   onClaimCheckin,
   onSend,
+  onClarification,
+  onRetryClarification,
   onSelectChat,
   onNewChat
 }: Props) {
@@ -91,6 +98,32 @@ export function ChatConversation({
   // The ×N the composer is currently set to. The follow-up box sends into the
   // same conversation, so it has to bill at the same count the user chose.
   const [count, setCount] = useState(1);
+  const draftNotes = useRef(new Map<string, string>());
+  const [noteAddition, setNoteAddition] = useState<{ id: string; text: string; nonce: number } | null>(null);
+  const [composerNotice, setComposerNotice] = useState("");
+  const pendingClarification = messages.findLast(item => item.clarification?.status === "awaiting_answers")?.clarification;
+  const hasRecommendations = messages.some(item => Boolean(item.recommendations?.length));
+  const waitingForClarification = messages.some(item => item.clarification?.status === "generating" || item.clarification?.status === "answering");
+  const clarificationComplete = messages.some(item => item.clarification?.status === "complete");
+  useEffect(() => { setComposerNotice(""); }, [activeChatId]);
+  const preparingQuestions = sending && !hasRecommendations && !messages.some(item => item.clarification?.status === "answering" || item.clarification?.status === "complete");
+  const sendMessage = (text: string, requestedCount: number) => {
+    if (pendingClarification && !sending) {
+      const previous = draftNotes.current.get(pendingClarification.id) ?? pendingClarification.answers?.note ?? "";
+      const combined = [previous.trim(), text.trim()].filter(Boolean).join("\n");
+      if (combined.length > 500) {
+        setComposerNotice(locale === "zh" ? "补充信息最多 500 字。请在问题末尾整理后再确认；输入框里的内容已保留。" : "Notes can be up to 500 characters. Edit them in the question panel before confirming; your chat draft is still here.");
+        return false;
+      }
+      draftNotes.current.set(pendingClarification.id, combined);
+      setNoteAddition(previous => ({ id: pendingClarification.id, text: combined, nonce: (previous?.nonce ?? 0) + 1 }));
+      setComposerNotice(locale === "zh" ? "已加入本次选鞋的补充信息。回答完问题后，一起确认即可。" : "Added to your notes for this request. Review them after answering the questions, then confirm.");
+      return true;
+    }
+    setComposerNotice("");
+    onSend(text, requestedCount);
+    return true;
+  };
   const historyRef = useRef<HTMLDivElement | null>(null);
   const openUsage = useCallback(() => setUsageOpen(true), []);
   const sendFollowUp = useCallback((text: string) => onSend(text, count), [onSend, count]);
@@ -120,7 +153,10 @@ export function ChatConversation({
 
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    const questions = !sending ? el.querySelector<HTMLElement>('[data-chat-clarification="awaiting_answers"]') : null;
+    if (questions) el.scrollTop += questions.getBoundingClientRect().top - el.getBoundingClientRect().top - 16;
+    else el.scrollTop = el.scrollHeight;
   }, [messages, sending]);
 
   // Close the mobile history popover on outside click / Escape.
@@ -201,7 +237,7 @@ export function ChatConversation({
         </div>
         <AiOnboarding
           ready={onboardingReady && creditsLoaded}
-          busy={loadingMessages || sending || streamingChatIds.length > 0 || historyOpen || questionnaireOpen || usageOpen || Boolean(report)}
+          busy={loadingMessages || sending || Boolean(pendingClarification) || streamingChatIds.length > 0 || historyOpen || questionnaireOpen || usageOpen || Boolean(report)}
           autoBlocked={lastMessage?.id.startsWith("local-") ?? false}
           onActiveChange={setAiGuideActive}
         />
@@ -238,7 +274,7 @@ export function ChatConversation({
         )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-[var(--container-gutter)] py-4">
+      <div ref={scrollRef} data-smart-picker-scroll className="flex-1 overflow-y-auto px-[var(--container-gutter)] py-4">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
           {/* Loading a past conversation from history — animated spinner while it fetches. */}
           {loadingMessages && (
@@ -317,7 +353,7 @@ export function ChatConversation({
             const active = sending && isLast;
             // Show the reasoning timeline when there are steps, or keep an animated
             // placeholder alive while this turn is still streaming.
-            const showThinking = (message.steps?.length ?? 0) > 0 || active;
+            const showThinking = !message.clarification && ((message.steps?.length ?? 0) > 0 || active);
             // The whole turn — steps, answer, follow-up — speaks the language
             // the user typed in, so the panel chrome keys off the request that
             // produced this answer rather than the app's UI locale.
@@ -341,7 +377,19 @@ export function ChatConversation({
 
                 {/* The clean answer. Code/JSON the relay sometimes emits is filtered
                     server-side, so it never reaches this bubble or the timeline. */}
-                {paragraphs.length > 0 && (
+                {message.clarification && <ClarificationPanel
+                  key={message.clarification.id}
+                  value={message.clarification}
+                  zh={isCjkInput(message.clarification.originalMessage)}
+                  busy={sending || atTurnLimit}
+                  canAfford={unlimited || hasUnmeteredBase(tier) || balance >= message.clarification.count}
+                  onConfirm={answers => onClarification(message.clarification!, answers)}
+                  onRetry={() => onRetryClarification(message.clarification!)}
+                  onOpenUsage={openUsage}
+                  extraNote={noteAddition?.id === message.clarification.id ? noteAddition : undefined}
+                  onNoteChange={note => { draftNotes.current.set(message.clarification!.id, note); }}
+                />}
+                {!message.clarification && paragraphs.length > 0 && (
                   <motion.div
                     {...bubbleIn(-12)}
                     className="flex max-w-[90%] flex-col gap-2 rounded-2xl rounded-bl-md bg-[rgb(var(--surface)/0.85)] px-3.5 py-2.5 text-sm"
@@ -403,19 +451,22 @@ export function ChatConversation({
 
           {/* Sending has begun but the streaming assistant bubble hasn't been
               inserted yet — keep the thinking animation visible without a gap. */}
-          {sending && lastMessage?.role !== "assistant" && <ThinkingPanel steps={[]} active />}
+          {sending && lastMessage?.role !== "assistant" && <ThinkingPanel steps={preparingQuestions ? [{ kind: "status", text: locale === "zh" ? "正在准备本轮确认问题…" : "Preparing your follow-up questions…" }] : []} active />}
         </div>
       </div>
 
+      {composerNotice && <p className="px-[var(--container-gutter)] py-2 text-xs soft-text" role="status">{composerNotice}</p>}
       <MessageInput
         balance={balance}
         unlimited={unlimited}
-        sending={sending}
+        sending={sending || waitingForClarification}
         atTurnLimit={atTurnLimit}
         tier={tier}
         model={model}
         onSelectModel={onSelectModel}
-        onSend={onSend}
+        onSend={sendMessage}
+        freePreparation={!hasRecommendations && !clarificationComplete}
+        pendingClarification={Boolean(pendingClarification)}
         onCountChange={setCount}
         prefillText={prefill.text}
         prefillNonce={prefill.nonce}

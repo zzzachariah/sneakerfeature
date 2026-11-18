@@ -168,14 +168,15 @@ async function* completionEvents(response: Response, abort: AbortController, mod
   if (!stopped && !abort.signal.aborted) throw new Error("Claude stream ended before message_stop");
 }
 
-export function createPackyFetch(transport: typeof fetch = globalThis.fetch): typeof fetch {
+export function createPackyFetch(transport: typeof fetch = globalThis.fetch, resolveModel?: (model: string) => Promise<string>): typeof fetch {
   const thinkingCache: ThinkingCache = new Map();
   return async (input, init) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
     if (request.method !== "POST" || !url.pathname.endsWith("/chat/completions")) return transport(input, init);
     const params = await request.clone().json() as Params;
-    if (!params.model.startsWith("claude-")) return transport(input, init);
+    if (resolveModel) params.model = await resolveModel(params.model);
+    if (!params.model.startsWith("claude-")) return transport(new Request(request, { body: JSON.stringify(params) }));
 
     url.pathname = url.pathname.replace(/\/chat\/completions$/, "/messages");
     const headers = new Headers(request.headers);

@@ -125,8 +125,8 @@ class CatalogUnavailableError extends Error {
   }
 }
 
-async function loadShoesBase(): Promise<ShoesBase> {
-  const supabase = createPublicClient();
+async function loadShoesBase(fetcher?: typeof fetch): Promise<ShoesBase> {
+  const supabase = createPublicClient(fetcher);
   if (!supabase) {
     console.warn(
       "[getShoesBase] Supabase public client unavailable. " +
@@ -393,4 +393,11 @@ export async function getShoeImageState(shoeId: string, includePending: boolean)
   const latestRejected = includePending ? rows.find((row) => row.status === "rejected") ?? null : null;
 
   return { approved, pending, latestRejected };
+}
+
+/** New confirmed Smart Picker runs use fresh public data and never demo fallback. */
+export async function getFreshPublicShoes(): Promise<Shoe[]> {
+  const base = await loadShoesBase((input, init) => fetch(input, { ...init, cache: "no-store" }));
+  if (!base.rows.length) throw new Error("Catalog unavailable");
+  return assembleShoes(base, EMPTY_USER_CONTEXT);
 }

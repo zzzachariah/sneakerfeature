@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSmartPickerContext } from "@/lib/ai/access";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readChatClarification, publicClarification } from "@/lib/ai/clarification-server";
 import { getShoes } from "@/lib/data/shoes";
 import { enrichRecommendations } from "@/lib/ai/recommend";
 import type { RecommendationRaw } from "@/lib/ai/types";
@@ -42,10 +43,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ ok: false, message: error.message }, { status: 500 });
 
-  const shoes = await getShoes();
-  const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
-
   const rows = (data ?? []) as unknown as MessageRow[];
+  let clarification;
+  try { clarification = await readChatClarification(admin, id, ctx.userId); }
+  catch { return NextResponse.json({ ok: false, message: "Preferences are temporarily unavailable." }, { status: 503 }); }
+  // Question-only conversations do not read or preload the catalog on reload.
+  const shoes = rows.some(row => row.recommendations?.length) ? await getShoes() : [];
+  const byId = new Map(shoes.map((shoe) => [shoe.id, shoe]));
   const messages = rows.map((r) => ({
     id: r.id,
     role: r.role,
@@ -53,7 +57,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     credits_charged: r.credits_charged,
     created_at: r.created_at,
     followUp: typeof r.follow_up === "string" && r.follow_up.trim() ? r.follow_up : null,
-    recommendations: r.recommendations ? enrichRecommendations(r.recommendations, byId) : null
+    recommendations: r.recommendations ? enrichRecommendations(r.recommendations, byId) : null,
+    ...(clarification?.assistant_message_id === r.id ? { clarification: publicClarification(clarification) } : {})
   }));
 
   return NextResponse.json({ ok: true, messages });
