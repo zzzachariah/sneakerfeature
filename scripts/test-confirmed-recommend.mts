@@ -8,9 +8,9 @@ import {startDeadline} from "../lib/ai/budget";
 
 type Request = {
   model: string; messages: {content: string}[];
-  tool_choice?: {function: {name: string}}; parallel_tool_calls?: boolean;
+  tool_choice?: {function: {name: string}} | "auto"; parallel_tool_calls?: boolean;
   response_format?: {type: string};
-  tools?: {function: {parameters: {properties: {
+  tools?: {function: {name: string; parameters: {properties: {
     candidates?: {minItems: number; maxItems: number};
     recommendations?: {minItems: number; maxItems: number};
   }}}}[];
@@ -99,7 +99,7 @@ try{
       assert(!text.includes("x".repeat(1801)),"One oversized historical message cannot consume the model context");
       assert(!text.includes("OLD-DEPTH-OVERRIDE"),"Old tier/profile directives cannot undo user corrections");
       if(model===HAIKU_MODEL){
-        assert.equal(params.tool_choice?.function.name,phase==="shortlist"?"shortlist_shoes":"recommend_shoes");
+        assert.equal(typeof params.tool_choice==="object"?params.tool_choice.function.name:undefined,phase==="shortlist"?"shortlist_shoes":"recommend_shoes");
         assert.equal(params.parallel_tool_calls,false);assert.equal(params.response_format,undefined);
         const properties=params.tools?.[0].function.parameters.properties;
         assert.equal(phase==="shortlist"?properties?.candidates?.maxItems:properties?.recommendations?.maxItems,phase==="shortlist"?wanted:count);
@@ -140,6 +140,54 @@ try{
   assert.equal(queries.filter(query=>query.price).length,3+5+10,"Live prices bypass the review cache");
   assert.equal(queries.filter(query=>!query.price).length,10,"Successful fit research can reuse its cache");
   assert.equal(queries.filter(query=>query.round===2).length,15,"Eight selected picks research all ten candidates with a maximum of twenty probes");
+
+  // Fable 5.2 rejects forced tool_choice. Auto must retain native schemas while
+  // accepting either fragmented tool arguments or the explicit JSON fallback.
+  for(const output of ["tool","json","prose-shortlist","prose-final"] as const){
+    stage="shortlist";
+    const beforeSearch=queries.length;
+    const shortlisted=names.slice(0,5);
+    const chosen=[names[0],names[1],names[3]];
+    let calls=0;
+    const client={chat:{completions:{create:async(params:Request)=>{
+      const phase=calls++===0?"shortlist":"final";
+      const tool=phase==="shortlist"?"shortlist_shoes":"recommend_shoes";
+      const text=params.messages.map(message=>message.content).join("\n");
+      assert.equal(params.model,"claude-fable-5-2");
+      assert.equal(params.tool_choice,"auto","Fable 5.2 must never receive a forced tool request");
+      assert.equal(params.tools?.[0].function.name,tool,"Auto preserves the native tool schema");
+      assert.equal(params.parallel_tool_calls,false);
+      assert.equal(params.response_format,undefined);
+      assert.match(text,new RegExp(`Prefer calling ${tool}`));
+      assert.match(text,/If you do not call the tool, return ONLY the complete JSON object matching its schema/);
+      assert(text.includes(currentInput),"Auto and JSON fallback retain all confirmed corrections");
+      if(phase==="shortlist"){
+        assert.equal(queries.length,beforeSearch,"Fable also shortlists before any research");
+        assert.equal(params.tools?.[0].function.parameters.properties.candidates?.minItems,5);
+        stage="search";
+      }else{
+        assert.equal(active,0);stage="final";
+        assert.equal(queries.filter(query=>query.round===round&&query.price).length,5);
+        assert.match(text,/Current CNY price is unverified/);
+        assert.doesNotMatch(text,/WRONG-VERSION-SECRET|Different Shoe 99/);
+      }
+      if(output===`prose-${phase}`)return (async function*(){yield{choices:[{delta:{content:"I will choose suitable shoes after looking into your needs."},finish_reason:"stop"}]};})();
+      return stream(phase==="shortlist"
+        ? {candidates:shortlisted,research:shortlisted.map(name=>({name,needs:["fit","price","weight","construction"]}))}
+        : {reply:"Comfort comes first; exact-model fit and current CNY prices need verification.",title:"Confirmed choices",follow_up:"",recommendations:chosen.map(name=>({name,stars:4,reason:"Comfort follows the confirmed correction. Fit needs a try-on. Current CNY price is unverified; I cannot confirm it is within budget.",pros:["Documented cushioning"],cons:["Fit needs a try-on"],references:[]}))},output==="tool",tool);
+    }}}} as unknown as OpenAI;
+    const run=()=>recommendShoes(client,{shoes,history:[],currentInput,count:3,model:"claude-fable-5-2",confirmedPreferences:true,replyLanguage:"en",researchFocus:"wide feet high instep outdoor",priceResearchFocus:"current price CNY"});
+    if(output.startsWith("prose-")){
+      await assert.rejects(run,expectedFailure(output==="prose-shortlist"?"invalid_shortlist":"invalid_result"));
+      assert.equal(calls,output==="prose-shortlist"?1:2,"Prose does not trigger another model or fabricated picks");
+      if(output==="prose-shortlist")assert.equal(queries.length,beforeSearch,"Invalid output cannot trigger search");
+    }else{
+      const result=await run();
+      assert.deepEqual(result.recommendations.map(rec=>rec.name),chosen);
+      assert.equal(result.followUp,"");assert.equal(calls,2);
+    }
+    round++;
+  }
 
   const hit={title:"Confirm Shoe 1 Basketball Review",url:source(0),snippet:"Basketball shoe review",siteName:null,datePublished:null};
   assert(confirmedSourceMatches(names[0],hit));
@@ -192,7 +240,7 @@ try{
     }
     round++;
   }
-  console.log("PASS confirmed Smart Picker counts 1/3/8, native fragmented tools + JSON, full-catalog shortlist before exact-model research, live prices/cache boundaries, three-worker cap, corrected context, same-model references, and failure without fabricated picks.");
+  console.log("PASS confirmed Smart Picker counts 1/3/8, native fragmented tools + JSON, Fable auto tool/JSON output and prose rejection, full-catalog shortlist before exact-model research, live prices/cache boundaries, three-worker cap, corrected context, same-model references, and failure without fabricated picks.");
 }finally{
   globalThis.fetch=originalFetch;
   if(originalEnv.key===undefined)delete process.env.TAVILY_API_KEY;else process.env.TAVILY_API_KEY=originalEnv.key;

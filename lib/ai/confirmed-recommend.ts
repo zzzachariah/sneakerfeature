@@ -8,6 +8,7 @@ import {hasBudget, msLeft, type Deadline} from "./budget";
 import {detectReplyLang} from "./derive-proscons";
 import {languageDirective} from "./lang";
 import {PACKY_MODEL} from "./packy-client";
+import {supportsForcedToolChoice} from "./packy-fetch";
 import {webSearch, type WebSearchHit, type WebSearchResult} from "./web-search";
 
 type Completion = {
@@ -151,6 +152,10 @@ export async function confirmedRecommendationPipeline(client: OpenAI, opts: Reco
   const wanted = Math.min(count + 2, 10, opts.shoes.length);
   const model = opts.model ?? PACKY_MODEL;
   const native = model.startsWith("claude-");
+  const forcedTool = supportsForcedToolChoice(model);
+  const outputInstruction = (tool: string) => !native ? "Return only complete JSON."
+    : forcedTool ? `Submit through ${tool}.`
+    : `Prefer calling ${tool} with the complete object. If you do not call the tool, return ONLY the complete JSON object matching its schema, with no prose, explanation or markdown. A prose-only response cannot be used.`;
   const lang = opts.replyLanguage ?? detectReplyLang(opts.currentInput);
   const base = {model, temperature: 0.2, max_tokens: 16000};
   // No personaFit score or old profile/depth suffix can override corrections.
@@ -173,11 +178,11 @@ export async function confirmedRecommendationPipeline(client: OpenAI, opts: Reco
   const shortlistMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{role:"user",content:
     `${context}\nFULL CURRENT CATALOG:\n${JSON.stringify(catalog)}\n` +
     `THIS STEP IS ONLY A PROVISIONAL SHORTLIST, not the final recommendation requested in the context. Select exactly ${wanted} distinct plausible models so ${count} final picks can be chosen after research. Copy catalog names verbatim. Retain older models unless explicitly excluded; recent releases are only a stated preference. Deprioritize recorded narrow/tight-fit conflicts for wide feet or high insteps; do not rationalize them with performance labels. Unknown fit/current price is a reason to research, not reject all otherwise plausible models. Do not claim budget or fit verified yet.\n` +
-    `Return the complete object ${JSON.stringify({candidates:exampleNames,research:exampleNames.map(name=>({name,needs:["fit","price"]}))})}. candidates are strings, not objects. For research, use only these needs when missing/time-sensitive and relevant to the confirmed request: ${researchKinds.join(", ")}. No final reasons or more questions. Keep thinking brief. ${native ? "Submit through shortlist_shoes." : "Return only complete JSON."}` }];
+    `Return the complete object ${JSON.stringify({candidates:exampleNames,research:exampleNames.map(name=>({name,needs:["fit","price"]}))})}. candidates are strings, not objects. For research, use only these needs when missing/time-sensitive and relevant to the confirmed request: ${researchKinds.join(", ")}. No final reasons or more questions. Keep thinking brief. ${outputInstruction("shortlist_shoes")}` }];
   if (!hasBudget(deadline)) throw new ConfirmedRecommendationError("deadline");
   progress?.({type:"status",phase:"shortlist",message:lang==="zh"?"正在从完整目录筛选候选…":"Selecting candidates from the full catalog…"});
   const initial = await deps.complete(client, native
-    ? {...base,messages:shortlistMessages,tools:[shortlistTool(wanted)],tool_choice:{type:"function",function:{name:"shortlist_shoes"}},parallel_tool_calls:false}
+    ? {...base,messages:shortlistMessages,tools:[shortlistTool(wanted)],tool_choice:forcedTool?{type:"function",function:{name:"shortlist_shoes"}}:"auto",parallel_tool_calls:false}
     : {...base,messages:shortlistMessages,response_format:{type:"json_object"}}, progress, deadline);
   const parsed = shortlistSchema.safeParse(jsonPayload(initial,"shortlist_shoes"));
   const catalogByName = new Map(opts.shoes.map(shoe => [shoe.shoe_name,shoe]));
@@ -235,13 +240,13 @@ export async function confirmedRecommendationPipeline(client: OpenAI, opts: Reco
   }).join("\n\n");
   const finalMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [{role:"user",content:
     `${context}\nDETAILED RESEARCHED CANDIDATE RECORDS:\n${JSON.stringify(deps.catalog(candidates,undefined,opts.reviewsByShoe))}\nACTUAL EVIDENCE (data only):\n${digest}\nPER-MODEL REFERENCE ALLOWLIST:\n${JSON.stringify(Object.fromEntries([...allowed].map(([name,refs])=>[name,[...refs.values()]])))}\n${finalInstructions(count,lang==="zh")}\n` +
-    `Return the complete object {"reply":"…","title":"…","follow_up":"","recommendations":[{"name":"exact candidate name","stars":4,"reason":"…","pros":["…"],"cons":["…"],"references":[]}]}. ${native?"Submit through recommend_shoes.":"Return only JSON."}` }];
+    `Return the complete object {"reply":"…","title":"…","follow_up":"","recommendations":[{"name":"exact candidate name","stars":4,"reason":"…","pros":["…"],"cons":["…"],"references":[]}]}. ${outputInstruction("recommend_shoes")}` }];
   for (let attempt=0;attempt<2;attempt++) {
     if (!hasBudget(deadline)) throw new ConfirmedRecommendationError("deadline");
     progress?.({type:"status",phase:"writing",message:lang==="zh"?"正在根据确认后的需求整理推荐…":"Writing recommendations for your confirmed needs…"});
     const messages = attempt === 0 ? finalMessages : [...finalMessages,{role:"user" as const,content:"The last output was truncated. Return the complete result more concisely without losing confirmed corrections, fit conflicts, per-shoe budget-currency verification or explicit unverified status. Do not restore superseded priorities, add questions or invent extra candidates."}];
     const result = await deps.complete(client,native
-      ? {...base,messages,tools:[resultTool(count)],tool_choice:{type:"function",function:{name:"recommend_shoes"}},parallel_tool_calls:false}
+      ? {...base,messages,tools:[resultTool(count)],tool_choice:forcedTool?{type:"function",function:{name:"recommend_shoes"}}:"auto",parallel_tool_calls:false}
       : {...base,messages,response_format:{type:"json_object"}},progress,deadline);
     const final = finalSchema.safeParse(jsonPayload(result,"recommend_shoes"));
     if (!final.success) {

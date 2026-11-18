@@ -146,12 +146,17 @@ const nativeResponse = (input: unknown, stop = "tool_use") => Response.json({
 nativeReply = () => nativeResponse({ ...raw, extra: "discard", questions: [raw.questions[2], raw.questions[0], raw.questions[3], raw.questions[1]].map(q => ({ ...q, options: [{ value: "invented" }] })) });
 const fableQuestions = await server.generateClarificationQuestions(nativeClient, "claude-fable-5-2", state.originalMessage, context);
 assert.equal(nativePayload!.model, "claude-fable-5-2");
-assert.deepEqual(nativePayload!.tool_choice, { type: "tool", name: "ask_clarifying_questions", disable_parallel_tool_use: true });
+assert.deepEqual(nativePayload!.tool_choice, { type: "auto", disable_parallel_tool_use: true });
 assert.equal(nativePayload!.temperature, undefined);
 assert.equal(nativePayload!.stream, false);
 assert.equal((nativePayload!.tools as { input_schema: { type: string } }[])[0].input_schema.type, "object");
+assert.match(JSON.stringify(nativePayload!.messages), /Prefer the ask_clarifying_questions tool/);
+assert.match(JSON.stringify(nativePayload!.messages), /If you do not call the tool, return only the complete JSON/);
 assert.deepEqual(fableQuestions.questions.map((q: { id: string }) => q.id), ["profile", "age", "fit", "budget"]);
 assert.ok(fableQuestions.questions.every((q: object) => !("options" in q)), "Provider options never replace the server-owned options");
+nativeReply = () => Response.json({ id: "native-json", model: "claude-fable-5-2", type: "message", role: "assistant", stop_reason: "end_turn", content: [{ type: "text", text: JSON.stringify(raw) }] });
+const fableJsonQuestions = await server.generateClarificationQuestions(nativeClient, "claude-fable-5-2", state.originalMessage, context);
+assert.deepEqual(fableJsonQuestions.questions.map((q: { id: string }) => q.id), ["profile", "age", "fit", "budget"], "Auto mode accepts complete schema-valid JSON when no tool is called");
 assert.throws(() => server.parseClarificationQuestionOutput({ ...raw, questions: [raw.questions[0], raw.questions[0], raw.questions[2], raw.questions[3]] }), /Expected profile/);
 
 const privateMarker = "PRIVATE-PROFILE-NOTE-DO-NOT-LOG";

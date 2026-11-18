@@ -3,6 +3,7 @@ import type OpenAI from "openai";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reserveAiRequest } from "./reservations";
+import { supportsForcedToolChoice } from "./packy-fetch";
 import { clarificationQuestionsSchema, clarificationOptions, clarificationQuestionPrompt, groundedProfilePrompt, groundedClarificationQuestions, type AiClarification, type ClarificationContext, type ClarificationAnswers } from "./clarification";
 export type ClarificationRow = {
     id: string;
@@ -96,7 +97,12 @@ export async function clarificationResponse(db: Db, row: ClarificationRow) {
 export async function generateClarificationQuestions(client: OpenAI, model: string, message: string, context: ClarificationContext) {
     const native = model.startsWith("claude-");
     const toolName = "ask_clarifying_questions";
-    const params = { model, temperature: .2, max_tokens: 9000, messages: [{ role: "user" as const, content: clarificationQuestionPrompt(message, context) }], ...(native ? { tools: [{ type: "function" as const, function: { name: toolName, description: "Ask the single fitting clarification round", parameters: z.toJSONSchema(clarificationQuestionsSchema, { unrepresentable: "any" }) } }], tool_choice: { type: "function" as const, function: { name: toolName } }, parallel_tool_calls: false } : { response_format: { type: "json_object" as const } }) };
+    const forcedTool = supportsForcedToolChoice(model);
+    const outputInstruction = native
+        ? forcedTool ? ` Submit the complete object through ${toolName}.`
+            : ` Prefer the ${toolName} tool with the complete object. If you do not call the tool, return only the complete JSON object in the exact same schema. Do not return prose or Markdown.`
+        : "";
+    const params = { model, temperature: .2, max_tokens: 9000, messages: [{ role: "user" as const, content: clarificationQuestionPrompt(message, context) + outputInstruction }], ...(native ? { tools: [{ type: "function" as const, function: { name: toolName, description: "Ask the single fitting clarification round", parameters: z.toJSONSchema(clarificationQuestionsSchema, { unrepresentable: "any" }) } }], tool_choice: forcedTool ? { type: "function" as const, function: { name: toolName } } : "auto" as const, parallel_tool_calls: false } : { response_format: { type: "json_object" as const } }) };
     let result: OpenAI.Chat.Completions.ChatCompletion;
     try {
         result = await client.chat.completions.create(params, { timeout: 25_000, maxRetries: 0 });
