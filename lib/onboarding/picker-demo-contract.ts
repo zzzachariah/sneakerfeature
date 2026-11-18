@@ -1,5 +1,4 @@
 import { z } from "zod";
-import type { PickerAnswers, PickerQuestionSet } from "./picker-questions";
 import { POSITIONS } from "@/lib/persona/types";
 import { DIM_KEYS, DIM_LABELS, type DimKey } from "@/lib/star-rating";
 import type { WebReference } from "@/lib/ai/types";
@@ -16,22 +15,18 @@ export function priorityName(key: DimKey, zh: boolean) { return zh ? PRIORITY_ZH
 export function demoPrompt(input: DemoInput, names: string[]) {
   const priorities = input.priorities.map((key, i) => `${i + 1}. ${priorityName(key, input.lang === "zh")}`).join(" > ");
   return input.lang === "zh"
-    ? `我在场上打 ${input.positions.join(" / ")}，我的优先顺序是 ${priorities}。我刚刚对 ${names.join(" 和 ")} 感兴趣。请以它们为兴趣参考，从 snkrfeature 目录中为我推荐两双篮球鞋，不必只限于这两双。按我的优先项比较完整目录中的鞋款，不要仅凭发行年份排除鞋款；不推断在售情况、价格或库存。说明每双如何回应我的三个重点、需要接受的取舍，以及可核对的资料依据。对我未明确提供的信息，不要自行假设。`
-    : `I play ${input.positions.join(" / ")}. My priorities, in order: ${priorities}. I was interested in ${names.join(" and ")}. Use those as context and recommend two basketball shoes from the snkrfeature catalog; you may recommend other models. Compare the full catalog against my priorities without excluding models solely by release year; availability, prices and stock are unknown. Explain each shoe against my three priorities, its trade-offs and the evidence I can check. Do not assume any information I have not explicitly supplied.`;
+    ? `我在场上打 ${input.positions.join(" / ")}，我的优先顺序是 ${priorities}。我刚刚对 ${names.join(" 和 ")} 感兴趣。请以它们为兴趣参考，从 snkrfeature 目录中为我推荐两双篮球鞋，不必只限于这两双。在满足优先项的前提下，优先考虑近六年的型号；不推断在售情况、价格或库存。说明每双如何回应我的三个重点、需要接受的取舍，以及可核对的资料依据。我没有提供场地、身高、体重或脚型，不要假设这些信息。`
+    : `I play ${input.positions.join(" / ")}. My priorities, in order: ${priorities}. I was interested in ${names.join(" and ")}. Use those as context and recommend two basketball shoes from the snkrfeature catalog; you may recommend other models. Prefer models from the last six years when they meet these priorities; availability, prices and stock are unknown. Explain each shoe against my three priorities, its trade-offs and the evidence I can check. I have not supplied my court, height, weight or foot shape; do not assume them.`;
 }
 export type DemoStage = "catalog" | "shortlist" | "research" | "writing";
 export type DemoEvent = {
   id: number; at: string; stage: DemoStage; kind: "status" | "candidates" | "search" | "recovery";
   candidates?: {name: string; slug: string}[]; catalogCount?: number;
-  /** Missing on legacy runs, which may have used an age-filtered catalog. */
-  catalogScope?: "full";
   query?: string; state?: "start" | "ok" | "fail"; resultCount?: number; cached?: boolean; sources?: WebReference[];
 };
 export type DemoShoe = { id: string; slug: string; name: string; brand: string; image: string | null; reason: string; pros: string[]; cons: string[]; references: WebReference[] };
 export type DemoSnapshot = {
-  status: "idle" | "running" | "awaiting_answers" | "complete" | "failed";
-  runId?: string; phase?: "questions" | "recommendations";
-  questions?: PickerQuestionSet; answers?: PickerAnswers;
+  status: "idle" | "running" | "complete" | "failed";
   finishedAt?: string;
   startedAt?: string; input?: DemoInput; prompt?: string; events: DemoEvent[];
   interests?: Pick<DemoShoe,"id"|"name"|"slug"|"image">[];

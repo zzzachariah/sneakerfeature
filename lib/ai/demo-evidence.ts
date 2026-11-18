@@ -1,7 +1,12 @@
 import type { Shoe } from "@/lib/types";
 import type { WebSearchHit } from "@/lib/ai/web-search";
-export function demoSearchQuery(shoe:Shoe, researchFocus = "") {
-  return `${shoe.brand} ${shoe.shoe_name} basketball shoes performance review ${researchFocus || "traction stability fit"}`;
+/** Keep old shoes explicitly chosen by the visitor; otherwise start with recent
+ * catalog models. A release year never implies availability or a known price. */
+export function demoCandidateShoes(shoes:Shoe[],interestIds:string[],year=new Date().getUTCFullYear()) {
+  return shoes.filter(s=>interestIds.includes(s.id)||!s.release_year||s.release_year>=year-6);
+}
+export function demoSearchQuery(shoe:Shoe) {
+  return `${shoe.brand} ${shoe.shoe_name} basketball shoes performance review traction stability fit`;
 }
 /** Conservative evidence gate: a source must actually name this model, with a
  * shoe/review context. Search results are never silently treated as citations. */
@@ -18,10 +23,4 @@ export function demoSourceMatches(name:string,hit:WebSearchHit) {
   }
   return /basketball|sneaker|shoe|review|球鞋|篮球鞋|测评|评测|实战/i.test(haystack)
     && normalize(haystack).includes(model);
-}
-
-/** Recorded facts need not contain rating adjectives (e.g. a weight of 355g). */
-export function hasCatalogFact(value: string | null | undefined) {
-  const text = value?.trim();
-  return Boolean(text && !/^(?:n\/?a|none|null|unknown|tbd|not (?:available|tested|yet added)|暂无|未知|待补充|未测试|[-—–]+)[.!。]?$/i.test(text));
 }

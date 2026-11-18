@@ -39,7 +39,7 @@
     "test:imgly:browser": "node scripts/test-imgly-browser.mjs",
     "vendor:imgly:check": "node vendor/imgly-background-removal/scripts/build.mjs --check",
     "test:onboarding-wall": "tsx scripts/test-onboarding-wall.mts",
-    "test:onboarding-picker": "tsx scripts/test-onboarding-picker.mts && tsx scripts/test-picker-playback.mts && tsx scripts/test-picker-language.mts && tsx scripts/test-picker-recovery.mts && tsx scripts/test-picker-catalog-freshness.mts && tsx scripts/test-picker-catalog-status.mts && tsx scripts/test-picker-questions.mts && tsx scripts/test-picker-research.mts",
+    "test:onboarding-picker": "tsx scripts/test-onboarding-picker.mts && tsx scripts/test-picker-playback.mts && tsx scripts/test-picker-language.mts && tsx scripts/test-picker-recovery.mts && tsx scripts/test-home-guide-restore.mts",
     "test:private-ratings": "tsx scripts/test-private-ratings.mts",
     "test:upload-sanitize": "tsx scripts/test-upload-sanitize.mts",
     "test:account-retention": "tsx scripts/test-account-retention.mts"
