@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import OpenAI from "openai";
-import { createPackyFetch } from "../lib/ai/packy-fetch";
+import { createPackyFetch, supportsForcedToolChoice } from "../lib/ai/packy-fetch";
 import { normalizeBaseURL } from "../lib/ai/packy-client";
 
 const calls: { url: string; body: any; headers: Headers; signal: AbortSignal }[] = [];
@@ -115,6 +115,51 @@ await assert.rejects(client.chat.completions.create(payload), (e: unknown) => e 
 reply = () => sse(events);
 for await (const _ of await client.chat.completions.create({ ...payload, stream: true })) break;
 assert.equal(calls.at(-1)!.signal.aborted, true, "cancelling the client stream must abort the native upstream request");
+
+// Fable 5.2 rejects named/required choices, even when the UI's logical slot is
+// called Opus. Apply capability rules only after resolving the actual model.
+const fableModel = "claude-fable-5-2";
+const fableClient = new OpenAI({ apiKey: key, baseURL: "https://cf.api.fan/v1", maxRetries: 0,
+  fetch: createPackyFetch(transport, async () => fableModel) });
+assert.equal(supportsForcedToolChoice(fableModel), false);
+for (const other of [model, "claude-opus-5", "claude-sonnet-5-5", "claude-fable-future", "deepseek-v4-pro"]) {
+  assert.equal(supportsForcedToolChoice(other), true, "Unknown and other models retain their original forced-tool behavior");
+}
+reply = () => new Response(JSON.stringify({ ...native, model: fableModel, stop_reason: "tool_use", content: [
+  { type: "tool_use", id: "fable_tool", name: "web_search", input: { query: "grip" } }
+] }));
+for (const choice of [{ type: "function", function: { name: "web_search" } }, "required"] as const) {
+  const fableResult = await fableClient.chat.completions.create({ ...payload, model: "claude-opus-5", tools, tool_choice: choice, parallel_tool_calls: false });
+  assert.equal(calls.at(-1)!.url, "https://cf.api.fan/v1/messages");
+  assert.equal(calls.at(-1)!.body.model, fableModel);
+  assert.deepEqual(calls.at(-1)!.body.tool_choice, { type: "auto", disable_parallel_tool_use: true });
+  assert.equal(calls.at(-1)!.body.tools[0].name, "web_search", "Auto mode must preserve the offered tools");
+  assert.deepEqual(calls.at(-1)!.body.tools[0].input_schema, tools[0].type === "function" ? tools[0].function.parameters : undefined);
+  assert.equal(fableResult.choices[0].message.tool_calls?.[0].type, "function");
+  assert.equal(fableResult.choices[0].finish_reason, "tool_calls");
+}
+for (const choice of ["auto", "none"] as const) {
+  await fableClient.chat.completions.create({ ...payload, model: "claude-opus-5", tools, tool_choice: choice });
+  assert.deepEqual(calls.at(-1)!.body.tool_choice, { type: choice }, "Existing auto/none choices remain unchanged");
+}
+const futureClient = new OpenAI({ apiKey: key, baseURL: "https://cf.api.fan/v1", maxRetries: 0,
+  fetch: createPackyFetch(transport, async () => "claude-fable-future") });
+await futureClient.chat.completions.create({ ...payload, model: "claude-opus-5", tools, tool_choice: { type: "function", function: { name: "web_search" } } });
+assert.deepEqual(calls.at(-1)!.body.tool_choice, { type: "tool", name: "web_search" });
+await client.chat.completions.create({ ...payload, model: "claude-opus-5", tools, tool_choice: "required" });
+assert.deepEqual(calls.at(-1)!.body.tool_choice, { type: "any" }, "Other Claude models must retain required-tool behavior");
+
+reply = () => sse(events.map(event => event.type === "message_start" ? { ...event, message: { ...native, model: fableModel, content: [] } } : event));
+const fableStream = await fableClient.chat.completions.create({ ...payload, model: "claude-opus-5", tools,
+  tool_choice: { type: "function", function: { name: "web_search" } }, parallel_tool_calls: false, stream: true });
+const fableChunks = [];
+for await (const chunk of fableStream) fableChunks.push(chunk);
+assert.deepEqual(calls.at(-1)!.body.tool_choice, { type: "auto", disable_parallel_tool_use: true });
+assert.equal(calls.at(-1)!.body.model, fableModel);
+assert.equal(calls.at(-1)!.body.stream, true);
+assert.equal(fableChunks.flatMap(chunk => chunk.choices[0]?.delta.tool_calls ?? []).map(tool => tool.function?.arguments ?? "").join(""), '{"query":"grip"}');
+assert.equal(fableChunks.at(-1)!.choices[0].finish_reason, "tool_calls");
+
 const deepseek = { ...payload, model: "deepseek-v4-pro" };
 reply = () => new Response(JSON.stringify({ id: "deepseek", choices: [] }));
 await client.chat.completions.create(deepseek);
