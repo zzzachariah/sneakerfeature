@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 import { CARD_HEIGHT, CARD_WIDTH } from "@/components/card/card-frame";
 import { CompareCard } from "@/components/card/compare-card";
 import { SingleShoeCard } from "@/components/card/single-shoe-card";
+import { RecommendationShareCard } from "@/components/smart-picker/recommendation-share-card";
 import { RecommendationReportCard } from "@/components/smart-picker/recommendation-report-card";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useBodyScrollLock } from "@/lib/hooks/use-body-scroll-lock";
@@ -33,7 +34,9 @@ type Props = {
 
 export function CardPreviewModal({ open, onClose, mode }: Props) {
   const reduce = useReducedMotion();
-  const { translate } = useLocale();
+  const { translate, locale } = useLocale();
+  const zh = locale === "zh";
+  const [reportFormat, setReportFormat] = useState<"report" | "share">("report");
   const { tier, skin, customAccent } = useAuthState();
   useBodyScrollLock(open);
 
@@ -53,6 +56,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
   const [error, setError] = useState<string | null>(null);
   const cardRef = useRef<HTMLDivElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
   const [scale, setScale] = useState(0.5);
   // Report cards grow with their text, so the canvas height isn't fixed — track
   // the rendered card's real height (fixed cards measure back to CARD_HEIGHT).
@@ -66,8 +70,16 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
     if (!open) {
       setBusy(false);
       setError(null);
+      setReportFormat("report");
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !mounted) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    closeRef.current?.focus({ preventScroll: true });
+    return () => previous?.focus({ preventScroll: true });
+  }, [open, mounted]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -81,9 +93,11 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
       const availableHeight = Math.max(0, node.clientHeight - padY);
       const sx = availableWidth / CARD_WIDTH;
       const sy = availableHeight / naturalHeight;
-      const next = Math.min(sx, sy, 0.6);
+      // Full reports stay readable and scroll vertically instead of shrinking
+      // thousands of pixels of text into a thumbnail.
+      const next = mode?.kind === "report" ? Math.min(sx, 0.6) : Math.min(sx, sy, 0.6);
       if (Number.isFinite(next) && next > 0) {
-        setScale(Math.max(0.16, next));
+        setScale(next);
       }
     };
     compute();
@@ -94,7 +108,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
       ro.disconnect();
       window.removeEventListener("resize", compute);
     };
-  }, [open, naturalHeight]);
+  }, [open, mounted, naturalHeight, mode?.kind]);
 
   // Measure the offscreen native-size card so the preview scales to fit and the
   // captured PNG isn't cropped when the report grows past the canvas floor.
@@ -113,14 +127,14 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
     const ro = new ResizeObserver(measure);
     ro.observe(node);
     return () => ro.disconnect();
-  }, [open, mode]);
+  }, [open, mounted, mode, reportFormat]);
 
   const filename = useMemo(() => {
     if (!mode) return "sneakerfeature-card.png";
     if (mode.kind === "single") return safeFilename(["sneakerfeature", mode.shoe.slug]);
-    if (mode.kind === "report") return safeFilename(["sneakerfeature", "picks", ...mode.recommendations.slice(0, 5).map((r) => r.slug)]);
+    if (mode.kind === "report") return safeFilename(["sneakerfeature", reportFormat === "share" ? "shortlist" : "report", ...mode.recommendations.slice(0, 4).map((r) => r.slug)]);
     return safeFilename(["sneakerfeature", "compare", ...mode.shoes.map((s) => s.slug)]);
-  }, [mode]);
+  }, [mode, reportFormat]);
 
   // Whether the OS share sheet is available — true inside the native app, and on
   // mobile web that supports Web Share with files. Probed with a tiny PNG file.
@@ -133,7 +147,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
 
   // Open the OS share sheet with just the rendered card image (no link/text) on
   // native / capable mobile web; fall back to a plain PNG download on desktop.
-  async function handleShare() {
+  async function handleShare(download = false) {
     const node = cardRef.current;
     if (!node) return;
     setBusy(true);
@@ -141,7 +155,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
     try {
       const blob = await captureCardToBlob(node);
       const file = new File([blob], filename, { type: "image/png" });
-      const shared = await shareFiles([file], { title: translate("Share card") });
+      const shared = !download && await shareFiles([file], { title: translate("Share card") });
       // Desktop web (no file-share support) — keep the original download flow.
       if (!shared) triggerDownload(blob, filename);
     } catch (err) {
@@ -155,7 +169,9 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
 
   const renderCard = () => {
     if (mode.kind === "single") return <SingleShoeCard shoe={mode.shoe} axes={mode.axes} />;
-    if (mode.kind === "report") return <RecommendationReportCard requestText={mode.requestText} summary={mode.summary} recommendations={mode.recommendations} />;
+    if (mode.kind === "report") return reportFormat === "share"
+      ? <RecommendationShareCard requestText={mode.requestText} recommendations={mode.recommendations} />
+      : <RecommendationReportCard requestText={mode.requestText} summary={mode.summary} recommendations={mode.recommendations} />;
     return <CompareCard shoes={mode.shoes} accent={cardAccent} watermark={!isMember} />;
   };
 
@@ -174,13 +190,23 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           key="dialog"
           role="dialog"
           aria-modal
+          aria-label={translate(mode.kind === "report" ? "Recommendation report" : "Share card")}
           className="liquid-glass-strong glass-rim glass-clip relative flex w-full max-w-3xl flex-col overflow-hidden rounded-3xl"
-          style={{ maxHeight: "calc(100dvh - 24px)" }}
+          style={{ maxHeight: "calc(100dvh - 24px)", ...(mode.kind === "report" ? { height: "calc(100dvh - 24px)" } : {}) }}
           initial={reduce ? { opacity: 0 } : { y: 18, opacity: 0, scale: 0.985 }}
           animate={{ y: 0, opacity: 1, scale: 1 }}
           exit={reduce ? { opacity: 0 } : { y: 8, opacity: 0, scale: 0.985 }}
           transition={{ duration: reduce ? 0 : DUR.slow, ease: EASE }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={event => {
+            if (event.key === "Escape") { event.stopPropagation(); onClose(); }
+            if (event.key !== "Tab") return;
+            const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
+            const first = buttons[0];
+            const last = buttons[buttons.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+          }}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 px-5 pt-4 md:px-6 md:pt-5">
             <div className="min-w-0">
@@ -189,11 +215,12 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
                 {mode.kind === "single"
                   ? translate("Spec sheet")
                   : mode.kind === "report"
-                    ? translate("Recommendation report")
+                    ? translate(reportFormat === "share" ? "Share card" : "Recommendation report")
                     : translate("Comparison sheet")}
               </h2>
             </div>
             <button
+              ref={closeRef}
               type="button"
               onClick={onClose}
               className="shrink-0 rounded-lg border border-[rgb(var(--muted)/0.5)] p-1.5 soft-text transition hover:border-[rgb(var(--text)/0.45)] hover:text-[rgb(var(--text))] md:p-2"
@@ -202,6 +229,17 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
               <X className="h-4 w-4" />
             </button>
           </div>
+
+          {mode.kind === "report" && <div className="px-5 pt-4 md:px-6">
+            <div className="inline-flex gap-1 rounded-xl border border-[rgb(var(--muted)/0.5)] p-1" role="group" aria-label={zh ? "导出内容" : "Export format"}>
+              {(["report", "share"] as const).map(format => <button key={format} type="button" aria-pressed={reportFormat === format}
+                disabled={busy} onClick={() => { setReportFormat(format); wrapRef.current?.scrollTo({ top: 0 }); }}
+                className={`rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${reportFormat === format ? "bg-[rgb(var(--text))] text-[rgb(var(--bg))]" : "soft-text hover:bg-[rgb(var(--muted)/0.2)]"}`}>
+                {format === "report" ? (zh ? "完整报告" : "Full report") : (zh ? "分享卡片" : "Share card")}
+              </button>)}
+            </div>
+            <p className="mt-2 text-xs soft-text">{reportFormat === "report" ? (zh ? "保留完整分析与每双鞋的推荐理由，向下滚动查看。" : "Every pick and the full reasoning. Scroll to read the report.") : (zh ? "突出首选与备选鞋款，适合保存和分享。" : "Your first pick and alternatives, ready to save or share.")}</p>
+          </div>}
 
           {/* Offscreen native-size card — what we capture. Height is left to the
               card itself so a grown report renders (and captures) in full. */}
@@ -221,7 +259,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           {/* Visible scaled preview — separate render */}
           <div
             ref={wrapRef}
-            className="flex flex-1 items-center justify-center overflow-auto px-4 py-3 md:px-6 md:py-4"
+            className={`flex flex-1 ${mode.kind === "report" ? "items-start" : "items-center"} justify-center overflow-auto px-4 py-3 md:px-6 md:py-4`}
             style={{ minHeight: 0 }}
           >
             <div
@@ -256,7 +294,7 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
           ) : null}
 
           <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[rgb(var(--muted)/0.25)] bg-[rgb(var(--bg-elev)/0.55)] px-5 py-3 md:px-6 md:py-4">
-            <p className="hidden truncate text-xs soft-text md:block">{filename}</p>
+            <p className="hidden truncate text-xs soft-text md:block">PNG · {zh ? "高清图片" : "High-resolution image"}</p>
             <div className="ml-auto flex items-center gap-2">
               <button
                 type="button"
@@ -266,9 +304,13 @@ export function CardPreviewModal({ open, onClose, mode }: Props) {
               >
                 {translate("Cancel")}
               </button>
+              {canShare && <button type="button" disabled={busy} onClick={() => handleShare(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--muted)/0.5)] px-3 py-1.5 text-xs disabled:opacity-50">
+                <Download className="h-3.5 w-3.5" />{translate("Download PNG")}
+              </button>}
               <button
                 type="button"
-                onClick={handleShare}
+                onClick={() => handleShare()}
                 disabled={busy}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-[rgb(var(--text))] bg-[rgb(var(--text))] px-3 py-1.5 text-xs font-semibold text-[rgb(var(--bg))] transition hover:shadow-[0_8px_24px_rgb(var(--shadow)/0.3)] disabled:cursor-not-allowed disabled:opacity-60"
               >
