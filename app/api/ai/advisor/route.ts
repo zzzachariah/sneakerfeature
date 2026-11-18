@@ -1,3 +1,5 @@
+import { getModelCatalog } from "@/lib/ai/model-catalog-server";
+import { catalogModel } from "@/lib/ai/model-catalog";
 import { NextResponse } from "next/server";
 import { reserveAiRequest } from "@/lib/ai/reservations";
 import { z } from "zod";
@@ -87,7 +89,10 @@ export async function POST(request: Request) {
     }
   }
 
-  const client = createPackyClientForModel(model);
+  let actualModel: string;
+  try { actualModel = catalogModel(await getModelCatalog(), model)!.model; }
+  catch { return NextResponse.json({ ok: false, message: "AI model configuration is temporarily unavailable." }, { status: 503 }); }
+  const client = createPackyClientForModel(model, actualModel);
   if (!client) {
     const report = getPackyEnvReport(clientOptionsForModel(model));
     return NextResponse.json(
@@ -157,7 +162,7 @@ export async function POST(request: Request) {
         try {
           const result = await streamAdvice(
             client,
-            { shoes, history, message, persona, footProfile, model, deadline },
+            { shoes, history, message, persona, footProfile, model: actualModel, deadline },
             (delta) => {
               full += delta;
               send("delta", { text: delta });
@@ -165,7 +170,7 @@ export async function POST(request: Request) {
           );
           full = result.text || full;
         } catch (error) {
-          console.error("[ai/advisor] stream failed", { model, error });
+          console.error("[ai/advisor] stream failed", { model: actualModel, error });
           // The advisor always runs the premium model — report that one, not the
           // shared base model the old hardcoded target reported.
           send("error", { message: "AI 暂时无法完成请求，请稍后重试。" });
@@ -197,7 +202,7 @@ export async function POST(request: Request) {
       } catch (error) {
         // Report what actually failed instead of an opaque "请求失败" that reads
         // exactly like a dropped connection (see the same fix in ai/chat).
-        console.error("[ai/advisor] handler failed", { model, error });
+        console.error("[ai/advisor] handler failed", { model: actualModel, error });
         send("error", { message: "请求未完成，请稍后重试。" });
       } finally {
         await reservation.refund();

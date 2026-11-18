@@ -1,3 +1,5 @@
+import { getModelCatalog } from "@/lib/ai/model-catalog-server";
+import { catalogModel } from "@/lib/ai/model-catalog";
 import "server-only";
 import { localizePickerShoes } from "./server-picker-language";
 import { recoverPickerRun, pickerFailureDiagnostic, PickerResultError } from "./picker-recovery";
@@ -37,9 +39,10 @@ export async function readDemo(visitor: string) {
   if (error) throw new Error("demo_storage_unavailable");
   return snapshot(data as Stored | null);
 }
-function pickerModel() {
-  const model = resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? HAIKU_MODEL : PACKY_MODEL;
-  const client = createPackyClientForModel(model);
+async function pickerModel() {
+  const slot = resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? HAIKU_MODEL : PACKY_MODEL;
+  const model = catalogModel(await getModelCatalog(), slot)!.model;
+  const client = createPackyClientForModel(slot, model);
   if (!client) throw new OnboardingError("unavailable", "The AI demo is temporarily unavailable.", 503, true);
   return {model,client};
 }
@@ -56,7 +59,7 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
     // round. Never ask the visitor to repeat clarification or erase corrections.
     const questions = pickerQuestionSetSchema.parse(existing.questions);
     const answers = validatePickerAnswers(questions,existing.answers);
-    const {model,client} = pickerModel();
+    const {model,client} = await pickerModel();
     const payload: Partial<DemoSnapshot> = {input:existing.input,phase:"recommendations",questions,answers,interests:existing.interests,events:[]};
     const {data,error} = await requireOnboardingAdmin().rpc("onboarding_picker_reserve", {p_visitor:visitor,p_network:network,p_payload:payload});
     if (error) admissionError(error.message);
@@ -67,7 +70,7 @@ export async function reserveDemo(visitor: string, network: string, input: DemoI
   const shoes = await getPublicShoes();
   const selected = input.shoeIds.map(id => shoes.find(shoe => shoe.id === id));
   if (selected.some(shoe => !shoe)) throw new OnboardingError("invalid_shoes", "Choose two available shoes from the wall.", 400);
-  const {model,client} = pickerModel();
+  const {model,client} = await pickerModel();
   const names = selected.map(shoe => shoe!.shoe_name);
   const payload: Partial<DemoSnapshot> = {input, phase:"questions", interests:selected.map(shoe=>({id:shoe!.id,slug:shoe!.slug,name:shoe!.shoe_name,image:shoe!.image_url??null})), events:[]};
   const admin = requireOnboardingAdmin();
@@ -94,7 +97,7 @@ export async function answerDemo(visitor: string, network: string, runId: string
   let answers: PickerAnswers;
   try { answers = validatePickerAnswers(questions,rawAnswers); }
   catch { throw new OnboardingError("invalid_answers", "Answer each question and include any correction or budget in the notes.",400); }
-  const {model,client} = pickerModel();
+  const {model,client} = await pickerModel();
   const {data,error} = await requireOnboardingAdmin().rpc("onboarding_picker_resume", {p_visitor:visitor,p_run:runId,p_network:network,p_answers:answers});
   if (error) admissionError(error.message);
   const reservation = data as {claimed:boolean;runId?:string;snapshot:Stored};
@@ -133,8 +136,10 @@ function recommendationRun(visitor:string,runId:string,payload:Partial<DemoSnaps
       const prompt = demoPrompt(input, (payload.interests ?? []).map(shoe => shoe.name)) + pickerAnswersContext(questions, answers, input.lang);
       current = {...current, prompt, events: [{id:0, at:new Date().toISOString(), stage:"catalog", kind:"status", catalogCount:shoes.length, catalogScope:"full"}]};
       await persist("running");
-      const backupModel = model === HAIKU_MODEL ? PACKY_MODEL : HAIKU_MODEL;
-      const backupClient = backupModel === HAIKU_MODEL && !resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? null : createPackyClientForModel(backupModel);
+      const catalog = await getModelCatalog();
+      const backupSlot = model === catalog.models.economy.model ? PACKY_MODEL : HAIKU_MODEL;
+      const backupModel = catalogModel(catalog, backupSlot)!.model;
+      const backupClient = backupSlot === HAIKU_MODEL && !resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? null : createPackyClientForModel(backupSlot, backupModel);
       const recommend = async (target: OpenAI, targetModel: string) => {
         const result = await recommendOnboardingShoes(target,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model:targetModel,deadline,researchFocus:pickerResearchFocus(answers),priceResearchFocus:pickerPriceResearchFocus(answers)},progress);
         const allowed = new Set(current.events.flatMap(e => e.sources ?? []).map(s => s.url));
