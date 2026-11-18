@@ -1,0 +1,36 @@
+.art {
+  position: absolute;
+  z-index: -1;
+  top: 48px;
+  bottom: 0;
+  left: 34%;
+  width: 72%;
+  height: calc(100% - 48px);
+  overflow: hidden;
+  pointer-events: none;
+  fill: none;
+  stroke-width: 1;
+  animation: pass-art-arrive .7s ease-out .6s both;
+  mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / .22) 20%, #000 58%);
+  -webkit-mask-image: linear-gradient(to right, transparent, rgb(0 0 0 / .22) 20%, #000 58%);
+}
+.art :is(path, circle) { vector-effect: non-scaling-stroke; }
+.rails { stroke: rgb(var(--text) / .13); stroke-width: .75; }
+.court { stroke: rgb(var(--brand) / .24); }
+.court path { stroke-dasharray: 100; animation: pass-court-draw 1.4s cubic-bezier(.22, 1, .36, 1) .65s both; }
+.approach { stroke: rgb(var(--text) / .2); stroke-width: .75; }
+.flow { stroke: rgb(var(--brand) / .65); stroke-linecap: round; stroke-width: 1.2; }
+.flow path { stroke-dasharray: 7 93; animation: pass-line-travel 8s linear infinite; }
+.flow .perimeterFlow { stroke-dasharray: 5 95; animation-delay: -2.5s; }
+.flow .arcFlow { animation-duration: 11s; animation-delay: -6s; }
+.flow .approachFlow { stroke-dasharray: 4 96; animation-duration: 11s; animation-delay: -1s; }
+.register { stroke: rgb(var(--brand) / .4); stroke-width: .8; }
+.art[data-paused="true"] .flow path { animation-play-state: paused; }
+@keyframes pass-art-arrive { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pass-court-draw { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes pass-line-travel { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .art, .court path { animation: none; }
+  .court path { stroke-dasharray: none; stroke-dashoffset: 0; }
+  .flow path { animation: none; stroke-dashoffset: 35; }
+}

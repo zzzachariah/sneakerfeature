@@ -6,7 +6,7 @@ import styles from "./animated-count.module.css";
 
 const CountProgress = createContext(1);
 /** All figures in a group use one clock and reach their real values together. */
-export function CountReveal({ children, runKey, active = true }: { children: ReactNode; runKey: string | number; active?: boolean }) {
+export function CountReveal({ children, runKey, active = true, delay = 0 }: { children: ReactNode; runKey: string | number; active?: boolean; delay?: number }) {
   const reduced = useReducedMotion();
   const [progress, setProgress] = useState(reduced ? 1 : 0);
   useEffect(() => {
@@ -18,7 +18,7 @@ export function CountReveal({ children, runKey, active = true }: { children: Rea
     setProgress(0);
     const tick = (now: number) => {
       start ??= now;
-      const elapsed = now - start;
+      const elapsed = Math.max(0, now - start - delay);
       const t = Math.min(1, elapsed / 1120);
       // Update at 20Hz while the digit tracks interpolate on the compositor.
       // The final 80ms settle gives every number the same 1.2 second finish.
@@ -30,7 +30,7 @@ export function CountReveal({ children, runKey, active = true }: { children: Rea
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [runKey, reduced, active]);
+  }, [runKey, reduced, active, delay]);
   return <CountProgress.Provider value={progress}>{children}</CountProgress.Provider>;
 }
 
