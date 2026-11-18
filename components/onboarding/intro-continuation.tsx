@@ -7,7 +7,6 @@ import { ArrowRight, GitCompareArrows, X } from "lucide-react";
 import type { DemoShoe } from "@/lib/onboarding/picker-demo-contract";
 import type { StoryShoe } from "./site-stories";
 import { PICKER_PENDING, usePickerDemo } from "./use-picker-demo";
-import { PickerQuestions } from "./picker-questions";
 import { ScrollHint } from "./scroll-hint";
 import styles from "./picker-narrative.module.css";
 type Interest=Pick<DemoShoe,"id"|"slug"|"name"|"image">;
@@ -32,20 +31,17 @@ export function IntroTrail({shoes,zh,reduced}:{shoes:StoryShoe[];zh:boolean;redu
   </motion.aside>;
 }
 export function IntroContinuation({enabled,zh,reduced}:{enabled:boolean;zh:boolean;reduced:boolean}) {
-  const [resumeQuestions,setResumeQuestions]=useState(false);
   const [pending,setPending]=useState(false),[selected,setSelected]=useState<Interest[]>([]),[shown,setShown]=useState(false);
   const panel=useRef<HTMLElement>(null);
   useEffect(()=>{const read=()=>{try{setPending(localStorage.getItem(PICKER_PENDING)==="1");}catch{}setSelected(interests());};read();window.addEventListener("sf:picker-demo-started",read);return()=>window.removeEventListener("sf:picker-demo-started",read);},[enabled]);
-  const {snapshot,posting,answerError,submitAnswers,run}=usePickerDemo(enabled&&pending);
+  const {snapshot}=usePickerDemo(enabled&&pending);
   useEffect(()=>{if(!enabled||!pending){setShown(false);return;}const timer=setTimeout(()=>setShown(true),reduced?0:1300);return()=>clearTimeout(timer);},[enabled,pending,reduced]);
   const recommended=snapshot.status==="complete"?snapshot.shoes??[]:[];
   function dismiss(){setPending(false);setShown(false);try{localStorage.removeItem(PICKER_PENDING);}catch{}}
   return <AnimatePresence>{shown&&(selected.length||recommended.length)?<motion.aside ref={panel} className={styles.homeCard} role="region" aria-label={zh?"继续刚才的选鞋":"Continue your shoe exploration"} initial={reduced?{opacity:0}:{opacity:0,y:25,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:reduced?0:12}} transition={{duration:reduced?.1:.75}} onKeyDown={e=>{if(e.key==="Escape")dismiss();}}>
     <button type="button" onClick={dismiss} aria-label={zh?"关闭继续浏览提示":"Dismiss continuation"}><X size={18}/></button><h2>{zh?"接着，看看你的下一双。":"Pick up where you left off."}</h2><p>{zh?"刚才的选择还在。现在可以打开完整资料，或放在一起比较。":"Your choices are here. Open the full details or compare them side by side."}</p>
     {[{title:zh?"Smart Picker 为你推荐":"YOUR AI RECOMMENDATIONS",items:recommended,rec:true},{title:zh?"你在鞋墙选过的":"YOUR WALL PICKS",items:selected,rec:false}].filter(group=>group.items.length===2).map(group=><section key={group.title}><small>{group.title}</small><div className={styles.homeShoes}>{group.items.map(shoe=><Link key={shoe.id} href={`/shoes/${shoe.slug}`} onClick={dismiss}><ShoeThumbnail shoe={shoe} rec={group.rec} reduced={reduced}/><strong>{shoe.name}</strong><span>{zh?"查看详情":"View details"}<ArrowRight size={11}/></span></Link>)}</div><Link href={`/compare?ids=${group.items.map(s=>s.id).join(",")}`} onClick={dismiss} className={styles.secondary}><GitCompareArrows size={14}/>{zh?"对比这两双":"Compare these two"}</Link></section>)}
-    {snapshot.status==="running"&&<p role="status">{snapshot.phase==="questions"?(zh?"AI 正在准备一轮补充问题，回答后才会开始推荐。":"AI is preparing one round of questions. Recommendations begin after your answers."):(zh?"AI 推荐仍在生成，完成后会显示在这里。":"Your AI recommendations are still being prepared and will appear here.")}</p>}
-    {snapshot.status==="awaiting_answers"&&!resumeQuestions&&<button type="button" className={styles.secondary} onClick={()=>setResumeQuestions(true)}>{zh?"继续确认选鞋需求":"Continue refining my preferences"}<ArrowRight size={14}/></button>}
-    {resumeQuestions&&snapshot.status==="awaiting_answers"&&<PickerQuestions snapshot={snapshot} zh={zh} reduced={reduced} busy={posting} submissionError={answerError} onSubmit={answers=>snapshot.runId?void submitAnswers(snapshot.runId,answers):undefined} onRetry={()=>snapshot.input?void run(snapshot.input):undefined} onBack={()=>setResumeQuestions(false)}/>}
+    {snapshot.status==="running"&&<p role="status">{zh?"AI 推荐仍在生成，完成后会显示在这里。":"Your AI recommendations are still being prepared and will appear here."}</p>}
     {snapshot.status==="failed"&&<p>{zh?"刚才的 AI 演示未完成。已选球鞋仍然可看，之后可在 Smart Picker 再试。":"The AI demo did not finish. Your selected shoes are still available; try Smart Picker later."}</p>}
     <ScrollHint targetRef={panel} zh={zh}/>
   </motion.aside>:null}</AnimatePresence>;

@@ -6,18 +6,17 @@ import { recoverPickerRun, pickerFailureDiagnostic, PickerResultError } from "./
 import OpenAI from "openai";
 import { createHmac, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
-import { getFreshPublicShoes, getPublicShoes } from "@/lib/data/shoes";
+import { getPublicShoes } from "@/lib/data/shoes";
 import { createPackyClientForModel, HAIKU_MODEL, PACKY_MODEL, resolvedKeyEnvName } from "@/lib/ai/packy-client";
 import { recommendOnboardingShoes, matchShoeByName } from "@/lib/ai/recommend";
+import { demoCandidateShoes } from "@/lib/ai/demo-evidence";
 import { startDeadline } from "@/lib/ai/budget";
 import { OnboardingError, requireOnboardingAdmin } from "./server";
 import { demoPrompt, safeReferences, type DemoInput, type DemoSnapshot, type DemoEvent, type DemoShoe } from "./picker-demo-contract";
-import { generatePickerQuestions } from "./server-picker-questions";
-import { pickerQuestionSetSchema, validatePickerAnswers, pickerAnswersContext, pickerResearchFocus, pickerPriceResearchFocus, type PickerAnswers } from "./picker-questions";
 import type { RecommendProgress } from "@/lib/ai/types";
 
 const COOKIE = "sf-picker-demo-v1";
-type Stored = {runId?: string; status: DemoSnapshot["status"]; startedAt: string; retryable: boolean; error?: string; payload: Partial<DemoSnapshot>};
+type Stored = {status: DemoSnapshot["status"]; startedAt: string; retryable: boolean; error?: string; payload: Partial<DemoSnapshot>};
 export async function demoVisitor(request: Request) {
   requireOnboardingAdmin();
   const jar = await cookies();
@@ -32,88 +31,39 @@ export async function demoVisitor(request: Request) {
 }
 function snapshot(row: Stored | null): DemoSnapshot {
   if (!row) return {status: "idle", events: []};
-  return { ...row.payload, runId: row.runId, status: row.status, startedAt: row.startedAt, retryable: row.status === "failed" && row.retryable, error: row.error || row.payload.error, events: row.payload.events || [] };
+  return { ...row.payload, status: row.status, startedAt: row.startedAt, retryable: row.status === "failed" && row.retryable, error: row.error || row.payload.error, events: row.payload.events || [] };
 }
 export async function readDemo(visitor: string) {
   const {data,error} = await requireOnboardingAdmin().rpc("onboarding_picker_read", {p_visitor: visitor});
   if (error) throw new Error("demo_storage_unavailable");
   return snapshot(data as Stored | null);
 }
-async function pickerModel() {
-  const slot = resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? HAIKU_MODEL : PACKY_MODEL;
-  const model = catalogModel(await getModelCatalog(), slot)!.model;
-  const client = createPackyClientForModel(slot, model);
-  if (!client) throw new OnboardingError("unavailable", "The AI demo is temporarily unavailable.", 503, true);
-  return {model,client};
-}
-function admissionError(message: string): never {
-  if (/demo_(rate_limited|cooldown)/.test(message)) throw new OnboardingError("demo_busy", "The demo is busy. Please try again shortly.", 429, true);
-  if (message.includes("demo_stale")) throw new OnboardingError("stale_questions", "These questions have changed. Reload the current questions.", 409, true);
-  throw new Error("demo_storage_unavailable");
-}
 export async function reserveDemo(visitor: string, network: string, input: DemoInput) {
-  const existing = await readDemo(visitor);
-  if (["running","awaiting_answers","complete"].includes(existing.status)) return {snapshot:existing,run:null};
-  if (existing.phase === "recommendations" && existing.input && existing.questions && existing.answers) {
-    // A retry after research/generation failure reuses the one completed answer
-    // round. Never ask the visitor to repeat clarification or erase corrections.
-    const questions = pickerQuestionSetSchema.parse(existing.questions);
-    const answers = validatePickerAnswers(questions,existing.answers);
-    const {model,client} = await pickerModel();
-    const payload: Partial<DemoSnapshot> = {input:existing.input,phase:"recommendations",questions,answers,interests:existing.interests,events:[]};
-    const {data,error} = await requireOnboardingAdmin().rpc("onboarding_picker_reserve", {p_visitor:visitor,p_network:network,p_payload:payload});
-    if (error) admissionError(error.message);
-    const reservation = data as {claimed:boolean;runId?:string;snapshot:Stored};
-    return {snapshot:snapshot(reservation.snapshot),run:reservation.claimed && reservation.runId
-      ? recommendationRun(visitor,reservation.runId,reservation.snapshot.payload,existing.input,questions,answers,client,model) : null};
-  }
-  const shoes = await getPublicShoes();
+  const shoes = demoCandidateShoes(await getPublicShoes(),input.shoeIds);
   const selected = input.shoeIds.map(id => shoes.find(shoe => shoe.id === id));
   if (selected.some(shoe => !shoe)) throw new OnboardingError("invalid_shoes", "Choose two available shoes from the wall.", 400);
-  const {model,client} = await pickerModel();
-  const names = selected.map(shoe => shoe!.shoe_name);
-  const payload: Partial<DemoSnapshot> = {input, phase:"questions", interests:selected.map(shoe=>({id:shoe!.id,slug:shoe!.slug,name:shoe!.shoe_name,image:shoe!.image_url??null})), events:[]};
-  const admin = requireOnboardingAdmin();
-  const {data,error} = await admin.rpc("onboarding_picker_reserve", {p_visitor:visitor,p_network:network,p_payload:payload});
-  if (error) admissionError(error.message);
-  const reservation = data as {claimed:boolean;runId?:string;snapshot:Stored};
-  return {snapshot:snapshot(reservation.snapshot),run:reservation.claimed && reservation.runId ? async () => {
-    try {
-      const questions = await generatePickerQuestions(client,model,input,names);
-      const result = await admin.rpc("onboarding_picker_write", {p_visitor:visitor,p_run:reservation.runId!,p_status:"awaiting_answers",p_payload:{...payload,questions}});
-      if (result.error || result.data!==true) throw new Error("demo_write_failed");
-    } catch (cause) {
-      console.error("[onboarding/demo] Questions did not complete", pickerFailureDiagnostic(cause));
-      await admin.rpc("onboarding_picker_write", {p_visitor:visitor,p_run:reservation.runId!,p_status:"failed",p_payload:{...payload,error:"unavailable",finishedAt:new Date().toISOString()}});
-    }
-  } : null};
-}
-export async function answerDemo(visitor: string, network: string, runId: string, rawAnswers: unknown) {
-  const existing = await readDemo(visitor);
-  if (existing.runId !== runId) throw new OnboardingError("stale_questions", "These questions have changed. Reload the current questions.",409,true);
-  if (existing.status!=="awaiting_answers") return {snapshot:existing,run:null};
-  const questions = pickerQuestionSetSchema.parse(existing.questions);
-  if (!existing.input) throw new Error("demo_input_missing");
-  let answers: PickerAnswers;
-  try { answers = validatePickerAnswers(questions,rawAnswers); }
-  catch { throw new OnboardingError("invalid_answers", "Answer each question and include any correction or budget in the notes.",400); }
-  const {model,client} = await pickerModel();
-  const {data,error} = await requireOnboardingAdmin().rpc("onboarding_picker_resume", {p_visitor:visitor,p_run:runId,p_network:network,p_answers:answers});
-  if (error) admissionError(error.message);
-  const reservation = data as {claimed:boolean;runId?:string;snapshot:Stored};
-  return {snapshot:snapshot(reservation.snapshot),run:reservation.claimed && reservation.runId
-    ? recommendationRun(visitor,reservation.runId,reservation.snapshot.payload,existing.input,questions,answers,client,model) : null};
-}
-function recommendationRun(visitor:string,runId:string,payload:Partial<DemoSnapshot>,input:DemoInput,questions:ReturnType<typeof pickerQuestionSetSchema.parse>,answers:PickerAnswers,client:OpenAI,model:string) {
-  return async () => {
+  const slot = resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? HAIKU_MODEL : PACKY_MODEL;
+  const catalog = await getModelCatalog();
+  const model = catalogModel(catalog, slot)!.model;
+  const client = createPackyClientForModel(slot, model);
+  if (!client) throw new OnboardingError("unavailable", "The AI demo is temporarily unavailable.", 503, true);
+  const prompt = demoPrompt(input, selected.map(shoe => shoe!.shoe_name));
+  const payload: Partial<DemoSnapshot> = {input, prompt, interests: selected.map(s=>({id:s!.id,slug:s!.slug,name:s!.shoe_name,image:s!.image_url??null})), events: [{id: 0, at: new Date().toISOString(), stage: "catalog", kind: "status", catalogCount: shoes.length}]};
+  const {data,error} = await requireOnboardingAdmin().rpc("onboarding_picker_reserve", {p_visitor:visitor,p_network:network,p_payload:payload});
+  if (error) {
+    if (/demo_(rate_limited|cooldown)/.test(error.message)) throw new OnboardingError("demo_busy", "The demo is busy. You can continue and try later.",429,true);
+    throw new Error("demo_storage_unavailable");
+  }
+  const reservation = data as {claimed: boolean; runId?: string; snapshot: Stored};
+  return {snapshot: snapshot(reservation.snapshot), run: reservation.claimed && reservation.runId ? async () => {
     const admin = requireOnboardingAdmin();
     const deadline = startDeadline(120_000);
-    let current: Partial<DemoSnapshot> & {events: DemoEvent[]} = { ...payload, phase: "recommendations", events: [] };
+    let current = { ...payload, events: [...payload.events!] };
     let chain = Promise.resolve();
     const persist = (status: "running" | "complete" | "failed") => {
       const value = JSON.parse(JSON.stringify(current));
       chain = chain.catch(() => {}).then(async () => {
-        const result = await admin.rpc("onboarding_picker_write", {p_visitor:visitor,p_run:runId,p_status:status,p_payload:value});
+        const result = await admin.rpc("onboarding_picker_write", {p_visitor:visitor,p_run:reservation.runId!,p_status:status,p_payload:value});
         if (result.error || result.data !== true) throw new Error("demo_write_failed");
       });
       return chain;
@@ -130,18 +80,11 @@ function recommendationRun(visitor:string,runId:string,payload:Partial<DemoSnaps
       void persist("running").catch(() => {});
     };
     try {
-      // Questions and the user's one answer round precede this database read.
-      // The count records exactly the current full catalog given to the model.
-      const shoes = await getFreshPublicShoes();
-      const prompt = demoPrompt(input, (payload.interests ?? []).map(shoe => shoe.name)) + pickerAnswersContext(questions, answers, input.lang);
-      current = {...current, prompt, events: [{id:0, at:new Date().toISOString(), stage:"catalog", kind:"status", catalogCount:shoes.length, catalogScope:"full"}]};
-      await persist("running");
-      const catalog = await getModelCatalog();
-      const backupSlot = model === catalog.models.economy.model ? PACKY_MODEL : HAIKU_MODEL;
+      const backupSlot = slot === HAIKU_MODEL ? PACKY_MODEL : HAIKU_MODEL;
       const backupModel = catalogModel(catalog, backupSlot)!.model;
       const backupClient = backupSlot === HAIKU_MODEL && !resolvedKeyEnvName(HAIKU_MODEL)?.includes("HAIKU") ? null : createPackyClientForModel(backupSlot, backupModel);
       const recommend = async (target: OpenAI, targetModel: string) => {
-        const result = await recommendOnboardingShoes(target,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model:targetModel,deadline,researchFocus:pickerResearchFocus(answers),priceResearchFocus:pickerPriceResearchFocus(answers)},progress);
+        const result = await recommendOnboardingShoes(target,{shoes,history:[],currentInput:prompt,replyLanguage:input.lang,count:2,model:targetModel,deadline},progress);
         const allowed = new Set(current.events.flatMap(e => e.sources ?? []).map(s => s.url));
         const used = new Set<string>();
         const recommendations: DemoShoe[] = (result?.recommendations ?? []).flatMap(rec => {
@@ -169,5 +112,5 @@ function recommendationRun(visitor:string,runId:string,payload:Partial<DemoSnaps
       current = {...current,error:code,finishedAt:new Date().toISOString()};
       await persist("failed").catch(() => {console.error("[onboarding/demo] Could not persist completion");});
     }
-  };
+  } : null};
 }
