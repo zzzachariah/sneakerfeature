@@ -125,8 +125,8 @@ class CatalogUnavailableError extends Error {
   }
 }
 
-async function loadShoesBase(): Promise<ShoesBase> {
-  const supabase = createPublicClient();
+async function loadShoesBase(fetcher?: typeof fetch): Promise<ShoesBase> {
+  const supabase = createPublicClient(fetcher);
   if (!supabase) {
     console.warn(
       "[getShoesBase] Supabase public client unavailable. " +
@@ -353,6 +353,15 @@ export async function getPublicShoes(): Promise<Shoe[]> {
   } catch (error) {
     return fallbackToDemo("getPublicShoes", error);
   }
+}
+
+// A new recommendation must use the current public database, not either of the
+// browsing caches. Keep the same pagination, public permissions and assembly.
+// Fail closed instead of claiming a demo/fallback catalog was read successfully.
+export async function getFreshPublicShoes(): Promise<Shoe[]> {
+  const base = await loadShoesBase((input, init) => fetch(input, { ...init, cache: "no-store" }));
+  if (!base.rows.length) throw new CatalogUnavailableError("empty catalog");
+  return assembleShoes(base, EMPTY_USER_CONTEXT);
 }
 
 const getStoryForShoe = unstable_cache(async (id: string) => {

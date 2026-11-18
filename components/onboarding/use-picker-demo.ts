@@ -2,12 +2,15 @@
 import { useLocale } from "@/components/i18n/locale-provider";
 import { useEffect, useState } from "react";
 import type { DemoInput, DemoSnapshot } from "@/lib/onboarding/picker-demo-contract";
+import type { PickerAnswers } from "@/lib/onboarding/picker-questions";
 export const PICKER_PENDING = "sf-intro-picker-pending-v1";
 let state: DemoSnapshot = {status:"idle",events:[]};
 let translationFailed=false;
 let activeLanguage = "en", stateLanguage = "";
 let connection: "loading" | "ready" | "offline" = "loading";
 let posting = false;
+let postingAction: "questions" | "recommendations" | null = null;
+let answerError = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let request: Promise<void> | null = null;
 const listeners = new Set<() => void>();
@@ -49,8 +52,8 @@ export function usePickerDemo(enabled=true) {
     return()=>{listeners.delete(update);document.removeEventListener("visibilitychange",focus);window.removeEventListener("online",focus);if(!listeners.size&&timer)clearTimeout(timer);};
   },[enabled,locale]);
   async function run(input: DemoInput) {
-    if (posting || state.status==="running" || state.status==="complete") return;
-    posting=true; emit();
+    if (posting || state.status==="running" || state.status==="awaiting_answers" || state.status==="complete") return;
+    posting=true; postingAction=state.phase==="recommendations"?"recommendations":"questions"; answerError=false; emit();
     const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);
     try {
       // Establish the opaque visitor cookie before admission; a lost POST
@@ -65,9 +68,30 @@ export function usePickerDemo(enabled=true) {
       window.dispatchEvent(new Event("sf:picker-demo-started"));
     } catch(error) {
       await refresh();
-      if(state.status==="idle")state={status:"failed",events:[],retryable:true,error:error instanceof Error?error.message:"network"};
-    } finally {clearTimeout(timeout);posting=false;emit();schedule();}
+      if(state.status==="idle")state={status:"failed",phase:"questions",events:[],retryable:true,error:error instanceof Error?error.message:"network"};
+    } finally {clearTimeout(timeout);posting=false;postingAction=null;emit();schedule();}
+  }
+  async function submitAnswers(runId: string, answers: PickerAnswers) {
+    if (posting || state.status!=="awaiting_answers" || state.runId!==runId) return;
+    posting=true; postingAction="recommendations"; answerError=false; emit();
+    const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);
+    try {
+      // A different tab may already have continued this run. Confirm ownership
+      // and phase again; never submit an old tab's answers to a newer run.
+      await refresh();
+      if(connection!=="ready")throw new Error("network");
+      if(state.runId!==runId || state.status!=="awaiting_answers")return;
+      const response=await fetch("/api/onboarding/picker-demo",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"answer",runId,answers}),signal:controller.signal});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.code||"unavailable");
+      state=data; stateLanguage=activeLanguage; connection="ready";
+      try { localStorage.setItem(PICKER_PENDING,"1"); } catch {}
+      window.dispatchEvent(new Event("sf:picker-demo-started"));
+    } catch {
+      await refresh();
+      answerError=state.status==="awaiting_answers";
+    } finally {clearTimeout(timeout);posting=false;postingAction=null;emit();schedule();}
   }
   const matched=stateLanguage===locale;
-  return {snapshot:translationFailed?{status:"failed" as const,error:"language_unavailable",events:[]}:matched?state:{status:"idle" as const,events:[]},connection:matched?connection:connection==="offline"?"offline" as const:"loading" as const,posting,run,refresh};
+  return {snapshot:translationFailed?{status:"failed" as const,error:"language_unavailable",events:[]}:matched?state:{status:"idle" as const,events:[]},connection:matched?connection:connection==="offline"?"offline" as const:"loading" as const,posting,postingAction,answerError,run,submitAnswers,refresh};
 }
