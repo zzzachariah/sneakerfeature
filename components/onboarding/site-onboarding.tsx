@@ -170,7 +170,7 @@ function OnboardingShell({ children, shellRef, label, phase, reduced, comparison
   return <motion.div ref={shellRef} className={styles.shell}
     role={present ? "dialog" : undefined} aria-modal={present ? true : undefined} aria-label={label}
     inert={!present || comparisonPhase !== "rest" || profilePhase !== "rest"} aria-busy={comparisonPhase !== "rest" || profilePhase !== "rest" || undefined} aria-hidden={!present || undefined} style={{ pointerEvents: present ? undefined : "none", height: visibleFrame?.height, top: visibleFrame?.top, bottom: visibleFrame ? "auto" : undefined }}
-    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: !reduced && phase === "welcome" ? .99 : 1, transition: { duration: reduced ? .15 : phase === "welcome" ? 1 : .35, ease: EASE } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
+    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, y: !reduced && phase === "welcome" ? -24 : 0, scale: !reduced && phase === "welcome" ? .985 : 1, transition: { duration: reduced ? .15 : phase === "welcome" ? .65 : .35, ease: EASE } }} transition={{ duration: reduced ? .15 : .4, ease: EASE }}
     data-testid="site-onboarding" data-comparison-phase={comparisonPhase} data-profile-phase={profilePhase} data-phase={phase} data-exiting={!present || undefined}>
     {children}
   </motion.div>;
@@ -218,6 +218,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [recovery, setRecovery] = useState(false);
   const [recoveryName, setRecoveryName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [enteringWebsite, setEnteringWebsite] = useState(false);
   const [authMounted, setAuthMounted] = useState(false);
   const [profileMounted, setProfileMounted] = useState(false);
   const [flight, setFlight] = useState<Flight | null>(null);
@@ -286,12 +287,14 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     foregroundCheck.current = false;
     entryNeedsRetry.current = false;
     setPhase(onHome ? "checking" : "complete");
+    setEnteringWebsite(false);
     setProfileExit(false); setReplay(false); setLibrary(false); setFlight(null); setHint(null); setTourStarted(false);
   }, [onHome, pathname]);
   useLayoutEffect(() => {
     requestId.current += 1;
     setStatus(null);
     setBusy(false);
+    setEnteringWebsite(false);
     setPhase(onHome ? "checking" : "complete");
     // Explicit replay is independent of account restoration and keeps its step.
   }, [onHome, auth.loaded, auth.signedIn, auth.userId]);
@@ -390,6 +393,22 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       chrome?.removeAttribute("aria-hidden");
     };
   }, [active, mounted]);
+
+  useLayoutEffect(() => {
+    if (!enteringWebsite) return;
+    if (active || !onHome) { setEnteringWebsite(false); return; }
+    const chrome = document.getElementById("sf-site-chrome");
+    if (!chrome) { setEnteringWebsite(false); return; }
+    // Animate the real destination, once, after the server confirms completion.
+    // The class never touches ordinary navigation or an existing member's visit.
+    const entranceClass = reduced ? styles.websiteDissolve : styles.websiteEntrance;
+    chrome.classList.add(entranceClass);
+    const timer = window.setTimeout(() => setEnteringWebsite(false), reduced ? 180 : 1100);
+    return () => {
+      window.clearTimeout(timer);
+      chrome.classList.remove(entranceClass);
+    };
+  }, [enteringWebsite, active, onHome, reduced]);
 
   useEffect(() => {
     const openLibrary = () => setLibrary(true);
@@ -530,9 +549,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       if (!current()) return;
       if (data.userId !== identity.userId) throw new Error("Your session changed. Please retry.");
       if (data.requiresOnboarding) throw new Error(zh ? "档案尚未确认保存，请重试。" : "Your profile has not been confirmed. Please retry.");
-      setStatus(data); setPhase("complete"); setReplay(false);
+      setStatus(data); setEnteringWebsite(true); setPhase("complete"); setReplay(false);
       event("sf:persona-refresh"); router.refresh();
-      later(() => { if (current()) revealMenu(); }, reduced ? 160 : 780);
+      later(() => { if (current() && !showingRef.current) revealMenu(); }, reduced ? 180 : 1100);
     } catch (cause) {
       if (!current()) return;
       if (cause instanceof StatusError && cause.code === "persona_required") setPhase("profile");

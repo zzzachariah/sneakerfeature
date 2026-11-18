@@ -2,33 +2,51 @@
 .scroll { position: relative; flex: 1 1 0; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scroll-padding-block: 16px 32px; }
 .scroll:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: -2px; border-radius: 12px; }
 .content { width: 100%; min-width: 0; display: grid; gap: 20px; padding: 12px 24px 24px; }
-.heading { max-width: 620px; margin: 0 auto; text-align: center; }
-.eyebrow { margin: 0 0 10px; color: rgb(var(--subtext)); font-size: 11px; line-height: 18px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; }
-.title { margin: 0; font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif; font-size: clamp(34px, 6.9cqi, 54px); line-height: 1.08; letter-spacing: -.045em; font-weight: 600; text-wrap: balance; outline: none; }
-.root:lang(zh) .title { line-height: 1.3; letter-spacing: -.025em; }
-.introduction { max-width: 430px; margin: 10px auto 0; color: rgb(var(--subtext)); font-size: 14px; line-height: 1.65; text-wrap: pretty; }
-.invitation { position: relative; isolation: isolate; min-width: 0; padding: 18px 30px; overflow: hidden; background: linear-gradient(125deg, rgb(var(--bg-elev)), rgb(var(--surface))); border-top: 1px solid rgb(var(--text) / .15); border-bottom: 1px solid rgb(var(--text) / .12); clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 22px 100%, 0 calc(100% - 22px)); }
-.invitation::after { content: ""; position: absolute; z-index: -1; inset: 0; border-left: 2px solid rgb(var(--brand) / .75); pointer-events: none; }
-.court { position: absolute; z-index: -1; width: 100%; height: 100%; inset: 0; color: rgb(var(--brand) / .17); pointer-events: none; }
-.passTop { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 20px; }
-.playerIntroduction { color: rgb(var(--subtext)); font-size: 12px; line-height: 24px; }
-.wordmark { font-size: 17px; line-height: 24px; letter-spacing: -.04em; font-weight: 600; }
-.passType { font: 500 9px/16px var(--font-geist-mono), ui-monospace, monospace; letter-spacing: .16em; color: rgb(var(--subtext)); }
-.playerNumber { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-top: 12px; min-height: 1.1em; font-family: var(--font-geist-mono), ui-monospace, "SF Mono", monospace; font-size: clamp(16px, calc((100cqi - 164px) / (var(--arrival-number-length) * .66)), 76px); line-height: 1.1; font-weight: 500; letter-spacing: -.05em; color: rgb(var(--text)); }
-.numberUnit { font-family: var(--font-geist-sans), sans-serif; font-size: 14px; line-height: 22px; letter-spacing: 0; color: rgb(var(--subtext)); }
-.pending { display: block; font-family: var(--font-geist-sans), sans-serif; font-size: 18px; line-height: 1.5; letter-spacing: 0; color: rgb(var(--subtext)); }
-.numberLabel { margin: 6px 0 0; color: rgb(var(--subtext)); font-size: 10px; line-height: 16px; }
-.signature { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgb(var(--text) / .1); }
+.heading { max-width: 650px; margin: 0 auto; text-align: center; }
+.eyebrow { display: flex; align-items: center; justify-content: center; gap: 9px; margin: 0 0 10px; color: rgb(var(--subtext)); font-size: 11px; line-height: 18px; font-weight: 500; letter-spacing: .13em; text-transform: uppercase; }
+.title { margin: 0; font-family: var(--font-instrument), var(--font-geist-sans), "PingFang SC", sans-serif; font-size: clamp(32px, 7.2cqi, 56px); line-height: 1.12; letter-spacing: -.055em; font-weight: 700; text-wrap: balance; outline: none; }
+.eyebrowMark { width: 18px; height: 2px; flex: 0 0 auto; background: rgb(var(--brand)); }
+.titleMask { display: block; overflow: hidden; padding-block: .07em; margin-block: -.07em; }
+.titleMask > span { display: block; }
+.titleAccent { color: rgb(var(--brand)); }
+.root:lang(zh) .title { font-family: var(--font-geist-sans), "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 600; line-height: 1.32; letter-spacing: .015em; }
+.introduction { max-width: 440px; margin: 14px auto 0; color: rgb(var(--subtext)); font-size: 14px; line-height: 1.65; text-wrap: pretty; }
+.passFrame { width: min(640px, 100%); min-width: 0; margin-inline: auto; filter: drop-shadow(0 16px 22px rgb(var(--shadow) / .065)); }
+.invitation { position: relative; isolation: isolate; min-width: 0; padding: 16px 28px 20px; overflow: hidden; background: linear-gradient(115deg, rgb(var(--bg-elev)) 16%, rgb(var(--surface)) 100%); border: 1px solid rgb(var(--text) / .14); clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px)); transition: transform .5s cubic-bezier(.22, 1, .36, 1); }
+.invitation::before { content: ""; position: absolute; z-index: -1; inset: 8px; border: 1px solid rgb(var(--text) / .045); clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px)); pointer-events: none; }
+.invitation::after { content: ""; position: absolute; left: 0; top: 31px; width: 2px; height: 48px; background: rgb(var(--brand)); pointer-events: none; }
+.cardFinish { position: absolute; z-index: -1; inset: 0; pointer-events: none; background: repeating-linear-gradient(125deg, transparent 0 3px, rgb(var(--text) / .012) 3px 4px), linear-gradient(120deg, transparent 35%, rgb(var(--bg-elev) / .5) 50%, transparent 65%); opacity: .7; }
+.passTop { display: flex; justify-content: space-between; align-items: center; gap: 8px 20px; min-height: 44px; }
+.wordmark { font-family: var(--font-instrument), var(--font-geist-sans), sans-serif; font-size: 19px; line-height: 26px; letter-spacing: -.055em; font-weight: 700; }
+.brandPeriod { color: rgb(var(--brand)); }
+.passTools { display: flex; align-items: center; gap: 8px; }
+.passType { font: 500 9px/16px var(--font-geist-mono), monospace; letter-spacing: .16em; color: rgb(var(--subtext)); white-space: nowrap; }
+.root:lang(zh) .passType { font-family: var(--font-geist-sans), "PingFang SC", sans-serif; letter-spacing: .15em; font-size: 10px; }
+.motionToggle { display: grid; place-items: center; width: 44px; height: 44px; margin-right: -12px; border: 0; border-radius: 50%; background: transparent; color: rgb(var(--subtext)); cursor: pointer; transition: color .2s, background .2s; }
+.motionToggle:hover { color: rgb(var(--text)); background: rgb(var(--text) / .04); }
+.motionToggle:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: -5px; }
+.identity { position: relative; padding-block: 8px 22px; }
+.playerNumber { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; min-height: 1.1em; --count-digit-width: 1ch; font-family: var(--font-arena-label), var(--font-geist-sans), sans-serif; font-size: clamp(16px, calc((100cqi - 164px) / (var(--arrival-number-length) * .69)), 112px); line-height: 1.1; font-weight: 600; letter-spacing: -.035em; color: rgb(var(--text)); }
+.numberUnit { font-family: var(--font-geist-mono), monospace; font-size: 13px; line-height: 22px; letter-spacing: -.03em; color: rgb(var(--subtext)); }
+.pending { display: block; max-width: 80%; font-family: var(--font-geist-sans), sans-serif; font-size: 18px; line-height: 1.5; letter-spacing: 0; color: rgb(var(--subtext)); padding-block: 16px; }
+.numberLabel { margin: 6px 0 0; color: rgb(var(--subtext)); font-size: 11px; line-height: 18px; letter-spacing: .01em; }
+.signature { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-top: 14px; border-top: 1px solid rgb(var(--text) / .1); }
 .signature > div { min-width: 0; }
-.name { display: block; font-size: 17px; line-height: 1.45; font-weight: 500; letter-spacing: -.025em; overflow-wrap: anywhere; }
-.entryMark { display: flex; flex: 0 0 auto; gap: 4px; padding: 0 2px 5px; transform: skewX(-24deg); }
-.entryMark span { width: 5px; height: 21px; background: rgb(var(--brand)); }
+.nameLabel { display: block; margin-bottom: 4px; font: 500 8px/12px var(--font-geist-mono), monospace; letter-spacing: .16em; color: rgb(var(--subtext)); }
+.root:lang(zh) .nameLabel { font-family: var(--font-geist-sans), "PingFang SC", sans-serif; font-size: 9px; letter-spacing: .12em; }
+.name { display: block; font-family: var(--font-instrument), var(--font-geist-sans), "PingFang SC", sans-serif; font-size: 18px; line-height: 1.35; font-weight: 500; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.entryMark { display: flex; flex: 0 0 auto; gap: 4px; padding: 0 6px 0 2px; transform: skewX(-24deg); }
+.entryMark span { transform-origin: bottom; width: 5px; height: 23px; background: rgb(var(--brand)); }
 .entryMark span:nth-child(2) { opacity: .55; }
 .entryMark span:nth-child(3) { opacity: .25; }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .passFrame:hover .invitation { transform: translateY(-3px) rotate(-.3deg); }
+}
 .community { min-width: 0; text-align: center; }
+.continuation:empty { display: none; }
 .views { display: flex; flex-wrap: wrap; justify-content: center; align-items: baseline; gap: 4px 10px; margin: 0; min-width: 0; }
 .viewsLabel { font-size: 12px; line-height: 20px; color: rgb(var(--subtext)); }
-.viewsCount { font: 500 clamp(18px, calc((100cqi - 80px) / (var(--arrival-view-length) * .7)), 38px)/1.15 var(--font-geist-mono), ui-monospace, monospace; letter-spacing: -.045em; }
+.viewsCount { --count-digit-width: 1ch; font: 600 clamp(18px, calc((100cqi - 80px) / (var(--arrival-view-length) * .60)), 42px)/1.15 var(--font-arena-label), var(--font-geist-sans), sans-serif; letter-spacing: -.02em; }
 .unavailable { margin: 0; font-size: 16px; line-height: 25px; font-weight: 500; }
 .provenance { margin-top: 10px; color: rgb(var(--subtext)); font-size: 10px; line-height: 1.8; font-variant-numeric: tabular-nums; }
 .provenance p { margin: 3px 0; overflow-wrap: anywhere; }
@@ -43,14 +61,18 @@
 .error { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid rgb(var(--error) / .2); border-radius: 12px; color: rgb(var(--error)); background: rgb(var(--error) / .045); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .error svg { flex: 0 0 16px; margin-top: 3px; }
 .actions { display: flex; flex: 0 0 auto; justify-content: center; padding: 16px 24px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid rgb(var(--text) / .07); }
-.enter { display: flex; align-items: center; justify-content: center; gap: 16px; width: min(440px, 100%); min-width: 0; min-height: 54px; padding: 14px 22px; border: 0; border-radius: 99px; color: rgb(var(--brand-contrast)); background: rgb(var(--brand)); font-size: 15px; line-height: 23px; font-weight: 600; cursor: pointer; transition: box-shadow .18s, opacity .18s; }
+.enter { position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: center; justify-content: center; gap: 16px; width: min(440px, 100%); min-width: 0; min-height: 54px; padding: 14px 22px; border: 0; border-radius: 99px; color: rgb(var(--brand-contrast)); background: rgb(var(--brand)); font-size: 15px; line-height: 23px; font-weight: 600; cursor: pointer; transition: box-shadow .24s, opacity .18s, background .24s; }
 .enter span { min-width: 0; overflow-wrap: anywhere; }
 .enter svg { flex: 0 0 18px; }
-.enter:hover:not(:disabled) { box-shadow: 0 6px 22px rgb(var(--brand) / .18); }
+.enter::before { content: ""; position: absolute; z-index: -1; inset: 0; background: rgb(255 255 255 / .12); transform: translateX(-105%) skewX(-18deg); animation: arrival-light .9s 1.35s cubic-bezier(.22, 1, .36, 1) both; pointer-events: none; }
+.enterArrow { transition: transform .3s cubic-bezier(.22, 1, .36, 1); }
+.enter:hover:not(:disabled) { box-shadow: 0 8px 24px rgb(var(--brand) / .23); }
+.enter:hover:not(:disabled) .enterArrow, .enter:focus-visible .enterArrow { transform: translateX(5px); }
+@keyframes arrival-light { from { transform: translateX(-105%) skewX(-18deg); } to { transform: translateX(105%) skewX(-18deg); } }
 .enter:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: 4px; }
 .enter:disabled { cursor: wait; opacity: .65; }
 .spinner { animation: arrival-spin 1s linear infinite; }
 @keyframes arrival-spin { to { transform: rotate(360deg); } }
-@container arrival-welcome (max-width: 440px) { .content { padding: 12px 10px 24px; gap: 18px; } .eyebrow { margin-bottom: 8px; font-size: 10px; letter-spacing: .08em; } .title { font-size: 32px; } .introduction { font-size: 13px; margin-top: 8px; } .invitation { padding: 16px 22px; } .signature { gap: 14px; } .passType { font-size: 8px; letter-spacing: .12em; } .wordmark { font-size: 16px; } .actions { padding-inline: 10px; } .views { gap: 3px 8px; } }
+@container arrival-welcome (max-width: 440px) { .content { padding: 12px 10px 24px; gap: 18px; } .eyebrow { margin-bottom: 8px; font-size: 10px; letter-spacing: .08em; } .title { font-size: clamp(26px, 7.6cqi, 32px); } .introduction { font-size: 13px; margin-top: 8px; } .invitation { padding: 12px 20px 18px; } .passTop { gap: 8px; } .passTools { gap: 1px; } .identity { padding-block: 10px 20px; } .signature { gap: 14px; } .passType { font-size: 8px; letter-spacing: .12em; } .wordmark { font-size: 18px; } .actions { padding-inline: 10px; } .views { gap: 3px 8px; } }
 @container arrival-welcome (max-height: 430px) { .content { padding-block: 12px 30px; gap: 20px; } .eyebrow { margin-bottom: 8px; } .title { font-size: 30px; } .introduction { margin-top: 10px; } .actions { padding-block: 8px; } .enter { min-height: 46px; padding-block: 10px; font-size: 14px; line-height: 22px; } }
-@media (prefers-reduced-motion: reduce) { .enter { transition: none; } .spinner { animation-duration: 1.8s; } }
+@media (prefers-reduced-motion: reduce) { .enter, .enterArrow, .invitation, .motionToggle { transition: none; } .enter::before { animation: none; display: none; } .enter:hover:not(:disabled) .enterArrow, .enter:focus-visible .enterArrow { transform: none; } .spinner { animation: none; } }

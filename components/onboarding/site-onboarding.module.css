@@ -1,5 +1,18 @@
 .shell { --onb-line: rgb(var(--text) / .09); position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; height: 100dvh; overflow: hidden; overflow-anchor: none; overscroll-behavior: contain; background: rgb(var(--bg)); color: rgb(var(--text)); font-family: var(--font-geist-sans), "PingFang SC", sans-serif; }
 .shell * { box-sizing: border-box; }
+.shell[data-phase="welcome"] .topbar { --welcome-chrome-offset: -8px; animation: welcome-chrome-arrive .65s cubic-bezier(.22, 1, .36, 1) .06s both; }
+.shell[data-phase="welcome"] .footer { --welcome-chrome-offset: 8px; animation: welcome-chrome-arrive .65s cubic-bezier(.22, 1, .36, 1) .65s both; }
+@keyframes welcome-chrome-arrive { from { opacity: 0; transform: translateY(var(--welcome-chrome-offset)); } to { opacity: 1; transform: none; } }
+/* The destination rises into place as the completed player invitation recedes.
+   Animate content separately so fixed navigation keeps its viewport anchor. */
+.websiteEntrance main { animation: website-content-arrive .9s cubic-bezier(.22, 1, .36, 1) .1s both; transform-origin: 50% 15%; }
+.websiteEntrance > :is(header, nav, footer) { animation: website-chrome-arrive .7s cubic-bezier(.22, 1, .36, 1) .24s both; }
+.websiteDissolve { animation: website-chrome-arrive .15s linear both; }
+@keyframes website-content-arrive { from { opacity: 0; transform: translateY(24px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes website-chrome-arrive { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .websiteEntrance main, .websiteEntrance > :is(header, nav, footer), .shell[data-phase="welcome"] :is(.topbar, .footer) { animation: website-chrome-arrive .15s linear both; }
+}
 .shell:is([data-comparison-phase="moving"], [data-comparison-phase="shoes"], [data-comparison-phase="radar"], [data-comparison-phase="copy"]) :is(.topbar, .footer, .controls, .compactBodyHint) { opacity: 0; }
 .shell:is([data-comparison-phase="moving"], [data-comparison-phase="shoes"], [data-comparison-phase="radar"]) .copy { opacity: 0; transform: translateY(8px); }
 .shell[data-comparison-phase="copy"] .copy { animation: comparison-copy .9s cubic-bezier(.22, 1, .36, 1) both; }
