@@ -11,14 +11,14 @@ export const metadata: Metadata = {
 export default async function SmartPickerPage({
   searchParams
 }: {
-  searchParams: Promise<{ ask?: string }>;
+  searchParams: Promise<{ ask?: string; mode?: string }>;
 }) {
   // Open to any signed-in user (see getSmartPickerContext). Signed-out visitors
   // get a sign-in prompt with a link to the free Quick Picker.
   const ctx = await getSmartPickerContext();
   if (!ctx) return <SmartPickerSignedOut />;
   // ?ask= pre-fills the composer (e.g. the Max concierge entry from a shoe page).
-  const { ask } = await searchParams;
+  const { ask, mode } = await searchParams;
   const initialPrompt = typeof ask === "string" ? ask.slice(0, 400) : undefined;
-  return <SmartPickerClient initialPrompt={initialPrompt} />;
+  return <SmartPickerClient initialPrompt={initialPrompt} initialMode={mode === "chat" ? "chat" : "find"} />;
 }

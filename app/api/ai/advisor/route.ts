@@ -14,7 +14,7 @@ import {
   getPackyEnvReport,
   describePackyEnvProblem
 } from "@/lib/ai/packy-client";
-import { tierConfig } from "@/lib/subscription/tiers";
+import { tierConfig, tierSupportsModel, type ModelId } from "@/lib/subscription/tiers";
 import {
   getMemberContext,
   getAllowanceBalance
@@ -24,7 +24,7 @@ import { startDeadline } from "@/lib/ai/budget";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// Same reason as the Smart Picker route: the advisor runs the flagship
+// Same reason as the Smart Picker route: the advisor can run the flagship
 // reasoning model and holds the function open for the whole SSE stream, so it
 // needs a duration ceiling well above the platform default or the stream is cut
 // off mid-answer. Literal by necessity (Next segment config); keep it in sync
@@ -38,7 +38,10 @@ const ADVISOR_MESSAGE_COST = 1;
 
 const schema = z.object({
   chatId: z.guid(),
-  message: z.string().trim().min(1, "Message is required.").max(2000)
+  message: z.string().trim().min(1, "Message is required.").max(2000),
+  // Stable selector ID, not an arbitrary upstream model name. A stale or
+  // unsupported ID falls back to Chat's existing flagship default.
+  model: z.string().max(64).optional()
 });
 
 export async function POST(request: Request) {
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ ok: false, message: parsed.error.issues[0]?.message ?? "Invalid request." }, { status: 400 });
   }
-  const { chatId, message } = parsed.data;
+  const { chatId, message, model: requestedModel } = parsed.data;
 
   const admin = createAdminClient();
   if (!admin) return NextResponse.json({ ok: false, message: "Database is not configured." }, { status: 500 });
@@ -71,8 +74,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, code: "locked", message: "The AI advisor is a Max feature." }, { status: 403 });
   }
   const cfg = tierConfig(tier);
-  // The advisor always runs the flagship premium model.
-  const model = cfg.capabilities.premiumModel ?? cfg.baseModel;
+  const model: ModelId = requestedModel && tierSupportsModel(tier, requestedModel)
+    ? requestedModel as ModelId
+    : cfg.capabilities.premiumModel ?? cfg.baseModel;
 
   // Verify chat ownership.
   const { data: chat } = await admin.from("advisor_chats").select("id, user_id, title").eq("id", chatId).maybeSingle();
@@ -90,7 +94,11 @@ export async function POST(request: Request) {
   }
 
   let actualModel: string;
-  try { actualModel = catalogModel(await getModelCatalog(), model)!.model; }
+  try {
+    const entry = catalogModel(await getModelCatalog(), model);
+    if (!entry) throw new Error("Selected model is unavailable.");
+    actualModel = entry.model;
+  }
   catch { return NextResponse.json({ ok: false, message: "AI model configuration is temporarily unavailable." }, { status: 503 }); }
   const client = createPackyClientForModel(model, actualModel);
   if (!client) {
@@ -171,8 +179,7 @@ export async function POST(request: Request) {
           full = result.text || full;
         } catch (error) {
           console.error("[ai/advisor] stream failed", { model: actualModel, error });
-          // The advisor always runs the premium model — report that one, not the
-          // shared base model the old hardcoded target reported.
+          // Report the resolved upstream model, not the stable selector ID.
           send("error", { message: "AI 暂时无法完成请求，请稍后重试。" });
           return;
         }
@@ -197,6 +204,10 @@ export async function POST(request: Request) {
           createdAt: assistantRow.created_at,
           balance: newBalance,
           unlimited: ctx.isAdmin,
+          billing: ctx.isAdmin ? "unlimited" : "allowance",
+          creditsCharged: charged,
+          model,
+          actualModel,
           title: chatUpdate.title ?? null
         });
       } catch (error) {

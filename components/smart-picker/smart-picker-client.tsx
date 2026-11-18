@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChatSidebar } from "@/components/smart-picker/chat-sidebar";
 import { ChatConversation } from "@/components/smart-picker/chat-conversation";
+import { conversationHistory, conversationMessages, conversationPath, sortConversations, type PickerMode } from "@/lib/ai/conversation-mode";
 import { MAX_CONCURRENT_TURNS, type AiChatMessage, type AiChatSummary, type RecommendationItem } from "@/lib/ai/types";
 import type { AiClarification, ClarificationAnswers } from "@/lib/ai/clarification";
 import type { CheckinStatus } from "@/lib/ai/checkin";
@@ -81,7 +81,7 @@ function statusText(
   }
 }
 
-export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string }) {
+export function SmartPickerClient({ initialPrompt, initialMode = "find" }: { initialPrompt?: string; initialMode?: PickerMode }) {
   // User-facing fallback strings were hardcoded Chinese; pick per locale so the
   // English UI never shows untranslated zh (the rest of the app uses translate()).
   const { locale } = useLocale();
@@ -94,7 +94,12 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     ? "与服务器的连接在生成推荐时中断了，请再发送一次。"
     : "The connection dropped while your picks were being generated — please send it again.";
   const [chats, setChats] = useState<AiChatSummary[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [draftMode, setDraftMode] = useState<PickerMode>(initialMode);
+  const modesRef = useRef(new Map<string, PickerMode>());
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [historyLoadVersion, setHistoryLoadVersion] = useState(0);
   // One message thread per conversation, keyed by chat id (plus NEW_CHAT_KEY).
   // A single shared `messages` array is what used to make leaving a generating
   // conversation impossible: switching replaced the array under the live
@@ -109,7 +114,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   const [unseenChatIds, setUnseenChatIds] = useState<string[]>([]);
   const [balance, setBalance] = useState(0);
   const [creditsLoaded, setCreditsLoaded] = useState(false);
-  const [onboardingReady, setOnboardingReady] = useState(false);
+  const [creditsError, setCreditsError] = useState(false);
+  const onboardingReady = creditsLoaded && !chatsLoading && !historyError;
   const [checkin, setCheckin] = useState<CheckinStatus>(INITIAL_CHECKIN);
   const [allowance, setAllowance] = useState<{ balance: number; grant: number } | null>(null);
   // Membership tier + the model the picker currently targets. Loaded with the
@@ -118,6 +124,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   const [tier, setTier] = useState<Tier>("free");
   const [model, setModel] = useState<ModelId | null>(null);
   const [unlimited, setUnlimited] = useState(false);
+  const [chatUnlimited, setChatUnlimited] = useState(false);
 
   // Mirror of `streamingKeys` for synchronous reads inside handleSend (state is
   // a render behind), plus the AbortController of each in-flight stream so a
@@ -133,6 +140,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   const activeKeyRef = useRef<string>(NEW_CHAT_KEY);
 
   const activeKey = activeChatId ?? NEW_CHAT_KEY;
+  const mode = activeChatId ? modesRef.current.get(activeChatId) ?? "find" : draftMode;
   const messages = threads[activeKey] ?? EMPTY_THREAD;
   const sending = streamingKeys.includes(activeKey);
   const loadingMessages = loadingKeys.includes(activeKey);
@@ -160,7 +168,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   // activity down and build a new one in the middle of a single answer.
   const pickerActivityRef = useRef<string | null>(null);
   const lastPromptRef = useRef("");
-  const anyStreaming = streamingKeys.length > 0;
+  const anyStreaming = streamingKeys.some(key => (modesRef.current.get(key) ?? "find") === "find");
 
   useEffect(() => {
     if (anyStreaming) {
@@ -198,32 +206,40 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     [patchThread]
   );
 
-  // Initial load: chats + balance.
-  // Note: we intentionally do NOT auto-select the most recent conversation.
-  // Entering Smart Picker always starts on a fresh, empty conversation; the
-  // user opens a past one explicitly from the history list.
-  useEffect(() => {
-    void (async () => {
-      const [chatsRes, creditsRes] = await Promise.all([getJson("/api/ai/chats"), getJson("/api/ai/credits")]);
-      if (chatsRes?.ok) {
-        setChats(chatsRes.chats as AiChatSummary[]);
-      }
-      if (creditsRes?.ok) {
-        setBalance(creditsRes.balance);
-        setUnlimited(Boolean(creditsRes.unlimited));
-        if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
-        setAllowance((creditsRes.allowance as { balance: number; grant: number } | null) ?? null);
-        if (creditsRes.tier === "free" || creditsRes.tier === "pro" || creditsRes.tier === "max") {
-          setTier(creditsRes.tier);
-        }
-        if (isModelId(creditsRes.model)) setModel(creditsRes.model);
-      }
-      // A completed request is not necessarily a usable interface. Keep the
-      // first-use guide behind actual successful chat and allowance reads.
-      setOnboardingReady(Boolean(chatsRes?.ok && creditsRes?.ok));
-      setCreditsLoaded(true);
-    })();
+  const refreshChats = useCallback(async () => {
+    const [findRes, chatRes] = await Promise.all([getJson("/api/ai/chats"), getJson("/api/ai/advisor/chats")]);
+    const chatAvailable = chatRes?.ok || chatRes?.code === "locked";
+    setChats(previous => {
+      const findRows = findRes?.ok ? conversationHistory(findRes.chats, "find") : previous.filter(row => row.mode !== "chat");
+      const chatRows = chatRes?.ok ? conversationHistory(chatRes.chats, "chat") : previous.filter(row => row.mode === "chat");
+      const remote = [...findRows, ...chatRows];
+      const pending = previous.filter(row => streamsRef.current.has(row.id) && !remote.some(item => item.id === row.id));
+      const combined = sortConversations([...remote, ...pending]);
+      for (const row of combined) modesRef.current.set(row.id, row.mode ?? "find");
+      return combined;
+    });
+    setHistoryError(findRes?.ok && chatAvailable ? null : "history");
+    setChatsLoading(false);
+    return Boolean(findRes?.ok && chatAvailable);
   }, []);
+
+  const refreshCredits = useCallback(async () => {
+    setCreditsError(false);
+    const creditsRes = await getJson("/api/ai/credits");
+    if (!creditsRes?.ok) { setCreditsError(true); return; }
+    setBalance(creditsRes.balance);
+    setUnlimited(Boolean(creditsRes.unlimited));
+    setChatUnlimited(Boolean(creditsRes.chatUnlimited));
+    if (creditsRes.checkin) setCheckin(creditsRes.checkin as CheckinStatus);
+    setAllowance((creditsRes.allowance as { balance: number; grant: number } | null) ?? null);
+    if (creditsRes.tier === "free" || creditsRes.tier === "pro" || creditsRes.tier === "max") setTier(creditsRes.tier);
+    if (isModelId(creditsRes.model)) setModel(creditsRes.model);
+    setCreditsLoaded(true);
+  }, []);
+
+  // Load independent account reads together; a failed read remains retryable.
+  // Start a fresh conversation rather than opening the most recent one.
+  useEffect(() => { void Promise.all([refreshChats(), refreshCredits()]); }, [refreshChats, refreshCredits]);
 
   // Fetch a conversation's history the first time it's opened. Already-loaded
   // threads (including one being streamed into right now) are kept as-is, so
@@ -235,15 +251,17 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
     setUnseenChatIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev));
     if (loadedRef.current.has(id)) return;
     loadedRef.current.add(id);
-    setLoadingKeys((prev) => [...prev, id]);
+    setLoadingKeys((prev) => prev.includes(id) ? prev : [...prev, id]);
     void (async () => {
-      const res = await getJson(`/api/ai/chats/${id}/messages`);
+      const threadMode = modesRef.current.get(id) ?? "find";
+      const res = await getJson(`${conversationPath(threadMode)}/${id}/messages`);
       setLoadingKeys((prev) => prev.filter((k) => k !== id));
       if (!res?.ok) {
         loadedRef.current.delete(id);
+        patchThread(id, () => [localMessage(zhUI ? "对话加载失败，请从历史记录中重新打开。" : "Could not load this conversation. Open it again from history to retry.")]);
         return;
       }
-      const fetched = res.messages as AiChatMessage[];
+      const fetched = conversationMessages(res.messages, threadMode);
       // Merge rather than replace: a turn sent while this GET was in flight
       // only exists locally, and dropping it is what made a just-sent message
       // vanish. Local ids (temp-/stream-/local-) never collide with saved ones.
@@ -253,12 +271,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         return { ...prev, [id]: [...fetched, ...pending] };
       });
     })();
-  }, [activeChatId]);
-
-  const refreshChats = useCallback(async () => {
-    const res = await getJson("/api/ai/chats");
-    if (res?.ok) setChats(res.chats as AiChatSummary[]);
-  }, []);
+  }, [activeChatId, historyLoadVersion, patchThread, zhUI]);
 
   // Starting a new conversation is purely local — the ai_chats row is created
   // on the first send. That makes "new chat" instant even while another
@@ -273,22 +286,29 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
 
   const handleSelect = useCallback((id: string) => {
     activeKeyRef.current = id;
+    setDraftMode(modesRef.current.get(id) ?? "find");
+    if (!loadedRef.current.has(id)) {
+      patchThread(id, () => EMPTY_THREAD);
+      setLoadingKeys(previous => previous.includes(id) ? previous : [...previous, id]);
+      setHistoryLoadVersion(previous => previous + 1);
+    }
     setActiveChatId(id);
-  }, []);
+  }, [patchThread]);
 
   const handleRename = useCallback(async (id: string, title: string) => {
-    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
-    await getJson(`/api/ai/chats/${id}`, {
+    const result = await getJson(`${conversationPath(modesRef.current.get(id) ?? "find")}/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title })
     });
-  }, []);
+    if (!result?.ok) throw new Error(result?.message ?? failMsg);
+    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, title } : c)));
+  }, [failMsg]);
 
   const handleDelete = useCallback(
     async (id: string) => {
-      const res = await getJson(`/api/ai/chats/${id}`, { method: "DELETE" });
-      if (!res?.ok) return;
+      const res = await getJson(`${conversationPath(modesRef.current.get(id) ?? "find")}/${id}`, { method: "DELETE" });
+      if (!res?.ok) throw new Error(res?.message ?? failMsg);
       // Drop the stream with the conversation — the turn has nowhere to land.
       controllersRef.current.get(id)?.abort();
       controllersRef.current.delete(id);
@@ -303,11 +323,11 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       setUnseenChatIds((prev) => prev.filter((x) => x !== id));
       setChats((prev) => {
         const next = prev.filter((c) => c.id !== id);
-        setActiveChatId((cur) => (cur === id ? next[0]?.id ?? null : cur));
         return next;
       });
+      if (activeKeyRef.current === id) handleNewChat();
     },
-    [markStreaming]
+    [markStreaming, handleNewChat, failMsg]
   );
 
   // Optimistic model switch; the pref write is fire-and-forget (open to every
@@ -339,6 +359,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       // The guard is per-conversation: only a turn already running in THIS
       // conversation blocks a send. Another chat generating does not.
       let key = activeChatId ?? NEW_CHAT_KEY;
+      const requestMode = mode;
+      if (requestMode === "chat" && tier !== "max") return;
       if (streamsRef.current.has(key)) return;
       // Belt and braces — the composer already blocks this (`atTurnLimit`).
       if (streamsRef.current.size >= MAX_CONCURRENT_TURNS) return;
@@ -352,19 +374,22 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
       // appear the instant they hit send. The old order awaited chat creation
       // before touching state, leaving a dead, feedback-free window on the
       // first message of every fresh conversation.
+      const tempId = `temp-${Date.now()}`;
       const tempUser: AiChatMessage = {
-        id: `temp-${Date.now()}`,
+        id: tempId,
+        clientKey: tempId,
         role: "user",
         content: message,
         recommendations: null,
         credits_charged: 0,
         created_at: new Date().toISOString()
       };
-      const preparingQuestions = !request?.clarification && !(threads[key] ?? []).some(item => item.recommendations?.length);
+      const preparingQuestions = requestMode === "find" && !request?.clarification && !(threads[key] ?? []).some(item => item.recommendations?.length);
       if (!request?.retryMessageId) appendTo(key, tempUser);
       if (request?.clarification) patchThread(key, list => list.map(item => item.clarification?.id === request.clarification!.id ? { ...item, clarification: { ...item.clarification, status: "answering", answers: request.clarification!.answers } } : item));
       // What the Dynamic Island shows while this turn runs.
       lastPromptRef.current = message;
+      modesRef.current.set(key, requestMode);
       markStreaming(key, true);
 
       const controller = new AbortController();
@@ -386,12 +411,23 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         if (!id) return;
         patchThread(key, (list) => list.map((m) => (m.id === id ? updater(m) : m)));
       };
+      // Coalesce token deltas so Chat does not re-render its entire layout for
+      // every tiny provider chunk. Status/terminal events remain immediate.
+      let pendingAdvice = "";
+      let adviceTimer: ReturnType<typeof setTimeout> | null = null;
+      const flushAdvice = () => {
+        if (adviceTimer) clearTimeout(adviceTimer);
+        adviceTimer = null;
+        const delta = pendingAdvice;
+        pendingAdvice = "";
+        if (delta) patch(m => ({ ...m, content: m.content + delta }));
+      };
 
       try {
         // Ensure there's a chat to post into.
         let chatId = activeChatId;
         if (!chatId) {
-          const created = await getJson("/api/ai/chats", { method: "POST" });
+          const created = await getJson(conversationPath(requestMode), { method: "POST" });
           if (!created?.ok) {
             patchThread(NEW_CHAT_KEY, (list) => [
               ...list.filter((m) => m.id !== tempUser.id),
@@ -400,7 +436,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
             return;
           }
           const newId = created.chat.id as string;
-          setChats((prev) => [created.chat as AiChatSummary, ...prev]);
+          modesRef.current.set(newId, requestMode);
+          setChats((prev) => [{ ...created.chat as AiChatSummary, mode: requestMode }, ...prev]);
           // Move the optimistic thread under the real id and keep streaming
           // against it. The view only follows if the user is still sitting on
           // the blank conversation — someone who already opened another one
@@ -423,10 +460,10 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           }
         }
 
-        const res = await fetch("/api/ai/chat", {
+        const res = await fetch(requestMode === "chat" ? "/api/ai/advisor" : "/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-          body: JSON.stringify({ chatId, message, count, ...((request?.model ?? model) ? { model: request?.model ?? model } : {}), ...(request?.clarification ? { clarification: request.clarification } : {}) }),
+          body: JSON.stringify({ chatId, message, ...(requestMode === "find" ? { count } : {}), ...((request?.model ?? model) ? { model: request?.model ?? model } : {}), ...(request?.clarification ? { clarification: request.clarification } : {}) }),
           signal: controller.signal
         });
 
@@ -437,7 +474,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           const data = await res.json().catch(() => null);
           if (data?.ok && data.clarification && data.assistantMessage) {
             sawTerminal = true;
-            const saved = [data.userMessage, data.assistantMessage].filter(Boolean) as AiChatMessage[];
+            const saved = ([data.userMessage, data.assistantMessage].filter(Boolean) as AiChatMessage[]).map(item => item.role === "user" && item.content === tempUser.content ? { ...item, clientKey: tempUser.clientKey } : item);
             patchThread(key, list => {
               const next = list.filter(item => item.id !== tempUser.id);
               for (const item of saved) { const index = next.findIndex(existing => existing.id === item.id); if (index >= 0) next[index] = item; else next.push(item); }
@@ -452,11 +489,12 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           }
           needsRecovery = Boolean(request?.clarification || preparingQuestions);
           if (data?.ok && data.insufficient) {
-            setBalance(data.balance);
+            if (requestMode === "chat") setAllowance(previous => previous ? { ...previous, balance: data.balance } : previous);
+            else setBalance(data.balance);
             patchThread(key, (list) => [
               ...list.filter((m) => m.id !== tempUser.id),
               localMessage(
-                zhUI
+                requestMode === "chat" ? (zhUI ? "本月 Chat 额度不足。查看用量后再继续。" : "Your Chat allowance is used up. View usage for details.") : zhUI
                   ? `积分不足（当前余额 ${data.balance}）。每日签到可领取免费积分。`
                   : `Not enough credits (balance ${data.balance}). Claim free daily credits with the check-in.`
               )
@@ -475,6 +513,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         streamingId = assistantId;
         appendTo(key, {
           id: assistantId,
+          clientKey: assistantId,
           role: "assistant",
           content: "",
           recommendations: null,
@@ -506,6 +545,14 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
               continue;
             }
             switch (event) {
+              case "delta": {
+                const delta = (data as { text?: string }).text;
+                if (delta) {
+                  pendingAdvice += delta;
+                  if (!adviceTimer) adviceTimer = setTimeout(flushAdvice, 40);
+                }
+                break;
+              }
               case "status": {
                 // Live pipeline phase — the "what am I doing right now" line the
                 // user asked for. Each new phase checks off the previous one.
@@ -568,6 +615,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                 break;
               }
               case "done": {
+                flushAdvice();
                 sawTerminal = true;
                 answerSucceeded = true;
                 if (request?.clarification) patchThread(key, list => list.map(item => item.clarification?.id === request.clarification!.id ? { ...item, clarification: { ...item.clarification, status: "complete", answers: request.clarification!.answers } } : item));
@@ -580,6 +628,8 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                   balance?: number;
                   unlimited?: boolean;
                   billing?: string;
+                  userMessageId?: string;
+                  title?: string | null;
                 };
                 patch((m) => ({
                   ...m,
@@ -605,15 +655,20 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
                   if (d.billing === "allowance") setAllowance((a) => (a ? { ...a, balance: bal } : a));
                   else setBalance(bal);
                 }
-                if (typeof d.unlimited === "boolean") setUnlimited(d.unlimited);
+                if (requestMode === "find" && typeof d.unlimited === "boolean") setUnlimited(d.unlimited);
+                if (requestMode === "chat" && d.userMessageId) {
+                  patchThread(key, list => list.map(item => item.id === tempUser.id ? { ...item, id: d.userMessageId! } : item));
+                }
+                if (d.title) setChats(previous => previous.map(chat => chat.id === key ? { ...chat, title: d.title! } : chat));
                 void refreshChats();
                 break;
               }
               case "error": {
+                flushAdvice();
                 sawTerminal = true;
                 needsRecovery = Boolean(request?.clarification);
                 const msg = (data as { message?: string }).message ?? failMsg;
-                patch((m) => ({ ...m, content: msg, steps: undefined, recommendations: null }));
+                patch((m) => ({ ...m, content: requestMode === "chat" && m.content ? `${m.content}\n\n${msg}` : msg, steps: undefined, recommendations: null }));
                 break;
               }
               default:
@@ -626,6 +681,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         // mid-turn (function timeout, proxy drop). Without this the bubble sat
         // in "thinking" forever with no explanation.
         if (!sawTerminal) {
+          flushAdvice();
           needsRecovery = Boolean(request?.clarification || preparingQuestions);
           patch((m) => ({
             ...m,
@@ -634,6 +690,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           }));
         }
       } catch {
+        flushAdvice();
         // The conversation was deleted mid-turn — its thread is gone, so there
         // is nothing to report into.
         if (controller.signal.aborted) return;
@@ -651,6 +708,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
           appendTo(key, localMessage(failMsg));
         }
       } finally {
+        flushAdvice();
         if (needsRecovery && !answerSucceeded && !controller.signal.aborted && key !== NEW_CHAT_KEY) {
           const recovered = await getJson(`/api/ai/chats/${key}/messages`);
           if (recovered?.ok) patchThread(key, list => {
@@ -669,7 +727,7 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
         }
       }
     },
-    [activeChatId, refreshChats, zhUI, failMsg, dropMsg, model, appendTo, patchThread, markStreaming, threads]
+    [activeChatId, refreshChats, zhUI, failMsg, dropMsg, model, mode, tier, appendTo, patchThread, markStreaming, threads]
   );
 
   // Restore a question or recommendation run after a reload or dropped stream.
@@ -698,25 +756,22 @@ export function SmartPickerClient({ initialPrompt }: { initialPrompt?: string })
   }, [handleSend, activeChatId, patchThread]);
 
   return (
-    <div className="slide-viewport-h flex overflow-hidden">
-      <aside className="hidden w-72 shrink-0 border-r border-[rgb(var(--glass-stroke-soft)/0.4)] md:flex">
-        <ChatSidebar
-          chats={chats}
-          activeChatId={activeChatId}
-          streamingChatIds={streamingKeys}
-          unseenChatIds={unseenChatIds}
-          onSelect={handleSelect}
-          onNewChat={handleNewChat}
-          onRename={handleRename}
-          onDelete={handleDelete}
-          balance={balance}
-          unlimited={unlimited}
-          checkin={checkin}
-          onClaimCheckin={handleClaimCheckin}
-        />
-      </aside>
-
+    <div className="slide-viewport-h flex flex-col overflow-hidden">
+      {creditsError && <div role="alert" className="px-6 py-3 text-center text-sm soft-text">
+        {zhUI ? "用量暂时无法加载。" : "Your allowance could not be loaded."}{" "}
+        <button type="button" className="underline underline-offset-4" onClick={() => void refreshCredits()}>{zhUI ? "重试" : "Retry"}</button>
+      </div>}
       <ChatConversation
+        mode={mode}
+        onModeChange={next => { if (!activeChatId && messages.length === 0 && !sending) setDraftMode(next); }}
+        modeLocked={Boolean(activeChatId || messages.length || sending || loadingMessages)}
+        canChat={tier === "max"}
+        chatUnlimited={chatUnlimited}
+        chatsLoading={chatsLoading}
+        historyError={historyError ? (zhUI ? "历史记录暂时无法完整加载，请重试。" : "Some conversations could not be loaded. Please retry.") : null}
+        onRetryHistory={() => { setChatsLoading(true); void refreshChats(); }}
+        onRenameChat={handleRename}
+        onDeleteChat={handleDelete}
         messages={messages}
         loadingMessages={loadingMessages}
         sending={sending}

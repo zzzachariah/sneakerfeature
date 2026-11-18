@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowUpRight, ChevronDown, Globe } from "lucide-react";
+import { ArrowUpRight, Check } from "lucide-react";
 import { useLocale } from "@/components/i18n/locale-provider";
 import { PerformanceRadar } from "@/components/detail/performance-radar";
 import { ShoeImage } from "@/components/shoe/shoe-image";
 import { StarRating } from "@/components/shoe/star-rating";
 import { BottomSheet } from "@/components/ui/bottom-sheet";
 import type { RecommendationItem } from "@/lib/ai/types";
+import styles from "./recommendation-shortlist.module.css";
 
 type Props = {
   rec: RecommendationItem;
@@ -18,6 +19,7 @@ type Props = {
   disabled: boolean;
   onToggle: () => void;
   className?: string;
+  featured?: boolean;
 };
 
 function ProsCons({ label, items, tone }: { label: string; items: string[]; tone: "pro" | "con" }) {
@@ -38,126 +40,62 @@ function ProsCons({ label, items, tone }: { label: string; items: string[]; tone
   );
 }
 
-export function RecommendationCard({ rec, rank, selected, disabled, onToggle, className }: Props) {
-  const { translate } = useLocale();
+export function RecommendationCard({ rec, rank, selected, disabled, onToggle, className, featured = false }: Props) {
+  const { translate, locale } = useLocale();
+  const zh = locale === "zh";
   const [detailOpen, setDetailOpen] = useState(false);
-  // Web sources this recommendation cites (from the AI's live search). Shown as
-  // a collapsed row on the card itself so the grounding is visible at a glance,
-  // not buried at the bottom of the detail sheet.
-  const [refsOpen, setRefsOpen] = useState(false);
   const refs = rec.references ?? [];
   const href = `/shoes/${rec.slug}` as Route;
   const hasProsCons = rec.pros.length > 0 || rec.cons.length > 0;
 
   return (
     <>
-      {/* Compact card */}
-      <div
+      <article
         data-onboarding="ai-result"
-        className={`surface-card premium-border flex flex-col overflow-hidden rounded-2xl transition hover:shadow-[0_8px_24px_rgb(var(--glass-shadow)/0.14)] ${className ?? ""}`}
+        data-recommendation-rank={rank}
+        className={`${styles.card} ${featured ? styles.featured : styles.compact} ${className ?? ""}`}
       >
-        {/* Top row: image + info */}
-        <div className="flex gap-3 p-3.5">
-          <div className="relative shrink-0">
-            <span className="num-display absolute -left-1 -top-1 z-10 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[rgb(var(--text))] px-1 text-[0.7rem] font-bold text-[rgb(var(--bg))]">
-              {rank}
-            </span>
+        <div className={styles.cardHeader}>
+          <span className={styles.rank}>{featured ? (zh ? "首选推荐" : "Top pick") : `${String(rank).padStart(2, "0")} · ${zh ? "备选" : "Alternative"}`}</span>
+          <label className={styles.compareChoice} data-selected={selected} data-disabled={disabled && !selected}>
+            <input
+              type="checkbox"
+              checked={selected}
+              disabled={disabled && !selected}
+              onChange={onToggle}
+              aria-label={`${translate("Add to compare")}: ${rec.shoe_name}`}
+            />
+            <Check size={12} aria-hidden="true" />
+            <span>{zh ? "对比" : "Compare"}</span>
+          </label>
+        </div>
+        <div className={styles.cardBody}>
+          <button type="button" className={styles.imageButton} onClick={() => setDetailOpen(true)} aria-label={`${(zh ? "详情" : "Details")}: ${rec.shoe_name}`}>
             <ShoeImage
               src={rec.image_url}
               alt={rec.shoe_name}
               fallbackLabel={translate("No image")}
-              variant="suggestion"
-              className="!mx-0"
+              variant="closet"
+              stage={false}
+              className={styles.shoeImage}
             />
-          </div>
-
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <div className="line-clamp-2 min-h-[2.5em] text-sm font-semibold leading-[1.25] tracking-[-0.01em]">
-                  {rec.shoe_name}
-                </div>
-                <div className="truncate text-[0.75rem] soft-text">
-                  {rec.brand}
-                  {rec.category ? <span className="opacity-60"> · {rec.category}</span> : null}
-                </div>
-              </div>
-              <label
-                onClick={(e) => e.stopPropagation()}
-                className="relative tap-44 inline-flex shrink-0 cursor-pointer items-center rounded-lg bg-[rgb(var(--text)/0.05)] px-1.5 py-1"
-                title={translate("Add to compare")}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  disabled={disabled && !selected}
-                  onChange={onToggle}
-                  className="h-3.5 w-3.5 accent-[rgb(var(--text))] disabled:opacity-50"
-                  aria-label={translate("Add to compare")}
-                />
-              </label>
+          </button>
+          <div className={styles.cardInfo}>
+            <p className={styles.brand}>{rec.brand}{rec.category ? ` · ${rec.category}` : ""}</p>
+            <h3 className={styles.shoeName}>{rec.shoe_name}</h3>
+            <div className={styles.rating}>
+              {rec.stars == null ? <span>{translate("Not enough rating data")}</span> : <StarRating value={rec.stars} size="sm" showNumber />}
             </div>
-
-            <div className="mt-1.5">
-              {rec.stars == null ? <span className="text-xs soft-text">{translate("Not enough rating data")}</span> : <StarRating value={rec.stars} size="sm" />}
-            </div>
+            {rec.reason && <p className={styles.reason}>{rec.reason}</p>}
           </div>
         </div>
-
-        {/* Reason + detail button */}
-        <div className="flex items-center gap-2 border-t border-[rgb(var(--glass-stroke-soft)/0.3)] px-3.5 py-2.5">
-          {rec.reason ? (
-            <p className="min-w-0 flex-1 truncate text-[0.78rem] soft-text">{rec.reason}</p>
-          ) : (
-            <span className="flex-1" />
-          )}
-          <button
-            type="button"
-            onClick={() => setDetailOpen(true)}
-            className="inline-flex shrink-0 items-center gap-0.5 rounded-full border border-[rgb(var(--glass-stroke-soft)/0.5)] px-3 py-1 text-[0.75rem] font-medium transition hover:border-[rgb(var(--text)/0.4)] hover:bg-[rgb(var(--text)/0.04)]"
-          >
-            {translate("Details")}
-            <ArrowUpRight className="h-3.5 w-3.5" />
+        <div className={styles.cardFooter}>
+          <span className={styles.sourceCount}>{refs.length > 0 ? `${translate("Sources")} · ${refs.length}` : ""}</span>
+          <button type="button" className={styles.detailsButton} onClick={() => setDetailOpen(true)}>
+            {(zh ? "详情" : "Details")}<ArrowUpRight size={14} aria-hidden="true" />
           </button>
         </div>
-
-        {/* Sources — collapsed row listing the web pages this pick cites. Only
-            rendered when the AI actually searched (references survive the
-            route's same-turn-search trust check). */}
-        {refs.length > 0 && (
-          <div className="border-t border-[rgb(var(--glass-stroke-soft)/0.3)]">
-            <button
-              type="button"
-              onClick={() => setRefsOpen((o) => !o)}
-              aria-expanded={refsOpen}
-              className="flex w-full items-center gap-1.5 px-3.5 py-2 text-[0.72rem] font-medium soft-text transition hover:bg-[rgb(var(--text)/0.03)]"
-            >
-              <Globe className="h-3 w-3 shrink-0" />
-              {translate("Sources")}
-              <span className="num-display">· {refs.length}</span>
-              <ChevronDown className={`ml-auto h-3.5 w-3.5 shrink-0 transition-transform ${refsOpen ? "rotate-180" : ""}`} />
-            </button>
-            {refsOpen && (
-              <ul className="space-y-1.5 px-3.5 pb-2.5">
-                {refs.map((ref, i) => (
-                  <li key={i} className="flex gap-1.5 text-[0.74rem] leading-snug">
-                    <span className="num-display shrink-0 soft-text">[{i + 1}]</span>
-                    <a
-                      href={ref.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="min-w-0 truncate text-[rgb(var(--text))] underline-offset-2 hover:underline"
-                      title={ref.url}
-                    >
-                      {ref.title}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
+      </article>
 
       {/* Detail bottom sheet */}
       <BottomSheet open={detailOpen} onClose={() => setDetailOpen(false)} title={rec.shoe_name}>
@@ -201,7 +139,7 @@ export function RecommendationCard({ rec, rank, selected, disabled, onToggle, cl
 
           {/* Pros & Cons — side by side */}
           {hasProsCons && (
-            <div className="flex gap-4 rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] p-3">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[rgb(var(--glass-stroke-soft)/0.35)] bg-[rgb(var(--text)/0.015)] p-3 sm:flex-row">
               {rec.pros.length > 0 && <ProsCons label={translate("Pros")} items={rec.pros} tone="pro" />}
               {rec.cons.length > 0 && <ProsCons label={translate("Cons")} items={rec.cons} tone="con" />}
             </div>

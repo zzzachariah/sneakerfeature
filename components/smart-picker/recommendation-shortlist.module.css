@@ -1,0 +1,49 @@
+.shortlist { min-width: 0; animation: shortlist-arrive .24s cubic-bezier(.22, 1, .36, 1); }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+.primarySlot { grid-column: 1 / -1; min-width: 0; }
+.alternativeSlot { display: flex; min-width: 0; }
+.card { display: flex; flex-direction: column; min-width: 0; width: 100%; overflow: hidden; border: 1px solid rgb(var(--text) / .1); border-radius: 22px; background: rgb(var(--surface) / .68); color: rgb(var(--text)); }
+.cardHeader { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 19px 0; }
+.rank { color: rgb(var(--subtext)); font-size: 10px; line-height: 1.4; letter-spacing: .04em; }
+.featured .rank { color: rgb(var(--text)); font-weight: 600; }
+.compareChoice { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex-shrink: 0; min-height: 44px; color: rgb(var(--subtext)); font-size: 10px; cursor: pointer; }
+.compareChoice input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.compareChoice svg { border: 1px solid rgb(var(--text) / .25); border-radius: 3px; color: transparent; width: 14px; height: 14px; padding: 1px; transition: color .15s ease, border-color .15s ease; }
+.compareChoice[data-selected=true] svg { color: rgb(var(--text)); border-color: rgb(var(--text) / .6); }
+.compareChoice[data-disabled=true] { opacity: .4; cursor: default; }
+.compareChoice:has(input:focus-visible) { outline: 2px solid rgb(var(--ring, var(--text)) / .6); outline-offset: 3px; border-radius: 8px; }
+.cardBody { display: flex; flex-direction: column; gap: 13px; padding: 0 19px 4px; flex: 1; }
+.featured .cardBody { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); align-items: center; gap: 22px; padding: 5px 24px 15px; }
+.imageButton { display: block; border: 0; padding: 0; width: 100%; height: 115px; background: none; color: inherit; cursor: pointer; border-radius: 12px; }
+.featured .imageButton { height: 180px; }
+.shoeImage { height: 100%; width: 100%; }
+.cardInfo { min-width: 0; }
+.brand { margin: 0 0 5px; color: rgb(var(--subtext)); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.shoeName { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 550; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.featured .shoeName { font-size: clamp(21px, 2vw, 27px); letter-spacing: -.04em; }
+.rating { margin-top: 9px; font-size: 10px; line-height: 1.6; color: rgb(var(--subtext)); }
+.reason { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 11px 0 0; font-size: 12px; line-height: 1.7; color: rgb(var(--subtext)); overflow-wrap: anywhere; }
+.cardFooter { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 2px 19px 10px; }
+.sourceCount { color: rgb(var(--subtext)); font-size: 10px; }
+.detailsButton { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 8px 0 8px 10px; border: 0; background: none; color: rgb(var(--text)); font: 500 11px/1.4 var(--font-geist-sans), sans-serif; cursor: pointer; }
+.detailsButton:hover { text-decoration: underline; text-underline-offset: 4px; }
+.imageButton:focus-visible, .detailsButton:focus-visible { outline: 2px solid rgb(var(--ring, var(--text)) / .6); outline-offset: 3px; border-radius: 8px; }
+.compareBar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgb(var(--text) / .09); }
+.compareBar > span:first-child { font-size: 11px; }
+.compareButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 10px 16px; border-radius: 999px; color: rgb(var(--text)); border: 1px solid rgb(var(--text) / .18); font-size: 11px; font-weight: 500; transition: border-color .15s ease; }
+.compareButton:hover { border-color: rgb(var(--text) / .55); }
+.compareButton:focus-visible { outline: 2px solid rgb(var(--ring, var(--text)) / .6); outline-offset: 3px; }
+.compareButton[aria-disabled=true] { opacity: .4; }
+@keyframes shortlist-arrive { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 600px) {
+  .cards { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .featured .cardBody { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 0 22px 10px; }
+  .featured .imageButton { height: 160px; }
+  .compact .cardBody { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: center; gap: 15px; }
+  .compact .imageButton { height: 88px; }
+  .featured .shoeName { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .shortlist { animation: none; }
+  .compareChoice svg, .compareButton { transition: none; }
+}
