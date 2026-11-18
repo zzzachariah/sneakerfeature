@@ -26,7 +26,7 @@
 .motionToggle:hover { color: rgb(var(--text)); background: rgb(var(--text) / .04); }
 .motionToggle:focus-visible { outline: 2px solid rgb(var(--brand)); outline-offset: -5px; }
 .identity { position: relative; padding-block: 8px 22px; }
-.playerNumber { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; min-height: 1.1em; --count-digit-width: 1ch; font-family: var(--font-arena-label), var(--font-geist-sans), sans-serif; font-size: clamp(16px, calc((100cqi - 164px) / (var(--arrival-number-length) * .69)), 112px); line-height: 1.1; font-weight: 600; letter-spacing: -.035em; color: rgb(var(--text)); }
+.playerNumber { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; min-height: 1.1em; --count-digit-width: 1ch; font-family: var(--font-arena-label), var(--font-geist-sans), sans-serif; font-size: clamp(16px, calc((100cqi - 164px) / (var(--arrival-number-length) * .69)), var(--arrival-player-max, 112px)); line-height: 1.1; font-weight: 600; letter-spacing: -.035em; color: rgb(var(--text)); }
 .numberUnit { font-family: var(--font-geist-mono), monospace; font-size: 13px; line-height: 22px; letter-spacing: -.03em; color: rgb(var(--subtext)); }
 .pending { display: block; max-width: 80%; font-family: var(--font-geist-sans), sans-serif; font-size: 18px; line-height: 1.5; letter-spacing: 0; color: rgb(var(--subtext)); padding-block: 16px; }
 .numberLabel { margin: 6px 0 0; color: rgb(var(--subtext)); font-size: 11px; line-height: 18px; letter-spacing: .01em; }
@@ -74,5 +74,55 @@
 .spinner { animation: arrival-spin 1s linear infinite; }
 @keyframes arrival-spin { to { transform: rotate(360deg); } }
 @container arrival-welcome (max-width: 440px) { .content { padding: 12px 10px 24px; gap: 18px; } .eyebrow { margin-bottom: 8px; font-size: 10px; letter-spacing: .08em; } .title { font-size: clamp(26px, 7.6cqi, 32px); } .introduction { font-size: 13px; margin-top: 8px; } .invitation { padding: 12px 20px 18px; } .passTop { gap: 8px; } .passTools { gap: 1px; } .identity { padding-block: 10px 20px; } .signature { gap: 14px; } .passType { font-size: 8px; letter-spacing: .12em; } .wordmark { font-size: 18px; } .actions { padding-inline: 10px; } .views { gap: 3px 8px; } }
-@container arrival-welcome (max-height: 430px) { .content { padding-block: 12px 30px; gap: 20px; } .eyebrow { margin-bottom: 8px; } .title { font-size: 30px; } .introduction { margin-top: 10px; } .actions { padding-block: 8px; } .enter { min-height: 46px; padding-block: 10px; font-size: 14px; line-height: 22px; } }
+/* Size the invitation against the space left by the real header/footer.
+   Default content fits laptop and phone heights; expanded details, errors and
+   unusually long content retain the scroll region as an accessible fallback. */
+@container arrival-welcome (max-height: 760px) {
+  .content { --arrival-player-max: 80px; gap: 12px; padding-block: 6px 10px; }
+  .eyebrow { margin-bottom: 6px; font-size: 10px; line-height: 16px; }
+  .title { font-size: clamp(26px, 5.8cqi, 42px); }
+  .introduction { margin-top: 8px; font-size: 13px; line-height: 1.5; }
+  .passFrame { width: min(600px, 100%); }
+  .invitation { padding-block: 10px 14px; }
+  .identity { padding-block: 4px 12px; }
+  .numberLabel { margin-top: 4px; line-height: 16px; }
+  .signature { padding-top: 10px; }
+  .signature > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+  .nameLabel { margin: 0; }
+  .name { font-size: 16px; }
+  .viewsCount { font-size: clamp(18px, calc((100cqi - 80px) / (var(--arrival-view-length) * .60)), 34px); }
+  .provenance { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0 8px; max-width: 460px; margin: 4px auto 0; }
+  .source { flex: 1 1 140px; }
+  .sourceDetails { margin: 0; }
+  .sourceDetails:has(.sourceExplanation), .dataNotice { flex-basis: 100%; }
+  .continuation > aside { margin-top: 0; padding-top: 8px; gap: 4px; }
+  .continuation > aside a { flex-direction: row; align-items: center; min-height: 44px; gap: 6px; line-height: 1.4; }
+  .continuation > aside a > div { flex: 0 0 40px; width: 40px; height: 32px; }
+  .actions { padding-block: 10px max(10px, env(safe-area-inset-bottom)); }
+  .enter { min-height: 48px; padding-block: 12px; }
+}
+@container arrival-welcome (max-height: 600px) {
+  .content { --arrival-player-max: 64px; gap: 8px; padding-block: 4px 8px; }
+  .eyebrow { margin-bottom: 4px; }
+  .title { font-size: clamp(24px, 7cqi, 32px); }
+  .introduction { margin-top: 6px; font-size: 12px; }
+  .invitation { padding-block: 8px 12px; }
+  .identity { padding-block: 2px 8px; }
+  .viewsCount { font-size: clamp(18px, calc((100cqi - 80px) / (var(--arrival-view-length) * .60)), 30px); }
+  .actions { padding-block: 8px max(8px, env(safe-area-inset-bottom)); }
+  .enter { min-height: 46px; padding-block: 10px; font-size: 14px; line-height: 22px; }
+}
+@container arrival-welcome (max-height: 500px) {
+  .content { --arrival-player-max: 56px; gap: 6px; padding-block: 2px 6px; }
+  .title { font-size: clamp(23px, 6.8cqi, 28px); }
+  .provenance { margin-top: 2px; gap: 0 4px; }
+  .viewsCount { font-size: clamp(18px, calc((100cqi - 80px) / (var(--arrival-view-length) * .60)), 28px); }
+}
+@container arrival-welcome (min-width: 600px) and (max-height: 600px) {
+  .heading { max-width: none; }
+  .title { font-size: 28px; }
+  .titleMask { display: inline-block; vertical-align: bottom; }
+  .titleMask:first-child { margin-inline-end: .25em; }
+  .introduction { max-width: 580px; }
+}
 @media (prefers-reduced-motion: reduce) { .enter, .enterArrow, .invitation, .motionToggle { transition: none; } .enter::before { animation: none; display: none; } .enter:hover:not(:disabled) .enterArrow, .enter:focus-visible .enterArrow { transform: none; } .spinner { animation: none; } }
