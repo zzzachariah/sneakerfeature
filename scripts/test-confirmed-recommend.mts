@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import type OpenAI from "openai";
 import type {Shoe} from "../lib/types";
 import {recommendShoes} from "../lib/ai/recommend";
-import {confirmedSourceMatches, ConfirmedRecommendationError} from "../lib/ai/confirmed-recommend";
+import {confirmedSourceMatches, type ConfirmedRecommendationError} from "../lib/ai/confirmed-recommend";
 import {HAIKU_MODEL, PACKY_MODEL} from "../lib/ai/packy-client";
 import {startDeadline} from "../lib/ai/budget";
 
@@ -15,6 +15,11 @@ type Request = {
     recommendations?: {minItems: number; maxItems: number};
   }}}}[];
 };
+// Node 22's tsx ESM/CJS interop can load the same Error subclass twice.
+// Assert its complete public error contract instead of constructor identity.
+const expectedFailure = (code: ConfirmedRecommendationError["code"]) => ({
+  name:"ConfirmedRecommendationError", message:`confirmed_picker_${code}`, code,
+});
 const names = Array.from({length:12},(_,index)=>`Confirm Shoe ${index+1}`);
 const shoes: Shoe[] = names.map((shoe_name,index)=>({
   id:`confirmed-${index}`,slug:`confirmed-${index}`,brand:"Fixture",shoe_name,release_year:index?2026:2014,weight:index?"355g":null,
@@ -148,13 +153,13 @@ try{
     invalidCalls++;
     return stream({candidates:[secret],research:[]},true,"shortlist_shoes");
   }}}} as unknown as OpenAI;
-  await assert.rejects(()=>recommendShoes(invalidClient,{shoes,history:[],currentInput,count:3,confirmedPreferences:true,model:HAIKU_MODEL}),error=>error instanceof ConfirmedRecommendationError&&error.code==="invalid_shortlist");
+  await assert.rejects(()=>recommendShoes(invalidClient,{shoes,history:[],currentInput,count:3,confirmedPreferences:true,model:HAIKU_MODEL}),expectedFailure("invalid_shortlist"));
   assert.equal(invalidCalls,1,"Invalid candidates never reach a fallback model or heuristic picks");
   assert.equal(queries.length,searchTotal,"Invalid catalog names never trigger research");
-  await assert.rejects(()=>recommendShoes(invalidClient,{shoes,history:[],currentInput,count:3,confirmedPreferences:true,deadline:startDeadline(-1)}),error=>error instanceof ConfirmedRecommendationError&&error.code==="deadline");
+  await assert.rejects(()=>recommendShoes(invalidClient,{shoes,history:[],currentInput,count:3,confirmedPreferences:true,deadline:startDeadline(-1)}),expectedFailure("deadline"));
   assert.equal(invalidCalls,1,"No calls start after the turn deadline");
-  for(const count of [0,9])await assert.rejects(()=>recommendShoes(invalidClient,{shoes,history:[],currentInput,count,confirmedPreferences:true}),error=>error instanceof ConfirmedRecommendationError&&error.code==="invalid_count");
-  await assert.rejects(()=>recommendShoes(invalidClient,{shoes:shoes.slice(0,2),history:[],currentInput,count:3,confirmedPreferences:true}),error=>error instanceof ConfirmedRecommendationError&&error.code==="insufficient_catalog");
+  for(const count of [0,9])await assert.rejects(()=>recommendShoes(invalidClient,{shoes,history:[],currentInput,count,confirmedPreferences:true}),expectedFailure("invalid_count"));
+  await assert.rejects(()=>recommendShoes(invalidClient,{shoes:shoes.slice(0,2),history:[],currentInput,count:3,confirmedPreferences:true}),expectedFailure("insufficient_catalog"));
   assert.equal(invalidCalls,1,"Unsupported counts fail before model work");
 
   for(const failure of ["outside-candidates","too-few","truncated"] as const){
@@ -182,7 +187,7 @@ try{
     if(failure==="truncated"){
       const result=await run();assert.equal(result.recommendations.length,1);assert.equal(calls,3,"A truncated answer retries once without another shortlist");
     }else{
-      await assert.rejects(run,error=>error instanceof ConfirmedRecommendationError&&error.code==="invalid_result");
+      await assert.rejects(run,expectedFailure("invalid_result"));
       assert.equal(calls,2,"Unresearched or insufficient final picks fail instead of calling generic fallback");
     }
     round++;
