@@ -6,6 +6,8 @@ Three selector IDs intentionally retain their original values for saved preferen
 
 Tool support includes tool-choice capabilities: production Fable 5.2 and Sonnet 5.5 reject forced named/required tools with HTTP 400. Their native transport uses `auto` while preserving the tool schemas; clarification and confirmed-recommendation prompts accept either the expected tool or complete JSON, with the same output validation. Other models keep their existing protocol. Verify both tool invocation and forced-choice support when rotating a model; listing tools alone does not establish both.
 
+An intermittent cc-sale pre-generation HTTP 400 with `unknown provider for model claude-...` uses the existing SDK retry budget (one retry in production). The request keeps its model, key and group, and the final error retains its status/body. Ordinary validation/authentication errors and failures after streaming begins are not replayed by this rule. A successful retry is not proof that the provider's routing incident is resolved.
+
 The row shape is:
 
 ```json

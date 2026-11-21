@@ -33,7 +33,7 @@ function blocks(content: OpenAI.Chat.Completions.ChatCompletionMessageParam["con
 type ThinkingCache = Map<string, Block[]>;
 
 /** Capability of the resolved upstream model, not the user's billing/model slot.
- * Fable 5.2 and Sonnet 5.5 accept tools with auto/none but rejects forced named/required tools.
+ * Fable 5.2 and Sonnet 5.5 accept tools with auto/none but reject forced named/required tools.
  * Preserve the existing protocol for all other and future model IDs. */
 export function supportsForcedToolChoice(actualModel: string): boolean {
   return !["claude-fable-5-2", "claude-sonnet-5-5"].includes(actualModel);
@@ -193,8 +193,20 @@ export function createPackyFetch(transport: typeof fetch = globalThis.fetch, res
     headers.set("anthropic-version", "2023-06-01");
     headers.delete("content-length");
     const abort = new AbortController();
-    const response = await transport(url, { method: "POST", headers, body: JSON.stringify(toMessages(params, thinkingCache)),
+    let response = await transport(url, { method: "POST", headers, body: JSON.stringify(toMessages(params, thinkingCache)),
       signal: AbortSignal.any([request.signal, abort.signal]) });
+    // cc-sale can intermittently reject a valid model before generation with
+    // HTTP 400 "unknown provider for model ...". Let the SDK use its existing
+    // bounded retry budget (one in production), without replaying any streamed
+    // output or masking the final status/body. Other 400s remain non-retryable.
+    if (response.status === 400) {
+      const error = await response.clone().json().catch(() => null);
+      if (typeof error?.error?.message === "string" && /^unknown provider for model claude-/i.test(error.error.message)) {
+        const retryHeaders = new Headers(response.headers);
+        retryHeaders.set("x-should-retry", "true");
+        response = new Response(response.body, { status: response.status, statusText: response.statusText, headers: retryHeaders });
+      }
+    }
     // Preserve real HTTP status/body so the SDK's retry and APIError handling
     // continue to work, including auth, rate limits and unavailable models.
     if (!response.ok) return response;
