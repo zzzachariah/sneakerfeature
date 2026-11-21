@@ -4,7 +4,7 @@ The production `app_settings` row `ai_model_catalog_v1` is the only active model
 
 Three selector IDs intentionally retain their original values for saved preferences and older clients. They represent economy (`claude-haiku-4-5-20251001`), balanced (`deepseek-v4-pro`), and flagship (`claude-opus-5`) slots, not upstream model identities. Entitlements and quotas are applied to the slot before resolving the actual model. Logs record the actual model; the final chat event also returns `actualModel`. Never rename these selectors or change quotas to rotate a model.
 
-Tool support includes tool-choice capabilities: production Fable 5.2 rejects forced named/required tools with HTTP 400. Its native transport uses `auto` while preserving the tool schemas; clarification and confirmed-recommendation prompts accept either the expected tool or complete JSON, with the same output validation. Other models keep their existing protocol. Verify both tool invocation and forced-choice support when rotating a model; listing tools alone does not establish both.
+Tool support includes tool-choice capabilities: production Fable 5.2 and Sonnet 5.5 reject forced named/required tools with HTTP 400. Their native transport uses `auto` while preserving the tool schemas; clarification and confirmed-recommendation prompts accept either the expected tool or complete JSON, with the same output validation. Other models keep their existing protocol. Verify both tool invocation and forced-choice support when rotating a model; listing tools alone does not establish both.
 
 The row shape is:
 
