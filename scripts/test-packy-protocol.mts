@@ -204,6 +204,44 @@ assert.equal(sonnetChunks.flatMap(chunk => chunk.choices[0]?.delta.tool_calls ??
 assert.equal(sonnetChunks.at(-1)!.choices[0].finish_reason, "tool_calls");
 
 
+// Real SDK retry behavior: only pre-generation routing errors may consume the
+// existing one-retry budget; preserve the request and exhausted error exactly.
+const retryClient = new OpenAI({ apiKey: key, baseURL: "https://cf.api.fan/v1", maxRetries: 1,
+  fetch: createPackyFetch(transport) });
+const routingError = { error: { message: "unknown provider for model claude-sonnet-5" } };
+const routingResponse = () => new Response(JSON.stringify(routingError), {
+  status: 400, headers: { "content-type": "application/json", "retry-after-ms": "1" }
+});
+const retryPayload = { ...payload, model: "claude-sonnet-5" };
+let retryCalls = 0;
+reply = () => ++retryCalls === 1 ? routingResponse() : new Response(JSON.stringify(native));
+await retryClient.chat.completions.create(retryPayload);
+assert.equal(retryCalls, 2);
+assert.deepEqual(calls.at(-1)!.body, calls.at(-2)!.body, "Retry keeps the pinned model and request");
+assert.equal(calls.at(-1)!.headers.get("authorization"), calls.at(-2)!.headers.get("authorization"));
+
+retryCalls = 0;
+reply = () => { retryCalls++; return routingResponse(); };
+await assert.rejects(retryClient.chat.completions.create(retryPayload), (error: any) => {
+  assert.equal(error.status, 400);
+  assert.equal(error.error.message, routingError.error.message);
+  return true;
+});
+assert.equal(retryCalls, 2, "Persistent routing errors stop after one retry");
+for (const status of [400, 401, 403]) {
+  retryCalls = 0;
+  reply = () => { retryCalls++; return new Response(JSON.stringify({ error: { message: "invalid request" } }), { status }); };
+  await assert.rejects(retryClient.chat.completions.create(retryPayload), (error: any) => error.status === status);
+  assert.equal(retryCalls, 1, "Validation and auth errors must not be retried");
+}
+retryCalls = 0;
+reply = () => ++retryCalls === 1 ? routingResponse() : sse(events);
+const retriedStream = await retryClient.chat.completions.create({ ...retryPayload, stream: true });
+const retriedChunks = [];
+for await (const chunk of retriedStream) retriedChunks.push(chunk);
+assert.equal(retryCalls, 2);
+assert.equal(retriedChunks.map(chunk => chunk.choices[0]?.delta.content ?? "").join(""), "抓地");
+
 const deepseek = { ...payload, model: "deepseek-v4-pro" };
 reply = () => new Response(JSON.stringify({ id: "deepseek", choices: [] }));
 await client.chat.completions.create(deepseek);
