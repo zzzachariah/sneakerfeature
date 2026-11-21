@@ -33,10 +33,10 @@ function blocks(content: OpenAI.Chat.Completions.ChatCompletionMessageParam["con
 type ThinkingCache = Map<string, Block[]>;
 
 /** Capability of the resolved upstream model, not the user's billing/model slot.
- * Fable 5.2 accepts tools with auto/none but rejects forced named/required tools.
+ * Fable 5.2 and Sonnet 5.5 accept tools with auto/none but rejects forced named/required tools.
  * Preserve the existing protocol for all other and future model IDs. */
 export function supportsForcedToolChoice(actualModel: string): boolean {
-  return actualModel !== "claude-fable-5-2";
+  return !["claude-fable-5-2", "claude-sonnet-5-5"].includes(actualModel);
 }
 
 function rememberThinking(cache: ThinkingCache, ids: string[], thinking: Block[]) {
