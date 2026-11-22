@@ -210,7 +210,7 @@ try{
   await assert.rejects(()=>recommendShoes(invalidClient,{shoes:shoes.slice(0,2),history:[],currentInput,count:3,confirmedPreferences:true}),expectedFailure("insufficient_catalog"));
   assert.equal(invalidCalls,1,"Unsupported counts fail before model work");
 
-  for(const failure of ["outside-candidates","too-few","truncated"] as const){
+  for(const failure of ["outside-candidates","too-few","no-eligible-court","truncated"] as const){
     stage="shortlist";
     let calls=0;
     const count=failure==="too-few"?3:1;
@@ -228,6 +228,10 @@ try{
       assert.match(text,/不能用抓地或缓震好来合理化不合脚/);
       if(failure==="truncated"&&calls===2)return (async function*(){yield{choices:[{delta:{content:""},finish_reason:"length"}]};})();
       if(failure==="truncated")assert.match(text,/without losing confirmed corrections, fit conflicts, per-shoe budget-currency verification/);
+      if(failure==="no-eligible-court"){
+        assert.equal(params.tools?.[0].function.parameters.properties.recommendations?.minItems,0,"The model may honestly report no eligible court match");
+        return stream({reply:"所有候选都有明确场地冲突，无法推荐。",title:"没有合适候选",follow_up:"",recommendations:[]},true,"recommend_shoes");
+      }
       const name=failure==="outside-candidates"?names[11]:names[0];
       return stream({reply:"根据确认后的舒适和宽脚需求选择，人民币现价仍未核实。",title:"确认后的需求",follow_up:"",recommendations:[{name,stars:4,reason:"目录记载缓震特征。宽脚和高脚背的适配仍需试穿。当前人民币售价未核实，无法确认在预算内。",pros:["目录记录缓震"],cons:["现价未核实"],references:[]}]},true,"recommend_shoes");
     }}}} as unknown as OpenAI;
