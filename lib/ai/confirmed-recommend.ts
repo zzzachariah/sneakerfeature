@@ -102,7 +102,7 @@ export function confirmedSourceMatches(name: string, hit: WebSearchHit): boolean
     for (let at = field.indexOf(model); at >= 0; at = field.indexOf(model, at + model.length)) {
       named = true;
       const suffix = field.slice(at + model.length);
-      if (/^(\d|ultra|pro(?!s)|elite|v[2-9]|low|high|mid|plus|premium|ep(?:review|basketball|shoe|$)|pf(?:review|basketball|shoe|$))/.test(suffix)) return false;
+      if (/^(\d|ultra|team|speed|pro(?!s)|elite|v[2-9]|low|high|mid|plus|premium|ep(?:review|basketball|shoe|$)|pf(?:review|basketball|shoe|$))/.test(suffix)) return false;
     }
   }
   return named && /basketball|sneaker|shoe|review|球鞋|篮球鞋|测评|评测|实战/i.test(`${hit.title} ${hit.snippet} ${path}`);
