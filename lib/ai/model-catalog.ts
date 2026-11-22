@@ -10,7 +10,7 @@ const entry = z.object({
 }).strict();
 export const modelCatalogSchema = z.object({
   version: z.literal(1),
-  group: z.enum(["cc-sale", "cc"]),
+  group: z.enum(["cc-sale", "cc-expensive"]),
   revision: z.string().min(1).max(80),
   models: z.object({ economy: entry, balanced: entry, flagship: entry }).strict(),
 }).strict();
