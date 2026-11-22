@@ -195,6 +195,12 @@ try{
   assert(!confirmedSourceMatches(names[0],{...hit,title:"Confirm Shoe 1 Pro Basketball Review",url:"https://evidence.example/confirm-shoe-1-pro"}));
   assert(!confirmedSourceMatches(names[0],{...hit,title:"Unrelated Basketball Review",url:"https://evidence.example/unrelated",snippet:"A snippet mentions Confirm Shoe 1"}));
 
+  for (const variant of ["TEAM", "SPEED"]) {
+    const variantHit={...hit,title:`ANTA KAI 2 ${variant} Basketball Shoe Guide`,url:`https://anta.com/blogs/kai-2-${variant.toLowerCase()}-guide`,snippet:"Outdoor basketball shoe review"};
+    assert(!confirmedSourceMatches("KAI 2",variantHit),"A base shoe must not inherit TEAM or SPEED construction evidence");
+    assert(confirmedSourceMatches(`KAI 2 ${variant}`,variantHit),"The exact variant keeps its own evidence");
+  }
+
   const searchTotal=queries.length;
   let invalidCalls=0;
   const invalidClient={chat:{completions:{create:async()=>{
