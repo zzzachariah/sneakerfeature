@@ -242,6 +242,33 @@ for await (const chunk of retriedStream) retriedChunks.push(chunk);
 assert.equal(retryCalls, 2);
 assert.equal(retriedChunks.map(chunk => chunk.choices[0]?.delta.content ?? "").join(""), "抓地");
 
+// Availability fallback is bounded, keeps credentials, and pins after success.
+let recoveryCalls: string[] = [];
+let recoveryStatuses = [503, 200, 200];
+let observedModel = "";
+const recoveryFetch = createPackyFetch(async (input,init) => {
+  const req=new Request(input,init);const body=await req.json();recoveryCalls.push(body.model);
+  assert.equal(req.headers.get("authorization"),`Bearer ${key}`);
+  const status=recoveryStatuses.shift() ?? 503;
+  return status===200 ? new Response(JSON.stringify({...native,model:body.model})) : new Response(JSON.stringify({error:{message:"fixture unavailable"}}),{status});
+},async()=>"claude-fable-5-2",{fallbackModel:"claude-sonnet-5",onModel:m=>{observedModel=m;}});
+const recovering=new OpenAI({apiKey:key,baseURL:"https://cf.api.fan/v1",maxRetries:0,fetch:recoveryFetch});
+await recovering.chat.completions.create(payload);
+await recovering.chat.completions.create(payload);
+assert.deepEqual(recoveryCalls,["claude-fable-5-2","claude-sonnet-5","claude-sonnet-5"]);
+assert.equal(observedModel,"claude-sonnet-5");
+for(const status of [400,401,403,503]) {
+ let attempts=0;
+ const failing=new OpenAI({apiKey:key,baseURL:"https://cf.api.fan/v1",maxRetries:0,fetch:createPackyFetch(async()=>{attempts++;return new Response("unavailable",{status});},undefined,{fallbackModel:"claude-sonnet-5"})});
+ await assert.rejects(failing.chat.completions.create(payload));
+ assert.equal(attempts,status===503?2:1);
+}
+let pinnedCalls=0;
+const pinned=new OpenAI({apiKey:key,baseURL:"https://cf.api.fan/v1",maxRetries:0,fetch:createPackyFetch(async()=>++pinnedCalls===1?new Response(JSON.stringify(native)):new Response("unavailable",{status:503}),undefined,{fallbackModel:"claude-sonnet-5"})});
+await pinned.chat.completions.create(payload);
+await assert.rejects(pinned.chat.completions.create(payload));
+assert.equal(pinnedCalls,2,"Do not switch after successful tool context/stream begins");
+
 const deepseek = { ...payload, model: "deepseek-v4-pro" };
 reply = () => new Response(JSON.stringify({ id: "deepseek", choices: [] }));
 await client.chat.completions.create(deepseek);

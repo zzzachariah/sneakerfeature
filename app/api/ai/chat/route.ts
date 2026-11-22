@@ -13,6 +13,7 @@ import { isValidPersona, type Persona } from "@/lib/persona/types";
 import { isFootProfile, type FootProfile } from "@/lib/foot-scan/types";
 import {
   createPackyClientForModel,
+  getPackyActualModel,
   clientOptionsForModel,
   getPackyEnvReport,
   describePackyEnvProblem
@@ -214,9 +215,10 @@ export async function POST(request: Request) {
 
   // Fail fast if the AI provider isn't configured (before persisting anything).
   let actualModel: string;
-  try { actualModel = catalogModel(await getModelCatalog(), model)!.model; }
+  let fallbackModel: string | undefined;
+  try { const selected = catalogModel(await getModelCatalog(), model)!; actualModel = selected.model; fallbackModel = selected.fallback?.model; }
   catch { return NextResponse.json({ ok: false, message: "AI model configuration is temporarily unavailable." }, { status: 503 }); }
-  const client = createPackyClientForModel(model, actualModel);
+  const client = createPackyClientForModel(model, actualModel, fallbackModel);
   if (!client) {
     const report = getPackyEnvReport(clientOptionsForModel(model));
     console.error("[ai/chat] packyapi not configured", { model, apiKey: report.apiKey, baseURL: report.baseURL });
@@ -336,7 +338,9 @@ export async function POST(request: Request) {
             },
             onProgress
           );
+          actualModel = getPackyActualModel(client, actualModel);
         } catch (error) {
+          actualModel = getPackyActualModel(client, actualModel);
           console.error("[ai/chat] recommend failed", { model: actualModel, elapsedMs: Date.now() - startedAt, error });
           // Report the model this request ACTUALLY ran on (`model` may have been
           // downgraded to the base model when the allowance ran out) — the old

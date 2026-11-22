@@ -54,6 +54,7 @@ const mocks: Record<string, unknown> = {
   publicClarification: (r: typeof rowBase) => ({ ...state, status: r.status }),
   clarificationResponse: async (_db: unknown, r: typeof rowBase) => ({ ok: true, clarification: true, userMessage: { id: "original" }, assistantMessage: { id: "questions", clarification: { ...state, status: r.status } } }),
   prepareChatClarification: async (args: unknown) => { events.push(["questions", args]); return { ok: true, clarification: true, assistantMessage: { clarification: state } }; },
+  getPackyActualModel: (_client: unknown, initial: string) => initial,
   createPackyClientForModel: (slot: string, actual: string) => { events.push(["client", { slot, actual }]); return {}; },
   clientOptionsForModel: () => ({}), getPackyEnvReport: () => ({}), describePackyEnvProblem: () => "Unavailable",
   getModelCatalog: async () => ({}), catalogModel: (_catalog: unknown, slot: string) => ({ model: `runtime-${slot}` }),

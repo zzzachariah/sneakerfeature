@@ -178,14 +178,18 @@ async function* completionEvents(response: Response, abort: AbortController, mod
   if (!stopped && !abort.signal.aborted) throw new Error("Claude stream ended before message_stop");
 }
 
-export function createPackyFetch(transport: typeof fetch = globalThis.fetch, resolveModel?: (model: string) => Promise<string>): typeof fetch {
+export function createPackyFetch(transport: typeof fetch = globalThis.fetch, resolveModel?: (model: string) => Promise<string>, recovery?: {fallbackModel?: string; onModel?: (model: string) => void}): typeof fetch {
   const thinkingCache: ThinkingCache = new Map();
+  let recoveredModel: string | undefined;
+  let hasSuccessfulResponse = false;
   return async (input, init) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
     if (request.method !== "POST" || !url.pathname.endsWith("/chat/completions")) return transport(input, init);
     const params = await request.clone().json() as Params;
     if (resolveModel) params.model = await resolveModel(params.model);
+    if (recoveredModel) params.model = recoveredModel;
+    recovery?.onModel?.(params.model);
     if (!params.model.startsWith("claude-")) return transport(new Request(request, { body: JSON.stringify(params) }));
 
     url.pathname = url.pathname.replace(/\/chat\/completions$/, "/messages");
@@ -195,6 +199,17 @@ export function createPackyFetch(transport: typeof fetch = globalThis.fetch, res
     const abort = new AbortController();
     let response = await transport(url, { method: "POST", headers, body: JSON.stringify(toMessages(params, thinkingCache)),
       signal: AbortSignal.any([request.signal, abort.signal]) });
+    // Switch once, only on an explicit pre-generation availability response.
+    // Never replay a started stream or bypass authentication/validation errors.
+    if (!hasSuccessfulResponse && !recoveredModel && recovery?.fallbackModel && recovery.fallbackModel !== params.model &&
+        (response.status === 429 || response.status >= 500) && !request.signal.aborted) {
+      await response.body?.cancel();
+      recoveredModel = recovery.fallbackModel;
+      params.model = recoveredModel;
+      recovery.onModel?.(recoveredModel);
+      response = await transport(url, { method: "POST", headers, body: JSON.stringify(toMessages(params, thinkingCache)),
+        signal: AbortSignal.any([request.signal, abort.signal]) });
+    }
     // cc-sale can intermittently reject a valid model before generation with
     // HTTP 400 "unknown provider for model ...". Let the SDK use its existing
     // bounded retry budget (one in production), without replaying any streamed
@@ -210,6 +225,7 @@ export function createPackyFetch(transport: typeof fetch = globalThis.fetch, res
     // Preserve real HTTP status/body so the SDK's retry and APIError handling
     // continue to work, including auth, rate limits and unavailable models.
     if (!response.ok) return response;
+    hasSuccessfulResponse = true;
     const responseHeaders = new Headers();
     const requestId = response.headers.get("request-id") ?? response.headers.get("x-oneapi-request-id");
     if (requestId) responseHeaders.set("x-request-id", requestId);

@@ -6,6 +6,7 @@ import { parseMemberPrefs, resolveModelChoice } from '../lib/subscription/resolv
 import { createPackyClientForModel } from '../lib/ai/packy-client';
 
 assert(modelCatalogSchema.safeParse(DEFAULT_MODEL_CATALOG).success);
+assert(modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG,group:"cc"}).success);
 assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, group:'cc-expensive'}).success);
 assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, apiKey:'never-public'}).success);
 assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, models:{...DEFAULT_MODEL_CATALOG.models, flagship:{model:'https://evil.test',name:'unsafe'}}}).success);
