@@ -146,7 +146,7 @@ function finalInstructions(count: number, zh: boolean): string {
       "EVIDENCE: Good/Excellent/Top-tier are not comparable lab tests; stars express confidence for this request, not measured performance. Cushioning materials do not establish outsole durability, traction or lifespan; causal explanations require direct exact-model evidence. Missing data is not a proven weakness. Do not repeat numeric review scores or marketing claims. Each reference must actually support this shoe's claim in its own evidence block. Copy exact titles/URLs, never another candidate or version's source; empty when unused.";
 }
 
-export async function confirmedRecommendationPipeline(client: OpenAI, opts: RecommendOpts, deps: ConfirmedPipelineDependencies, progress: OnProgress | undefined, deadline: Deadline): Promise<RecommendResult> {
+export async function confirmedRecommendationPipeline(client: OpenAI, opts: RecommendOpts, deps: ConfirmedPipelineDependencies, progress: OnProgress | undefined, deadline: Deadline, researchPass = 0): Promise<RecommendResult> {
   if (!Number.isInteger(opts.count) || opts.count < 1 || opts.count > 8) throw new ConfirmedRecommendationError("invalid_count");
   if (!opts.shoes.length) throw new ConfirmedRecommendationError("empty_catalog");
   if (opts.shoes.length < opts.count) throw new ConfirmedRecommendationError("insufficient_catalog");
@@ -252,8 +252,22 @@ export async function confirmedRecommendationPipeline(client: OpenAI, opts: Reco
       : {...base,messages,response_format:{type:"json_object"}},progress,deadline);
     const final = finalSchema.safeParse(jsonPayload(result,"recommend_shoes"));
     if (!final.success) {
+      console.warn("[ai/confirmed] Invalid result shape", {model, truncated:result?.finishReason === "length"});
       if (result?.finishReason === "length" && attempt === 0) continue;
       throw new ConfirmedRecommendationError("invalid_result");
+    }
+    // A valid empty result means the researched set has no eligible match.
+    // Explore one disjoint set with the SAME model and deadline, never recycle
+    // rejected shoes or turn malformed responses into generic recommendations.
+    if (final.data.recommendations.length === 0 && researchPass === 0 && hasBudget(deadline, 60_000)) {
+      const rejected = new Set(candidates.map(shoe => shoe.id));
+      const remaining = opts.shoes.filter(shoe => !rejected.has(shoe.id));
+      if (remaining.length >= count) {
+        progress?.({type:"status",phase:"shortlist",message:lang==="zh"?"当前候选不符合要求，正在核对另一组鞋款…":"No eligible match in this set; researching another candidate set…"});
+        const recovered = await confirmedRecommendationPipeline(client,{...opts,shoes:remaining},deps,progress,deadline,1);
+        const more = recovered.searchStats ?? {attempts:0,succeeded:0,failures:[]};
+        return {...recovered,searchStats:{attempts:stats.attempts+more.attempts,succeeded:stats.succeeded+more.succeeded,failures:[...stats.failures,...more.failures]}};
+      }
     }
     const seen = new Set<string>();
     const recommendations = final.data.recommendations.flatMap(rec => {
@@ -266,7 +280,10 @@ export async function confirmedRecommendationPipeline(client: OpenAI, opts: Reco
     }).slice(0,count);
     // A missing/invalid pick is not replaced by a heuristic shoe. Surface the
     // failure so the route can settle/refund according to its existing policy.
-    if (recommendations.length !== count) throw new ConfirmedRecommendationError("invalid_result");
+    if (recommendations.length !== count) {
+      console.warn("[ai/confirmed] Insufficient eligible result", {model,requested:count,returned:final.data.recommendations.length,matched:recommendations.length,researchPass});
+      throw new ConfirmedRecommendationError("invalid_result");
+    }
     return {reply:final.data.reply,title:final.data.title,followUp:"",recommendations,searchStats:stats,loopExitReason:"success"};
   }
   throw new ConfirmedRecommendationError("invalid_result");
