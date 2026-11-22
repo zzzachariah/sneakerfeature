@@ -280,7 +280,10 @@ export async function confirmedRecommendationPipeline(client: OpenAI, opts: Reco
     }).slice(0,count);
     // A missing/invalid pick is not replaced by a heuristic shoe. Surface the
     // failure so the route can settle/refund according to its existing policy.
-    if (recommendations.length !== count) throw new ConfirmedRecommendationError("invalid_result");
+    if (recommendations.length !== count) {
+      console.warn("[ai/confirmed] Insufficient eligible result", {model,requested:count,returned:final.data.recommendations.length,matched:recommendations.length,researchPass});
+      throw new ConfirmedRecommendationError("invalid_result");
+    }
     return {reply:final.data.reply,title:final.data.title,followUp:"",recommendations,searchStats:stats,loopExitReason:"success"};
   }
   throw new ConfirmedRecommendationError("invalid_result");
