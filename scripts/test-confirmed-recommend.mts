@@ -241,7 +241,7 @@ try{
       const name=failure==="outside-candidates"?names[11]:names[0];
       return stream({reply:"根据确认后的舒适和宽脚需求选择，人民币现价仍未核实。",title:"确认后的需求",follow_up:"",recommendations:[{name,stars:4,reason:"目录记载缓震特征。宽脚和高脚背的适配仍需试穿。当前人民币售价未核实，无法确认在预算内。",pros:["目录记录缓震"],cons:["现价未核实"],references:[]}]},true,"recommend_shoes");
     }}}} as unknown as OpenAI;
-    const run=()=>recommendShoes(client,{shoes,history:[],currentInput,count,confirmedPreferences:true,model:HAIKU_MODEL,replyLanguage:"zh",researchFocus:"wide feet high instep outdoor"});
+    const run=()=>recommendShoes(client,{shoes:failure==="no-eligible-court"?shoes.slice(0,count+2):shoes,history:[],currentInput,count,confirmedPreferences:true,model:HAIKU_MODEL,replyLanguage:"zh",researchFocus:"wide feet high instep outdoor"});
     if(failure==="truncated"){
       const result=await run();assert.equal(result.recommendations.length,1);assert.equal(calls,3,"A truncated answer retries once without another shortlist");
     }else{
@@ -250,6 +250,30 @@ try{
     }
     round++;
   }
+  for (const recover of [true,false]) {
+    stage="shortlist";
+    let calls=0;
+    const client={chat:{completions:{create:async(params:Request)=>{
+      calls++;
+      if(calls===1||calls===3){
+        const picks=names.slice(calls===1?0:3,calls===1?3:6);
+        if(calls===3){
+          const text=params.messages.map(message=>message.content).join("\n");
+          for(const rejected of names.slice(0,3)) assert(!text.includes(rejected),"The recovery catalog excludes every rejected candidate");
+        }
+        stage="search";
+        return stream({candidates:picks,research:picks.map(name=>({name,needs:["fit","price","weight","construction"]}))},true,"shortlist_shoes");
+      }
+      stage="final";
+      return stream({reply:"Only eligible outdoor shoes are considered.",title:"Outdoor picks",follow_up:"",recommendations:calls===4&&recover?[{name:names[3],stars:4,reason:"Documented outdoor compatibility; fit remains unverified.",pros:["Outdoor evidence"],cons:["Try on first"],references:[]}]:[]},true,"recommend_shoes");
+    }}}} as unknown as OpenAI;
+    const run=()=>recommendShoes(client,{shoes:shoes.slice(0,6),history:[],currentInput,count:1,confirmedPreferences:true,model:HAIKU_MODEL,replyLanguage:"en",researchFocus:"wide feet high instep outdoor",priceResearchFocus:"current price CNY"});
+    if(recover){const result=await run();assert.equal(result.recommendations[0].name,names[3]);assert.equal(result.searchStats?.attempts,12,"Search totals include both candidate sets");assert.equal(result.searchStats?.succeeded,11);}
+    else await assert.rejects(run,expectedFailure("invalid_result"));
+    assert.equal(calls,4,"Research expansion is bounded to one extra candidate set");
+    round++;
+  }
+
   console.log("PASS confirmed Smart Picker counts 1/3/8, native fragmented tools + JSON, Fable auto tool/JSON output and prose rejection, full-catalog shortlist before exact-model research, live prices/cache boundaries, three-worker cap, corrected context, same-model references, and failure without fabricated picks.");
 }finally{
   globalThis.fetch=originalFetch;
