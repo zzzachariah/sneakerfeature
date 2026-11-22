@@ -6,8 +6,8 @@ import { parseMemberPrefs, resolveModelChoice } from '../lib/subscription/resolv
 import { createPackyClientForModel } from '../lib/ai/packy-client';
 
 assert(modelCatalogSchema.safeParse(DEFAULT_MODEL_CATALOG).success);
-assert(modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG,group:"cc"}).success);
-assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, group:'cc-expensive'}).success);
+assert(modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG,group:"cc-expensive"}).success);
+assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, group:'cc'}).success);
 assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, apiKey:'never-public'}).success);
 assert(!modelCatalogSchema.safeParse({...DEFAULT_MODEL_CATALOG, models:{...DEFAULT_MODEL_CATALOG.models, flagship:{model:'https://evil.test',name:'unsafe'}}}).success);
 const next = structuredClone(DEFAULT_MODEL_CATALOG);
@@ -62,7 +62,7 @@ try {
   assert.equal(calls.at(-1)!.key,`Bearer ${key}`);
   assert.equal(calls.at(-1)!.model,catalogModel(active,slot)!.model);
  }
- active={...next,group:'cc-expensive'} as any;
+ active={...next,group:'cc'} as any;
  const before=calls.length;
  await assert.rejects(send(createPackyClientForModel(MODEL_IDS.opus)!,MODEL_IDS.opus));
  assert.equal(calls.length,before,'Invalid configuration must not reach provider');
