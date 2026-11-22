@@ -6,10 +6,11 @@ export const MODEL_CATALOG_KEY = "ai_model_catalog_v1";
 const entry = z.object({
   model: z.string().regex(/^claude-[a-z0-9][a-z0-9.-]{0,95}$/),
   name: z.string().trim().min(1).max(60),
+  fallback: z.object({ model: z.string().regex(/^claude-[a-z0-9][a-z0-9.-]{0,95}$/), name: z.string().trim().min(1).max(60) }).strict().optional(),
 }).strict();
 export const modelCatalogSchema = z.object({
   version: z.literal(1),
-  group: z.literal("cc-sale"),
+  group: z.enum(["cc-sale", "cc"]),
   revision: z.string().min(1).max(80),
   models: z.object({ economy: entry, balanced: entry, flagship: entry }).strict(),
 }).strict();

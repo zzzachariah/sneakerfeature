@@ -24,6 +24,7 @@ export type PackyClientOptions = {
   baseURLEnv?: readonly string[];
   /** Pin a validated upstream model for this entire turn. */
   modelOverride?: string;
+  fallbackModel?: string;
 };
 
 function apiKeyNames(opts?: PackyClientOptions): readonly string[] {
@@ -61,8 +62,12 @@ export function clientOptionsForModel(model: string): PackyClientOptions | undef
   return undefined;
 }
 
-export function createPackyClientForModel(model: string, actualModel?: string): OpenAI | null {
-  return createPackyClient({ ...clientOptionsForModel(model), modelOverride: actualModel });
+const actualModels = new WeakMap<OpenAI, string>();
+export function getPackyActualModel(client: OpenAI, initial: string): string {
+  return actualModels.get(client) ?? initial;
+}
+export function createPackyClientForModel(model: string, actualModel?: string, fallbackModel?: string): OpenAI | null {
+  return createPackyClient({ ...clientOptionsForModel(model), modelOverride: actualModel, fallbackModel });
 }
 
 export function normalizeBaseURL(raw: string): string {
@@ -224,5 +229,7 @@ export function createPackyClient(opts?: PackyClientOptions): OpenAI | null {
     snapshot ??= import("./model-catalog-server").then(m => m.getModelCatalog());
     return catalogModel(await snapshot, id)!.model;
   };
-  return new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1, fetch: createPackyFetch(globalThis.fetch, resolveModel) });
+  const client = new OpenAI({ apiKey, baseURL: normalizeBaseURL(baseURL), timeout: 180_000, maxRetries: 1,
+    fetch: createPackyFetch(globalThis.fetch, resolveModel, { fallbackModel: opts?.fallbackModel, onModel: model => actualModels.set(client, model) }) });
+  return client;
 }
